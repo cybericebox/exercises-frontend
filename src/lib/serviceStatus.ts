@@ -62,6 +62,36 @@ export function isNetworkOutage(error: unknown, signal?: AbortSignal | null): bo
   return !(error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError"))
 }
 
+// Short backend restarts must not flash the modal: after the first failure the
+// gate waits, probes, waits again and probes again; only when every probe fails
+// (about 30 s in all) does the outage show.
+export const OUTAGE_GRACE_MS = 15_000
+export const OUTAGE_GRACE_PROBES = 2
+
+/**
+ * Runs the grace period for a "suspect" status: one probe per OUTAGE_GRACE_MS,
+ * a success reports the API as available, and only the last failed probe
+ * confirms the outage. Returns a cancel function.
+ */
+export function startOutageGrace(probe: () => Promise<boolean>): () => void {
+  let cancelled = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const step = (left: number) => {
+    timer = setTimeout(async () => {
+      const ok = await probe()
+      if (cancelled) return
+      if (ok) reportServiceAvailable()
+      else if (left > 1) step(left - 1)
+      else confirmServiceUnavailable()
+    }, OUTAGE_GRACE_MS)
+  }
+  step(OUTAGE_GRACE_PROBES)
+  return () => {
+    cancelled = true
+    clearTimeout(timer)
+  }
+}
+
 // Long enough for a slow answer over a busy connection; a hung API still fails.
 const PROBE_TIMEOUT_MS = 10_000
 

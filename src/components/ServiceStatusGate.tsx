@@ -6,13 +6,11 @@ import { CREST_SRC } from "@/components/brand/Logo"
 import { Button } from "@/components/ui/button"
 import { t } from "@/i18n/t"
 import { apiOrigin } from "@/lib/origins"
-import { confirmServiceUnavailable, getServiceStatus, probeService, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
+import { getServiceStatus, probeService, reportServiceAvailable, startOutageGrace, subscribeServiceStatus } from "@/lib/serviceStatus"
 import "./ServiceStatusGate.css"
 
-// A failed call is confirmed by one probe before the modal shows, so a single
-// flaky request does not cover the page; the modal shows only when the probe
-// itself fails.
-const CONFIRM_MS = 3000
+// A failed call is confirmed by two probes 15 s apart (see startOutageGrace), so
+// a short backend restart never flashes the modal.
 // Seconds between automatic tries while the outage lasts.
 const BACKOFF_S = [3, 5, 10, 20, 30]
 
@@ -81,8 +79,8 @@ function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
 
 /**
  * App-wide outage modal, the same as the event site's. API calls report network
- * failures and 5xx into the status store; one probe confirms before the modal
- * shows. The page stays rendered and inert underneath; the modal cannot be
+ * failures and 5xx into the status store; two probes 15 s apart confirm before the
+ * modal shows. The page stays rendered and inert underneath; the modal cannot be
  * dismissed, retries on a 3/5/10/20/30 s backoff or on «Спробувати зараз», and
  * closes by itself once the API answers.
  */
@@ -91,11 +89,7 @@ export function ServiceStatusGate() {
 
   useEffect(() => {
     if (status !== "suspect") return
-    const id = window.setTimeout(async () => {
-      if (await probeService(apiOrigin)) reportServiceAvailable()
-      else confirmServiceUnavailable()
-    }, CONFIRM_MS)
-    return () => window.clearTimeout(id)
+    return startOutageGrace(() => probeService(apiOrigin))
   }, [status])
 
   const onCheck = useCallback(async () => {
