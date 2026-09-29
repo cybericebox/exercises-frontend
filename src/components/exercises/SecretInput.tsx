@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { t } from "@/i18n/t"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Button } from "@/components/ui/button"
 
 /**
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
  * Backend contract: Value is empty in responses, HasValue=true if a value is
  * stored; an empty Value on save means "keep the stored value". Therefore:
  *  - hasValue && value === "" → "value is stored" label + a "Replace" button;
- *  - replace mode / new secret → a password input; leaving it empty is fine
+ *  - replace mode / new secret → a password input with a reveal toggle; leaving it empty is fine
  *    (the stored value is left unchanged).
  */
 export function SecretInput({
@@ -41,9 +41,8 @@ export function SecretInput({
   }
 
   return (
-    <Input
+    <PasswordInput
       data-testid="secret-value-input"
-      type="password"
       autoComplete="new-password"
       value={value}
       disabled={disabled}
