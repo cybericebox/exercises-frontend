@@ -15,13 +15,16 @@ const fallback = en
 
 type MessageKey = keyof typeof en
 
+export type MessageVars = Record<string, string | number>
+
 /**
  * Translate a message key to the active-language (Ukrainian) string.
  * Falls back to English, then to the key itself (safe for static export).
+ * `{name}` placeholders are filled from `vars`.
  */
-export function t(key: MessageKey | string): string {
+export function t(key: MessageKey | string, vars?: MessageVars): string {
   const a = (active as Record<string, string>)[key]
-  if (a !== undefined) return a
-  const f = (fallback as Record<string, string>)[key]
-  return f ?? key
+  const text = a ?? (fallback as Record<string, string>)[key] ?? key
+  if (!vars) return text
+  return text.replace(/\{(\w+)\}/g, (match, name: string) => name in vars ? String(vars[name]) : match)
 }

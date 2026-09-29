@@ -47,7 +47,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   }
 
   if (info.kind === "event") {
-    return <span className="text-sm">{info.eventName ? t("exercises.accessCol.event").replace("{name}", info.eventName) : t("exercises.badge.event")}</span>
+    return <span className="text-sm">{info.eventName ? t("exercises.accessCol.event", { name: info.eventName }) : t("exercises.badge.event")}</span>
   }
   if (info.kind === "none") return <span className="text-muted-foreground">—</span>
   if (info.kind !== "selected") {

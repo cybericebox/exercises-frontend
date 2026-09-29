@@ -125,7 +125,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
               : candidates.map(row)}
             {!loading && !query && candidates.length > 0 && <p className="px-1.5 pt-1 text-xs text-muted-foreground">{t("exercises.access.searchHint")}</p>}
           </div>
-          <p className="text-xs text-muted-foreground">{t("exercises.access.selected").replace("{count}", String(value.eventIds.length))}</p>
+          <p className="text-xs text-muted-foreground">{t("exercises.access.selected", { count: value.eventIds.length })}</p>
         </div>
       )}
     </div>

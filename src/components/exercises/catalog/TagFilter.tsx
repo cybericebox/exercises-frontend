@@ -48,7 +48,7 @@ export function TagFilter({ value, onChange, className }: {
         {value.map((tag) => (
           <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary/40 px-2 py-0.5 text-xs text-foreground">
             {tag}
-            <button type="button" aria-label={t("admin.ex.filterTags.remove").replace("{tag}", tag)} onClick={() => onChange(value.filter((item) => item !== tag))}
+            <button type="button" aria-label={t("admin.ex.filterTags.remove", { tag })} onClick={() => onChange(value.filter((item) => item !== tag))}
               className="rounded-full focus-visible:outline-2 focus-visible:outline-primary">
               <X aria-hidden="true" className="h-3 w-3 opacity-60 hover:opacity-100" />
             </button>

@@ -77,7 +77,7 @@ export default function Page() {
   const atLimit = selected.size >= EXPORT_LIMIT
   const pageIds = rows.map((row) => row.ID)
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
-  const selectionLabel = t("admin.ex.selection.count").replace("{count}", String(selected.size))
+  const selectionLabel = t("admin.ex.selection.count", { count: selected.size })
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -171,6 +171,8 @@ export default function Page() {
   const defaults = defaultFilters(isAdmin)
   const filtered = Boolean(filters.search || filters.tags.length > 0 || filters.status !== "all" || filters.events.length > 0
     || filters.infrastructure || filters.scope !== defaults.scope)
+  // The events filter means different things per tab (server: owned, available, or both).
+  const eventsMode = filters.scope || "all"
   const statusOptions: StatusFilter[] = ["all", "published", "changed", "draft", ...(isAdmin ? ["archived" as const] : [])]
 
   return (
@@ -196,7 +198,7 @@ export default function Page() {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <FilterField label={t("exercises.scope.label")} help={t("exercises.help.scope")}>
           <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
-            {([...(isAdmin ? [""] : []), "catalog", "event"] as ScopeFilter[]).map((value) => (
+            {(["catalog", "event", ...(isAdmin ? [""] : [])] as ScopeFilter[]).map((value) => (
               <button key={value || "all"} type="button" role="radio" aria-checked={filters.scope === value}
                 onClick={() => update({ scope: value })}
                 className={`h-8 rounded px-3 text-sm ${filters.scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
@@ -206,8 +208,9 @@ export default function Page() {
           </div>
         </FilterField>
         {(eventOptions.length > 0 || filters.events.length > 0) && (
-          <FilterField label={t("exercises.filter.event")} help={t("exercises.help.events")}>
-            <EventMultiSelect options={eventOptions} value={filters.events} onChange={(events) => update({ events })} className="min-w-48 max-w-72 text-sm" />
+          <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={t(`exercises.help.events.${eventsMode}`)}>
+            <EventMultiSelect label={t(`exercises.filter.events.${eventsMode}`)} options={eventOptions} value={filters.events}
+              onChange={(events) => update({ events })} className="min-w-48 max-w-72 text-sm" />
           </FilterField>
         )}
         <FilterField label={t("exercises.filter.infra")} help={t("exercises.help.infra")}>

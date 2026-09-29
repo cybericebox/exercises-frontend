@@ -14,7 +14,8 @@ export function eventLabel(event: EventOption): string {
 }
 
 /** Checkbox list of events with a search box; the trigger names one event or counts several. */
-export function EventMultiSelect({ options, value, onChange, className }: {
+export function EventMultiSelect({ label, options, value, onChange, className }: {
+  label: string
   options: EventOption[]
   value: string[]
   onChange: (value: string[]) => void
@@ -34,7 +35,7 @@ export function EventMultiSelect({ options, value, onChange, className }: {
   const first = all.find((event) => event.ID === value[0])
   const summary = value.length === 0 ? t("exercises.filter.eventAll")
     : value.length === 1 && first ? eventLabel(first)
-      : t("exercises.filter.eventCount").replace("{count}", String(value.length))
+      : t("exercises.filter.eventCount", { count: value.length })
 
   function toggle(id: string) {
     onChange(value.includes(id) ? value.filter((item) => item !== id) : [...value, id])
@@ -43,7 +44,7 @@ export function EventMultiSelect({ options, value, onChange, className }: {
   return (
     <Popover onOpenChange={(open) => { if (!open) setSearch("") }}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" aria-label={t("exercises.filter.event")}
+        <Button type="button" variant="outline" aria-label={label}
           className={cn("h-10 justify-between font-normal", className)}>
           <span className="truncate">{summary}</span>
           <ChevronDown aria-hidden="true" className="ml-2 h-4 w-4 shrink-0 opacity-60" />
@@ -52,7 +53,7 @@ export function EventMultiSelect({ options, value, onChange, className }: {
       <PopoverContent className="w-72 space-y-2">
         <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
           placeholder={t("exercises.filter.eventSearch")} aria-label={t("exercises.filter.eventSearch")} className="h-9" />
-        <div role="group" aria-label={t("exercises.filter.event")} className="max-h-64 space-y-0.5 overflow-y-auto">
+        <div role="group" aria-label={label} className="max-h-64 space-y-0.5 overflow-y-auto">
           {visible.length === 0
             ? <p className="px-1.5 py-1 text-sm text-muted-foreground">{t("exercises.access.noEvents")}</p>
             : visible.map((event) => (
@@ -65,7 +66,7 @@ export function EventMultiSelect({ options, value, onChange, className }: {
         </div>
         {value.length > 0 && (
           <div className="flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
-            <span>{t("exercises.access.selected").replace("{count}", String(value.length))}</span>
+            <span>{t("exercises.access.selected", { count: value.length })}</span>
             <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onChange([])}>
               {t("exercises.filter.eventClear")}
             </Button>

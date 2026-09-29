@@ -351,7 +351,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = manager
     render(<Page />)
     await screen.findByText('SQLi basics')
-    for (const key of ['exercises.help.scope', 'exercises.help.events', 'exercises.help.infra', 'exercises.help.statusFilter',
+    for (const key of ['exercises.help.scope', 'exercises.help.events.event', 'exercises.help.infra', 'exercises.help.statusFilter',
       'exercises.help.accessCol', 'exercises.help.statusCol']) {
       expect(screen.getByRole('button', { name: key })).toBeInTheDocument()
     }
@@ -364,7 +364,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     }))
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.event' }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.events.event' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: /Winter CTF/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: /Spring CTF/ }))
     expect(await screen.findByText('Spring task')).toBeInTheDocument()
@@ -372,6 +372,19 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev1', page: 1, pageSize: 200 }))
     expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev2', page: 1, pageSize: 200 }))
     expect(window.location.search).toBe('?event=ev1&event=ev2')
+  })
+
+  it('orders scope tabs catalog, events, all and names the events filter by tab', async () => {
+    h.access = { ...manager, IsAdmin: true }
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event', 'exercises.scope.all'])
+    expect(screen.getByRole('button', { name: 'exercises.filter.events.all' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
+    expect(await screen.findByRole('button', { name: 'exercises.filter.events.catalog' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'exercises.help.events.catalog' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.event' }))
+    expect(await screen.findByRole('button', { name: 'exercises.filter.events.event' })).toBeInTheDocument()
   })
 
   it('restores filters from the URL', async () => {
