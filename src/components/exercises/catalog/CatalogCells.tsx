@@ -61,7 +61,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
     const origin = info.kind === "own" && info.eventIds[0] ? eventName(info.eventIds[0]) : undefined
     const level = t(`exercises.access.level.${info.kind}`)
     return origin
-      ? <HoverTooltip text={origin} describe><span className="whitespace-nowrap text-sm" tabIndex={0}>{level}</span></HoverTooltip>
+      ? <HoverTooltip text={origin}><span className="whitespace-nowrap text-sm">{level}{" "}<span className="sr-only">{origin}</span></span></HoverTooltip>
       : <span className="whitespace-nowrap text-sm">{level}</span>
   }
 

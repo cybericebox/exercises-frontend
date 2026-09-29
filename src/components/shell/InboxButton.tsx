@@ -402,7 +402,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
                 unread={unreadItem} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved
-                    ? <HoverTooltip text={formatInboxTime(item.CreatedAt)} describe className="min-w-0"><span className="min-w-0 truncate" tabIndex={0}>{resolvedLine(item)}</span></HoverTooltip>
+                    ? <HoverTooltip text={formatInboxTime(item.CreatedAt)} className="min-w-0"><span className="min-w-0 truncate">{resolvedLine(item)}{" "}<span className="sr-only">{formatInboxTime(item.CreatedAt)}</span></span></HoverTooltip>
                     : <time dateTime={item.CreatedAt} className="min-w-0 truncate">{formatInboxTime(item.CreatedAt)}</time>}
                   {!event && <EventLabel name={item.EventName} />}
                 </span>}

@@ -43,9 +43,10 @@ const INSERTION_GROUPS = [
 ] as const
 
 /** Candidate editor. The explicit mode switch never exposes the storage marker. */
+// The same explanation is already shown as help text below the field, so the hint is for the mouse only.
 function FlagModeLabel({ hint, children }: { hint?: string; children: string }) {
-  const label = <span className="exercise-flag-mode flex w-28 items-center bg-primary px-2 text-sm font-medium text-primary-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-foreground" tabIndex={hint ? 0 : undefined}>{children}</span>
-  return hint ? <HoverTooltip text={hint} describe className="h-full">{label}</HoverTooltip> : label
+  const label = <span className="exercise-flag-mode flex w-28 items-center bg-primary px-2 text-sm font-medium text-primary-foreground">{children}</span>
+  return hint ? <HoverTooltip text={hint} className="h-full">{label}</HoverTooltip> : label
 }
 
 export function FlagInput({
