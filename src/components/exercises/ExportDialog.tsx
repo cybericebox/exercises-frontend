@@ -16,6 +16,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [includeSecrets, setIncludeSecrets] = useState(false)
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,11 +57,11 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
         {includeSecrets && <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="export-password">{t("admin.exExport.password")}</Label>
-            <PasswordInput id="export-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <PasswordInput id="export-password" shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="export-confirm">{t("admin.exExport.confirm")}</Label>
-            <PasswordInput id="export-confirm" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+            <PasswordInput id="export-confirm" shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
           </div>
           <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
         </div>}

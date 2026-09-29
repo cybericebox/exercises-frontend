@@ -29,6 +29,20 @@ describe("ExportDialog", () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it("one reveal toggle shows and hides both the password and its confirmation", () => {
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.secrets" }))
+    const password = screen.getByLabelText("admin.exExport.password")
+    const confirm = screen.getByLabelText("admin.exExport.confirm")
+    fireEvent.click(screen.getAllByRole("button", { name: "admin.password.show" })[0])
+    expect(password).toHaveAttribute("type", "text")
+    expect(confirm).toHaveAttribute("type", "text")
+    expect(screen.getAllByRole("button", { name: "admin.password.hide" })).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole("button", { name: "admin.password.hide" })[1])
+    expect(password).toHaveAttribute("type", "password")
+    expect(confirm).toHaveAttribute("type", "password")
+  })
+
   it("requires a confirmed password when secrets are included", async () => {
     mockExport.mockResolvedValue({ blob: new Blob(["zip"]), filename: "x.zip" })
     render(<ExportDialog exerciseIds={["e1", "e2"]} onClose={vi.fn()} />)
