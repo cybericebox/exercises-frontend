@@ -319,20 +319,22 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
         HasPublished: true, HasDraft: true },
       { ...item, ID: 'e2', Name: 'Catalog one', AccessLevel: 'all', HasPublished: true, HasDraft: false },
       { ...item, ID: 'e3', Name: 'Archived one', AccessLevel: 'own', ArchivedAt: '2026-09-20T00:00:00Z' },
-    ], Total: 3, Page: 1, PageSize: 50 })
+      { ...item, ID: 'e4', Name: 'Hidden one', AccessLevel: 'none' },
+    ], Total: 4, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('Event one')
     expect(screen.getByText('exercises.accessCol.event')).toBeInTheDocument()
     expect(screen.queryByText('exercises.badge.event · Winter CTF')).not.toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.all')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.own')).toBeInTheDocument()
+    expect(screen.getByText('exercises.access.level.none')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.changed')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.published')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
-    expect(document.querySelectorAll('[data-status]')).toHaveLength(3)
+    expect(document.querySelectorAll('[data-status]')).toHaveLength(4)
   })
 
   it('lists the selected events of an exercise on demand', async () => {
@@ -344,7 +346,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     fireEvent.click(trigger)
     expect(await screen.findByText('Spring CTF')).toBeInTheDocument()
     expect(mockCard).toHaveBeenCalledWith(item.ID)
-    expect(screen.getByRole('button', { name: 'exercises.access.level.selected · 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'exercises.accessCol.selectedCount' })).toBeInTheDocument()
   })
 
   it('puts help icons next to the filters and the access / status headers', async () => {
@@ -353,7 +355,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     await screen.findByText('SQLi basics')
     for (const label of ['exercises.help.events.event', 'exercises.help.infra.needed exercises.help.infra.notNeeded',
       'exercises.help.statusFilter.published exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
-      'exercises.help.accessCol.who exercises.help.accessCol.event',
+      'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
       'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }

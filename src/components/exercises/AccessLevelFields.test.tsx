@@ -25,6 +25,16 @@ describe("AccessLevelFields event picker", () => {
     byId.mockResolvedValue({ ID: "e9", Name: "Old Cup", Tag: "old" })
   })
 
+  it("offers «unavailable to everyone» as the last option", async () => {
+    render(<Harness initial={{ level: "all", eventIds: [] }} />)
+    await act(async () => {})
+    const radios = screen.getAllByRole("radio")
+    expect(radios.map((radio) => (radio as HTMLInputElement).value)).toEqual(["all", "selected", "none"])
+    fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.none/ }))
+    expect(screen.getByRole("radio", { name: /exercises.access.level.none/ })).toBeChecked()
+    expect(screen.queryByTestId("access-events")).not.toBeInTheDocument()
+  })
+
   it("prefetches the nearest events before «selected» is chosen", async () => {
     render(<Harness initial={{ level: "all", eventIds: [] }} />)
     expect(nearest).toHaveBeenCalledTimes(1)

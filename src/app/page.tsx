@@ -270,7 +270,7 @@ export default function Page() {
                 <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
                 <th scope="col" className="sticky top-0 z-10 bg-card px-3 py-2 text-left font-medium">
-                  <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "event"])} /></span>
+                  <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "none", "event"])} /></span>
                 </th>
                 <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort}>
                   <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />

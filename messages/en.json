@@ -850,5 +850,10 @@
   "exercises.help.statusCol.draft": "Draft changes reach them after publishing.",
   "exercises.help.statusCol.archived": "Archived exercises are hidden from selection.",
   "exercises.help.tags.any": "Shows exercises with any of the selected tags.",
-  "exercises.help.tags.existing": "Only tags already used by exercises can be picked."
+  "exercises.help.tags.existing": "Only tags already used by exercises can be picked.",
+  "exercises.access.level.none": "Unavailable to everyone",
+  "exercises.access.help.none": "No event can add the exercise",
+  "exercises.access.help.ownNamed": "Only the event it came from: {name}",
+  "exercises.accessCol.selectedCount": "Selected events · {count}",
+  "exercises.help.accessCol.none": "\"Unavailable to everyone\" hides the exercise from all events."
 }

@@ -79,7 +79,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
   const candidates = useMemo(() => (query ? results?.query === query ? results.items : [] : nearest ?? [])
     .filter((event) => !value.eventIds.includes(event.ID)), [query, results, nearest, value.eventIds])
 
-  const levels: AccessChoice[] = allowOwn ? ["all", "selected", "own"] : ["all", "selected"]
+  const levels: AccessChoice[] = allowOwn ? ["all", "selected", "own", "none"] : ["all", "selected", "none"]
 
   function toggle(id: string) {
     const eventIds = value.eventIds.includes(id) ? value.eventIds.filter((item) => item !== id) : [...value.eventIds, id]
@@ -106,7 +106,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
             <span>
               <span className="text-foreground">{t(`exercises.access.level.${level}`)}</span>
               <span className="block text-xs text-muted-foreground">
-                {level === "own" && originEventName ? `${t("exercises.access.help.own")}: ${originEventName}` : t(`exercises.access.help.${level}`)}
+                {level === "own" && originEventName ? t("exercises.access.help.ownNamed", { name: originEventName }) : t(`exercises.access.help.${level}`)}
               </span>
             </span>
           </label>

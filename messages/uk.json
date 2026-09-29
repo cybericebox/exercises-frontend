@@ -850,5 +850,10 @@
   "exercises.help.statusCol.draft": "Зміни в чернетці зʼявляться в них після публікації.",
   "exercises.help.statusCol.archived": "Архівні завдання приховані з вибору.",
   "exercises.help.tags.any": "Показує завдання з будь-яким з обраних тегів.",
-  "exercises.help.tags.existing": "Обрати можна лише теги, що вже є в завданнях."
+  "exercises.help.tags.existing": "Обрати можна лише теги, що вже є в завданнях.",
+  "exercises.access.level.none": "Недоступно нікому",
+  "exercises.access.help.none": "Жодна подія не може додати завдання",
+  "exercises.access.help.ownNamed": "Лише подія, з якої воно надійшло: {name}",
+  "exercises.accessCol.selectedCount": "Обраним подіям · {count}",
+  "exercises.help.accessCol.none": "«Недоступно нікому» — завдання приховане від усіх подій."
 }

@@ -12,8 +12,8 @@ import type { CursorPage, OffsetPage } from "@/api/pagination"
 const BASE = "/api/exercises"
 
 export type ExerciseScope = "catalog" | "event"
-/** Catalog access level; "" for event-scoped exercises. */
-export type AccessLevel = "all" | "selected" | "own" | ""
+/** Catalog access level ("none" = no event may use it); "" for event-scoped exercises. */
+export type AccessLevel = "all" | "selected" | "own" | "none" | ""
 export type ForkedFrom = { ExerciseID: string; ExerciseName: string; VersionID: string }
 
 /** Per-exercise rights computed by the server for the caller. */

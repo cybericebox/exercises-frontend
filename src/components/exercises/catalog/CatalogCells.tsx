@@ -50,14 +50,14 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   if (info.kind === "event") {
     return <span className="text-sm">{info.eventName ? t("exercises.accessCol.event", { name: info.eventName }) : t("exercises.badge.event")}</span>
   }
-  if (info.kind === "none") return <span className="text-muted-foreground">—</span>
+  if (info.kind === "unknown") return <span className="text-muted-foreground">—</span>
   if (info.kind !== "selected") {
     const origin = info.kind === "own" && info.eventIds[0] ? eventName(info.eventIds[0]) : undefined
     return <span className="whitespace-nowrap text-sm" title={origin}>{t(`exercises.access.level.${info.kind}`)}</span>
   }
 
   const count = ids?.length
-  const label = count ? `${t("exercises.access.level.selected")} · ${count}` : t("exercises.access.level.selected")
+  const label = count ? t("exercises.accessCol.selectedCount", { count }) : t("exercises.access.level.selected")
 
   function load() {
     if (ids) { resolve(ids); return }

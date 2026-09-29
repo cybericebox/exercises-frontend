@@ -38,7 +38,8 @@ describe("accessInfo", () => {
       .toEqual({ kind: "selected", eventName: "", eventIds: ["e1", "e2"] })
     expect(accessInfo({ ...OWNERSHIP, AccessLevel: "own", OriginEventID: "e9" }))
       .toEqual({ kind: "own", eventName: "", eventIds: ["e9"] })
-    expect(accessInfo({ ...OWNERSHIP, AccessLevel: "" }).kind).toBe("none")
+    expect(accessInfo({ ...OWNERSHIP, AccessLevel: "none" }).kind).toBe("none")
+    expect(accessInfo({ ...OWNERSHIP, AccessLevel: "" }).kind).toBe("unknown")
   })
 })
 

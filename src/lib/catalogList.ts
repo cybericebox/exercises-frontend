@@ -26,7 +26,7 @@ export function headerStatus(exercise: { ArchivedAt: string | null; PublishedVer
   return exercise.DraftVersionID ? "draft" : "none"
 }
 
-export type AccessKind = "event" | "all" | "selected" | "own" | "none"
+export type AccessKind = "event" | "all" | "selected" | "own" | "none" | "unknown"
 export type AccessInfo = { kind: AccessKind; eventName: string; eventIds: string[] }
 
 /** Who can use the exercise: its owner event, or the catalog access level. */
@@ -35,7 +35,8 @@ export function accessInfo(item: Pick<ExerciseListItem, "Scope" | "OwnerEventNam
   if (item.AccessLevel === "selected") return { kind: "selected", eventName: "", eventIds: item.AccessEventIDs }
   if (item.AccessLevel === "own") return { kind: "own", eventName: "", eventIds: item.OriginEventID ? [item.OriginEventID] : [] }
   if (item.AccessLevel === "all") return { kind: "all", eventName: "", eventIds: [] }
-  return { kind: "none", eventName: "", eventIds: [] }
+  if (item.AccessLevel === "none") return { kind: "none", eventName: "", eventIds: [] }
+  return { kind: "unknown", eventName: "", eventIds: [] }
 }
 
 export type StatusFilter = "all" | "published" | "changed" | "draft" | "archived"
