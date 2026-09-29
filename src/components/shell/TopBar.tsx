@@ -11,7 +11,9 @@ import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
+import { useRef } from "react"
+import { Cookie, House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
+import { openConsentSettings } from "@/lib/consent"
 import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
@@ -56,8 +58,15 @@ function AppNav() {
   )
 }
 
+// «Налаштування cookie» only when GA (and so the consent banner) is configured.
+const HAS_ANALYTICS = Boolean(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID)
+
 export function TopBar() {
   const { me } = useRole()
+  // Set by the cookie item: on menu close, focus goes back to the trigger first, then the
+  // banner opens (it remembers the trigger and returns focus there).
+  const openConsentRef = useRef(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const { access } = useExerciseAccess()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
   const links = accountLinks(
@@ -82,6 +91,7 @@ export function TopBar() {
         <InboxButton />
         <DropdownMenu>
           <DropdownMenuTrigger
+            ref={triggerRef}
             aria-label={t("admin.accountMenu")}
             className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
           >
@@ -97,7 +107,17 @@ export function TopBar() {
               avatarInitials
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent
+            align="end"
+            className="w-56"
+            onCloseAutoFocus={(e) => {
+              if (!openConsentRef.current) return
+              openConsentRef.current = false
+              e.preventDefault()
+              triggerRef.current?.focus()
+              openConsentSettings()
+            }}
+          >
             <DropdownMenuLabel className="flex flex-col gap-0.5">
               <span className="font-medium">{fullName}</span>
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
@@ -111,6 +131,11 @@ export function TopBar() {
                 </DropdownMenuItem>
               )
             })}
+            {HAS_ANALYTICS && (
+              <DropdownMenuItem className="gap-2" onSelect={() => { openConsentRef.current = true }}>
+                <Cookie className="h-4 w-4" aria-hidden="true" />{t("consent.settings")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
               <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}

@@ -861,5 +861,11 @@
   "admin.exTopo.tabHelp.devices.open": "Click a device to open its settings on the diagram.",
   "admin.exTopo.tabHelp.connections.what": "Device interfaces connect to each other or to an enabled gateway.",
   "admin.exTopo.tabHelp.connections.gateway": "A gateway accepts only one connection.",
-  "admin.ex.status.changedBadge": "Draft has changes"
+  "admin.ex.status.changedBadge": "Draft has changes",
+  "consent.title": "Analytics cookies",
+  "consent.text": "We would like to use Google Analytics to understand how visitors use the platform. Analytics cookies are set only with your consent; declining does not limit any features. See the {link} for details.",
+  "consent.policyLink": "Cookie Policy",
+  "consent.accept": "Accept analytics",
+  "consent.reject": "Decline",
+  "consent.settings": "Cookie settings"
 }

@@ -1,5 +1,4 @@
 import "./globals.css"
-import { GoogleAnalytics } from "@next/third-parties/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { RoleProvider } from "@/lib/useRole"
@@ -8,6 +7,7 @@ import { ServiceStatusGate } from "@/components/ServiceStatusGate"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { Analytics } from "@/components/consent/Analytics"
 
 // noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
 export const metadata = { title: t("exercises.meta.title"), description: t("exercises.meta.description"), robots: { index: false, follow: false } }
@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
         </RoleProvider>
         <ServiceStatusGate />
-        {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />}
+        {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && <Analytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />}
       </body>
     </html>
   )

@@ -861,5 +861,11 @@
   "admin.exTopo.tabHelp.devices.open": "Натисніть на пристрій, щоб відкрити його налаштування на схемі.",
   "admin.exTopo.tabHelp.connections.what": "Інтерфейси пристроїв зʼєднуються між собою або з увімкненим шлюзом.",
   "admin.exTopo.tabHelp.connections.gateway": "Шлюз допускає лише одне зʼєднання.",
-  "admin.ex.status.changedBadge": "Є зміни в чернетці"
+  "admin.ex.status.changedBadge": "Є зміни в чернетці",
+  "consent.title": "Аналітичні cookie",
+  "consent.text": "Ми хочемо використовувати Google Analytics, щоб розуміти, як відвідувачі користуються платформою. Аналітичні cookie встановлюються лише з вашої згоди; відмова не обмежує жодних функцій. Докладніше — у {link}.",
+  "consent.policyLink": "Політиці cookie",
+  "consent.accept": "Прийняти аналітику",
+  "consent.reject": "Відхилити",
+  "consent.settings": "Налаштування cookie"
 }

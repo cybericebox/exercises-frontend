@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("@next/third-parties/google", () => ({ GoogleAnalytics: () => null }))
+vi.mock("@/components/consent/Analytics", () => ({ Analytics: () => null }))
 vi.mock("geist/font/sans", () => ({ GeistSans: { variable: "" } }))
 vi.mock("geist/font/mono", () => ({ GeistMono: { variable: "" } }))
 
