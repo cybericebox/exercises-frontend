@@ -93,7 +93,7 @@ export function DeviceCard({
           <FormField control={control} name={`${base}.Image`} render={({ field, fieldState }) => (
             <FormItem className={compact ? "space-y-1" : undefined}>
               <ExerciseFieldLabel labelKey="admin.exTopo.image" helpKey="admin.exTopo.imageHelp" form />
-              <FormControl><Input {...field} disabled={disabled} placeholder="nginx:1.27" /></FormControl>
+              <FormControl><Input {...field} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")} /></FormControl>
               {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
             </FormItem>
           )} />
@@ -327,7 +327,7 @@ function EnvVarsList({
                   <div className={`flex min-h-8 items-center justify-between gap-2 ${compact ? "pr-20 @min-[40rem]:pr-0" : "pr-20 sm:pr-0"}`}>
                     <ExerciseFieldLabel labelKey="admin.exEnv.name" helpKey="admin.exEnv.nameHelp" required form />
                   </div>
-                  <FormControl><Input {...nameField} aria-label={t("admin.exEnv.name")} required disabled={disabled} placeholder="DB_PASS"
+                  <FormControl><Input {...nameField} aria-label={t("admin.exEnv.name")} required disabled={disabled} placeholder={t("admin.exEnv.namePlaceholder")}
                     onChange={(event) => { nameField.onChange(event); if (fieldState.error) void trigger(`${name}.${ei}.Name`) }} /></FormControl>
                   {fieldState.error && <FormMessage data-error-slot className="leading-4" />}
                 </FormItem>

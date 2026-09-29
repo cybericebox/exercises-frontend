@@ -812,5 +812,18 @@
   "exercises.filter.events.all": "Events: own and available",
   "exercises.help.events.catalog": "Catalog exercises open to the selected events.",
   "exercises.help.events.event": "Exercises created in the selected events.",
-  "exercises.help.events.all": "The selected events' own exercises and catalog exercises open to them."
+  "exercises.help.events.all": "The selected events' own exercises and catalog exercises open to them.",
+  "ui.toast.region": "Action notifications",
+  "ui.toast.close": "Close notification: {message}",
+  "ui.banner.more": "Learn more",
+  "ui.banner.dismissError": "Could not close the banner. Try again.",
+  "ui.banner.dismiss": "Close banner",
+  "app.brand": "Cyber ICE Box",
+  "admin.exTopo.imagePlaceholder": "nginx:1.27",
+  "admin.exEnv.namePlaceholder": "DB_PASS",
+  "admin.exTopo.ifaceNamePlaceholder": "eth0",
+  "admin.exTopo.macPlaceholder": "02:42:ac:11:00:02",
+  "admin.exTopo.dhcp": "DHCP",
+  "admin.exTask.deviceFlagVarPlaceholder": "FLAG",
+  "editor.linkPlaceholder": "https://…"
 }

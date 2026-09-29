@@ -209,7 +209,7 @@ export function TaskForm({
         {linkedDeviceID && <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
           <FormItem className="w-full max-w-xs flex-1">
             <ExerciseFieldLabel labelKey="admin.exTask.deviceFlagVar" helpKey="admin.exTask.deviceFlagVarHelp" required form />
-            <FormControl><Input {...field} disabled={disabled} placeholder="FLAG" /></FormControl>
+            <FormControl><Input {...field} disabled={disabled} placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
             <FormMessage className="min-h-5 leading-5" />
           </FormItem>
         )} />}

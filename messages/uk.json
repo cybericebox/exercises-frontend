@@ -812,5 +812,18 @@
   "exercises.filter.events.all": "Події: власні та доступні",
   "exercises.help.events.catalog": "Завдання каталогу, відкриті для обраних подій.",
   "exercises.help.events.event": "Завдання, створені в обраних подіях.",
-  "exercises.help.events.all": "Власні завдання обраних подій і завдання каталогу, відкриті для них."
+  "exercises.help.events.all": "Власні завдання обраних подій і завдання каталогу, відкриті для них.",
+  "ui.toast.region": "Повідомлення про дії",
+  "ui.toast.close": "Закрити сповіщення: {message}",
+  "ui.banner.more": "Докладніше",
+  "ui.banner.dismissError": "Не вдалося закрити банер. Спробуйте ще раз.",
+  "ui.banner.dismiss": "Закрити банер",
+  "app.brand": "Cyber ICE Box",
+  "admin.exTopo.imagePlaceholder": "nginx:1.27",
+  "admin.exEnv.namePlaceholder": "DB_PASS",
+  "admin.exTopo.ifaceNamePlaceholder": "eth0",
+  "admin.exTopo.macPlaceholder": "02:42:ac:11:00:02",
+  "admin.exTopo.dhcp": "DHCP",
+  "admin.exTask.deviceFlagVarPlaceholder": "FLAG",
+  "editor.linkPlaceholder": "https://…"
 }

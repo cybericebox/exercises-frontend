@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import {
-  Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, LoaderCircle, Pencil, Play,
+  Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, Pencil, Play,
   RotateCcw, Send, ShieldCheck, Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
+import { Spinner } from "@/components/ui/spinner"
 import type { AutosaveStatus } from "@/lib/autosaveQueue"
 import type { ReactNode } from "react"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
@@ -102,7 +103,7 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
       {saved ? (
         <Check aria-hidden="true" className="h-3.5 w-3.5" />
       ) : (
-        <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+        <span aria-hidden="true" className="inline-flex"><Spinner size="sm" /></span>
       )}
       {t(saved ? "admin.exPage.save.saved" : "admin.exPage.save.saving")}
     </span>

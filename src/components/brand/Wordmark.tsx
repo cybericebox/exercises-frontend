@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Logo } from "./Logo"
 import { mainOrigin } from "@/lib/origins"
+import { t } from "@/i18n/t"
 
 // The landing (apex) origin — the brand lockup links here by default so the
 // organisation logo navigates home from every app.
@@ -34,7 +35,7 @@ export function Wordmark({
   const target = href === null ? null : href ?? LANDING_HREF
   if (!target) return lockup
   return (
-    <a href={target} aria-label="CyberICEBox" className="inline-flex no-underline">
+    <a href={target} aria-label={t("app.brand")} className="inline-flex no-underline">
       {lockup}
     </a>
   )

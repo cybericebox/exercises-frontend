@@ -705,7 +705,7 @@ function ToolbarPlugin({
                 setLinkUrl("");
               }
             }}
-            placeholder="https://…"
+            placeholder={t("editor.linkPlaceholder")}
             className="h-8 flex-1 text-sm border border-input rounded-md px-2 outline-none focus:border-primary bg-background text-foreground"
           />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleLinkInsert} disabled={!linkUrl}

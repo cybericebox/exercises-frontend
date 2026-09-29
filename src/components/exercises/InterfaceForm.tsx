@@ -183,7 +183,7 @@ export function InterfaceForm({
               <FormField control={control} name={`${name}.${ii}.Name`} render={({ field: nameField, fieldState }) => (
                 <FormItem className={compact ? "space-y-1" : undefined}>
                   <ExerciseFieldLabel labelKey="admin.exTopo.ifaceName" helpKey="admin.exTopo.ifaceNameHelp" required form />
-                  <FormControl><Input {...nameField} required disabled={disabled} placeholder="eth0" /></FormControl>
+                  <FormControl><Input {...nameField} required disabled={disabled} placeholder={t("admin.exTopo.ifaceNamePlaceholder")} /></FormControl>
                   {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
                 </FormItem>
               )} />
@@ -191,7 +191,7 @@ export function InterfaceForm({
                 <FormItem className={compact ? "space-y-1" : undefined}>
                   <ExerciseFieldLabel labelKey="admin.exTopo.mac" helpKey="admin.exTopo.macHelp" form />
                   <FormControl>
-                    <Input {...macField} disabled={disabled} placeholder="02:42:ac:11:00:02" />
+                    <Input {...macField} disabled={disabled} placeholder={t("admin.exTopo.macPlaceholder")} />
                   </FormControl>
                   {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
                 </FormItem>

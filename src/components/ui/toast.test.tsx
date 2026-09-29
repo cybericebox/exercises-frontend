@@ -23,7 +23,7 @@ describe("ToastProvider", () => {
     expect(screen.getByText("Збережено").closest("[data-tone]")).toHaveAttribute("data-tone", "success")
     expect(screen.getByText("Не вдалося зберегти").closest("[data-tone]")).toHaveAttribute("data-tone", "error")
     expect(screen.getByText("Збережено частково").closest("[data-tone]")).toHaveAttribute("data-tone", "warning")
-    fireEvent.click(screen.getByRole("button", { name: "Закрити сповіщення Збережено" }))
+    fireEvent.click(screen.getByRole("button", { name: "Закрити сповіщення: Збережено" }))
     expect(screen.queryByText("Збережено")).not.toBeInTheDocument()
   })
 

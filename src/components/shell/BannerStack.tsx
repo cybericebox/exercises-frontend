@@ -5,6 +5,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { X } from "lucide-react"
 import { apiGet, apiPatch } from "@/api/client"
 import { onServiceRestored } from "@/lib/serviceStatus"
+import { t } from "@/i18n/t"
 
 type Banner = {
   ID: string
@@ -62,8 +63,8 @@ export function BannerStack() {
 
   return <div role="status" aria-live="polite" className="border-b border-border bg-[var(--ib-soft)] px-4 py-3 md:px-6">
     <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{current.Title}</p><div className="mt-0.5 text-sm text-foreground" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(current.Body ?? "") }} />{link && <a href={link} className="mt-1 inline-block text-sm font-medium text-primary underline-offset-2 hover:underline">Докладніше</a>}{error && <p className="mt-1 text-xs text-destructive">Не вдалося закрити банер. Спробуйте ще раз.</p>}</div>
-      {current.Dismissible && <button type="button" aria-label="Закрити банер" title="Закрити банер" disabled={busy} onClick={() => void dismiss()} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"><X className="h-4 w-4" /></button>}
+      <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{current.Title}</p><div className="mt-0.5 text-sm text-foreground" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(current.Body ?? "") }} />{link && <a href={link} className="mt-1 inline-block text-sm font-medium text-primary underline-offset-2 hover:underline">{t("ui.banner.more")}</a>}{error && <p className="mt-1 text-xs text-destructive">{t("ui.banner.dismissError")}</p>}</div>
+      {current.Dismissible && <button type="button" aria-label={t("ui.banner.dismiss")} title={t("ui.banner.dismiss")} disabled={busy} onClick={() => void dismiss()} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"><X className="h-4 w-4" /></button>}
     </div>
   </div>
 }
