@@ -88,7 +88,7 @@ export function TopBar() {
       <div className="flex items-center gap-3">
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />
-        <InboxButton />
+        <InboxButton defaultTab="requestsIfOpen" />
         <DropdownMenu>
           <DropdownMenuTrigger
             ref={triggerRef}

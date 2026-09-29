@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { InboxButton } from "./InboxButton"
 
-const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }))
+const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), post: vi.fn() }))
 const access = vi.hoisted(() => ({ allowed: true }))
 const navigation = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock("@/api/client", () => ({ apiGet: api.get, apiPatch: api.patch }))
+vi.mock("@/api/client", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/api/client")>()), apiGet: api.get, apiPatch: api.patch, apiPost: api.post }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => access.allowed }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }))
 
@@ -36,6 +36,7 @@ describe("top-bar inbox", () => {
     })
     api.get.mockReset()
     api.patch.mockReset()
+    api.post.mockReset()
     navigation.push.mockReset()
     access.allowed = true
     mockInbox([{ ID: "1", Title: "Запрошення", Body: "Деталі запрошення", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
@@ -49,7 +50,8 @@ describe("top-bar inbox", () => {
     expect(await screen.findByText("1")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: /Вхідні/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Вхідні, непрочитані: 1" }))
-    fireEvent.click(await screen.findByRole("button", { name: "Позначити прочитаним" }))
+    const row = (await screen.findByText("Запрошення")).closest("li")!
+    fireEvent.click(within(row).getByRole("button", { name: "Позначити прочитаним" }))
     expect(screen.getByText("Деталі запрошення")).toBeInTheDocument()
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/1/read", {}))
   })
@@ -57,7 +59,8 @@ describe("top-bar inbox", () => {
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
-    fireEvent.click(await screen.findByRole("button", { name: "Позначити все прочитаним" }))
+    await screen.findByText("Запрошення")
+    fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
   })
@@ -128,7 +131,7 @@ describe("top-bar inbox", () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
+    expect(within(screen.getByText("Подія").closest("li")!).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
   })
 
   it("pops only fresh unread messages with a configured duration", async () => {
@@ -222,14 +225,76 @@ describe("top-bar inbox", () => {
     mockInbox([])
     render(<InboxButton />)
     fireEvent.click(screen.getByRole("button", { name: "Вхідні" }))
-    const empty = await screen.findByText("Повідомлень поки немає.")
+    const empty = await screen.findByText("Немає сповіщень")
     expect(empty.closest("[data-empty-state]")?.querySelector("svg path")?.getAttribute("d"))
       .toBe("M4.5 5.5h15L21.5 18a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2l2-12.5Z")
     expect(empty.closest("[data-empty-state]")?.querySelector("span")).toHaveClass("border")
     expect(empty.closest("[data-empty-state]")?.querySelector("svg")).toHaveClass("h-5", "w-5")
     expect(empty.closest("[data-empty-state]")?.parentElement).toHaveClass("min-h-48", "items-center", "justify-center")
-    expect(screen.getByRole("button", { name: "Позначити все прочитаним" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Позначити прочитаним" })).toBeDisabled()
     expect(document.querySelectorAll("svg.lucide-bell")).toHaveLength(2)
+  })
+
+  describe("categories (INBOX-DESIGN §8)", () => {
+    const counts = { All: 3, Requests: 1, Personal: 1, Activity: 1 }
+    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventName: "Зимовий CTF", Type: "event.lab.failed", Category: "requests", ActionRequired: true, ResolvedAt: null }
+    const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:03:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u2", Name: "Іван П." } }
+    const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal", ActionRequired: false }
+
+    function mockCategories(pollCounts: typeof counts = counts) {
+      api.get.mockImplementation((path: string) => {
+        const url = new URL(path, "http://x")
+        if (url.pathname.endsWith("/poll")) return Promise.resolve({ Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: pollCounts, OtherEventsCount: 0 })
+        const category = url.searchParams.get("category")
+        const all = [done, lab, personal]
+        return Promise.resolve({ Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: null })
+      })
+    }
+
+    it("opens on «Запити» when requests are open, lists open ones first and counts per tab", async () => {
+      mockCategories()
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
+      expect(await screen.findByRole("tab", { name: "Запити: 1" })).toHaveAttribute("aria-selected", "true")
+      expect(screen.getByRole("tab", { name: "Особисте: 1" })).toBeInTheDocument()
+      await screen.findByText("Лабораторія впала")
+      const rows = screen.getAllByRole("listitem")
+      expect(rows.map((row) => row.textContent)).toEqual([expect.stringContaining("Лабораторія впала"), expect.stringContaining("Схвалив Іван П.")])
+      expect(rows[1]).toHaveClass("opacity-60")
+      expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?category=requests")
+    })
+
+    it("opens on «Усі» without open requests and marks only the current tab read", async () => {
+      mockCategories({ All: 1, Requests: 0, Personal: 1, Activity: 0 })
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+      expect(await screen.findByRole("tab", { name: "Усі: 1" })).toHaveAttribute("aria-selected", "true")
+      fireEvent.click(screen.getByRole("tab", { name: "Особисте: 1" }))
+      await screen.findByText("Особисте повідомлення")
+      fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?category=personal", {}))
+    })
+
+    it("resolves an open «Лабораторія впала» request and shows why a resolve failed", async () => {
+      mockCategories()
+      const { ApiError } = await import("@/api/client")
+      api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219)).mockResolvedValueOnce(undefined)
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
+      const row = (await screen.findByText("Лабораторія впала")).closest("li")!
+      expect(within(screen.getByText("Нова заявка").closest("li")!).queryByRole("button", { name: "Вирішено" })).not.toBeInTheDocument()
+      fireEvent.click(within(row).getByRole("button", { name: "Вирішено" }))
+      expect(await screen.findByRole("alert")).toHaveTextContent("Запит уже вирішено")
+      fireEvent.click(within(row).getByRole("button", { name: "Вирішено" }))
+      await waitFor(() => expect(api.post).toHaveBeenLastCalledWith("/api/notifications/inbox/lab/resolve", {}))
+    })
+
+    it("shows only «Усі» when the backend sends no Counts", async () => {
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+      await screen.findByText("Запрошення")
+      expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+    })
   })
 
   it("is absent without access to own notifications", () => {
