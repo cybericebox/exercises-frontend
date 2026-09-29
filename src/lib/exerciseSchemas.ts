@@ -11,6 +11,8 @@ import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
+import { hintsAligned } from "@/lib/hintSync"
+import { MAX_HINTS, MAX_HINT_COST, MAX_HINT_TEXT } from "@/lib/hintLimits"
 import type {
   ConnectionDTO,
   DeviceDTO,
@@ -397,6 +399,14 @@ const placeholderSchema = z
     }
   })
 
+// Text may stay empty in a draft; the server requires it at publish (20951).
+const hintSchema = z.object({
+  ID: z.string(),
+  Text: z.string().max(MAX_HINT_TEXT, t("exercises.hints.val.text")),
+  Cost: z.number({ error: t("exercises.hints.val.cost") }).int(t("exercises.hints.val.cost"))
+    .min(0, t("exercises.hints.val.cost")).max(MAX_HINT_COST, t("exercises.hints.val.cost")),
+})
+
 const taskSchema = z.object({
   ID: z.string(),
   Name: z.string().trim().min(3, t("admin.ex.val.taskName")).max(50, t("admin.ex.val.taskName")),
@@ -419,6 +429,7 @@ const taskSchema = z.object({
   DeviceFlagVar: z.string(),
   Attachments: z.array(z.object({ FileID: z.string(), Name: z.string() })),
   Placeholders: z.array(placeholderSchema),
+  Hints: z.array(hintSchema).max(MAX_HINTS, t("exercises.hints.val.max")),
 })
 
 const variantSchema = z.object({
@@ -475,6 +486,13 @@ export const draftSchema = z
       }
       if (i > 0) variant.Tasks.forEach((task, taskIndex) => {
         const canonical = draft.Variants[0].Tasks[taskIndex]
+        if (canonical && !hintsAligned(task.Hints, canonical.Hints)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["Variants", i, "Tasks", taskIndex, "Hints"],
+            message: t("exercises.hints.val.mismatch"),
+          })
+        }
         if (canonical && task.Difficulty !== canonical.Difficulty) {
           ctx.addIssue({
             code: "custom",
@@ -499,6 +517,7 @@ export function emptyTask(): TaskFormValues {
     DeviceFlagVar: "",
     Attachments: [],
     Placeholders: [],
+    Hints: [],
   }
 }
 
@@ -614,6 +633,7 @@ function taskToDTO(task: TaskFormValues): TaskDTO {
     ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
     Attachments: task.Attachments,
     Placeholders: task.Placeholders.map(placeholderToDTO),
+    Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Cost: hint.Cost })),
   }
 }
 

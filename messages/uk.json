@@ -674,5 +674,9 @@
   "admin.exPh.device.placeholder": "Оберіть пристрій…",
   "exercises.app.title": "Каталог завдань",
   "exercises.returnToEvent": "Повернутися до події",
-  "exercises.noAccess.body": "У вас немає доступу до каталогу завдань."
+  "exercises.noAccess.body": "У вас немає доступу до каталогу завдань.",
+  "exercises.hints.val.max": "Не більше 10 підказок на завдання",
+  "exercises.hints.val.text": "Текст підказки задовгий (до 2000 символів)",
+  "exercises.hints.val.cost": "Вартість — ціле число від 0 до 10000",
+  "exercises.hints.val.mismatch": "Підказки різняться між варіантами: кількість і вартість мають збігатися"
 }

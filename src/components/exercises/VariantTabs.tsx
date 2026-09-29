@@ -7,6 +7,7 @@ import { t } from "@/i18n/t"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { emptyTask, emptyVariant, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { hintsForNewVariant } from "@/lib/hintSync"
 import { RemoveAction } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -35,7 +36,7 @@ export function VariantTabs({
     // Task positions/IDs/difficulty are shared across variants. Content and
     // secrets are not: an alternate needs its own description and flags.
     variant.Tasks = getValues("Variants.0.Tasks").map((task) => ({
-      ...emptyTask(), ID: task.ID, Name: task.Name, Difficulty: task.Difficulty,
+      ...emptyTask(), ID: task.ID, Name: task.Name, Difficulty: task.Difficulty, Hints: hintsForNewVariant(task.Hints ?? []),
     }))
     append(variant)
     setSelected(fields.length)

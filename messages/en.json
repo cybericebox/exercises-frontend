@@ -674,5 +674,9 @@
   "admin.exPh.device.placeholder": "Choose a device…",
   "exercises.app.title": "Exercise catalog",
   "exercises.returnToEvent": "Back to event",
-  "exercises.noAccess.body": "You do not have access to the exercise catalog."
+  "exercises.noAccess.body": "You do not have access to the exercise catalog.",
+  "exercises.hints.val.max": "Up to 10 hints per task",
+  "exercises.hints.val.text": "Hint text is too long (max 2000)",
+  "exercises.hints.val.cost": "Cost is a whole number from 0 to 10000",
+  "exercises.hints.val.mismatch": "Hints differ between variants: count and cost must match"
 }

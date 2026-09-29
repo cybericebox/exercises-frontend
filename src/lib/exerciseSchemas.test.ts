@@ -809,6 +809,7 @@ function loadedVersion(): Version {
         DeviceFlagVar: 'FLAG',
         Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
         Placeholders: [{ Kind: 'vpn.subnet' }],
+        Hints: [],
       }],
       Topology: {
         VPN: { Enabled: true, DHCP: true },
@@ -911,6 +912,7 @@ describe('toSaveDraftInput', () => {
           DeviceFlagVar: 'FLAG',
           Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
           Placeholders: [{ Key: 'ph_legacy_0_0_0', Kind: 'vpn.subnet' }],
+          Hints: [],
         }],
         Topology: {
           VPN: { Enabled: true, DHCP: true },
