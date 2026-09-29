@@ -27,13 +27,18 @@ import { SortableHeader } from "@/components/ui/sortable-header"
 import { SelectMenu } from "@/components/ui/select-menu"
 
 /** Label row of a filter, with a help icon. */
-function FilterField({ label, help, helpContent, children, className }: { label: string; help?: string; helpContent?: React.ReactNode; children: React.ReactNode; className?: string }) {
+function FilterField({ label, help, helpContent, children, className }: { label: string; help?: string[]; helpContent?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">{label}{help && <FieldHelp text={help} content={helpContent} />}</span>
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">{label}{help && <FieldHelp lines={help} content={helpContent} />}</span>
       {children}
     </div>
   )
+}
+
+/** One i18n key per help line: `${prefix}.${name}`. */
+function helpLines(prefix: string, names: string[]): string[] {
+  return names.map((name) => t(`${prefix}.${name}`))
 }
 
 /** Filters from the URL (static export: read once on mount, no Suspense needed). */
@@ -199,7 +204,7 @@ export default function Page() {
         )}
       </div>
       <div className="mb-3 flex flex-wrap items-end gap-3">
-        <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value)).join("\n")}
+        <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value))}
           helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
             <li key={value || "all"}><strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong> — {t(`exercises.help.scope.${value || "all"}`)}</li>
           ))}</ul>}>
@@ -214,12 +219,12 @@ export default function Page() {
           </div>
         </FilterField>
         {(eventOptions.length > 0 || filters.events.length > 0) && (
-          <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={t(`exercises.help.events.${eventsMode}`)}>
+          <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={[t(`exercises.help.events.${eventsMode}`)]}>
             <EventMultiSelect label={t(`exercises.filter.events.${eventsMode}`)} options={eventOptions} value={filters.events}
               onChange={(events) => update({ events })} className="min-w-48 max-w-72 text-sm" />
           </FilterField>
         )}
-        <FilterField label={t("exercises.filter.infra")} help={t("exercises.help.infra")}>
+        <FilterField label={t("exercises.filter.infra")} help={helpLines("exercises.help.infra", ["needed", "notNeeded"])}>
           <SelectMenu value={filters.infrastructure} onChange={(value) => update({ infrastructure: value as InfrastructureFilter })}
             options={[
               { value: "", label: t("exercises.filter.infraAll") },
@@ -228,12 +233,12 @@ export default function Page() {
             ]}
             ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
         </FilterField>
-        <FilterField label={t("admin.ex.col.status")} help={t("exercises.help.statusFilter")}>
+        <FilterField label={t("admin.ex.col.status")} help={helpLines("exercises.help.statusFilter", ["published", "draftOnly"])}>
           <SelectMenu value={filters.status} onChange={(value) => update({ status: value as StatusFilter })}
             options={statusOptions.map((value) => ({ value, label: t(STATUS_OPTION_KEYS[value]) }))}
             ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
         </FilterField>
-        <FilterField label={t("admin.ex.filterTags.label")} className="min-w-64 max-w-md flex-1">
+        <FilterField label={t("admin.ex.filterTags.label")} help={helpLines("exercises.help.tags", ["any", "existing"])} className="min-w-64 max-w-md flex-1">
           <TagFilter value={filters.tags} onChange={(tags) => update({ tags })} />
         </FilterField>
       </div>
@@ -265,10 +270,10 @@ export default function Page() {
                 <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
                 <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
                 <th scope="col" className="sticky top-0 z-10 bg-card px-3 py-2 text-left font-medium">
-                  <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp text={t("exercises.help.accessCol")} /></span>
+                  <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "event"])} /></span>
                 </th>
                 <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort}>
-                  <FieldHelp text={t("exercises.help.statusCol")} />
+                  <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />
                 </SortableHeader>
                 <SortableHeader label={t("admin.ex.col.updated")} field="updated" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
               </tr>

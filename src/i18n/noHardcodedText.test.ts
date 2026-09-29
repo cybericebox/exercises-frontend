@@ -87,4 +87,13 @@ describe("i18n rule", () => {
       expect(blank, `blank values in ${lang}`).toEqual([])
     }
   })
+
+  it("keeps catalog help keys to one sentence each (one line per key)", () => {
+    for (const [lang, catalog] of [["en", en], ["uk", uk]] as const) {
+      const long = Object.entries(catalog as Record<string, string>)
+        .filter(([key, value]) => key.startsWith("exercises.help.") && (/[.!?]\s+\S/.test(value) || value.includes("\n")))
+        .map(([key]) => key)
+      expect(long, `multi-sentence help in ${lang}`).toEqual([])
+    }
+  })
 })

@@ -799,10 +799,6 @@
   "exercises.accessCol.event": "Event: {name}",
   "exercises.accessCol.eventsTitle": "Available to events",
   "exercises.help.label": "Explanation",
-  "exercises.help.infra": "Needed: the exercise deploys a lab stand, participants connect over VPN. Not needed: finding and submitting the flag is enough.",
-  "exercises.help.statusFilter": "\"Published\" includes exercises whose draft has changes. \"Draft only\" means never published.",
-  "exercises.help.accessCol": "Which events can add the exercise. An event exercise is available only to the event that created it.",
-  "exercises.help.statusCol": "Participants see only the published version. Draft changes reach them after publishing. Archived exercises are hidden from selection.",
   "exercises.access.searchHint": "Find other events with search",
   "exercises.meta.title": "Exercise catalog · Cyber ICE Box",
   "exercises.meta.description": "Cyber ICE Box exercise catalog: creating exercises, versions and access for events",
@@ -843,5 +839,16 @@
   "exercises.help.scope.all": "every platform and event exercise (admins only)",
   "exercises.help.scope.catalog": "shared exercises an admin opens to events",
   "exercises.help.scope.event": "created inside an event and belong only to it",
-  "exercises.help.scope.line": "{name} — {text}"
+  "exercises.help.scope.line": "{name} — {text}",
+  "exercises.help.infra.needed": "Needed: the exercise deploys a lab stand, participants connect over VPN.",
+  "exercises.help.infra.notNeeded": "Not needed: finding and submitting the flag is enough.",
+  "exercises.help.statusFilter.published": "\"Published\" includes exercises whose draft has changes.",
+  "exercises.help.statusFilter.draftOnly": "\"Draft only\" means never published.",
+  "exercises.help.accessCol.who": "Which events can add a catalog exercise.",
+  "exercises.help.accessCol.event": "An event exercise is available only to the event that created it.",
+  "exercises.help.statusCol.published": "Participants see only the published version.",
+  "exercises.help.statusCol.draft": "Draft changes reach them after publishing.",
+  "exercises.help.statusCol.archived": "Archived exercises are hidden from selection.",
+  "exercises.help.tags.any": "Shows exercises with any of the selected tags.",
+  "exercises.help.tags.existing": "Only tags already used by exercises can be picked."
 }

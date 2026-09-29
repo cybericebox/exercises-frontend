@@ -351,10 +351,22 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = manager
     render(<Page />)
     await screen.findByText('SQLi basics')
-    for (const key of ['exercises.help.events.event', 'exercises.help.infra', 'exercises.help.statusFilter',
-      'exercises.help.accessCol', 'exercises.help.statusCol']) {
-      expect(screen.getByRole('button', { name: key })).toBeInTheDocument()
+    for (const label of ['exercises.help.events.event', 'exercises.help.infra.needed exercises.help.infra.notNeeded',
+      'exercises.help.statusFilter.published exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
+      'exercises.help.accessCol.who exercises.help.accessCol.event',
+      'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
+  })
+
+  it('shows multi-sentence help one sentence per line', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.focus(screen.getByRole('button', { name: /^exercises.help.statusCol.published/ }))
+    const lines = within(await screen.findByRole('tooltip')).getAllByText(/^exercises.help.statusCol\./)
+    expect(lines.map((line) => [line.tagName, line.textContent])).toEqual([
+      ['P', 'exercises.help.statusCol.published'], ['P', 'exercises.help.statusCol.draft'], ['P', 'exercises.help.statusCol.archived'],
+    ])
   })
 
   it('filters by several events and keeps the filters in the URL', async () => {

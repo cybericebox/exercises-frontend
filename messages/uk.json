@@ -799,10 +799,6 @@
   "exercises.accessCol.event": "Подія: {name}",
   "exercises.accessCol.eventsTitle": "Доступно подіям",
   "exercises.help.label": "Пояснення",
-  "exercises.help.infra": "Потрібна — завдання розгортає стенд, учасники підключаються через VPN. Не потрібна — достатньо знайти й здати прапор.",
-  "exercises.help.statusFilter": "«Опубліковані» включає й завдання зі змінами в чернетці. «Лише чернетка» — ще жодного разу не опубліковані.",
-  "exercises.help.accessCol": "Які події можуть додати завдання. Завдання події доступне лише події, що його створила.",
-  "exercises.help.statusCol": "Учасники бачать лише опубліковану версію. Зміни в чернетці зʼявляться в них після публікації. Архівні завдання приховані з вибору.",
   "exercises.access.searchHint": "Інші події знайдіть через пошук",
   "exercises.meta.title": "Каталог завдань · Cyber ICE Box",
   "exercises.meta.description": "Каталог завдань Cyber ICE Box: створення, версії та доступ до завдань для подій",
@@ -843,5 +839,16 @@
   "exercises.help.scope.all": "усі завдання платформи й подій (лише для адміністраторів)",
   "exercises.help.scope.catalog": "спільні завдання, які адміністратор відкриває подіям",
   "exercises.help.scope.event": "створені всередині події, належать лише їй",
-  "exercises.help.scope.line": "{name} — {text}"
+  "exercises.help.scope.line": "{name} — {text}",
+  "exercises.help.infra.needed": "Потрібна — завдання розгортає стенд, учасники підключаються через VPN.",
+  "exercises.help.infra.notNeeded": "Не потрібна — достатньо знайти й здати прапор.",
+  "exercises.help.statusFilter.published": "«Опубліковані» включає й завдання зі змінами в чернетці.",
+  "exercises.help.statusFilter.draftOnly": "«Лише чернетка» — ще жодного разу не опубліковані.",
+  "exercises.help.accessCol.who": "Які події можуть додати завдання з каталогу.",
+  "exercises.help.accessCol.event": "Завдання події доступне лише події, що його створила.",
+  "exercises.help.statusCol.published": "Учасники бачать лише опубліковану версію.",
+  "exercises.help.statusCol.draft": "Зміни в чернетці зʼявляться в них після публікації.",
+  "exercises.help.statusCol.archived": "Архівні завдання приховані з вибору.",
+  "exercises.help.tags.any": "Показує завдання з будь-яким з обраних тегів.",
+  "exercises.help.tags.existing": "Обрати можна лише теги, що вже є в завданнях."
 }
