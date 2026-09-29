@@ -799,7 +799,6 @@
   "exercises.accessCol.event": "Event: {name}",
   "exercises.accessCol.eventsTitle": "Available to events",
   "exercises.help.label": "Explanation",
-  "exercises.help.scope": "The platform catalog holds shared exercises an admin opens to events; event exercises are created inside one event and belong only to it.",
   "exercises.help.infra": "Needed: the exercise deploys a lab stand, participants connect over VPN. Not needed: finding and submitting the flag is enough.",
   "exercises.help.statusFilter": "\"Published\" includes exercises whose draft has changes. \"Draft only\" means never published.",
   "exercises.help.accessCol": "Which events can add the exercise. An event exercise is available only to the event that created it.",
@@ -840,5 +839,9 @@
   "inbox.empty": "No notifications yet.",
   "inbox.unreadItem": "Unread",
   "inbox.new": "New notification",
-  "inbox.dismiss": "Dismiss notification"
+  "inbox.dismiss": "Dismiss notification",
+  "exercises.help.scope.all": "every platform and event exercise (admins only)",
+  "exercises.help.scope.catalog": "shared exercises an admin opens to events",
+  "exercises.help.scope.event": "created inside an event and belong only to it",
+  "exercises.help.scope.line": "{name} — {text}"
 }

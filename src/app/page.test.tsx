@@ -2,7 +2,7 @@
  * page.test.tsx — exercises catalog table and create link.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
@@ -351,7 +351,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = manager
     render(<Page />)
     await screen.findByText('SQLi basics')
-    for (const key of ['exercises.help.scope', 'exercises.help.events.event', 'exercises.help.infra', 'exercises.help.statusFilter',
+    for (const key of ['exercises.help.events.event', 'exercises.help.infra', 'exercises.help.statusFilter',
       'exercises.help.accessCol', 'exercises.help.statusCol']) {
       expect(screen.getByRole('button', { name: key })).toBeInTheDocument()
     }
@@ -374,17 +374,35 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(window.location.search).toBe('?event=ev1&event=ev2')
   })
 
-  it('orders scope tabs catalog, events, all and names the events filter by tab', async () => {
+  it('orders scope tabs all, catalog, events and names the events filter by tab', async () => {
     h.access = { ...manager, IsAdmin: true }
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event', 'exercises.scope.all'])
+    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
     expect(screen.getByRole('button', { name: 'exercises.filter.events.all' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.catalog' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'exercises.help.events.catalog' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.event' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.event' })).toBeInTheDocument()
+  })
+
+  it('explains every visible scope tab in order, one line each', async () => {
+    h.access = { ...manager, IsAdmin: true }
+    const { unmount } = render(<Page />)
+    await screen.findByText('SQLi basics')
+    const help = screen.getByRole('button', { name: /exercises.help.scope.line/ })
+    fireEvent.focus(help)
+    const lines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
+    expect(lines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
+    expect(lines[1]).toHaveTextContent('exercises.help.scope.catalog')
+    unmount()
+    h.access = manager
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.focus(screen.getByRole('button', { name: /exercises.help.scope.line/ }))
+    const managerLines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
+    expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })
 
   it('restores filters from the URL', async () => {

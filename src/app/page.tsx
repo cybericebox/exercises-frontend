@@ -27,10 +27,10 @@ import { SortableHeader } from "@/components/ui/sortable-header"
 import { SelectMenu } from "@/components/ui/select-menu"
 
 /** Label row of a filter, with a help icon. */
-function FilterField({ label, help, children, className }: { label: string; help?: string; children: React.ReactNode; className?: string }) {
+function FilterField({ label, help, helpContent, children, className }: { label: string; help?: string; helpContent?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">{label}{help && <FieldHelp text={help} />}</span>
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">{label}{help && <FieldHelp text={help} content={helpContent} />}</span>
       {children}
     </div>
   )
@@ -171,6 +171,9 @@ export default function Page() {
   const defaults = defaultFilters(isAdmin)
   const filtered = Boolean(filters.search || filters.tags.length > 0 || filters.status !== "all" || filters.events.length > 0
     || filters.infrastructure || filters.scope !== defaults.scope)
+  // Broadest to narrowest; «Усі» is admin-only.
+  const scopeTabs: ScopeFilter[] = [...(isAdmin ? [""] as ScopeFilter[] : []), "catalog", "event"]
+  const scopeHelpLine = (value: ScopeFilter) => t("exercises.help.scope.line", { name: t(`exercises.scope.${value || "all"}`), text: t(`exercises.help.scope.${value || "all"}`) })
   // The events filter means different things per tab (server: owned, available, or both).
   const eventsMode = filters.scope || "all"
   const statusOptions: StatusFilter[] = ["all", "published", "changed", "draft", ...(isAdmin ? ["archived" as const] : [])]
@@ -196,9 +199,12 @@ export default function Page() {
         )}
       </div>
       <div className="mb-3 flex flex-wrap items-end gap-3">
-        <FilterField label={t("exercises.scope.label")} help={t("exercises.help.scope")}>
+        <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value)).join("\n")}
+          helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
+            <li key={value || "all"}><strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong> — {t(`exercises.help.scope.${value || "all"}`)}</li>
+          ))}</ul>}>
           <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
-            {(["catalog", "event", ...(isAdmin ? [""] : [])] as ScopeFilter[]).map((value) => (
+            {scopeTabs.map((value) => (
               <button key={value || "all"} type="button" role="radio" aria-checked={filters.scope === value}
                 onClick={() => update({ scope: value })}
                 className={`h-8 rounded px-3 text-sm ${filters.scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
