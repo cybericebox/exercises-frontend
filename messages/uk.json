@@ -905,7 +905,7 @@
   "accountMenu.signOut": "Вийти",
   "consent.menuLabel": "Файли cookie",
   "consent.settings": "Налаштування файлів cookie",
-  "back.toAdmin": "Перейти до адміністрування",
-  "back.toEvent": "Перейти до заходу",
-  "back.toCatalog": "Перейти до каталогу"
+  "back.toAdmin": "Повернутися до адміністрування",
+  "back.toEvent": "Повернутися до заходу",
+  "back.toCatalog": "Повернутися до каталогу завдань"
 }

@@ -905,7 +905,7 @@
   "accountMenu.signOut": "Sign out",
   "consent.menuLabel": "Cookies",
   "consent.settings": "Cookie settings",
-  "back.toAdmin": "Go to administration",
-  "back.toEvent": "Go to the event",
-  "back.toCatalog": "Go to the catalog"
+  "back.toAdmin": "Back to administration",
+  "back.toEvent": "Back to event",
+  "back.toCatalog": "Back to task catalog"
 }
