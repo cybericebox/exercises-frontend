@@ -138,7 +138,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
       aria-labelledby="cb-consent-title"
       tabIndex={-1}
       onKeyDown={onKeyDown}
-      className={`${BOX} max-h-[calc(100dvh-2rem)] max-w-[560px] overflow-y-auto p-5`}
+      className={`${BOX} max-h-[calc(100dvh-2rem)] max-w-[440px] overflow-y-auto p-5`}
     >
       <p id="cb-consent-title" className="text-base font-semibold text-foreground">
         {t("consent.panelTitle")}
