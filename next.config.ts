@@ -5,7 +5,7 @@ import type { NextConfig } from "next"
 const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
 
 const nextConfig: NextConfig = {
-  output: "export",
+  output: process.env.NODE_ENV === "production" ? "export" : undefined,
   images: {
     unoptimized: true,
   },
