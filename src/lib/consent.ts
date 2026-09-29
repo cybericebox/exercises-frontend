@@ -25,7 +25,6 @@ export const CONSENT_OPEN_EVENT = "cib:consent-open"
 export const CONSENT_CHANGE_EVENT = "cib:consent-change"
 
 export const ACCEPT_ALL: ConsentPrefs = { analytics: true }
-export const REJECT_ALL: ConsentPrefs = { analytics: false }
 
 export const CONSENT_DEFAULTS: ConsentState = {
   analytics_storage: "denied",

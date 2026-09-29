@@ -894,7 +894,6 @@
   "consent.necessary.switch": "Необхідні файли cookie завжди ввімкнені",
   "consent.analytics.title": "Аналітика",
   "consent.analytics.text": "Допомагає нам зрозуміти, як ви користуєтеся сайтом, щоб покращувати його (Google Analytics).",
-  "consent.acceptSelected": "Прийняти вибрані",
-  "consent.rejectAll": "Відхилити всі",
+  "consent.saveChoice": "Зберегти вибір",
   "consent.settings": "Налаштування файлів cookie"
 }

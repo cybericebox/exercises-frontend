@@ -894,7 +894,6 @@
   "consent.necessary.switch": "Necessary cookies are always on",
   "consent.analytics.title": "Analytics",
   "consent.analytics.text": "Helps us understand how you use the site so we can improve it (Google Analytics).",
-  "consent.acceptSelected": "Accept selected",
-  "consent.rejectAll": "Reject all",
+  "consent.saveChoice": "Save choice",
   "consent.settings": "Cookie settings"
 }

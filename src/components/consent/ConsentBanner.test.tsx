@@ -38,7 +38,7 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("region")).toBeNull()
   })
 
-  it("customize: necessary is locked on, analytics starts off; accept selected keeps it off", () => {
+  it("customize: necessary is locked on, analytics starts off; save choice keeps it off", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("Налаштувати")
     expect(panel()).toHaveFocus()
@@ -46,28 +46,32 @@ describe("ConsentBanner", () => {
     expect(necessary).toBeChecked()
     expect(necessary).toBeDisabled()
     expect(analytics).not.toBeChecked()
-    click("Прийняти вибрані")
+    click("Зберегти вибір")
     expect(document.cookie).toContain("cib_consent=analytics:denied")
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
-  it("customize: accept selected with analytics on grants it", () => {
+  it("customize: save choice with analytics on grants it", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("Налаштувати")
     fireEvent.click(screen.getByRole("switch", { name: "Аналітика" }))
-    click("Прийняти вибрані")
+    click("Зберегти вибір")
     expect(document.cookie).toContain("cib_consent=analytics:granted")
   })
 
-  it("reject all from the panel stores denied; Esc in the panel steps back without consent", () => {
+  it("the panel has only «Зберегти вибір» and «Прийняти всі»; saving with analytics off drops _ga; Esc steps back without consent", () => {
+    document.cookie = "_ga=GA1.1.1; path=/"
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     click("Налаштувати")
     fireEvent.keyDown(panel(), { key: "Escape" })
     expect(banner()).toBeInTheDocument()
     expect(document.cookie).not.toContain("cib_consent")
     click("Налаштувати")
-    click("Відхилити всі")
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Зберегти вибір", "Прийняти всі"])
+    expect(screen.queryByRole("button", { name: "Відхилити всі" })).toBeNull()
+    click("Зберегти вибір")
     expect(document.cookie).toContain("cib_consent=analytics:denied")
+    expect(document.cookie).not.toMatch(/(^|; )_ga=/)
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
