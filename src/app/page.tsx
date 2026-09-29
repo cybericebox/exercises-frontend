@@ -233,7 +233,7 @@ export default function Page() {
             ]}
             ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
         </FilterField>
-        <FilterField label={t("admin.ex.col.status")} help={helpLines("exercises.help.statusFilter", ["published", "draftOnly"])}>
+        <FilterField label={t("admin.ex.col.status")} help={helpLines("exercises.help.statusFilter", ["published", "changed", "draftOnly"])}>
           <SelectMenu value={filters.status} onChange={(value) => update({ status: value as StatusFilter })}
             options={statusOptions.map((value) => ({ value, label: t(STATUS_OPTION_KEYS[value]) }))}
             ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />

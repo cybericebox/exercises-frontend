@@ -37,9 +37,10 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   const [ids, setIds] = useState<string[] | null>(info.eventIds.length ? info.eventIds : null)
   const [failed, setFailed] = useState(false)
   const [names, setNames] = useState<Record<string, string>>({})
-  const nameOf = (id: string) => eventName(id) ?? names[id]
+  const listed = Object.fromEntries(item.AccessEvents.map((event) => [event.ID, event.Name]))
+  const nameOf = (id: string) => listed[id] || eventName(id) || names[id]
 
-  // Events outside the caller's known list: look the names up (admins); the ID stays as fallback.
+  // Names come with the list (admins); otherwise look them up, the ID stays as fallback.
   function resolve(list: string[]) {
     for (const id of list) {
       if (nameOf(id)) continue

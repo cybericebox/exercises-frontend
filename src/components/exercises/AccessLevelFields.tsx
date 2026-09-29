@@ -24,15 +24,18 @@ const SEARCH_LIMIT = 20
  * pinned on top. The list block has a fixed height and loads inside it, so
  * the dialog never shifts; events are prefetched when the fields mount.
  */
-export function AccessLevelFields({ value, onChange, allowOwn, originEventName, disabled }: {
+export function AccessLevelFields({ value, onChange, allowOwn, originEventName, disabled, knownEvents = [] }: {
   value: AccessValue
   onChange: (value: AccessValue) => void
   allowOwn: boolean
   originEventName?: string
   disabled?: boolean
+  /** Names the server already sent (AccessEvents); no lookup needed for them. */
+  knownEvents?: { ID: string; Name: string }[]
 }) {
   const [nearest, setNearest] = useState<EventOption[] | null>(null)
-  const [known, setKnown] = useState<Record<string, EventOption>>({})
+  const [known, setKnown] = useState<Record<string, EventOption>>(() =>
+    Object.fromEntries(knownEvents.map((event) => [event.ID, { ID: event.ID, Name: event.Name, Tag: "" }])))
   const [failed, setFailed] = useState(false)
   const [search, setSearch] = useState("")
   const [results, setResults] = useState<{ query: string; items: EventOption[] } | null>(null)
@@ -55,14 +58,14 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
   }, [])
 
   // Names of events selected before (they may not be among the nearest ones).
-  const [initialIds] = useState(value.eventIds)
+  const [missingIds] = useState(() => value.eventIds.filter((id) => !knownEvents.some((event) => event.ID === id)))
   useEffect(() => {
     let active = true
-    for (const id of initialIds) {
+    for (const id of missingIds) {
       getEventOption(id).then((item) => { if (active) remember([item]) }).catch(() => undefined)
     }
     return () => { active = false }
-  }, [initialIds])
+  }, [missingIds])
 
   useEffect(() => {
     if (!query) return

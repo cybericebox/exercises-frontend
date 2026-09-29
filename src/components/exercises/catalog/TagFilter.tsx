@@ -10,8 +10,11 @@ import { cn } from "@/utils/cn"
 
 /**
  * Tag filter: a combobox over existing tags (GET /exercises/tags?prefix=) with
- * multi-select chips. Only tags the API returns can be picked — no free text.
+ * multi-select chips. An empty field lists the most used tags. Only tags the
+ * API returns can be picked — no free text.
  */
+const TAG_LIMIT = 50
+
 export function TagFilter({ value, onChange, className }: {
   value: string[]
   onChange: (value: string[]) => void
@@ -19,25 +22,25 @@ export function TagFilter({ value, onChange, className }: {
 }) {
   const [draft, setDraft] = useState("")
   const [options, setOptions] = useState<ExerciseTagSuggestion[]>([])
-  const [loadedFor, setLoadedFor] = useState("")
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const listId = useId()
   const prefix = draft.trim()
 
   useEffect(() => {
-    if (!prefix) return
+    if (!open || loadedFor === prefix) return
     let current = true
     const id = setTimeout(() => {
-      listExerciseTags(prefix)
+      listExerciseTags(prefix, TAG_LIMIT)
         .then((items) => { if (current) { setOptions(items); setLoadedFor(prefix); setActive(-1) } })
         .catch(() => { if (current) { setOptions([]); setLoadedFor(prefix) } })
-    }, 200)
+    }, prefix ? 200 : 0)
     return () => { current = false; clearTimeout(id) }
-  }, [prefix])
+  }, [open, prefix, loadedFor])
 
-  const shown = prefix && loadedFor === prefix ? options : []
-  const expanded = open && prefix !== ""
+  const shown = loadedFor === prefix ? options : []
+  const expanded = open
   const selected = (tag: string) => value.some((item) => item.toLocaleLowerCase() === tag.toLocaleLowerCase())
 
   function toggle(tag: string) {

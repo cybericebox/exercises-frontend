@@ -15,6 +15,9 @@ export type ExerciseScope = "catalog" | "event"
 /** Catalog access level ("none" = no event may use it); "" for event-scoped exercises. */
 export type AccessLevel = "all" | "selected" | "own" | "none" | ""
 export type ForkedFrom = { ExerciseID: string; ExerciseName: string; VersionID: string }
+export type EventRef = { ID: string; Name: string }
+/** Server-derived single status of a list item. */
+export type ExerciseStatus = "none" | "draft_only" | "changed" | "published" | "archived"
 
 /** Per-exercise rights computed by the server for the caller. */
 export type ExercisePermissions = {
@@ -32,8 +35,11 @@ export type ExerciseOwnership = {
   Scope: ExerciseScope
   OwnerEventID: string | null
   OwnerEventName: string
+  OwnerEvent: EventRef | null
   AccessLevel: AccessLevel
   AccessEventIDs: string[]
+  /** Names of AccessEventIDs (admins only; empty for others). */
+  AccessEvents: EventRef[]
   OriginEventID: string | null
   ForkedFrom: ForkedFrom | null
   Infrastructure: boolean
@@ -49,6 +55,8 @@ export type ExerciseListItem = ExerciseOwnership & {
   Tags: string[]
   HasDraft: boolean
   HasPublished: boolean
+  /** null from an older API — callers derive it from HasDraft/HasPublished. */
+  Status: ExerciseStatus | null
   ArchivedAt: string | null
   CreatedAt: string
   UpdatedAt: string
@@ -83,9 +91,10 @@ export type ExerciseCreateInput = ExerciseIdentityInput & { OwnerEventID?: strin
 
 export type ExerciseTagSuggestion = { Tag: string; Count: number }
 
-/** Existing tags only; no separate tag registry or empty tags. */
-export async function listExerciseTags(prefix: string): Promise<ExerciseTagSuggestion[]> {
+/** Existing tags only; an empty prefix returns the most used ones (limit: default 50, max 200). */
+export async function listExerciseTags(prefix: string, limit?: number): Promise<ExerciseTagSuggestion[]> {
   const params = new URLSearchParams({ prefix })
+  if (limit) params.set("limit", String(limit))
   return apiGet<ExerciseTagSuggestion[]>(`${BASE}/tags?${params}`)
 }
 
@@ -105,7 +114,8 @@ export type ExercisesPageFilter = {
   status?: string
   archived?: ArchivedFilter
   scope?: ScopeFilter
-  event?: string
+  /** Up to 100 events: catalog scope = available to any, event scope = owned by any, "" = union. */
+  events?: string[]
   infrastructure?: InfrastructureFilter
   page: number
   pageSize: number
@@ -113,10 +123,11 @@ export type ExercisesPageFilter = {
   sortDir: "asc" | "desc"
 }
 
-type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs">> & { AccessEventIDs?: string[] | null }
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | keyof ExerciseOwnership> & RawOwnership & {
+type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs" | "AccessEvents">> & { AccessEventIDs?: string[] | null; AccessEvents?: EventRef[] | null }
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
+  Status?: ExerciseStatus | null
 }
 export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
@@ -130,9 +141,11 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
   return {
     Scope: scope,
     OwnerEventID: raw.OwnerEventID ?? null,
-    OwnerEventName: raw.OwnerEventName ?? "",
+    OwnerEventName: raw.OwnerEventName || raw.OwnerEvent?.Name || "",
+    OwnerEvent: raw.OwnerEvent ?? null,
     AccessLevel: scope === "event" ? "" : raw.AccessLevel ?? "",
-    AccessEventIDs: raw.AccessEventIDs ?? [],
+    AccessEventIDs: raw.AccessEventIDs ?? raw.AccessEvents?.map((event) => event.ID) ?? [],
+    AccessEvents: raw.AccessEvents ?? [],
     OriginEventID: raw.OriginEventID ?? null,
     ForkedFrom: raw.ForkedFrom ?? null,
     Infrastructure: raw.Infrastructure ?? false,
@@ -142,7 +155,7 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
 }
 
 function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
-  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null }
+  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, Status: raw.Status ?? null }
 }
 
 export function normalizeExercise(raw: RawExercise): Exercise {
@@ -177,7 +190,7 @@ export async function listExercisesPage(filter: ExercisesPageFilter): Promise<Of
   if (filter.status) p.set("status", filter.status)
   if (filter.archived === "only") p.set("archived", "only")
   if (filter.scope) p.set("scope", filter.scope)
-  if (filter.event) p.set("event", filter.event)
+  for (const event of filter.events ?? []) p.append("event", event)
   if (filter.infrastructure) p.set("infrastructure", filter.infrastructure)
   p.set("page", String(filter.page))
   p.set("pageSize", String(filter.pageSize))

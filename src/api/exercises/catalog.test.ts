@@ -88,14 +88,27 @@ describe('listExercisesPage', () => {
 
   it('sends offset, sort and filters and normalizes tags', async () => {
     mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, Tags: null }], Total: 51, Page: 2, PageSize: 25 })
-    const page = await listExercisesPage({ search: 'sql', tags: ['web'], status: 'draft', page: 2, pageSize: 25, sortBy: 'name', sortDir: 'asc' })
-    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?search=sql&tags=web&status=draft&page=2&pageSize=25&sortBy=name&sortDir=asc')
-    expect(page).toMatchObject({ Total: 51, Page: 2, PageSize: 25, Items: [{ Tags: [] }] })
+    const page = await listExercisesPage({ search: 'sql', tags: ['web'], status: 'draft_only', page: 2, pageSize: 25, sortBy: 'name', sortDir: 'asc' })
+    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?search=sql&tags=web&status=draft_only&page=2&pageSize=25&sortBy=name&sortDir=asc')
+    expect(page).toMatchObject({ Total: 51, Page: 2, PageSize: 25, Items: [{ Tags: [], Status: null }] })
+  })
+
+  it('keeps the server status, owner event and access event names', async () => {
+    mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, Status: 'changed', AccessLevel: 'selected',
+      OwnerEvent: null, AccessEvents: [{ ID: 'ev1', Name: 'Winter CTF' }], AccessEventIDs: null }], Total: 1, Page: 1, PageSize: 50 })
+    const page = await listExercisesPage({ page: 1, pageSize: 50, sortBy: 'updated', sortDir: 'desc' })
+    expect(page.Items[0]).toMatchObject({ Status: 'changed', AccessEvents: [{ ID: 'ev1', Name: 'Winter CTF' }], AccessEventIDs: ['ev1'] })
   })
 })
 
 describe('listExerciseTags', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('asks for the most used tags with an empty prefix and a limit', async () => {
+    mockApiGet.mockResolvedValueOnce([{ Tag: 'web', Count: 40 }])
+    await listExerciseTags('', 20)
+    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises/tags?prefix=&limit=20')
+  })
 
   it('requests prefix-matching catalog tags and keeps their exercise counts', async () => {
     mockApiGet.mockResolvedValueOnce([{ Tag: 'crypto', Count: 12 }])

@@ -2,18 +2,23 @@ import { describe, expect, it, vi } from "vitest"
 import type { ExerciseListItem, ExercisesPageFilter } from "@/api/exercises/catalog"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 import {
-  accessInfo, catalogStatus, compareExercises, defaultFilters, filtersFromSearch, filtersToSearch,
-  loadCatalogPage, MERGE_PAGE_SIZE, mergeById, needsLocalMerge, type CatalogFilters,
+  accessInfo, catalogStatus, defaultFilters, filtersFromSearch, filtersToSearch, loadCatalogPage, MAX_EVENTS, statusQuery, type CatalogFilters,
 } from "./catalogList"
 
 function row(id: string, patch: Partial<ExerciseListItem> = {}): ExerciseListItem {
   return {
-    ...OWNERSHIP, ID: id, Name: id, Description: "", Tags: [], HasDraft: false, HasPublished: true,
+    ...OWNERSHIP, ID: id, Name: id, Description: "", Tags: [], HasDraft: false, HasPublished: true, Status: null,
     ArchivedAt: null, CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z", ...patch,
   }
 }
 
 describe("catalogStatus", () => {
+  it("uses the server status when present", () => {
+    expect(catalogStatus({ ArchivedAt: null, HasDraft: true, HasPublished: true, Status: "published" })).toBe("published")
+    expect(catalogStatus({ ArchivedAt: null, HasDraft: true, HasPublished: false, Status: "draft_only" })).toBe("draft")
+    expect(catalogStatus({ ArchivedAt: null, HasDraft: false, HasPublished: false, Status: "changed" })).toBe("changed")
+  })
+
   it("gives one status per row", () => {
     expect(catalogStatus({ ArchivedAt: null, HasDraft: false, HasPublished: true })).toBe("published")
     expect(catalogStatus({ ArchivedAt: null, HasDraft: true, HasPublished: true })).toBe("changed")
@@ -73,79 +78,32 @@ describe("filters and the URL", () => {
   })
 })
 
-describe("compareExercises", () => {
-  it("sorts by status like the server and breaks ties by newest", () => {
-    const rows = [
-      row("none", { HasPublished: false }),
-      row("pub-old", { UpdatedAt: "2026-01-01T00:00:00Z" }),
-      row("draft", { HasPublished: false, HasDraft: true }),
-      row("pub-new", { UpdatedAt: "2026-02-01T00:00:00Z", HasDraft: true }),
-    ]
-    expect(rows.sort(compareExercises("status", "desc")).map((item) => item.ID)).toEqual(["pub-new", "pub-old", "draft", "none"])
-  })
-})
-
-describe("event multi-filter", () => {
+describe("server query", () => {
   const filters = (patch: Partial<CatalogFilters>): CatalogFilters => ({ ...defaultFilters(true), ...patch })
 
-  it("merges only when the server cannot answer", () => {
-    expect(needsLocalMerge({ events: [], status: "all" })).toBe(false)
-    expect(needsLocalMerge({ events: ["e1"], status: "published" })).toBe(false)
-    expect(needsLocalMerge({ events: ["e1", "e2"], status: "all" })).toBe(true)
-    expect(needsLocalMerge({ events: [], status: "changed" })).toBe(true)
-    expect(needsLocalMerge({ events: [], status: "draft" })).toBe(true)
+  it("maps status filters to the server values", () => {
+    expect(statusQuery("all")).toEqual({ status: "" })
+    expect(statusQuery("published")).toEqual({ status: "published" })
+    expect(statusQuery("changed")).toEqual({ status: "changed" })
+    expect(statusQuery("draft")).toEqual({ status: "draft_only" })
+    expect(statusQuery("archived")).toEqual({ status: "archived", archived: "only" })
   })
 
-  it("asks the server directly for one event", async () => {
+  it("sends every selected event in one paged request", async () => {
     const fetchPage = vi.fn(async (filter: ExercisesPageFilter) => ({ Items: [row("a")], Total: 7, Page: filter.page, PageSize: filter.pageSize }))
-    const res = await loadCatalogPage(fetchPage, filters({ events: ["e1"], scope: "catalog" }), 2, 25)
+    const res = await loadCatalogPage(fetchPage, filters({ events: ["e1", "e2"], scope: "catalog", status: "changed", sortBy: "status" }), 2, 25)
     expect(fetchPage).toHaveBeenCalledTimes(1)
-    expect(fetchPage).toHaveBeenCalledWith(expect.objectContaining({ event: "e1", scope: "catalog", page: 2, pageSize: 25, status: "" }))
+    expect(fetchPage).toHaveBeenCalledWith(expect.objectContaining({
+      events: ["e1", "e2"], scope: "catalog", status: "changed", sortBy: "status", page: 2, pageSize: 25,
+    }))
     expect(res.Total).toBe(7)
   })
 
-  it("unions what each selected event can use, without duplicates, then pages locally", async () => {
-    const byEvent: Record<string, ExerciseListItem[]> = {
-      e1: [row("shared"), row("own-1", { Scope: "event", OwnerEventID: "e1" })],
-      e2: [row("shared"), row("sel-2", { AccessLevel: "selected" }), row("own-2", { Scope: "event", OwnerEventID: "e2" })],
-    }
-    const fetchPage = vi.fn(async (filter: ExercisesPageFilter) => {
-      const items = byEvent[filter.event ?? ""] ?? []
-      return { Items: items, Total: items.length, Page: filter.page, PageSize: filter.pageSize }
-    })
-    const res = await loadCatalogPage(fetchPage, filters({ events: ["e1", "e2"], sortBy: "name", sortDir: "asc" }), 1, 3)
-    expect(fetchPage).toHaveBeenCalledTimes(2)
-    expect(fetchPage).toHaveBeenCalledWith(expect.objectContaining({ event: "e1", page: 1, pageSize: MERGE_PAGE_SIZE }))
-    expect(res.Total).toBe(4)
-    expect(res.Items.map((item) => item.ID)).toEqual(["own-1", "own-2", "sel-2"])
-    const second = await loadCatalogPage(fetchPage, filters({ events: ["e1", "e2"], sortBy: "name", sortDir: "asc" }), 2, 3)
-    expect(second.Items.map((item) => item.ID)).toEqual(["shared"])
-  })
-
-  it("filters draft-only and changed rows the server returns for draft / published", async () => {
-    const fetchPage = vi.fn(async (filter: ExercisesPageFilter) => {
-      const items = filter.status === "draft"
-        ? [row("draft-only", { HasDraft: true, HasPublished: false }), row("changed", { HasDraft: true })]
-        : [row("published"), row("changed", { HasDraft: true })]
-      return { Items: items, Total: items.length, Page: 1, PageSize: MERGE_PAGE_SIZE }
-    })
-    expect((await loadCatalogPage(fetchPage, filters({ status: "draft" }), 1, 50)).Items.map((item) => item.ID)).toEqual(["draft-only"])
-    expect((await loadCatalogPage(fetchPage, filters({ status: "changed" }), 1, 50)).Items.map((item) => item.ID)).toEqual(["changed"])
-    expect(fetchPage).not.toHaveBeenCalledWith(expect.objectContaining({ event: expect.anything() }))
-  })
-
-  it("reads every server page while merging", async () => {
-    const all = Array.from({ length: MERGE_PAGE_SIZE + 5 }, (_, i) => row(`r${String(i).padStart(3, "0")}`))
-    const fetchPage = vi.fn(async (filter: ExercisesPageFilter) => {
-      const start = (filter.page - 1) * filter.pageSize
-      return { Items: all.slice(start, start + filter.pageSize), Total: all.length, Page: filter.page, PageSize: filter.pageSize }
-    })
-    const res = await loadCatalogPage(fetchPage, filters({ events: ["e1", "e2"] }), 1, 50)
-    expect(fetchPage).toHaveBeenCalledTimes(4)
-    expect(res.Total).toBe(all.length)
-  })
-
-  it("dedupes by ID keeping the first copy", () => {
-    expect(mergeById([[row("a", { Name: "first" })], [row("a", { Name: "second" }), row("b")]]).map((item) => item.Name)).toEqual(["first", "b"])
+  it("leaves events out when none are selected and caps them at the server limit", async () => {
+    const fetchPage = vi.fn(async (filter: ExercisesPageFilter) => ({ Items: [], Total: 0, Page: filter.page, PageSize: filter.pageSize }))
+    await loadCatalogPage(fetchPage, filters({}), 1, 50)
+    expect(fetchPage.mock.calls[0][0]).not.toHaveProperty("events")
+    await loadCatalogPage(fetchPage, filters({ events: Array.from({ length: MAX_EVENTS + 5 }, (_, i) => `e${i}`) }), 1, 50)
+    expect(fetchPage.mock.calls[1][0].events).toHaveLength(MAX_EVENTS)
   })
 })

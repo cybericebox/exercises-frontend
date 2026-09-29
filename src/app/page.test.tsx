@@ -59,6 +59,7 @@ const item = {
   Tags: ['web', 'sql'],
   HasDraft: true,
   HasPublished: false,
+  Status: null,
   ArchivedAt: null,
   CreatedAt: '2026-01-01T00:00:00Z',
   UpdatedAt: '2026-01-02T00:00:00Z',
@@ -243,7 +244,7 @@ describe('exercises catalog — archive, export and import', () => {
     expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.ex.filterStatus' }), { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.ex.filterStatusArchived' }))
-    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ archived: 'only', status: '' })))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ archived: 'only', status: 'archived' })))
   })
 
   it('selects rows and opens bulk export', async () => {
@@ -354,7 +355,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     for (const label of ['exercises.help.events.event', 'exercises.help.infra.needed exercises.help.infra.notNeeded',
-      'exercises.help.statusFilter.published exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
+      'exercises.help.statusFilter.published exercises.help.statusFilter.changed exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
       'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
       'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
@@ -374,7 +375,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
   it('filters by several events and keeps the filters in the URL', async () => {
     h.access = { ...manager, Events: [manager.Events[0], { ...manager.Events[0], ID: 'ev2', Name: 'Spring CTF' }] }
     mockList.mockImplementation(async (filter) => ({
-      Items: filter.event === 'ev2' ? [{ ...item, ID: 'two', Name: 'Spring task' }] : [item], Total: 1, Page: 1, PageSize: filter.pageSize,
+      Items: filter.events?.includes('ev2') ? [item, { ...item, ID: 'two', Name: 'Spring task' }] : [item], Total: 1, Page: 1, PageSize: filter.pageSize,
     }))
     render(<Page />)
     await screen.findByText('SQLi basics')
@@ -383,8 +384,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /Spring CTF/ }))
     expect(await screen.findByText('Spring task')).toBeInTheDocument()
     expect(screen.getByText('SQLi basics')).toBeInTheDocument()
-    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev1', page: 1, pageSize: 200 }))
-    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev2', page: 1, pageSize: 200 }))
+    expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ events: ['ev1', 'ev2'], page: 1, pageSize: 50 }))
     expect(window.location.search).toBe('?event=ev1&event=ev2')
   })
 
@@ -419,12 +419,20 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })
 
+  it('lists the most used tags when the tag field is focused', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.focus(screen.getByRole('combobox', { name: 'admin.ex.filterTags.label' }))
+    expect(await screen.findByRole('option', { name: /crypto/ })).toBeInTheDocument()
+    expect(mockTags).toHaveBeenCalledWith('', 50)
+  })
+
   it('restores filters from the URL', async () => {
     window.history.replaceState(null, '', '/?status=changed&infra=yes&tag=web&sort=name&dir=asc')
     mockList.mockResolvedValue({ Items: [{ ...item, HasPublished: true, HasDraft: true }], Total: 1, Page: 1, PageSize: 200 })
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'published', infrastructure: 'yes', tags: ['web'], sortBy: 'name', sortDir: 'asc' }))
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'changed', infrastructure: 'yes', tags: ['web'], sortBy: 'name', sortDir: 'asc' }))
     expect(screen.getByRole('button', { name: 'admin.ex.filterStatus' })).toHaveTextContent('admin.ex.filterStatusChanged')
   })
 
@@ -433,7 +441,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     window.history.replaceState(null, '', '/?event=ev1')
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'event', event: 'ev1' }))
+    expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'event', events: ['ev1'] }))
     expect(screen.queryByRole('radio', { name: 'exercises.scope.all' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()

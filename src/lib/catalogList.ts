@@ -1,19 +1,21 @@
 /**
  * catalogList.ts — catalog table rules: one status per row, the access label,
- * the filters ↔ URL mapping and the list query.
- *
- * The API filters by one event and knows only the "draft" / "published" /
- * "none" statuses. Several events, «Є зміни в чернетці» and «Лише чернетка»
- * are answered here: every matching row is loaded per event (the server still
- * decides what each event can use), merged, filtered, sorted and paged locally.
+ * the filters ↔ URL mapping and the list query. Filtering, paging and sorting
+ * (several events, every status) happen on the server.
  */
-import type { ExerciseListItem, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
+import type { ExerciseListItem, ExerciseStatus, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
 import type { OffsetPage } from "@/api/pagination"
 
 /** The single status shown in the table. */
 export type CatalogStatus = "published" | "changed" | "draft" | "archived" | "none"
 
-export function catalogStatus(item: Pick<ExerciseListItem, "ArchivedAt" | "HasDraft" | "HasPublished">): CatalogStatus {
+const FROM_SERVER: Record<ExerciseStatus, CatalogStatus> = {
+  none: "none", draft_only: "draft", changed: "changed", published: "published", archived: "archived",
+}
+
+/** The server's Status; derived from the version flags for an older API. */
+export function catalogStatus(item: Pick<ExerciseListItem, "ArchivedAt" | "HasDraft" | "HasPublished"> & { Status?: ExerciseStatus | null }): CatalogStatus {
+  if (item.Status && item.Status in FROM_SERVER) return FROM_SERVER[item.Status]
   if (item.ArchivedAt) return "archived"
   if (item.HasPublished) return item.HasDraft ? "changed" : "published"
   return item.HasDraft ? "draft" : "none"
@@ -42,13 +44,13 @@ export function accessInfo(item: Pick<ExerciseListItem, "Scope" | "OwnerEventNam
 export type StatusFilter = "all" | "published" | "changed" | "draft" | "archived"
 export const STATUS_FILTERS: StatusFilter[] = ["all", "published", "changed", "draft", "archived"]
 
-/** The server part of a status filter, plus the row test the server cannot do. */
-export function statusQuery(status: StatusFilter): { status: string; archived?: "only"; keep?: (item: ExerciseListItem) => boolean } {
+/** Server status/archived params of a status filter. */
+export function statusQuery(status: StatusFilter): { status: string; archived?: "only" } {
   switch (status) {
     case "published": return { status: "published" }
-    case "changed": return { status: "published", keep: (item) => item.HasDraft }
-    case "draft": return { status: "draft", keep: (item) => !item.HasPublished }
-    case "archived": return { status: "", archived: "only" }
+    case "changed": return { status: "changed" }
+    case "draft": return { status: "draft_only" }
+    case "archived": return { status: "archived", archived: "only" }
     default: return { status: "" }
   }
 }
@@ -113,72 +115,19 @@ export function filtersToSearch(filters: CatalogFilters, isAdmin: boolean): stri
   return params.toString()
 }
 
-function statusRank(item: ExerciseListItem): number {
-  // Same order as the server: published > draft > nothing.
-  return item.HasPublished ? 2 : item.HasDraft ? 1 : 0
-}
-
-/** Local sort matching the server's ORDER BY (ties: newest first, then id). */
-export function compareExercises(sortBy: string, sortDir: SortDir): (a: ExerciseListItem, b: ExerciseListItem) => number {
-  const sign = sortDir === "asc" ? 1 : -1
-  const primary = (a: ExerciseListItem, b: ExerciseListItem): number => {
-    switch (sortBy) {
-      case "name": return a.Name.toLocaleLowerCase("uk").localeCompare(b.Name.toLocaleLowerCase("uk"), "uk")
-      case "tags": return a.Tags.join(",").toLocaleLowerCase("uk").localeCompare(b.Tags.join(",").toLocaleLowerCase("uk"), "uk")
-      case "status": return statusRank(a) - statusRank(b)
-      default: return a.UpdatedAt.localeCompare(b.UpdatedAt)
-    }
-  }
-  return (a, b) => sign * primary(a, b) || b.UpdatedAt.localeCompare(a.UpdatedAt) || (a.ID < b.ID ? 1 : a.ID > b.ID ? -1 : 0)
-}
-
-/** Union of several lists by exercise ID, first occurrence wins. */
-export function mergeById(lists: ExerciseListItem[][]): ExerciseListItem[] {
-  const seen = new Map<string, ExerciseListItem>()
-  for (const list of lists) for (const item of list) if (!seen.has(item.ID)) seen.set(item.ID, item)
-  return [...seen.values()]
-}
-
 export type PageFetcher = (filter: ExercisesPageFilter) => Promise<OffsetPage<ExerciseListItem>>
 
-/** Server page size limit (pkg/pagination.MaxPageSize) and a safety cap for local merging. */
-export const MERGE_PAGE_SIZE = 200
-export const MERGE_MAX_PAGES = 10
+/** The server accepts up to 100 events per request. */
+export const MAX_EVENTS = 100
 
-export function needsLocalMerge(filters: Pick<CatalogFilters, "events" | "status">): boolean {
-  return filters.events.length > 1 || Boolean(statusQuery(filters.status).keep)
-}
-
-async function fetchAll(fetchPage: PageFetcher, filter: Omit<ExercisesPageFilter, "page" | "pageSize">): Promise<ExerciseListItem[]> {
-  const items: ExerciseListItem[] = []
-  for (let page = 1; page <= MERGE_MAX_PAGES; page++) {
-    const res = await fetchPage({ ...filter, page, pageSize: MERGE_PAGE_SIZE })
-    items.push(...res.Items)
-    if (res.Items.length < MERGE_PAGE_SIZE || items.length >= res.Total) break
-  }
-  return items
-}
-
-/** One table page for the filters: straight from the server, or merged locally (see file header). */
-export async function loadCatalogPage(
-  fetchPage: PageFetcher,
-  filters: CatalogFilters,
-  page: number,
-  pageSize: number,
-): Promise<OffsetPage<ExerciseListItem>> {
-  const { status, archived, keep } = statusQuery(filters.status)
-  const base = {
+/** One table page for the filters, straight from the server. */
+export function loadCatalogPage(fetchPage: PageFetcher, filters: CatalogFilters, page: number, pageSize: number): Promise<OffsetPage<ExerciseListItem>> {
+  const { status, archived } = statusQuery(filters.status)
+  return fetchPage({
     search: filters.search, tags: filters.tags, status, archived,
     ...(filters.scope ? { scope: filters.scope } : {}),
+    ...(filters.events.length ? { events: filters.events.slice(0, MAX_EVENTS) } : {}),
     ...(filters.infrastructure ? { infrastructure: filters.infrastructure } : {}),
-    sortBy: filters.sortBy, sortDir: filters.sortDir,
-  }
-  if (!needsLocalMerge(filters)) {
-    return fetchPage({ ...base, ...(filters.events[0] ? { event: filters.events[0] } : {}), page, pageSize })
-  }
-  const targets = filters.events.length > 0 ? filters.events : [""]
-  const lists = await Promise.all(targets.map((event) => fetchAll(fetchPage, { ...base, ...(event ? { event } : {}) })))
-  const rows = mergeById(lists).filter((item) => !keep || keep(item)).sort(compareExercises(filters.sortBy, filters.sortDir))
-  const start = (page - 1) * pageSize
-  return { Items: rows.slice(start, start + pageSize), Total: rows.length, Page: page, PageSize: pageSize }
+    sortBy: filters.sortBy, sortDir: filters.sortDir, page, pageSize,
+  })
 }

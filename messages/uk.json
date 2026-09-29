@@ -842,7 +842,7 @@
   "exercises.help.scope.line": "{name} — {text}",
   "exercises.help.infra.needed": "Потрібна — завдання розгортає стенд, учасники підключаються через VPN.",
   "exercises.help.infra.notNeeded": "Не потрібна — достатньо знайти й здати прапор.",
-  "exercises.help.statusFilter.published": "«Опубліковані» включає й завдання зі змінами в чернетці.",
+  "exercises.help.statusFilter.published": "«Опубліковані» — учасники бачать актуальну версію, змін у чернетці немає.",
   "exercises.help.statusFilter.draftOnly": "«Лише чернетка» — ще жодного разу не опубліковані.",
   "exercises.help.accessCol.who": "Які події можуть додати завдання з каталогу.",
   "exercises.help.accessCol.event": "Завдання події доступне лише події, що його створила.",
@@ -855,5 +855,6 @@
   "exercises.access.help.none": "Жодна подія не може додати завдання",
   "exercises.access.help.ownNamed": "Лише подія, з якої воно надійшло: {name}",
   "exercises.accessCol.selectedCount": "Обраним подіям · {count}",
-  "exercises.help.accessCol.none": "«Недоступно нікому» — завдання приховане від усіх подій."
+  "exercises.help.accessCol.none": "«Недоступно нікому» — завдання приховане від усіх подій.",
+  "exercises.help.statusFilter.changed": "«Є зміни в чернетці» — опубліковано, але є ще не опубліковані правки."
 }

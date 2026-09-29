@@ -842,8 +842,8 @@
   "exercises.help.scope.line": "{name} — {text}",
   "exercises.help.infra.needed": "Needed: the exercise deploys a lab stand, participants connect over VPN.",
   "exercises.help.infra.notNeeded": "Not needed: finding and submitting the flag is enough.",
-  "exercises.help.statusFilter.published": "\"Published\" includes exercises whose draft has changes.",
-  "exercises.help.statusFilter.draftOnly": "\"Draft only\" means never published.",
+  "exercises.help.statusFilter.published": "\"Published\": participants see the latest version, the draft has no changes.",
+  "exercises.help.statusFilter.draftOnly": "\"Draft only\": never published.",
   "exercises.help.accessCol.who": "Which events can add a catalog exercise.",
   "exercises.help.accessCol.event": "An event exercise is available only to the event that created it.",
   "exercises.help.statusCol.published": "Participants see only the published version.",
@@ -855,5 +855,6 @@
   "exercises.access.help.none": "No event can add the exercise",
   "exercises.access.help.ownNamed": "Only the event it came from: {name}",
   "exercises.accessCol.selectedCount": "Selected events · {count}",
-  "exercises.help.accessCol.none": "\"Unavailable to everyone\" hides the exercise from all events."
+  "exercises.help.accessCol.none": "\"Unavailable to everyone\" hides the exercise from all events.",
+  "exercises.help.statusFilter.changed": "\"Draft has changes\": published, with edits not published yet."
 }

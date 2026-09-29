@@ -64,6 +64,14 @@ describe("AccessLevelFields event picker", () => {
     expect(screen.getByRole("checkbox", { name: /Old Cup/ })).toBeChecked()
   })
 
+  it("uses names the server already sent instead of looking them up", async () => {
+    render(<AccessLevelFields value={{ level: "selected", eventIds: ["e9"] }} onChange={() => undefined} allowOwn={false}
+      knownEvents={[{ ID: "e9", Name: "Known Cup" }]} />)
+    expect(screen.getByText("Known Cup")).toBeInTheDocument()
+    await act(async () => {})
+    expect(byId).not.toHaveBeenCalled()
+  })
+
   it("finds other events through server search and keeps the selection pinned", async () => {
     vi.useFakeTimers()
     try {
