@@ -153,6 +153,10 @@ export interface RichTextEditorProps {
   onEditVariable?: (name: string) => void;
   placeholder?: string;
   className?: string;
+  /** Min height of the editable area; short fields (hints) pass a smaller one. */
+  minHeightClassName?: string;
+  /** Accessible name of the editable area. */
+  ariaLabel?: string;
   disabled?: boolean;
   showVariableNames?: boolean;
 }
@@ -1009,6 +1013,8 @@ export function RichTextEditor({
   onEditVariable,
   placeholder,
   className,
+  minHeightClassName = "min-h-[200px]",
+  ariaLabel,
   disabled = false,
   showVariableNames = false,
 }: RichTextEditorProps): JSX.Element {
@@ -1060,7 +1066,8 @@ export function RichTextEditor({
             contentEditable={
               placeholder ? (
                 <ContentEditable
-                  className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring")}
+                  aria-label={ariaLabel}
                   aria-placeholder={placeholder}
                   placeholder={() => (
                     <div className="absolute top-3 left-4 text-sm text-muted-foreground pointer-events-none">
@@ -1069,7 +1076,7 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none" />
+                <ContentEditable className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none")} aria-label={ariaLabel} />
               )
             }
             ErrorBoundary={LexicalErrorBoundary}

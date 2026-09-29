@@ -69,10 +69,10 @@ describe("serverIdUpdates", () => {
     const form = emptyDraft()
     form.Variants[0].ID = "v1"
     form.Variants[0].Tasks[0].ID = "t1"
-    form.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Cost: 0 }, { ID: "", Text: "b", Cost: 5 }]
+    form.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Level: "nudge" }, { ID: "", Text: "b", Level: "steps" }]
     const sent = capturedDraftIds(form)
     const saved = savedFrom(form, { variant: "v1", tasks: ["t1"] })
-    saved.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Cost: 0 }, { ID: "h-new", Text: "b", Cost: 5 }]
+    saved.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Level: "nudge" }, { ID: "h-new", Text: "b", Level: "steps" }]
     expect(serverIdUpdates(sent, saved, form)).toEqual([{ path: "Variants.0.Tasks.0.Hints.1.ID", value: "h-new" }])
   })
 
@@ -80,11 +80,11 @@ describe("serverIdUpdates", () => {
     const form = emptyDraft()
     form.Variants[0].ID = "v1"
     form.Variants[0].Tasks[0].ID = "t1"
-    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "a", Cost: 0 }]
+    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "a", Level: "nudge" }]
     const sent = capturedDraftIds(form)
     const saved = savedFrom(form, { variant: "v1", tasks: ["t1"] })
-    saved.Variants[0].Tasks[0].Hints = [{ ID: "h1", Text: "a", Cost: 0 }]
-    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "new", Cost: 0 }, { ID: "", Text: "a", Cost: 0 }]
+    saved.Variants[0].Tasks[0].Hints = [{ ID: "h1", Text: "a", Level: "nudge" }]
+    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "new", Level: "nudge" }, { ID: "", Text: "a", Level: "nudge" }]
     expect(serverIdUpdates(sent, saved, form)).toEqual([])
   })
 })

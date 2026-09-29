@@ -1,25 +1,54 @@
 "use client"
 
+import { useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { ArrowDown, ArrowUp, Plus } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { FieldHelp } from "@/components/ui/field-help"
+import { SelectMenu } from "@/components/ui/select-menu"
+import RichTextEditor, { type LexicalState } from "@/components/editor/RichTextEditor"
+import { HINT_LEVELS, type HintLevel } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { addHint, canAddHint, moveHint, removeHint, setHintCost } from "@/lib/hintSync"
-import { MAX_HINTS, MAX_HINT_COST, MAX_HINT_TEXT } from "@/lib/hintLimits"
-import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
+import { addHint, canAddHint, moveHint, removeHint, setHintLevel } from "@/lib/hintSync"
+import { hintTextToState, stateToHintText } from "@/lib/hintText"
+import { MAX_HINTS } from "@/lib/hintLimits"
 import { RemoveAction } from "./RemoveAction"
 
+const levelOptions = () => HINT_LEVELS.map((level) => ({ value: level, label: t(`exercises.hints.level.${level}`) }))
+const levelHelpLines = () => [
+  t("exercises.hints.levelHelp.intro"),
+  ...HINT_LEVELS.map((level) => t("exercises.hints.levelHelp.item", {
+    level: t(`exercises.hints.level.${level}`),
+    description: t(`exercises.hints.levelDescription.${level}`),
+  })),
+]
+
 /**
- * HintsEditor — a task's hints. Count, order and cost are shared by every
+ * The hint text as formatted text (the task description editor). Keeps the
+ * last editor state so an edit without text (stored as "") does not reset it.
+ */
+function HintTextEditor({ text, onChange, disabled, ariaLabel }: { text: string; onChange: (text: string) => void; disabled: boolean; ariaLabel: string }) {
+  const [local, setLocal] = useState<{ text: string; state: LexicalState | null }>({ text: "", state: null })
+  const value = local.text === text && local.state ? local.state : hintTextToState(text)
+  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} minHeightClassName="min-h-[4.5rem]"
+    placeholder={t("exercises.hints.textPlaceholder")}
+    onChange={(state) => {
+      const next = stateToHintText(state)
+      setLocal({ text: next, state })
+      if (next !== text) onChange(next)
+    }} />
+}
+
+/**
+ * HintsEditor — a task's hints. Count, order and level are shared by every
  * variant (changes apply to all of them); the text is edited per variant tab.
+ * The price of a hint is set on the event, not here.
  */
 export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantIndex: number; taskIndex: number; disabled: boolean }) {
-  const { control, getValues, setValue, register, formState } = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue, formState } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}.Hints` as const
   const hints = useWatch({ control, name: base }) ?? []
   const errors = formState.errors.Variants?.[variantIndex]?.Tasks?.[taskIndex]?.Hints
@@ -57,14 +86,17 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
         <ol className="space-y-3">
           {hints.map((hint, hintIndex) => {
             const hintErrors = Array.isArray(errors) ? errors[hintIndex] : undefined
-            const textId = `hint-text-${variantIndex}-${taskIndex}-${hintIndex}`
-            const costId = `hint-cost-${variantIndex}-${taskIndex}-${hintIndex}`
+            const title = t("exercises.hints.item", { n: hintIndex + 1 })
             return (
-              <li key={`${hint.ID || "new"}-${hintIndex}`} data-testid="hint-row" className="rounded-md border border-border p-3">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">{t("exercises.hints.item").replace("{n}", String(hintIndex + 1))}</span>
+              <li key={`${hint.ID || "new"}-${hintIndex}`} data-testid="hint-row" className="space-y-2 rounded-md border border-border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{title}</span>
+                  <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="h-8 w-44"
+                    options={levelOptions()}
+                    onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
+                  <FieldHelp lines={levelHelpLines()} />
                   {!disabled && (
-                    <span className="flex items-center gap-1">
+                    <span className="ml-auto flex items-center gap-1">
                       <HoverTooltip text={t("exercises.hints.up")}>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t("exercises.hints.up")}
                           disabled={hintIndex === 0} onClick={() => apply((variants) => moveHint(variants, taskIndex, hintIndex, hintIndex - 1))}>
@@ -81,21 +113,10 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-start gap-3">
-                  <div className="min-w-64 flex-1 space-y-1">
-                    <label htmlFor={textId} className="text-xs text-muted-foreground">{t("exercises.hints.text")}</label>
-                    <Textarea id={textId} rows={2} maxLength={MAX_HINT_TEXT} disabled={disabled} aria-invalid={Boolean(hintErrors?.Text)}
-                      placeholder={t("exercises.hints.textPlaceholder")} {...register(`${base}.${hintIndex}.Text`)} />
-                    {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
-                  </div>
-                  <div className="w-40 space-y-1">
-                    <ExerciseFieldLabel labelKey="exercises.hints.cost" helpKey="exercises.hints.costHelp" htmlFor={costId} />
-                    <Input id={costId} type="number" inputMode="numeric" min={0} max={MAX_HINT_COST} step={1} disabled={disabled}
-                      aria-invalid={Boolean(hintErrors?.Cost)} value={hint.Cost}
-                      onChange={(event) => apply((variants) => setHintCost(variants, taskIndex, hintIndex, Number(event.target.value)))} />
-                    <p className="text-xs text-muted-foreground">{hint.Cost === 0 ? t("exercises.hints.free") : t("exercises.hints.points")}</p>
-                  </div>
-                </div>
+                {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
+                <HintTextEditor text={hint.Text} disabled={disabled} ariaLabel={t("exercises.hints.text")}
+                  onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
+                {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
               </li>
             )
           })}

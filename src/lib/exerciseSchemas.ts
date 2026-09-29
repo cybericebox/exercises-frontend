@@ -12,7 +12,7 @@ import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
 import { hintsAligned } from "@/lib/hintSync"
-import { MAX_HINTS, MAX_HINT_COST, MAX_HINT_TEXT } from "@/lib/hintLimits"
+import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
 import type {
   ConnectionDTO,
   DeviceDTO,
@@ -31,6 +31,7 @@ import type {
   VariantDTO,
   Version,
 } from "@/api/exercises/versions"
+import { HINT_LEVELS } from "@/api/exercises/versions"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
@@ -403,8 +404,7 @@ const placeholderSchema = z
 const hintSchema = z.object({
   ID: z.string(),
   Text: z.string().max(MAX_HINT_TEXT, t("exercises.hints.val.text")),
-  Cost: z.number({ error: t("exercises.hints.val.cost") }).int(t("exercises.hints.val.cost"))
-    .min(0, t("exercises.hints.val.cost")).max(MAX_HINT_COST, t("exercises.hints.val.cost")),
+  Level: z.enum(HINT_LEVELS, { error: t("exercises.hints.val.level") }),
 })
 
 const taskSchema = z.object({
@@ -633,7 +633,7 @@ function taskToDTO(task: TaskFormValues): TaskDTO {
     ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
     Attachments: task.Attachments,
     Placeholders: task.Placeholders.map(placeholderToDTO),
-    Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Cost: hint.Cost })),
+    Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Level: hint.Level })),
   }
 }
 
