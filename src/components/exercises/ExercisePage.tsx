@@ -258,11 +258,11 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onDone={() => void actions.done()}
         onPublish={() => void actions.publish()}
         onSnapshot={() => setDialog("snapshot")}
-        onRevert={() => setDialog("revert")}
+        onRevert={() => { actions.clearConfirmError(); setDialog("revert") }}
         onExport={() => setDialog("export")}
-        onArchive={() => setDialog("archive")}
+        onArchive={() => { actions.clearConfirmError(); setDialog("archive") }}
         onUnarchive={() => void actions.unarchive()}
-        onDelete={() => setDialog("delete")}
+        onDelete={() => { actions.clearConfirmError(); setDialog("delete") }}
         onAccess={canManageAccess ? () => setDialog("access") : undefined}
         onPropose={canPropose ? () => setDialog("propose") : undefined}
         proposalPending={Boolean(exercise?.PendingProposalID)}
@@ -316,15 +316,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onView={(target) => { setDialog(null); void actions.openVersion(target) }} />}
     {dialog === "snapshot" && <SnapshotDialog busy={actions.busy} onCancel={() => setDialog(null)}
       onConfirm={(note) => void actions.snapshot(note).then((ok) => { if (ok) setDialog(null) })} />}
-    <ConfirmDialog open={dialog === "revert"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+    <ConfirmDialog open={dialog === "revert"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.revert.title")} description={t("admin.exPage.revert.description")} confirmLabel={t("admin.exPage.revert.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.revert().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmDialog open={dialog === "archive"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+    <ConfirmDialog open={dialog === "archive"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.archive.title")} description={t("admin.exPage.archive.description")} confirmLabel={t("admin.exPage.archive.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.archive().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmDialog open={dialog === "delete"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+    <ConfirmDialog open={dialog === "delete"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")}
-      onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (!ok) setDialog(null) })} />
+      onCancel={() => setDialog(null)} onConfirm={() => void actions.remove()} />
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
     {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}

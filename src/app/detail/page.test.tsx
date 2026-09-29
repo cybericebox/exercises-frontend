@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version, VersionListItem } from "@/api/exercises/versions"
 
@@ -311,7 +311,8 @@ describe("exercise page — archive and delete", () => {
     openMore()
     fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.delete" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.delete.confirm" }))
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.ex.err.generic"))
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent("admin.ex.err.generic")
+    expect(toast.error).not.toHaveBeenCalled()
     expect(h.push).not.toHaveBeenCalled()
   })
 
