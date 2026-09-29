@@ -49,7 +49,6 @@
   --ib-warn: #8A5A00;
   --ib-warn-bg: #FAF1E0;
   --ib-backdrop: rgba(22, 21, 43, .45);
-  --ib-shadow-overlay: 0 12px 32px -8px rgba(22, 21, 43, .28);
 }
 
 [data-theme="dark"] {
@@ -77,5 +76,4 @@
   --ib-warn: #E8B45E;
   --ib-warn-bg: color-mix(in srgb, #544E4A, var(--ev-brand) 25%);
   --ib-backdrop: rgba(6, 5, 14, .62);
-  --ib-shadow-overlay: 0 18px 44px -10px rgba(0, 0, 0, .55);
 }

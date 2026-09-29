@@ -110,7 +110,7 @@ export function TagInput({
         className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-placeholder"
       />
     </div>
-    {showSuggestions && <div id={listId} role="listbox" className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
+    {showSuggestions && <div id={listId} role="listbox" className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
       {matchingSuggestions.map(({ Tag, Count }, index) => <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={activeSuggestion === index}
         onPointerDown={(event) => { event.preventDefault(); commit(Tag) }}
         className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-accent", activeSuggestion === index && "bg-accent")}

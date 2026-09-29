@@ -627,7 +627,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               x={Math.max(8, Math.min(W - 248, labelX - 120))} y={labelY - 22} width={240} height={editingLabel.error ? 64 : 40}
               onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
               onDoubleClick={(event) => event.stopPropagation()}>
-              <div className="rounded-md bg-background p-1 shadow-lg">
+              <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
                   value={editingLabel.draft} maxLength={node.kind === "device" ? 63 : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
@@ -697,7 +697,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1 shadow-sm">
+    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1">
       <HoverTooltip text={t("admin.exTopo.zoomOut")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
@@ -710,7 +710,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           {Math.round(viewport.scale * 100)}%<ChevronDown className="h-3 w-3" />
         </Button></PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal><PopoverPrimitive.Content align="center" sideOffset={6}
-          className="z-50 w-44 rounded-md border border-border bg-popover p-2 shadow-md">
+          className="z-50 w-44 rounded-md border border-border bg-popover p-2">
           <div className="grid grid-cols-2 gap-1">
             {[50, 75, 100, 125, 150, 200, 250].map((percent) => <Button key={percent} type="button" variant="ghost" size="sm"
               className="h-7 justify-start px-2 text-xs tabular-nums" onClick={() => setZoomPercent(percent)}>{percent}%</Button>)}
@@ -730,7 +730,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
     </div>
     {context && <div ref={contextMenuRef} role="menu" aria-label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : "admin.exTopo.diagram")}
-      className="fixed z-50 max-h-[calc(100dvh-1rem)] min-w-32 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
+      className="fixed z-50 max-h-[calc(100dvh-1rem)] min-w-32 overflow-y-auto rounded-md border border-border bg-popover p-1"
       style={{ left: Math.max(8, Math.min(context.x, window.innerWidth - 190)), top: Math.max(8, Math.min(context.y, window.innerHeight - 230)) }}>
       {context.kind === "node" ? <>
         {onNodeSettings && <button type="button" role="menuitem" autoFocus className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none"
@@ -752,7 +752,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           onClick={() => { onCanvasLinkStart(); setContext(null) }}>{t("admin.exTopo.addConnection")}</button>}
       </>}
     </div>}
-    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground shadow-md"
+    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
       style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )

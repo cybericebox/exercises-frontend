@@ -408,7 +408,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     {settingsTarget !== null && <aside role="complementary"
       aria-label={t("admin.exTopo.deviceSettings")}
       style={{ "--topology-inspector-width": `${displayedInspectorWidth}px` } as CSSProperties}
-      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background shadow-lg xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[28rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border xl:shadow-none">
+      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[28rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
       <div role="separator" aria-orientation="vertical" aria-label={t("admin.exTopo.resizeSettings")}
         aria-valuemin={INSPECTOR_MIN_WIDTH} aria-valuemax={inspectorMaxWidth} aria-valuenow={displayedInspectorWidth}
         tabIndex={0}
@@ -421,7 +421,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <HoverTooltip text={t("admin.exTopo.resizeSettings")}
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <span data-testid="topology-inspector-resize-grip" aria-hidden="true"
-            className="flex h-12 w-6 items-center justify-center rounded-full border border-primary/50 bg-background text-primary shadow-sm group-hover:border-primary group-hover:bg-accent group-focus-visible:border-primary group-focus-visible:bg-accent">
+            className="flex h-12 w-6 items-center justify-center rounded-full border border-primary/50 bg-background text-primary group-hover:border-primary group-hover:bg-accent group-focus-visible:border-primary group-focus-visible:bg-accent">
             <GripVertical className="h-4 w-4" />
           </span>
         </HoverTooltip>

@@ -87,7 +87,7 @@ export function VariablePickerMenu({ variables, onSelect, onClose, values, initi
   return (
     <div
       className={cn(
-        "z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-xl border border-input bg-popover p-2 text-foreground shadow-lg",
+        "z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-xl border border-input bg-popover p-2 text-foreground",
         className,
       )}
       onKeyDown={handleKeyDown}
