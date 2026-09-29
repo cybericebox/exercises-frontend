@@ -109,7 +109,7 @@ describe('TaskForm inline placeholders', () => {
     render(<Harness initial={initial} />)
     fireEvent.click(await screen.findByRole('button', { name: /Редагувати підстановку: 10\.0\.0\.0/ }))
     expect(screen.getByRole('dialog', { name: 'Редагувати підстановку' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Показувати маску' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Показувати маску' }))
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
     await waitFor(() => expect(screen.getByTestId('saved-placeholders').textContent).toContain('"ShowMask":true'))
     expect(await screen.findByRole('button', { name: /10\.0\.0\.0\/24/ })).toBeInTheDocument()

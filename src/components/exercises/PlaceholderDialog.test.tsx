@@ -52,7 +52,7 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
       topology={{ ...unavailable, vpnEnabled: true }} onSave={save} />)
     fireEvent.click(screen.getByRole('button', { name: /^Підмережа VPN/ }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Показувати маску' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Показувати маску' }))
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'vpn.subnet', ShowMask: true }))
   })
@@ -62,7 +62,7 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
       topology={{ ...unavailable, internetEnabled: true }} onSave={save} />)
     fireEvent.click(screen.getByRole('button', { name: /^Підмережа Інтернет/ }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Показувати маску' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Показувати маску' }))
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'internet.subnet', ShowMask: true }))
   })
