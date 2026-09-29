@@ -517,7 +517,6 @@
   "admin.exSecret.keep": "Leave empty to keep the stored value",
   "admin.exSecret.lockedHint": "Replace the value to change this",
   "admin.exTopo.connections": "Connections",
-  "admin.exTopo.connectionsHelp": "Device interfaces connect to each other or to an enabled gateway, with one connection per gateway.",
   "admin.exTopo.endpoint.first": "First endpoint",
   "admin.exTopo.endpoint.second": "Second endpoint",
   "admin.exTopo.endpoint.help": "Choose a device and interface or an available gateway.",
@@ -856,5 +855,11 @@
   "exercises.access.help.ownNamed": "Only the event it came from: {name}",
   "exercises.accessCol.selectedCount": "Selected events · {count}",
   "exercises.help.accessCol.none": "\"Unavailable to everyone\" hides the exercise from all events.",
-  "exercises.help.statusFilter.changed": "\"Draft has changes\": published, with edits not published yet."
+  "exercises.help.statusFilter.changed": "\"Draft has changes\": published, with edits not published yet.",
+  "admin.exTopo.tabHelp.diagram.what": "The diagram shows the lab's devices, gateways and connections.",
+  "admin.exTopo.tabHelp.diagram.connect": "To connect devices, choose \"Connect\" and click two nodes.",
+  "admin.exTopo.tabHelp.devices.what": "All devices and gateways with their ports and connections.",
+  "admin.exTopo.tabHelp.devices.open": "Click a device to open its settings on the diagram.",
+  "admin.exTopo.tabHelp.connections.what": "Device interfaces connect to each other or to an enabled gateway.",
+  "admin.exTopo.tabHelp.connections.gateway": "A gateway accepts only one connection."
 }

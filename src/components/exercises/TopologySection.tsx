@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as 
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { GripVertical, Images, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FieldHelp } from "@/components/ui/field-help"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +50,13 @@ const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
 ]
 
 /** The form owns topology; only view, selection and transient actions live here. */
+/** Help lines of each topology tab: admin.exTopo.tabHelp.<tab>.<line>. */
+const TAB_HELP = {
+  diagram: ["what", "connect"],
+  devices: ["what", "open"],
+  connections: ["what", "gateway"],
+} as const
+
 export function TopologySection({ variantIndex, disabled }: { variantIndex: number; disabled: boolean }) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology` as const
@@ -332,7 +340,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   return <section data-testid="topology-workspace" className={canvasExpanded
     ? "fixed inset-0 z-[45] flex h-dvh min-h-0 min-w-0 flex-col bg-background p-0"
     : "flex min-h-[32rem] min-w-0 flex-col gap-3 lg:h-[min(72dvh,48rem)]"}>
-    {!canvasExpanded && <nav aria-label={t("admin.exDraft.topology.title")} className="flex shrink-0 gap-1 border-b border-border">
+    {!canvasExpanded && <div className="flex shrink-0 items-center justify-between gap-3">
+    <nav aria-label={t("admin.exDraft.topology.title")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
       {(["diagram", "devices", "connections"] as const).map((item) =>
         <button key={item} type="button" aria-current={view === item ? "page" : undefined}
           onClick={() => {
@@ -341,17 +350,19 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
             if (activeSection.startsWith("device:")) setSettingsTarget(activeSection.slice("device:".length))
             setActiveSection(item)
           }}
-          className="rounded-t-md px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary aria-current:border-b-2 aria-current:border-primary aria-current:text-primary">
+          className={`h-8 rounded px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary ${view === item ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           {t(`admin.exTopo.${item}`)}
         </button>)}
-    </nav>}
+    </nav>
+    {/* One help for the active tab, outside the tab buttons. */}
+    <FieldHelp key={view} lines={TAB_HELP[view].map((line) => t(`admin.exTopo.tabHelp.${view}.${line}`))} />
+    </div>}
 
     {view === "diagram" && <div ref={layoutRef} data-testid="topology-canvas-layout" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
     <div data-testid="topology-canvas-surface" className={canvasExpanded
       ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
       : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-background"}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <p className="text-sm font-medium">{t("admin.exTopo.diagram")}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           {connectMode && <span className="text-xs text-muted-foreground">{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>}
           {!disabled && (connectMode ? <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>

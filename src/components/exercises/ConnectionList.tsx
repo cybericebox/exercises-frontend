@@ -120,15 +120,12 @@ export function ConnectionList({
 
   return (
     <div className="flex min-h-full flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5"><h4 className="text-sm font-semibold">{t("admin.exTopo.connections")}</h4><FieldHelp text={t("admin.exTopo.connectionsHelp")} /></div>
-        {!disabled && fields.length > 0 && (
-          <Button type="button" variant="outline" size="sm" onClick={addConnection}>
-            <Plus className="mr-1 h-4 w-4" />
-            {t("admin.exTopo.addConnection")}
-          </Button>
-        )}
-      </div>
+      {!disabled && fields.length > 0 && <div className="flex items-center justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={addConnection}>
+          <Plus className="mr-1 h-4 w-4" />
+          {t("admin.exTopo.addConnection")}
+        </Button>
+      </div>}
 
       {fields.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center py-2">

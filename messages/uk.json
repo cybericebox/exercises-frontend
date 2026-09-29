@@ -517,7 +517,6 @@
   "admin.exSecret.keep": "Залиште порожнім, щоб зберегти чинне значення",
   "admin.exSecret.lockedHint": "Замініть значення, щоб змінити",
   "admin.exTopo.connections": "Зʼєднання",
-  "admin.exTopo.connectionsHelp": "Інтерфейси пристроїв зʼєднуються між собою або з увімкненим шлюзом, який допускає лише одне зʼєднання.",
   "admin.exTopo.endpoint.first": "Перший кінець",
   "admin.exTopo.endpoint.second": "Другий кінець",
   "admin.exTopo.endpoint.help": "Оберіть пристрій та його інтерфейс або доступний шлюз.",
@@ -856,5 +855,11 @@
   "exercises.access.help.ownNamed": "Лише подія, з якої воно надійшло: {name}",
   "exercises.accessCol.selectedCount": "Обраним подіям · {count}",
   "exercises.help.accessCol.none": "«Недоступно нікому» — завдання приховане від усіх подій.",
-  "exercises.help.statusFilter.changed": "«Є зміни в чернетці» — опубліковано, але є ще не опубліковані правки."
+  "exercises.help.statusFilter.changed": "«Є зміни в чернетці» — опубліковано, але є ще не опубліковані правки.",
+  "admin.exTopo.tabHelp.diagram.what": "Схема показує пристрої, шлюзи та зʼєднання лабораторії.",
+  "admin.exTopo.tabHelp.diagram.connect": "Щоб зʼєднати пристрої, оберіть «Зʼєднати» і клацніть по двох вузлах.",
+  "admin.exTopo.tabHelp.devices.what": "Список усіх пристроїв і шлюзів з портами та зʼєднаннями.",
+  "admin.exTopo.tabHelp.devices.open": "Натисніть на пристрій, щоб відкрити його налаштування на схемі.",
+  "admin.exTopo.tabHelp.connections.what": "Інтерфейси пристроїв зʼєднуються між собою або з увімкненим шлюзом.",
+  "admin.exTopo.tabHelp.connections.gateway": "Шлюз допускає лише одне зʼєднання."
 }
