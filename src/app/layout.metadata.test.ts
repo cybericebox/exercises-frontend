@@ -11,7 +11,7 @@ import { metadata } from "./layout"
 describe("app metadata", () => {
   it("renders the Ukrainian title and description from i18n", () => {
     expect(metadata.title).toBe("Каталог завдань · Cyber ICE Box")
-    expect(metadata.description).toBe("Каталог завдань Cyber ICE Box: створення, версії та доступ до завдань для подій")
+    expect(metadata.description).toBe("Каталог завдань Cyber ICE Box: створення, версії та доступ до завдань для заходів")
   })
 
   it("keeps English counterparts", () => {

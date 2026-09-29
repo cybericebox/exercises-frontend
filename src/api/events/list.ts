@@ -1,5 +1,5 @@
 /**
- * list.ts — platform events for admin pickers (access level «Обраним подіям»).
+ * list.ts — platform events for admin pickers (access level «Обраним заходам»).
  * GET /api/events?page=&pageSize=&sortBy=&sortDir=&search= and GET /api/events/:id (admins).
  */
 import { apiGet } from "@/api/client"

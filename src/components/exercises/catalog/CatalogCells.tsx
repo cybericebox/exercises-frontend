@@ -32,7 +32,7 @@ export function StatusCell({ item }: { item: ExerciseListItem }) {
 }
 
 /**
- * Who can use the exercise. «Обраним подіям» opens the event list; the list
+ * Who can use the exercise. «Обраним заходам» opens the event list; the list
  * API does not return AccessEventIDs, so the card is fetched on first open.
  */
 export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID: string }; eventName: (id: string) => string | undefined }) {
