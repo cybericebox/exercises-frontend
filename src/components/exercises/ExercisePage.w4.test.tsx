@@ -28,7 +28,7 @@ vi.mock("@/api/exercises/catalog", () => ({
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
 vi.mock("@/api/exercises/proposals", () => ({ proposeExercise: vi.fn() }))
-vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]) }))
+vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), listNearestEvents: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
 vi.mock("@/api/exercises/versions", () => ({
   EMPTY_VERSION_ID: "00000000-0000-0000-0000-000000000000",
   isStoredVersionId: (id: string) => id !== "" && id !== "00000000-0000-0000-0000-000000000000",

@@ -804,5 +804,6 @@
   "exercises.help.infra": "Needed: the exercise deploys a lab stand, participants connect over VPN. Not needed: finding and submitting the flag is enough.",
   "exercises.help.statusFilter": "\"Published\" includes exercises whose draft has changes. \"Draft only\" means never published.",
   "exercises.help.accessCol": "Which events can add the exercise. An event exercise is available only to the event that created it.",
-  "exercises.help.statusCol": "Participants see only the published version. Draft changes reach them after publishing. Archived exercises are hidden from selection."
+  "exercises.help.statusCol": "Participants see only the published version. Draft changes reach them after publishing. Archived exercises are hidden from selection.",
+  "exercises.access.searchHint": "Find other events with search"
 }
