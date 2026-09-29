@@ -126,7 +126,7 @@ describe('exercises catalog page', () => {
     mockList.mockRejectedValueOnce(new Error('offline'))
     render(<Page />)
     expect(await screen.findByText('admin.ex.loadError')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText('SQLi basics')).toBeInTheDocument()
   })
 

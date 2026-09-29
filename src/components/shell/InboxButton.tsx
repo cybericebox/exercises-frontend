@@ -13,6 +13,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { Bell, Check, ChevronRight, X } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 
 import { apiGet, apiPatch, apiPost } from "@/api/client"
 import { useRole } from "@/lib/useRole"
@@ -386,10 +387,10 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           </div>
         </div>}
         {tabs.length === 0 && <div className="shrink-0 border-b border-border" />}
-        {error && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
+        {error && items.length > 0 && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
         <div ref={scrollAreaRef} id="inbox-tabpanel" role={tabs.length ? "tabpanel" : undefined} aria-labelledby={tabs.length ? `inbox-tab-${tab}` : undefined} className="flex min-h-0 flex-col overflow-y-auto">
           {/* loading and empty share one centered box of the same height, so nothing jumps */}
-          {loading || items.length === 0 ? <div className="flex min-h-48 flex-1 items-center justify-center">{loading ? <Spinner size="lg" label={t("inbox.loadingMessages")} /> : <EmptyState message={emptyMessage} />}</div> : <ul className="divide-y divide-border">{items.map((item, index) => {
+          {loading || items.length === 0 ? <div className="flex min-h-48 flex-1 items-center justify-center">{loading ? <Spinner size="lg" label={t("inbox.loadingMessages")} /> : error ? <LoadError message={error} compact onRetry={() => { void refresh() }} /> : <EmptyState message={emptyMessage} />}</div> : <ul className="divide-y divide-border">{items.map((item, index) => {
             const href = safeHref(item.Link ?? "")
             const resolved = !!item.ResolvedAt
             const unreadItem = isUnread(item)

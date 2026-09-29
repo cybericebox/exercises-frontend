@@ -8,6 +8,7 @@ import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -151,10 +152,7 @@ export default function ProposalsPage() {
       )}
       <div className="min-h-0 flex-1 overflow-auto">
         {items === null ? <LoadingArea className="h-full" label={t("admin.loading")} />
-          : error ? <div className="flex flex-col items-center gap-3 py-8">
-              <p role="alert" className="text-sm text-destructive">{t("exercises.proposals.loadError")}</p>
-              <Button variant="outline" onClick={() => setReload((key) => key + 1)}>{t("admin.ex.retry")}</Button>
-            </div>
+          : error ? <LoadError message={t("exercises.proposals.loadError")} onRetry={() => setReload((key) => key + 1)} className="h-full" />
           : items.length === 0 ? <EmptyState message={t(`exercises.proposals.empty.${status}`)} className="h-full" />
           : (
             <table className="w-full text-sm">

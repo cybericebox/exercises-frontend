@@ -6,6 +6,7 @@ import type { AccessLevel } from "@/api/exercises/catalog"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 
 export type AccessChoice = Exclude<AccessLevel, "">
@@ -37,6 +38,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
   const [known, setKnown] = useState<Record<string, EventOption>>(() =>
     Object.fromEntries(knownEvents.map((event) => [event.ID, { ID: event.ID, Name: event.Name, Tag: "" }])))
   const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [search, setSearch] = useState("")
   const [results, setResults] = useState<{ query: string; items: EventOption[] } | null>(null)
   const selecting = value.level === "selected"
@@ -55,7 +57,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
       .then((items) => { if (active) { setNearest(items); remember(items) } })
       .catch(() => { if (active) { setNearest([]); setFailed(true) } })
     return () => { active = false }
-  }, [])
+  }, [attempt])
 
   // Names of events selected before (they may not be among the nearest ones).
   const [missingIds] = useState(() => value.eventIds.filter((id) => !knownEvents.some((event) => event.ID === id)))
@@ -76,7 +78,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
         .catch(() => { if (active) { setResults({ query, items: [] }); setFailed(true) } })
     }, 250)
     return () => { active = false; clearTimeout(id) }
-  }, [query])
+  }, [query, attempt])
 
   const loading = query ? results?.query !== query : nearest === null
   const candidates = useMemo(() => (query ? results?.query === query ? results.items : [] : nearest ?? [])
@@ -124,7 +126,8 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
             {value.eventIds.map((id) => row(known[id] ?? { ID: id, Name: "", Tag: "" }))}
             {value.eventIds.length > 0 && (loading || candidates.length > 0) && <div role="separator" className="my-1 border-t border-border" />}
             {loading ? <LoadingArea compact className={value.eventIds.length ? "h-24" : "h-full"} label={t("admin.loading")} />
-              : failed && candidates.length === 0 ? <div className={`flex items-center justify-center px-2 text-center ${value.eventIds.length ? "h-24" : "h-full"}`}><p role="alert" className="text-sm text-destructive">{t("exercises.access.loadError")}</p></div>
+              : failed && candidates.length === 0 ? <LoadError compact message={t("exercises.access.loadError")} className={value.eventIds.length ? "h-24" : "h-full"}
+                  onRetry={() => { setFailed(false); setNearest(null); setResults(null); setAttempt((key) => key + 1) }} />
               : candidates.length === 0 ? value.eventIds.length === 0 && <EmptyState compact message={t("exercises.access.noEvents")} className="h-full min-h-0" />
               : candidates.map(row)}
             {!loading && !query && candidates.length > 0 && <p className="px-1.5 pt-1 text-xs text-muted-foreground">{t("exercises.access.searchHint")}</p>}

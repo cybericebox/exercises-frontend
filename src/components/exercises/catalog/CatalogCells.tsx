@@ -9,6 +9,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 
 const STATUS_BADGES: Record<CatalogStatus, { key: string; tone: BadgeTone }[]> = {
@@ -63,10 +64,13 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   const count = ids?.length
   const label = count ? t("exercises.accessCol.selectedCount", { count }) : t("exercises.access.level.selected")
 
+  function fetchIds() {
+    getExercise(item.ID).then((card) => { setIds(card.AccessEventIDs); resolve(card.AccessEventIDs) }).catch(() => setFailed(true))
+  }
+
   function load() {
     if (ids) { resolve(ids); return }
-    if (failed) return
-    getExercise(item.ID).then((card) => { setIds(card.AccessEventIDs); resolve(card.AccessEventIDs) }).catch(() => setFailed(true))
+    if (!failed) fetchIds()
   }
 
   return (
@@ -78,7 +82,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
       </PopoverTrigger>
       <PopoverContent className="w-64">
         <p className="mb-1 text-xs text-muted-foreground">{t("exercises.accessCol.eventsTitle")}</p>
-        {failed ? <p role="alert" className="text-sm text-destructive">{t("exercises.access.loadError")}</p>
+        {failed ? <LoadError compact message={t("exercises.access.loadError")} className="h-40 min-h-0" onRetry={() => { setFailed(false); fetchIds() }} />
           : ids === null ? <LoadingArea compact className="h-40" label={t("admin.loading")} />
           : ids.length === 0 ? <EmptyState compact message={t("exercises.access.noEvents")} className="h-40 min-h-0" />
           : <ul className="h-40 space-y-1 overflow-y-auto">

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { FieldHelp } from "@/components/ui/field-help"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -254,7 +255,7 @@ export default function Page() {
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
       {error && rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={retry}>{t("admin.ex.retry")}</Button></div>
+        <LoadError message={t("admin.ex.loadError")} onRetry={retry} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
