@@ -6,26 +6,29 @@ import { getExercise, type ExerciseListItem, type ExerciseOwnership } from "@/ap
 import { getEventOption } from "@/api/events/list"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { LoadingArea } from "@/components/ui/spinner"
+import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList"
 import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 
-const STATUS_TONE: Record<CatalogStatus, string> = {
-  published: "text-primary",
-  changed: "text-foreground",
-  draft: "text-muted-foreground",
-  archived: "text-muted-foreground",
-  none: "text-muted-foreground",
+const STATUS_BADGES: Record<CatalogStatus, { key: string; tone: BadgeTone }[]> = {
+  published: [{ key: "admin.ex.status.published", tone: "ok" }],
+  changed: [{ key: "admin.ex.status.published", tone: "ok" }, { key: "admin.ex.status.changedBadge", tone: "warn" }],
+  draft: [{ key: "admin.ex.status.draftOnly", tone: "neutral" }],
+  archived: [{ key: "admin.ex.status.archived", tone: "muted" }],
+  none: [{ key: "admin.ex.filterStatusNone", tone: "muted" }],
 }
 
-export function statusLabel(status: CatalogStatus): string {
-  return status === "none" ? t("admin.ex.filterStatusNone") : t(`admin.ex.status.${status === "draft" ? "draftOnly" : status}`)
+/** Status as badges: published is green, draft changes add a yellow badge next to it. */
+export function StatusBadges({ status }: { status: CatalogStatus }) {
+  return <span data-status={status} className="inline-flex flex-wrap items-center gap-1">
+    {STATUS_BADGES[status].map(({ key, tone }) => <Badge key={key} tone={tone} data-badge={tone}>{t(key)}</Badge>)}
+  </span>
 }
 
 /** One status per row. */
 export function StatusCell({ item }: { item: ExerciseListItem }) {
-  const status = catalogStatus(item)
-  return <span data-status={status} className={`whitespace-nowrap text-sm ${STATUS_TONE[status]}`}>{statusLabel(status)}</span>
+  return <StatusBadges status={catalogStatus(item)} />
 }
 
 /**

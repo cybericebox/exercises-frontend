@@ -89,7 +89,8 @@ describe("exercise page — modes", () => {
   it("opens an existing exercise read-only with the viewing actions", async () => {
     render(<Page />)
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
-    expect(screen.getByText("admin.ex.status.changed")).toBeInTheDocument()
+    expect(screen.getByText("admin.ex.status.published")).toHaveAttribute("data-badge", "ok")
+    expect(screen.getByText("admin.ex.status.changedBadge")).toHaveAttribute("data-badge", "warn")
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()

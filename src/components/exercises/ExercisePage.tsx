@@ -27,7 +27,7 @@ import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
 import { exerciseHref } from "@/lib/exerciseRoutes"
-import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
+import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useUserNames } from "@/lib/userNames"
@@ -38,7 +38,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
 import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
-import { AccessCell, statusLabel } from "./catalog/CatalogCells"
+import { AccessCell, StatusBadges } from "./catalog/CatalogCells"
 import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 
@@ -224,9 +224,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const canPropose = Boolean(exercise && exercise.Scope === "event" && rights.propose && exercise.PublishedVersionID && !archived && !isVersion)
   const originEventName = exercise?.OriginEventID ? access?.Events.find((event) => event.ID === exercise.OriginEventID)?.Name : undefined
   const version = editor.version
+  // A version shows its date; the current exercise shows the catalog status badges (in meta).
   const badge: HeaderBadge | null = isVersion && version
-    ? { kind: "version", label: t("admin.exPage.badge.version").replace("{date}", formatExerciseDate(version.PublishedAt ?? version.CreatedAt)) }
-    : exercise ? { kind: exerciseBadgeKind(exercise), label: statusLabel(headerStatus(exercise)) } : null
+    ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
+    : null
 
   return <EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
@@ -237,6 +238,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         title={exercise?.Name ?? t("admin.ex.create.title")}
         badge={badge}
         meta={exercise && !isVersion ? <>
+          <StatusBadges status={headerStatus(exercise)} />
           <InfrastructureIcon show={exercise.Infrastructure} />
           <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
           <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />

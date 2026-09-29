@@ -784,7 +784,6 @@
   "exercises.proposals.rejectedToast": "Пропозицію відхилено",
   "exercises.proposals.openCatalog": "Відкрити завдання каталогу",
   "admin.ex.col.access": "Доступ",
-  "admin.ex.status.changed": "Опубліковано · є зміни в чернетці",
   "admin.ex.status.draftOnly": "Лише чернетка",
   "admin.ex.filterStatusPublished": "Опубліковані",
   "admin.ex.filterStatusChanged": "Є зміни в чернетці",
@@ -861,5 +860,6 @@
   "admin.exTopo.tabHelp.devices.what": "Список усіх пристроїв і шлюзів з портами та зʼєднаннями.",
   "admin.exTopo.tabHelp.devices.open": "Натисніть на пристрій, щоб відкрити його налаштування на схемі.",
   "admin.exTopo.tabHelp.connections.what": "Інтерфейси пристроїв зʼєднуються між собою або з увімкненим шлюзом.",
-  "admin.exTopo.tabHelp.connections.gateway": "Шлюз допускає лише одне зʼєднання."
+  "admin.exTopo.tabHelp.connections.gateway": "Шлюз допускає лише одне зʼєднання.",
+  "admin.ex.status.changedBadge": "Є зміни в чернетці"
 }

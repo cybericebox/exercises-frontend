@@ -784,7 +784,6 @@
   "exercises.proposals.rejectedToast": "Proposal rejected",
   "exercises.proposals.openCatalog": "Open catalog exercise",
   "admin.ex.col.access": "Access",
-  "admin.ex.status.changed": "Published · draft has changes",
   "admin.ex.status.draftOnly": "Draft only",
   "admin.ex.filterStatusPublished": "Published",
   "admin.ex.filterStatusChanged": "Draft has changes",
@@ -861,5 +860,6 @@
   "admin.exTopo.tabHelp.devices.what": "All devices and gateways with their ports and connections.",
   "admin.exTopo.tabHelp.devices.open": "Click a device to open its settings on the diagram.",
   "admin.exTopo.tabHelp.connections.what": "Device interfaces connect to each other or to an enabled gateway.",
-  "admin.exTopo.tabHelp.connections.gateway": "A gateway accepts only one connection."
+  "admin.exTopo.tabHelp.connections.gateway": "A gateway accepts only one connection.",
+  "admin.ex.status.changedBadge": "Draft has changes"
 }

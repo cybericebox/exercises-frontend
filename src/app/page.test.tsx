@@ -332,9 +332,14 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
-    expect(screen.getByText('admin.ex.status.changed')).toBeInTheDocument()
-    expect(screen.getByText('admin.ex.status.published')).toBeInTheDocument()
-    expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
+    // Published with changes: green «published» + yellow «changes» badges side by side.
+    const changed = document.querySelector('[data-status="changed"]')!
+    expect([...changed.querySelectorAll('[data-badge]')].map((badge) => [badge.textContent, badge.getAttribute('data-badge')]))
+      .toEqual([['admin.ex.status.published', 'ok'], ['admin.ex.status.changedBadge', 'warn']])
+    expect(changed.textContent).not.toContain('·')
+    expect(document.querySelector('[data-status="published"] [data-badge="ok"]')).toHaveTextContent('admin.ex.status.published')
+    expect(document.querySelector('[data-status="archived"] [data-badge="muted"]')).toHaveTextContent('admin.ex.status.archived')
+    expect(document.querySelector('[data-badge]')?.className).not.toMatch(/shadow/)
     expect(document.querySelectorAll('[data-status]')).toHaveLength(4)
   })
 
