@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { GripVertical, Images, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react"
-import { EmptyState } from "@/components/ui/empty-state"
 import { FieldHelp } from "@/components/ui/field-help"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -439,7 +438,6 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           onCanvasAddNode={disabled ? undefined : (kind, position) => kind === "vpn" || kind === "internet"
             ? addGateway(kind, position) : addDevice(kind, position)}
           onCanvasLinkStart={disabled ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
-        {availableNodes.size === 0 && <EmptyState message={t("admin.exTopo.noDevices")} className="pointer-events-none absolute inset-0 min-h-0" />}
       </div>
     </div>
     {settingsTarget !== null && <aside role="complementary"
