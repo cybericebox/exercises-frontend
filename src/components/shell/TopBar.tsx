@@ -12,21 +12,15 @@ import { t } from "@/i18n/t"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
 import { useRef } from "react"
-import { Cookie, House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
-import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
+import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
 import { useExerciseAccess } from "./AccessContext"
 
-// Unified account menu (lib/accountMenu): same labels and icons in every app.
-const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
-  profile: { label: "admin.profile", icon: UserRound },
-  admin: { label: "admin.account.admin", icon: Settings },
-  exercises: { label: "admin.account.exercises", icon: Puzzle },
-  main: { label: "admin.account.home", icon: House },
-}
+// Unified account menu (lib/accountMenu): same entries, labels and icons in every app.
+const ICON_CLASS = "shrink-0 text-muted-foreground group-focus:text-accent-foreground"
 
 // Sign out from this origin so the API clears the session, then go straight to
 // the id sign-in page (same flow as the admin app).
@@ -67,7 +61,7 @@ export function TopBar() {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const { access } = useExerciseAccess()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
-  const links = accountLinks(
+  const entries = accountMenu(
     "exercises",
     { adminTier: Boolean(access?.IsAdmin), catalog: true, returnTo },
     { id: idOrigin, admin: adminOrigin, exercises: "", main: mainOrigin },
@@ -121,25 +115,35 @@ export function TopBar() {
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {links.map(({ key, href }) => {
-              const { label, icon: Icon } = ACCOUNT_ITEMS[key]
+            {entries.map((entry, i) => {
+              if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
+              if (entry.kind === "cookies") {
+                const Icon = ACCOUNT_MENU_ICONS.cookies
+                // A link to the cookie policy, always shown. With JS only the navigation is cancelled
+                // (on the native event, so the menu still sees the select).
+                return (
+                  <DropdownMenuItem key={i} asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
+                    <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
+                      <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
+                    </a>
+                  </DropdownMenuItem>
+                )
+              }
+              if (entry.kind === "signOut") {
+                const Icon = ACCOUNT_MENU_ICONS.signOut
+                return (
+                  <DropdownMenuItem key={i} className="group gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
+                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.signOut)}
+                  </DropdownMenuItem>
+                )
+              }
+              const Icon = ACCOUNT_MENU_ICONS[entry.key]
               return (
-                <DropdownMenuItem key={key} asChild className="gap-2">
-                  <a href={href}><Icon className="h-4 w-4" aria-hidden="true" />{t(label)}</a>
+                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
+                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS[entry.key])}</a>
                 </DropdownMenuItem>
               )
             })}
-            {/* «Налаштування файлів cookie», always shown: a link to the cookie policy. With JS only the
-                navigation is cancelled (on the native event, so the menu still sees the select). */}
-            <DropdownMenuItem asChild className="gap-2" onSelect={() => { openConsentRef.current = true }}>
-              <a href={COOKIE_POLICY_HREF} onClick={(e) => e.nativeEvent.preventDefault()}>
-                <Cookie className="h-4 w-4" aria-hidden="true" />{t("consent.settings")}
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-              <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

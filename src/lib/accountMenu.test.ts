@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { accountLinks, catalogAllowed, type AccountApp } from "./accountMenu"
+import { accountLinks, accountMenu, catalogAllowed, type AccountApp } from "./accountMenu"
 
 const origins = {
   id: "https://id.cybericebox.local",
@@ -12,16 +12,21 @@ const keys = (app: AccountApp, opts = everyone) => accountLinks(app, opts, origi
 
 describe("account menu", () => {
   it("keeps one order and hides the current app", () => {
-    expect(keys("event")).toEqual(["profile", "admin", "exercises", "main"])
-    expect(keys("admin")).toEqual(["profile", "exercises", "main"])
-    expect(keys("exercises")).toEqual(["profile", "admin", "main"])
-    expect(keys("id")).toEqual(["admin", "exercises", "main"])
+    expect(keys("event")).toEqual(["profile", "main", "admin", "exercises"])
     expect(keys("main")).toEqual(["profile", "admin", "exercises"])
+    expect(keys("id")).toEqual(["main", "admin", "exercises"])
+    expect(keys("admin")).toEqual(["profile", "main", "exercises"])
+    expect(keys("exercises")).toEqual(["profile", "main", "admin"])
+  })
+
+  it("ends with a divider, the cookie settings, a divider and sign-out", () => {
+    const menu = accountMenu("admin", everyone, origins).map((entry) => (entry.kind === "link" ? entry.key : entry.kind))
+    expect(menu).toEqual(["profile", "main", "exercises", "divider", "cookies", "divider", "signOut"])
   })
 
   it("shows admin and catalog links only to allowed users", () => {
     expect(keys("event", { ...everyone, adminTier: false, catalog: false })).toEqual(["profile", "main"])
-    expect(keys("event", { ...everyone, adminTier: false })).toEqual(["profile", "exercises", "main"])
+    expect(keys("event", { ...everyone, adminTier: false })).toEqual(["profile", "main", "exercises"])
   })
 
   it("sends the profile link back to the current page", () => {
