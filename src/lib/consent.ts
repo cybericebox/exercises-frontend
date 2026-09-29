@@ -20,7 +20,7 @@ type ConsentState = Record<"analytics_storage" | "ad_storage" | "ad_user_data" |
 
 export const CONSENT_COOKIE = "cib_consent"
 export const CONSENT_MAX_AGE = 60 * 60 * 24 * 365
-// «Налаштування cookie» fires OPEN to open the preferences panel; saveConsent fires CHANGE.
+// «Налаштування файлів cookie» fires OPEN to open the preferences panel; saveConsent fires CHANGE.
 export const CONSENT_OPEN_EVENT = "cib:consent-open"
 export const CONSENT_CHANGE_EVENT = "cib:consent-change"
 
@@ -106,7 +106,7 @@ export function saveConsent(prefs: ConsentPrefs): void {
   window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
 }
 
-/** «Налаштування cookie»: open the preferences panel. */
+/** «Налаштування файлів cookie»: open the preferences panel. */
 export function openConsentSettings(): void {
   window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))
 }

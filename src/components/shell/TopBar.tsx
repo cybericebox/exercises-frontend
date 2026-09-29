@@ -58,7 +58,7 @@ function AppNav() {
   )
 }
 
-// «Налаштування cookie» only when GA (and so the consent banner) is configured.
+// «Налаштування файлів cookie» only when GA (and so the consent banner) is configured.
 const HAS_ANALYTICS = Boolean(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID)
 
 export function TopBar() {

@@ -47,7 +47,7 @@ const TEXT_BUTTON =
 // 1. Banner: a general line, «Налаштувати» and «Прийняти всі».
 // 2. Panel: categories (Необхідні — always on; Аналітика — off by default),
 //    «Прийняти вибрані», «Прийняти всі» and a small «Відхилити всі».
-// Shown when GA is configured and no choice exists; «Налаштування cookie» opens the panel.
+// Shown when GA is configured and no choice exists; «Налаштування файлів cookie» opens the panel.
 // Esc never counts as consent: it steps back from the panel, or closes a panel opened from settings.
 export function ConsentBanner({ gaId, policyHref }: { gaId: string; policyHref: string }) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
