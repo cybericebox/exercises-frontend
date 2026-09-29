@@ -863,7 +863,7 @@
   "admin.exTopo.tabHelp.connections.gateway": "Шлюз допускає лише одне зʼєднання.",
   "admin.ex.status.changedBadge": "Є зміни в чернетці",
   "consent.label": "Згода на cookie",
-  "consent.text": "Ми використовуємо cookie, щоб сайт працював, і — за вашою згодою — щоб покращувати його. {link}",
+  "consent.text": "Ми використовуємо файли cookie, щоб сайт працював, і — за вашою згодою — щоб покращувати його. {link}",
   "consent.policyLink": "Політика cookie",
   "consent.policy": "Докладніше: {link}.",
   "consent.acceptAll": "Прийняти всі",
