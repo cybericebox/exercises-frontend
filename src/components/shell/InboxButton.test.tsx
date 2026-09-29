@@ -48,7 +48,7 @@ describe("top-bar inbox", () => {
     render(<InboxButton />)
     expect(await screen.findByText("1")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: /Вхідні/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(screen.getByRole("button", { name: "Вхідні, непрочитані: 1" }))
     fireEvent.click(await screen.findByRole("button", { name: "Позначити прочитаним" }))
     expect(screen.getByText("Деталі запрошення")).toBeInTheDocument()
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/1/read", {}))
@@ -56,7 +56,7 @@ describe("top-bar inbox", () => {
 
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     fireEvent.click(await screen.findByRole("button", { name: "Позначити все прочитаним" }))
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
@@ -68,7 +68,7 @@ describe("top-bar inbox", () => {
       { ID: "2", Title: "Акаунт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", EventID: null, EventName: null, EventTag: null },
     ])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 2 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
     expect((await screen.findByText("Старт")).closest("li")).toHaveTextContent("Зимовий CTF")
     expect(screen.getByText("Акаунт").closest("li")).not.toHaveTextContent("Зимовий CTF")
     for (const [path] of api.get.mock.calls) expect(new URL(path as string, "http://x").searchParams.has("event")).toBe(false)
@@ -77,7 +77,7 @@ describe("top-bar inbox", () => {
   it("shows the saved notification icon in the inbox", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Icon: "calendar", Tone: "info", AccentColor: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect((await screen.findByText("Подія")).closest("li")).toContainHTML("lucide-calendar-days")
   })
 
@@ -91,10 +91,10 @@ describe("top-bar inbox", () => {
         ? { Items: [older], NextCursor: null }
         : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 25 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 25" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(await screen.findByText("Раніше")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Вхідні: 25 непрочитаних" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 25" })).toBeInTheDocument()
     expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before_id=recent"))
     expect(screen.queryByRole("button", { name: "Завантажити ще" })).not.toBeInTheDocument()
   })
@@ -108,7 +108,7 @@ describe("top-bar inbox", () => {
         ? { Items: [older], NextCursor: null }
         : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 2 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(screen.queryByText("Раніше")).not.toBeInTheDocument()
     act(() => observers.at(-1)?.trigger())
@@ -118,7 +118,7 @@ describe("top-bar inbox", () => {
   it("shows a safe transition link below the message", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "/events", Actions: [{ label: "Інша дія", href: "/other" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(screen.getByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
     expect(screen.queryByRole("link", { name: "Інша дія" })).not.toBeInTheDocument()
   })
@@ -126,7 +126,7 @@ describe("top-bar inbox", () => {
   it("does not turn a pop-in action into the optional inbox link", async () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
   })
@@ -140,13 +140,13 @@ describe("top-bar inbox", () => {
         ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 1 }
         : { Items: [old], NextCursor: null }))
     render(<InboxButton />)
-    expect(await screen.findByRole("button", { name: "Вхідні: 1 непрочитаних" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" })).toBeInTheDocument()
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
 
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     expect(popIn).toHaveTextContent("Нове")
-    expect(screen.getByRole("button", { name: "Вхідні: 2 непрочитаних" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 2" })).toBeInTheDocument()
   })
 
   it("pops a fresh message for five seconds when the template duration is empty", async () => {

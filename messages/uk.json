@@ -827,7 +827,7 @@
   "admin.exTask.deviceFlagVarPlaceholder": "FLAG",
   "editor.linkPlaceholder": "https://…",
   "inbox.title": "Вхідні",
-  "inbox.titleUnread": "Вхідні: {count} непрочитаних",
+  "inbox.titleUnread": "Вхідні, непрочитані: {count}",
   "inbox.panel": "Особисті вхідні",
   "inbox.open": "Відкрити",
   "inbox.loadError": "Не вдалося завантажити вхідні повідомлення.",
