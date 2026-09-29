@@ -7,7 +7,7 @@
   "20409": "Password does not meet complexity requirements",
   "20410": "Invalid old password",
   "20411": "Account already exists, sign in",
-  "20415": "Cannot remove the last super admin",
+  "20415": "Cannot remove the last super administrator",
   "20416": "Invalid role",
   "20417": "Invalid user status",
   "20418": "Account is blocked",

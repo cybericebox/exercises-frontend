@@ -1,4 +1,11 @@
 {
+  "role.super_admin": "Суперадміністратор",
+  "role.admin": "Адміністратор",
+  "role.admin_viewer": "Адміністратор (лише перегляд)",
+  "role.user": "Користувач",
+  "role.event.owner": "Власник",
+  "role.event.moderator": "Модератор",
+  "role.event.observer": "Спостерігач",
   "error.generic": "Щось пішло не так",
   "error.unavailableTitle": "Сервіс тимчасово недоступний",
   "error.unavailableBody": "Перевіряємо з’єднання автоматично. Сторінка продовжить роботу після відновлення сервісу.",
