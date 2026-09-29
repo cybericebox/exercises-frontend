@@ -1096,7 +1096,7 @@ export function RichTextEditor({
         <div className={cn("editor-scroll relative has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring", minHeightClassName)}>
           <RichTextPlugin
             contentEditable={
-              placeholder ? (
+              <div className="editor-scroll__body">{placeholder ? (
                 <ContentEditable
                   className="px-4 py-3 text-sm text-foreground outline-none"
                   aria-label={ariaLabel}
@@ -1110,7 +1110,7 @@ export function RichTextEditor({
                 />
               ) : (
                 <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" aria-label={ariaLabel} aria-invalid={invalid || undefined} />
-              )
+              )}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}
           />

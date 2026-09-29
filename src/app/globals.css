@@ -204,6 +204,13 @@
   .editor-scroll > * {
     flex: 1 0 auto;
   }
+
+  /* The contenteditable sits in this grid wrapper, not directly in the flex column:
+     Chrome mis-handles focus for contenteditable inside flex containers. The single
+     auto row stretches, so the editable still fills the whole scroll area. */
+  .editor-scroll__body {
+    display: grid;
+  }
 }
 
 @layer base {
