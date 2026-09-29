@@ -744,7 +744,7 @@
   "exercises.propose.noteTooLong": "Up to 2000 characters",
   "exercises.propose.submit": "Send",
   "exercises.propose.sent": "Proposal sent",
-  "exercises.readOnly.banner": "Catalog exercise, published version. To adapt it, use “Customize for the event” on the event “Challenges” page.",
+  "exercises.readOnly.banner": "Catalog exercise, published version. To adapt it, use “Create an event copy” on the event “Challenges” page.",
   "exercises.readOnly.toEvent": "Open event exercises",
   "exercises.return.created": "Exercise created. Publish it to add it to the event.",
   "exercises.return.published": "Published. The event can now use this version.",
