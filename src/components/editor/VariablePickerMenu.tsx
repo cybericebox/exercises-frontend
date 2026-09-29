@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { X } from "lucide-react";
 
 import { t } from "@/i18n/t";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/utils/cn";
 import type { VariableDef } from "./variableUtils";
 
@@ -113,7 +114,7 @@ export function VariablePickerMenu({ variables, onSelect, onClose, values, initi
         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
       />
       {filtered.length === 0 ? (
-        <p className="px-1 py-2 text-xs text-muted-foreground">{t("admin.notif.varPicker.empty")}</p>
+        <EmptyState compact message={t("admin.notif.varPicker.empty")} />
       ) : (
         <div ref={listRef} data-testid="variable-picker-list" className="max-h-60 overflow-y-auto">
           {filtered.map(({ variable, label, example }, index) => (

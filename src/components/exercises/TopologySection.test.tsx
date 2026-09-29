@@ -68,9 +68,11 @@ describe("topology workspace", () => {
     expect(diagram()).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     expect(screen.queryByRole("img", { name: "admin.exTopo.diagram" })).not.toBeInTheDocument()
-    expect(screen.getByText("admin.exTopo.noDevices")).toBeInTheDocument()
+    // Empty panels show the shared EmptyState, filling and centered in the panel.
+    const noDevices = screen.getByText("admin.exTopo.noDevices").closest("[data-empty-state]")
+    expect(noDevices).toHaveClass("flex-1", "items-center", "justify-center")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
-    expect(screen.getByText("admin.exTopo.noConnections")).toBeInTheDocument()
+    expect(screen.getByText("admin.exTopo.noConnections").closest("[data-empty-state]")?.parentElement).toHaveClass("flex-1", "items-center", "justify-center")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
     expect(diagram()).toBeInTheDocument()
   })

@@ -119,7 +119,7 @@ export function ConnectionList({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex min-h-full flex-col gap-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5"><h4 className="text-sm font-semibold">{t("admin.exTopo.connections")}</h4><FieldHelp text={t("admin.exTopo.connectionsHelp")} /></div>
         {!disabled && fields.length > 0 && (
@@ -131,8 +131,8 @@ export function ConnectionList({
       </div>
 
       {fields.length === 0 && (
-        <div className="py-2">
-          <EmptyState message={t("admin.exTopo.noConnections")} compact />
+        <div className="flex flex-1 flex-col items-center justify-center py-2">
+          <EmptyState message={t("admin.exTopo.noConnections")} className="min-h-0" />
           {!disabled && (
             <Button type="button" variant="outline" size="sm" className="mx-auto mb-3 flex" onClick={addConnection}>
               <Plus className="mr-1 h-4 w-4" />

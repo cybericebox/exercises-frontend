@@ -2,6 +2,7 @@
 
 import { useFormContext, useWatch } from "react-hook-form"
 import { ArrowDown, ArrowUp, Plus } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,7 +52,7 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
       <p className="text-xs text-muted-foreground">{t("exercises.hints.help")}</p>
       {listError && <p role="alert" className="text-xs text-destructive">{listError}</p>}
       {hints.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("exercises.hints.empty")}</p>
+        <EmptyState compact message={t("exercises.hints.empty")} />
       ) : (
         <ol className="space-y-3">
           {hints.map((hint, hintIndex) => {

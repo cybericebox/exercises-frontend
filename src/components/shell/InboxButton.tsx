@@ -286,7 +286,7 @@ export function InboxButton() {
         </div>
         {error && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
         <div ref={scrollAreaRef} className="min-h-0 overflow-y-auto">
-          {loading ? <LoadingArea compact label={t("inbox.loadingMessages")} /> : items.length === 0 ? <EmptyState message={t("inbox.empty")} inbox /> : <ul className="divide-y divide-border">{items.map((item, index) => {
+          {loading ? <LoadingArea compact className="min-h-48" label={t("inbox.loadingMessages")} /> : items.length === 0 ? <EmptyState message={t("inbox.empty")} inbox /> : <ul className="divide-y divide-border">{items.map((item, index) => {
             const link = rowLink(item)
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className="px-4 py-3 hover:bg-accent/50">
               <NotificationMessageCard

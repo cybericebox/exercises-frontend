@@ -1,5 +1,6 @@
 "use client"
 
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import type { TopologyFormValues } from "@/lib/exerciseSchemas"
@@ -18,7 +19,7 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
   onRemove: (key: string) => void
 }) {
   const rows = topologyDeviceRows(topology)
-  if (rows.length === 0) return <p className="px-3 py-4 text-sm text-muted-foreground">{t("admin.exTopo.noDevices")}</p>
+  if (rows.length === 0) return <EmptyState message={t("admin.exTopo.noDevices")} className="flex-1" />
 
   return <div className="min-w-0 overflow-x-auto">
     <table aria-label={t("admin.exTopo.devices")} className="w-full min-w-[42rem] table-fixed border-collapse text-sm">

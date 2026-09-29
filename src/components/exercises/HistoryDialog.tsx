@@ -5,6 +5,7 @@ import { listVersions, type VersionListItem } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useUserNames } from "@/lib/userNames"
@@ -60,9 +61,9 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
         <DialogDescription>{t("admin.exHistory.description")}</DialogDescription>
       </DialogHeader>
       <div className="max-h-[60vh] overflow-y-auto">
-        {failed ? <p role="alert" className="py-6 text-center text-sm text-destructive">{t("admin.exHistory.loadError")}</p>
-          : versions === null ? <LoadingArea compact label={t("admin.loading")} />
-            : versions.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">{t("admin.exHistory.empty")}</p>
+        {failed ? <div className="flex h-48 items-center justify-center"><p role="alert" className="text-center text-sm text-destructive">{t("admin.exHistory.loadError")}</p></div>
+          : versions === null ? <LoadingArea compact className="h-48" label={t("admin.loading")} />
+            : versions.length === 0 ? <EmptyState compact message={t("admin.exHistory.empty")} className="h-48" />
               : <ul>
                 {versions.map((version) => {
                   const isCurrent = version.ID === currentId

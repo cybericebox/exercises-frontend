@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { GripVertical, Images, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -374,7 +375,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           </Button></HoverTooltip>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="relative min-h-0 flex-1 overflow-auto">
         {topology && <TopologyDiagram topology={topology} onPositionChange={disabled ? undefined : moveNode}
           onLabelOffsetChange={disabled ? undefined : moveLabel}
           onPortLabelOffsetChange={disabled ? undefined : movePortLabel}
@@ -390,8 +391,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           onCanvasAddNode={disabled ? undefined : (kind, position) => kind === "vpn" || kind === "internet"
             ? addGateway(kind, position) : addDevice(kind, position)}
           onCanvasLinkStart={disabled || freeConnectionNodeCount < 2 ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
+        {availableNodes.size === 0 && <EmptyState message={t("admin.exTopo.noDevices")} className="pointer-events-none absolute inset-0 min-h-0" />}
       </div>
-      {availableNodes.size === 0 && <div className="p-3 text-center text-sm text-muted-foreground">{t("admin.exTopo.noDevices")}</div>}
     </div>
     {settingsTarget !== null && <aside role="complementary"
       aria-label={t("admin.exTopo.deviceSettings")}
@@ -472,12 +473,12 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     </aside>}
     </div>}
 
-    {view === "devices" && <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-border p-2">
+    {view === "devices" && <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-md border border-border p-2">
       {topology && <TopologyDeviceOverview topology={topology} disabled={disabled} selectedKey={selectedKey}
         onOpen={(key) => { openSettings(key); setActiveSection("diagram") }} onRemove={setPendingRemoval} />}
     </div>}
 
-    {view === "connections" && <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-border p-3">
+    {view === "connections" && <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-md border border-border p-3">
       <ConnectionList variantIndex={variantIndex} disabled={disabled} selectedIndex={selectedConnectionIndex}
         onSelectIndex={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null) }}
         onShowInDiagram={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null); setActiveSection("diagram") }} />
