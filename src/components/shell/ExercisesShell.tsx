@@ -2,7 +2,6 @@
 import { useEffect } from "react"
 import { TopBar } from "./TopBar"
 import { BannerStack } from "./BannerStack"
-import { ReturnBar } from "./ReturnBar"
 import { ReturnContextProvider } from "./ReturnContext"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
@@ -55,7 +54,6 @@ function AccessGate({ children }: { children: React.ReactNode }) {
     <ReturnContextProvider>
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
         <TopBar />
-        <ReturnBar />
         <BannerStack />
         <main className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
       </div>

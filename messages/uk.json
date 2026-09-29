@@ -900,10 +900,12 @@
   "consent.analytics.text": "Допомагає нам зрозуміти, як ви користуєтеся сайтом, щоб покращувати його (Google Analytics).",
   "consent.saveChoice": "Зберегти вибір",
   "accountMenu.profile": "Профіль",
-  "accountMenu.home": "Головна",
   "accountMenu.admin": "Адміністрування",
   "accountMenu.exercises": "Каталог завдань",
   "accountMenu.signOut": "Вийти",
   "consent.menuLabel": "Файли cookie",
-  "consent.settings": "Налаштування файлів cookie"
+  "consent.settings": "Налаштування файлів cookie",
+  "back.toAdmin": "Перейти до адміністрування",
+  "back.toEvent": "Перейти до заходу",
+  "back.toCatalog": "Перейти до каталогу"
 }

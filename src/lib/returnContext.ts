@@ -1,7 +1,7 @@
 import { publicDomain } from "@/lib/origins"
 
-// Return context: an event page (or admin) opens the catalog with
-// ?return=<absolute https URL>[&event=<eventID>]. The URL is only accepted on
+// Return context: an event page (or admin) opens the catalog with ?return_to=<absolute
+// https URL>[&event=<eventID>] (older links: ?return=). The URL is only accepted on
 // the platform domain (or a subdomain), and both values survive in-app
 // navigation through sessionStorage.
 
@@ -50,11 +50,11 @@ function store(context: ReturnContext): void {
 }
 
 /**
- * Resolves the return context for the current page: a valid ?return= in the
+ * Resolves the return context for the current page: a valid ?return_to= in the
  * query wins and is persisted; otherwise the stored context is used.
  */
 export function resolveReturnContext(search: URLSearchParams): ReturnContext {
-  const returnUrl = safeReturnUrl(search.get("return"))
+  const returnUrl = safeReturnUrl(search.get("return_to") ?? search.get("return"))
   if (returnUrl) {
     const context = { returnUrl, eventId: cleanEventId(search.get("event")) }
     store(context)
