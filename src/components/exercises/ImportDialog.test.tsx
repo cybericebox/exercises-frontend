@@ -11,9 +11,11 @@ vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.f
 
 import { importExercises } from "@/api/exercises/archive"
 import { ImportDialog } from "./ImportDialog"
+import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const mockImport = vi.mocked(importExercises)
 const imported = (id: string, name: string): Exercise => ({
+  ...OWNERSHIP,
   ID: id, Name: name, Description: "", Tags: [], DraftVersionID: null, PublishedVersionID: null, ArchivedAt: null,
   HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null,
 })

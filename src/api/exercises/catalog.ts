@@ -6,12 +6,43 @@
  * Pagination: cursor + pageSize for existing consumers, or page + pageSize
  * with total/sort/filter options for the platform admin catalog.
  */
-import { apiGet, apiPost, apiPatch, apiDelete, apiKeepalive } from "@/api/client"
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete, apiKeepalive } from "@/api/client"
 import type { CursorPage, OffsetPage } from "@/api/pagination"
 
 const BASE = "/api/exercises"
 
-export type ExerciseListItem = {
+export type ExerciseScope = "catalog" | "event"
+/** Catalog access level; "" for event-scoped exercises. */
+export type AccessLevel = "all" | "selected" | "own" | ""
+export type ForkedFrom = { ExerciseID: string; ExerciseName: string; VersionID: string }
+
+/** Per-exercise rights computed by the server for the caller. */
+export type ExercisePermissions = {
+  CanRead: boolean
+  CanEdit: boolean
+  CanPublish: boolean
+  CanDelete: boolean
+  CanManageAccess: boolean
+  CanPropose: boolean
+  CanExport: boolean
+}
+
+/** Ownership / scope fields shared by the list item and the card. */
+export type ExerciseOwnership = {
+  Scope: ExerciseScope
+  OwnerEventID: string | null
+  OwnerEventName: string
+  AccessLevel: AccessLevel
+  AccessEventIDs: string[]
+  OriginEventID: string | null
+  ForkedFrom: ForkedFrom | null
+  Infrastructure: boolean
+  PendingProposalID: string | null
+  /** null when the server sent none (older API) — callers fall back to RBAC. */
+  Permissions: ExercisePermissions | null
+}
+
+export type ExerciseListItem = ExerciseOwnership & {
   ID: string
   Name: string
   Description: string
@@ -23,7 +54,7 @@ export type ExerciseListItem = {
   UpdatedAt: string
 }
 
-export type Exercise = {
+export type Exercise = ExerciseOwnership & {
   ID: string
   Name: string
   Description: string
@@ -47,6 +78,9 @@ export type ExerciseIdentityInput = {
   Tags: string[]
 }
 
+/** Create body: OwnerEventID null → catalog (admins), else the owner event. */
+export type ExerciseCreateInput = ExerciseIdentityInput & { OwnerEventID?: string | null }
+
 export type ExerciseTagSuggestion = { Tag: string; Count: number }
 
 /** Existing tags only; no separate tag registry or empty tags. */
@@ -62,30 +96,57 @@ export type ExercisesFilter = {
   pageSize?: number
 }
 
+export type ScopeFilter = "catalog" | "event" | ""
+export type InfrastructureFilter = "yes" | "no" | ""
+
 export type ExercisesPageFilter = {
   search?: string
   tags?: string[]
   status?: string
   archived?: ArchivedFilter
+  scope?: ScopeFilter
+  event?: string
+  infrastructure?: InfrastructureFilter
   page: number
   pageSize: number
   sortBy: string
   sortDir: "asc" | "desc"
 }
 
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt"> & { Tags: string[] | null; ArchivedAt?: string | null }
-export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges"> & {
+type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs">> & { AccessEventIDs?: string[] | null }
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | keyof ExerciseOwnership> & RawOwnership & {
+  Tags: string[] | null
+  ArchivedAt?: string | null
+}
+export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
   HasChanges?: boolean
 }
 
+/** Fills the W4 ownership fields with defaults (older payloads omit them). */
+export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
+  const scope: ExerciseScope = raw.Scope === "event" ? "event" : "catalog"
+  return {
+    Scope: scope,
+    OwnerEventID: raw.OwnerEventID ?? null,
+    OwnerEventName: raw.OwnerEventName ?? "",
+    AccessLevel: scope === "event" ? "" : raw.AccessLevel ?? "",
+    AccessEventIDs: raw.AccessEventIDs ?? [],
+    OriginEventID: raw.OriginEventID ?? null,
+    ForkedFrom: raw.ForkedFrom ?? null,
+    Infrastructure: raw.Infrastructure ?? false,
+    PendingProposalID: raw.PendingProposalID ?? null,
+    Permissions: raw.Permissions ?? null,
+  }
+}
+
 function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
-  return { ...raw, Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null }
+  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null }
 }
 
 export function normalizeExercise(raw: RawExercise): Exercise {
-  return { ...raw, Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, HasChanges: raw.HasChanges ?? false }
+  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, HasChanges: raw.HasChanges ?? false }
 }
 
 function buildListQuery(filter?: ExercisesFilter): string {
@@ -115,6 +176,9 @@ export async function listExercisesPage(filter: ExercisesPageFilter): Promise<Of
   for (const tag of filter.tags ?? []) p.append("tags", tag)
   if (filter.status) p.set("status", filter.status)
   if (filter.archived === "only") p.set("archived", "only")
+  if (filter.scope) p.set("scope", filter.scope)
+  if (filter.event) p.set("event", filter.event)
+  if (filter.infrastructure) p.set("infrastructure", filter.infrastructure)
   p.set("page", String(filter.page))
   p.set("pageSize", String(filter.pageSize))
   p.set("sortBy", filter.sortBy)
@@ -129,8 +193,8 @@ export async function getExercise(id: string): Promise<Exercise> {
   return normalizeExercise(raw)
 }
 
-/** POST /api/exercises */
-export async function createExercise(input: ExerciseIdentityInput): Promise<Exercise> {
+/** POST /api/exercises — OwnerEventID omitted/null creates a catalog exercise. */
+export async function createExercise(input: ExerciseCreateInput): Promise<Exercise> {
   const raw = await apiPost<RawExercise>(BASE, input)
   return normalizeExercise(raw)
 }
@@ -169,3 +233,14 @@ export async function getExerciseUsage(id: string): Promise<ExerciseUsage> {
   const raw = await apiGet<{ Events: ExerciseUsageEvent[] | null } | null>(`${BASE}/${id}/usage`)
   return { Events: raw?.Events ?? [] }
 }
+
+export type AccessInput = { AccessLevel: Exclude<AccessLevel, "">; EventIDs: string[] }
+
+/** PUT /api/exercises/:id/access — admins, catalog exercises only. */
+export async function setExerciseAccess(id: string, input: AccessInput): Promise<Exercise> {
+  const body: AccessInput = { AccessLevel: input.AccessLevel, EventIDs: input.AccessLevel === "selected" ? input.EventIDs : [] }
+  return normalizeExercise(await apiPut<RawExercise>(`${BASE}/${id}/access`, body))
+}
+
+/** Defaults for an exercise without W4 ownership data (a plain catalog exercise). */
+export const DEFAULT_OWNERSHIP: ExerciseOwnership = normalizeOwnership({})

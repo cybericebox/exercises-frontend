@@ -34,15 +34,17 @@ import { createExercise, getExercise } from "@/api/exercises/catalog"
 import { publishDraft, saveDraft } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import NewExercisePage from "./page"
+import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const created: Exercise = {
+  ...OWNERSHIP,
   ID: "new-exercise", Name: "Buffer overflow", Description: "", Tags: [], DraftVersionID: null, PublishedVersionID: null,
   ArchivedAt: null, HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "2026-09-26T10:00:00Z", UpdatedBy: null,
 }
 const savedVersion: Version = {
   ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
-    LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [] }],
+    LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 let storage: Map<string, string>

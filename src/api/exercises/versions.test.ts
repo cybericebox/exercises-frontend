@@ -131,6 +131,7 @@ describe('normalizeVariant', () => {
       DeviceFlagVar: '',
       Attachments: [],
       Placeholders: [],
+      Hints: [],
     })
     expect(v.Topology.Devices[0]).toEqual({
       ID: DEV_ID,

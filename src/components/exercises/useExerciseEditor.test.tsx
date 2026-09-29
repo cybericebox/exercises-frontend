@@ -21,6 +21,7 @@ import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
+import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const mockCreate = vi.mocked(createExercise)
 const mockGetExercise = vi.mocked(getExercise)
@@ -30,6 +31,7 @@ const mockGetVersion = vi.mocked(getVersion)
 const mockSaveDraft = vi.mocked(saveDraft)
 
 const exercise: Exercise = {
+  ...OWNERSHIP,
   ID: "ex-1", Name: "Web 101", Description: "", Tags: [], DraftVersionID: "draft-1", PublishedVersionID: null,
   ArchivedAt: null, HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null,
 }
@@ -37,7 +39,7 @@ const created: Exercise = { ...exercise, ID: "new-exercise", Name: "Buffer overf
 const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
-    Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [] }],
+    Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 

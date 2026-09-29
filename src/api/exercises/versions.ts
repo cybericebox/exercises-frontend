@@ -111,6 +111,10 @@ export type TopologyDTO = {
   VisualRender?: Record<string, unknown>
 }
 
+/** Hint: ID and Cost match position-wise across variants; Text is per variant. */
+export type HintDTO = { ID?: string; Text: string; Cost: number }
+export type NormalizedHint = { ID: string; Text: string; Cost: number }
+
 export type TaskDTO = {
   ID?: string
   Name: string
@@ -121,6 +125,7 @@ export type TaskDTO = {
   DeviceFlagVar?: string
   Attachments?: AttachmentDTO[]
   Placeholders?: PlaceholderDTO[]
+  Hints?: HintDTO[]
 }
 
 export type VariantDTO = {
@@ -159,6 +164,7 @@ export type NormalizedTask = {
   DeviceFlagVar: string
   Attachments: AttachmentDTO[]
   Placeholders: PlaceholderDTO[]
+  Hints: NormalizedHint[]
 }
 
 export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; HasValue: boolean }
@@ -232,6 +238,7 @@ function normalizeTask(raw: TaskDTO): NormalizedTask {
     DeviceFlagVar: raw.DeviceFlagVar ?? "",
     Attachments: raw.Attachments ?? [],
     Placeholders: raw.Placeholders ?? [],
+    Hints: (raw.Hints ?? []).map((hint) => ({ ID: hint.ID ?? "", Text: hint.Text ?? "", Cost: hint.Cost ?? 0 })),
   }
 }
 

@@ -29,6 +29,7 @@ vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: () => <div
 
 import { listExercisesPage } from '@/api/exercises/catalog'
 import Page from './page'
+import { OWNERSHIP } from '@/test/exerciseFixtures'
 
 const mockList = vi.mocked(listExercisesPage)
 
@@ -43,6 +44,7 @@ function resetStorage() {
 }
 
 const item = {
+  ...OWNERSHIP,
   ID: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
   Name: 'SQLi basics',
   Description: 'Intro to SQL injection',
