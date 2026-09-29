@@ -159,6 +159,13 @@
 		opacity: 1;
 	}
 
+	/* Multi-line fields keep their height, scroll inside and resize only vertically. */
+	textarea {
+		resize: vertical;
+		overflow-y: auto;
+		max-height: 80vh;
+	}
+
 	body {
 		@apply min-h-dvh w-full flex flex-col;
 		@apply bg-background text-foreground;
@@ -179,6 +186,23 @@
     background: var(--card);
     border: 1px solid var(--border);
     box-shadow: none;
+  }
+
+  /* Scroll area of a contenteditable editor: the toolbar stays above it, the content
+     scrolls inside, and the bottom-right grip resizes it vertically. Its min-height
+     (set where it is used) is also the default height; dragging sets an inline height. */
+  .editor-scroll {
+    display: flex;
+    flex-direction: column;
+    height: 0;
+    resize: vertical;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 80vh;
+  }
+
+  .editor-scroll > * {
+    flex: 1 0 auto;
   }
 }
 

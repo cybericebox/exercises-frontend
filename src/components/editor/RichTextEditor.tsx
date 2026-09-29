@@ -157,7 +157,7 @@ export interface RichTextEditorProps {
   onEditVariable?: (name: string) => void;
   placeholder?: string;
   className?: string;
-  /** Min height of the editable area; short fields (hints) pass a smaller one. */
+  /** Default and min height of the scroll area; short fields (hints) pass a smaller one. */
   minHeightClassName?: string;
   /** false: no text alignment (no toolbar control; aligned content is reset to default). */
   allowAlignment?: boolean;
@@ -1093,12 +1093,12 @@ export function RichTextEditor({
         {!disabled && <ToolbarPlugin allowAlignment={allowAlignment} variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
-        <div className="relative">
+        <div className={cn("editor-scroll relative has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring", minHeightClassName)}>
           <RichTextPlugin
             contentEditable={
               placeholder ? (
                 <ContentEditable
-                  className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring")}
+                  className="px-4 py-3 text-sm text-foreground outline-none"
                   aria-label={ariaLabel}
                   aria-invalid={invalid || undefined}
                   aria-placeholder={placeholder}
@@ -1109,7 +1109,7 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none")} aria-label={ariaLabel} aria-invalid={invalid || undefined} />
+                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" aria-label={ariaLabel} aria-invalid={invalid || undefined} />
               )
             }
             ErrorBoundary={LexicalErrorBoundary}
