@@ -38,6 +38,8 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
 import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
+import { AccessCell, statusLabel } from "./catalog/CatalogCells"
+import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
@@ -224,7 +226,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const version = editor.version
   const badge: HeaderBadge | null = isVersion && version
     ? { kind: "version", label: t("admin.exPage.badge.version").replace("{date}", formatExerciseDate(version.PublishedAt ?? version.CreatedAt)) }
-    : exercise ? { kind: exerciseBadgeKind(exercise) } : null
+    : exercise ? { kind: exerciseBadgeKind(exercise), label: statusLabel(headerStatus(exercise)) } : null
 
   return <EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
@@ -234,6 +236,11 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         mode={headerMode}
         title={exercise?.Name ?? t("admin.ex.create.title")}
         badge={badge}
+        meta={exercise && !isVersion ? <>
+          <InfrastructureIcon show={exercise.Infrastructure} />
+          <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
+          <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />
+        </> : undefined}
         saveStatus={saveStatus}
         permissions={permissions}
         archived={archived}
@@ -260,12 +267,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onPropose={canPropose ? () => setDialog("propose") : undefined}
         proposalPending={Boolean(exercise?.PendingProposalID)}
       />
-      {exercise && (exercise.Scope === "event" || exercise.ForkedFrom || exercise.PendingProposalID || exercise.Infrastructure || (access?.IsAdmin && exercise.AccessLevel)) && (
-        <div className="-mt-2 flex flex-wrap items-center gap-2">
-          <InfrastructureIcon show={exercise.Infrastructure} />
-          <OwnershipBadges exercise={exercise} showAccess={Boolean(access?.IsAdmin)} />
-        </div>
-      )}
       {!exercise && owners.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <span id="owner-label" className="text-sm font-medium text-foreground">{t("exercises.owner.label")}</span>

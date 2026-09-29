@@ -92,7 +92,8 @@ describe("exercise editor — W4 rights", () => {
       ProposedBy: null, ProposedByName: "", ProposedAt: "", DecidedAt: null, DecisionNote: "", CatalogExerciseID: null,
     })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
-    expect(await screen.findByText("exercises.badge.event · Spring Cup")).toBeInTheDocument()
+    expect(await screen.findByText("exercises.accessCol.event")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1 }).parentElement).toContainElement(screen.getByText("exercises.accessCol.event"))
     expect(getDraft).toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "exercises.propose.button" }))
     fireEvent.change(screen.getByLabelText("exercises.propose.note"), { target: { value: "Good for juniors" } })

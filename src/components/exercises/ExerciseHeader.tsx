@@ -12,18 +12,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
 import type { AutosaveStatus } from "@/lib/autosaveQueue"
+import type { ReactNode } from "react"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
 
 export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
 export type HeaderPermissions = { write: boolean; publish: boolean; delete: boolean; export: boolean }
-export type HeaderBadge = { kind: ExerciseBadgeKind } | { kind: "version"; label: string }
+export type HeaderBadge = { kind: ExerciseBadgeKind; label?: string } | { kind: "version"; label: string }
 export type TestVariantOption = { index: number; label: string; disabled: boolean }
 
 export type ExerciseHeaderProps = {
   mode: HeaderMode
   title: string
   badge: HeaderBadge | null
+  /** Shown on the title line after the status (infrastructure, access, fork/proposal). */
+  meta?: ReactNode
   saveStatus: AutosaveStatus
   permissions: HeaderPermissions
   archived: boolean
@@ -65,7 +68,7 @@ const BADGE_CLASS: Record<HeaderBadge["kind"], string> = {
 const ICON = "h-4 w-4"
 
 function StatusBadge({ badge }: { badge: HeaderBadge }) {
-  const label = badge.kind === "version" ? badge.label : t(`admin.exPage.badge.${badge.kind}`)
+  const label = badge.label ?? t(`admin.exPage.badge.${badge.kind}`)
   return (
     <span
       data-badge={badge.kind}
@@ -223,6 +226,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
         <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
         {badge && <StatusBadge badge={badge} />}
+        {props.meta}
         {(mode === "edit" || mode === "new") && <SaveIndicator status={saveStatus} onRetry={props.onRetrySave} />}
       </div>
       <div className="flex flex-wrap items-center gap-2">

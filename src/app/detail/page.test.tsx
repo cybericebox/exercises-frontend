@@ -89,7 +89,7 @@ describe("exercise page — modes", () => {
   it("opens an existing exercise read-only with the viewing actions", async () => {
     render(<Page />)
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
-    expect(screen.getByText("admin.exPage.badge.changes")).toBeInTheDocument()
+    expect(screen.getByText("admin.ex.status.changed")).toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
@@ -123,7 +123,7 @@ describe("exercise page — modes", () => {
   it("disables Publish when the working copy matches the publication", async () => {
     vi.mocked(getExercise).mockResolvedValue({ ...exercise, HasChanges: false })
     render(<Page />)
-    expect(await screen.findByText("admin.exPage.badge.published")).toBeInTheDocument()
+    expect(await screen.findByText("admin.ex.status.published")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
   })
 
@@ -283,7 +283,7 @@ describe("exercise page — archive and delete", () => {
     vi.mocked(unarchiveExercise).mockResolvedValue(exercise)
     render(<Page />)
     expect(await screen.findByText("admin.exPage.archived.banner")).toBeInTheDocument()
-    expect(screen.getByText("admin.exPage.badge.archived")).toBeInTheDocument()
+    expect(screen.getByText("admin.ex.status.archived")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.unarchive" }))

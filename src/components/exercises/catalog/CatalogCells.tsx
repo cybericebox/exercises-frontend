@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { ChevronDown } from "lucide-react"
-import { getExercise, type ExerciseListItem } from "@/api/exercises/catalog"
+import { getExercise, type ExerciseListItem, type ExerciseOwnership } from "@/api/exercises/catalog"
+import { getEventOption } from "@/api/events/list"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { LoadingArea } from "@/components/ui/spinner"
 import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList"
@@ -30,10 +31,20 @@ export function StatusCell({ item }: { item: ExerciseListItem }) {
  * Who can use the exercise. «Обраним подіям» opens the event list; the list
  * API does not return AccessEventIDs, so the card is fetched on first open.
  */
-export function AccessCell({ item, eventName }: { item: ExerciseListItem; eventName: (id: string) => string | undefined }) {
+export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID: string }; eventName: (id: string) => string | undefined }) {
   const info = accessInfo(item)
   const [ids, setIds] = useState<string[] | null>(info.eventIds.length ? info.eventIds : null)
   const [failed, setFailed] = useState(false)
+  const [names, setNames] = useState<Record<string, string>>({})
+  const nameOf = (id: string) => eventName(id) ?? names[id]
+
+  // Events outside the caller's known list: look the names up (admins); the ID stays as fallback.
+  function resolve(list: string[]) {
+    for (const id of list) {
+      if (nameOf(id)) continue
+      getEventOption(id).then((event) => setNames((current) => ({ ...current, [id]: event.Name || event.Tag || id }))).catch(() => undefined)
+    }
+  }
 
   if (info.kind === "event") {
     return <span className="text-sm">{info.eventName ? t("exercises.accessCol.event").replace("{name}", info.eventName) : t("exercises.badge.event")}</span>
@@ -48,8 +59,9 @@ export function AccessCell({ item, eventName }: { item: ExerciseListItem; eventN
   const label = count ? `${t("exercises.access.level.selected")} · ${count}` : t("exercises.access.level.selected")
 
   function load() {
-    if (ids || failed) return
-    getExercise(item.ID).then((card) => setIds(card.AccessEventIDs)).catch(() => setFailed(true))
+    if (ids) { resolve(ids); return }
+    if (failed) return
+    getExercise(item.ID).then((card) => { setIds(card.AccessEventIDs); resolve(card.AccessEventIDs) }).catch(() => setFailed(true))
   }
 
   return (
@@ -65,7 +77,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseListItem; eventN
           : ids === null ? <LoadingArea className="h-12" label={t("admin.loading")} />
           : ids.length === 0 ? <p className="text-sm text-muted-foreground">{t("exercises.access.noEvents")}</p>
           : <ul className="max-h-56 space-y-1 overflow-y-auto">
-            {ids.map((id) => <li key={id} className="truncate">{eventName(id) ?? id}</li>)}
+            {ids.map((id) => <li key={id} className="truncate">{nameOf(id) ?? id}</li>)}
           </ul>}
       </PopoverContent>
     </Popover>

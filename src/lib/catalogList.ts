@@ -19,6 +19,13 @@ export function catalogStatus(item: Pick<ExerciseListItem, "ArchivedAt" | "HasDr
   return item.HasDraft ? "draft" : "none"
 }
 
+/** The same status for the exercise card, which knows whether the draft really differs. */
+export function headerStatus(exercise: { ArchivedAt: string | null; PublishedVersionID: string | null; DraftVersionID: string | null; HasChanges: boolean }): CatalogStatus {
+  if (exercise.ArchivedAt) return "archived"
+  if (exercise.PublishedVersionID) return exercise.HasChanges ? "changed" : "published"
+  return exercise.DraftVersionID ? "draft" : "none"
+}
+
 export type AccessKind = "event" | "all" | "selected" | "own" | "none"
 export type AccessInfo = { kind: AccessKind; eventName: string; eventIds: string[] }
 
