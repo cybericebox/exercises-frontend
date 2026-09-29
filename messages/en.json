@@ -825,5 +825,20 @@
   "admin.exTopo.macPlaceholder": "02:42:ac:11:00:02",
   "admin.exTopo.dhcp": "DHCP",
   "admin.exTask.deviceFlagVarPlaceholder": "FLAG",
-  "editor.linkPlaceholder": "https://…"
+  "editor.linkPlaceholder": "https://…",
+  "inbox.title": "Inbox",
+  "inbox.titleUnread": "Inbox: {count} unread",
+  "inbox.panel": "Personal inbox",
+  "inbox.open": "Open",
+  "inbox.loadError": "Could not load notifications.",
+  "inbox.markReadError": "Could not mark the notification as read.",
+  "inbox.readAllError": "Could not mark notifications as read.",
+  "inbox.readAll": "Mark all as read",
+  "inbox.markRead": "Mark as read",
+  "inbox.close": "Close inbox",
+  "inbox.loadingMessages": "Loading notifications",
+  "inbox.empty": "No notifications yet.",
+  "inbox.unreadItem": "Unread",
+  "inbox.new": "New notification",
+  "inbox.dismiss": "Dismiss notification"
 }

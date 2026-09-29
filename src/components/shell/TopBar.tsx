@@ -10,6 +10,7 @@ import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { ThemeSwitch } from "./ThemeSwitch"
+import { InboxButton } from "./InboxButton"
 import { House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
@@ -77,6 +78,7 @@ export function TopBar() {
       <div className="flex items-center gap-3">
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />
+        <InboxButton />
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("admin.accountMenu")}
