@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react"
 import { Check, X } from "lucide-react"
 import { listExerciseTags, type ExerciseTagSuggestion } from "@/api/exercises/catalog"
 import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 
@@ -79,9 +80,9 @@ export function TagFilter({ value, onChange, className }: {
       </div>
       {expanded && (
         <div id={listId} role="listbox" aria-multiselectable="true" aria-label={t("admin.ex.filterTags.label")}
-          className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-60 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
-          {loadedFor !== prefix ? <LoadingArea compact className="h-16" label={t("admin.loading")} />
-            : shown.length === 0 ? <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("admin.ex.filterTags.empty")}</p>
+          className="absolute left-0 right-0 top-full z-[80] mt-1 h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
+          {loadedFor !== prefix ? <LoadingArea compact className="h-full" label={t("admin.loading")} />
+            : shown.length === 0 ? <EmptyState compact message={t("admin.ex.filterTags.empty")} className="h-full min-h-0" />
             : shown.map(({ Tag, Count }, index) => (
               <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={selected(Tag)}
                 onPointerDown={(event) => { event.preventDefault(); toggle(Tag) }}

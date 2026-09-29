@@ -7,6 +7,7 @@ import { getEventOption } from "@/api/events/list"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { LoadingArea } from "@/components/ui/spinner"
 import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 
 const STATUS_TONE: Record<CatalogStatus, string> = {
@@ -74,9 +75,9 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
       <PopoverContent className="w-64">
         <p className="mb-1 text-xs text-muted-foreground">{t("exercises.accessCol.eventsTitle")}</p>
         {failed ? <p role="alert" className="text-sm text-destructive">{t("exercises.access.loadError")}</p>
-          : ids === null ? <LoadingArea className="h-12" label={t("admin.loading")} />
-          : ids.length === 0 ? <p className="text-sm text-muted-foreground">{t("exercises.access.noEvents")}</p>
-          : <ul className="max-h-56 space-y-1 overflow-y-auto">
+          : ids === null ? <LoadingArea compact className="h-40" label={t("admin.loading")} />
+          : ids.length === 0 ? <EmptyState compact message={t("exercises.access.noEvents")} className="h-40 min-h-0" />
+          : <ul className="h-40 space-y-1 overflow-y-auto">
             {ids.map((id) => <li key={id} className="truncate">{nameOf(id) ?? id}</li>)}
           </ul>}
       </PopoverContent>

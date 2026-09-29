@@ -6,6 +6,7 @@ import type { EventOption } from "@/api/events/list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 
@@ -53,9 +54,9 @@ export function EventMultiSelect({ label, options, value, onChange, className }:
       <PopoverContent className="w-72 space-y-2">
         <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
           placeholder={t("exercises.filter.eventSearch")} aria-label={t("exercises.filter.eventSearch")} className="h-9" />
-        <div role="group" aria-label={label} className="max-h-64 space-y-0.5 overflow-y-auto">
+        <div role="group" aria-label={label} className="h-64 space-y-0.5 overflow-y-auto">
           {visible.length === 0
-            ? <p className="px-1.5 py-1 text-sm text-muted-foreground">{t("exercises.access.noEvents")}</p>
+            ? <EmptyState compact message={t("exercises.access.noEvents")} className="h-full min-h-0" />
             : visible.map((event) => (
               <label key={event.ID} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-muted">
                 <input type="checkbox" checked={value.includes(event.ID)} onChange={() => toggle(event.ID)} className="h-4 w-4 accent-primary" />

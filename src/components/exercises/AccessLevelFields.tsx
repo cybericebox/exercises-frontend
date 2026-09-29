@@ -5,6 +5,7 @@ import { getEventOption, listEventOptions, listNearestEvents, type EventOption }
 import type { AccessLevel } from "@/api/exercises/catalog"
 import { Input } from "@/components/ui/input"
 import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 
 export type AccessChoice = Exclude<AccessLevel, "">
@@ -119,9 +120,9 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
             className="h-56 space-y-1 overflow-y-auto rounded-md border border-border p-2">
             {value.eventIds.map((id) => row(known[id] ?? { ID: id, Name: "", Tag: "" }))}
             {value.eventIds.length > 0 && (loading || candidates.length > 0) && <div role="separator" className="my-1 border-t border-border" />}
-            {loading ? <LoadingArea compact className="h-24" label={t("admin.loading")} />
-              : failed && candidates.length === 0 ? <p role="alert" className="px-1.5 py-1 text-sm text-destructive">{t("exercises.access.loadError")}</p>
-              : candidates.length === 0 ? value.eventIds.length === 0 && <p className="px-1.5 py-1 text-sm text-muted-foreground">{t("exercises.access.noEvents")}</p>
+            {loading ? <LoadingArea compact className={value.eventIds.length ? "h-24" : "h-full"} label={t("admin.loading")} />
+              : failed && candidates.length === 0 ? <div className={`flex items-center justify-center px-2 text-center ${value.eventIds.length ? "h-24" : "h-full"}`}><p role="alert" className="text-sm text-destructive">{t("exercises.access.loadError")}</p></div>
+              : candidates.length === 0 ? value.eventIds.length === 0 && <EmptyState compact message={t("exercises.access.noEvents")} className="h-full min-h-0" />
               : candidates.map(row)}
             {!loading && !query && candidates.length > 0 && <p className="px-1.5 pt-1 text-xs text-muted-foreground">{t("exercises.access.searchHint")}</p>}
           </div>
