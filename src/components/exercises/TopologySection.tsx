@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DNS_LABEL_RE, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
-import { availableDevicePorts } from "@/lib/topologyPorts"
+import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { TOPOLOGY_ICONS, topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import type { DeviceType } from "@/api/exercises/versions"
@@ -75,6 +75,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   const [nameDraft, setNameDraft] = useState("")
   const [nameError, setNameError] = useState("")
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
+  const [pendingConnectionRemoval, setPendingConnectionRemoval] = useState<number | null>(null)
+  const [connectionEditIndex, setConnectionEditIndex] = useState<number | null>(null)
   const [connectMode, setConnectMode] = useState(false)
   const [linkNodes, setLinkNodes] = useState<string[]>([])
   const [canvasExpanded, setCanvasExpanded] = useState(false)
@@ -107,6 +109,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
       && (topology?.Connections ?? []).some((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === kind))),
   ]
   const freeConnectionNodeCount = availableNodes.size - unavailableConnectionNodes.length
+  const linkUnavailableReason = availableNodes.size < 2 ? t("admin.exTopo.needTwoDevices")
+    : freeConnectionNodeCount < 2 ? t("admin.exTopo.needFreePorts") : null
   const pendingPair = connectMode && linkNodes.length === 2 ? linkNodes as [string, string] : null
   const linkedCount = (topology?.Connections ?? []).filter((connection) => connection.Endpoints.some((endpoint) =>
     endpoint.Kind === pendingRemoval || (endpoint.Kind === "device" && endpoint.DeviceID === pendingRemoval))).length
@@ -310,6 +314,34 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
 
   function cancelConnect() { setConnectMode(false); setLinkNodes([]) }
 
+  function nodeName(key: string): string {
+    if (key === "vpn" || key === "internet") return gatewayLabelFor(topology?.VisualRender ?? null, key, t(`admin.exTopo.${key}`))
+    return devices.find((device) => device.ID === key)?.Name || t("admin.exTopo.unnamedDevice")
+  }
+
+  function connectionName(index: number): { first: string; second: string } {
+    const [first, second] = topology?.Connections[index]?.Endpoints ?? []
+    const side = (endpoint: typeof first) => !endpoint ? "—"
+      : `${nodeName(endpoint.Kind === "device" ? endpoint.DeviceID : endpoint.Kind)} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
+    return { first: side(first), second: side(second) }
+  }
+
+  function openConnectionSettings(index: number) {
+    cancelConnect()
+    setSelectedConnectionIndex(index)
+    setSelectedKey(null)
+    setConnectionEditIndex(index)
+    setActiveSection("connections")
+  }
+
+  function confirmConnectionRemoval() {
+    if (pendingConnectionRemoval === null) return
+    const index = pendingConnectionRemoval
+    setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((_, candidate) => candidate !== index), { shouldDirty: true, shouldValidate: true })
+    setSelectedConnectionIndex((current) => current === null || current === index ? null : current > index ? current - 1 : current)
+    setPendingConnectionRemoval(null)
+  }
+
   function confirmRemoval() {
     if (!pendingRemoval) return
     const target = pendingRemoval
@@ -346,6 +378,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <button key={item} type="button" aria-current={view === item ? "page" : undefined}
           onClick={() => {
             cancelConnect()
+            setConnectionEditIndex(null)
             exitExpandedCanvas()
             if (activeSection.startsWith("device:")) setSettingsTarget(activeSection.slice("device:".length))
             setActiveSection(item)
@@ -366,9 +399,11 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <div className="flex flex-wrap items-center gap-2">
           {connectMode && <span className="text-xs text-muted-foreground">{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>}
           {!disabled && (connectMode ? <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>
-            : <Button type="button" variant="outline" size="sm" disabled={freeConnectionNodeCount < 2} onClick={() => { setConnectMode(true); setLinkNodes([]) }}>
-              <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
-            </Button>)}
+            : <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null}>
+              <Button type="button" variant="outline" size="sm" disabled={linkUnavailableReason !== null} onClick={() => { setConnectMode(true); setLinkNodes([]) }}>
+                <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
+              </Button>
+            </HoverTooltip>)}
           {!disabled && <DropdownMenu>
             <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t("admin.exTopo.addDevice")}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -395,13 +430,15 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           selectedNodes={connectMode ? linkNodes : selectedKey ? [selectedKey] : []}
           connectionMode={connectMode} unavailableConnectionNodes={unavailableConnectionNodes}
           selectedConnectionIndex={selectedConnectionIndex} onEdgeSelect={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null) }}
-          onNodeSelect={selectNode} onNodeSettings={disabled ? undefined : openSettings}
+          onNodeSelect={selectNode} onNodeSettings={openSettings}
+          onEdgeSettings={openConnectionSettings} onEdgeRemove={disabled ? undefined : setPendingConnectionRemoval}
+          linkUnavailableReason={linkUnavailableReason}
           onNodeRemove={disabled ? undefined : setPendingRemoval}
           onNodeLinkStart={disabled ? undefined : (key) => { if (unavailableConnectionNodes.includes(key)) return; setSelectedKey(key); setConnectMode(true); setLinkNodes([key]) }}
           onCanvasSelect={() => { if (!connectMode) { if (!settingsTarget) setSelectedKey(null); setSelectedConnectionIndex(null) } }}
           onCanvasAddNode={disabled ? undefined : (kind, position) => kind === "vpn" || kind === "internet"
             ? addGateway(kind, position) : addDevice(kind, position)}
-          onCanvasLinkStart={disabled || freeConnectionNodeCount < 2 ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
+          onCanvasLinkStart={disabled ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
         {availableNodes.size === 0 && <EmptyState message={t("admin.exTopo.noDevices")} className="pointer-events-none absolute inset-0 min-h-0" />}
       </div>
     </div>
@@ -490,7 +527,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     </div>}
 
     {view === "connections" && <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-md border border-border p-3">
-      <ConnectionList variantIndex={variantIndex} disabled={disabled} selectedIndex={selectedConnectionIndex}
+      <ConnectionList variantIndex={variantIndex} disabled={disabled} selectedIndex={selectedConnectionIndex} initialExpandedIndex={connectionEditIndex}
         onSelectIndex={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null) }}
         onShowInDiagram={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null); setActiveSection("diagram") }} />
     </div>}
@@ -501,7 +538,12 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         cancelConnect()
       }} />}
     <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
-      title={t("admin.exTopo.removeDevice")} description={t("admin.exTopo.removeDeviceConfirm", { count: linkedCount })}
+      title={t("admin.exTopo.removeDeviceTitle")}
+      description={t(linkedCount > 0 ? "admin.exTopo.removeDeviceConfirmLinks" : "admin.exTopo.removeDeviceConfirm", { name: pendingRemoval ? nodeName(pendingRemoval) : "", count: linkedCount })}
       cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeDevice")} onConfirm={confirmRemoval} />
+    <ConfirmDialog open={pendingConnectionRemoval !== null} onCancel={() => setPendingConnectionRemoval(null)} tone="danger"
+      title={t("admin.exTopo.removeConnectionTitle")}
+      description={pendingConnectionRemoval !== null ? t("admin.exTopo.removeConnectionConfirm", connectionName(pendingConnectionRemoval)) : undefined}
+      cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeConnection")} onConfirm={confirmConnectionRemoval} />
   </section>
 }

@@ -296,7 +296,7 @@
   "admin.exTopo.canvasSelectFirst": "Select the first device",
   "admin.exTopo.closeSettings": "Close configuration",
   "admin.exTopo.resizeSettings": "Resize configuration panel",
-  "admin.exTopo.removeDeviceConfirm": "Delete this device and its connected links ({count})? You can undo this before saving the draft.",
+  "admin.exTopo.removeDeviceConfirm": "The device «{name}» will be removed from the diagram.",
   "admin.exTopo.configure": "Configuration",
   "admin.exTopo.icon.title": "Diagram icon",
   "admin.exTopo.icon.change": "Change icon",
@@ -929,5 +929,13 @@
   "consent.settings": "Cookie settings",
   "back.toAdmin": "Back to administration",
   "back.toEvent": "Back to event",
-  "back.toCatalog": "Back to task catalog"
+  "back.toCatalog": "Back to task catalog",
+  "admin.exTopo.removeDeviceTitle": "Delete the device?",
+  "admin.exTopo.removeDeviceConfirmLinks": "The device «{name}» will be removed from the diagram together with its connections: {count}.",
+  "admin.exTopo.removeConnection": "Delete connection",
+  "admin.exTopo.removeConnectionTitle": "Delete the connection?",
+  "admin.exTopo.removeConnectionConfirm": "The connection {first} — {second} will be removed from the diagram.",
+  "admin.exTopo.connectionMenu": "Connection actions",
+  "admin.exTopo.needTwoDevices": "Add at least two devices first",
+  "admin.exTopo.needFreePorts": "At least two devices need free ports"
 }

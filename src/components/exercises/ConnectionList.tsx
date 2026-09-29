@@ -2,16 +2,17 @@
 
 import { Fragment, useState } from "react"
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
-import { ChevronDown, LocateFixed, Plus } from "lucide-react"
+import { ChevronDown, LocateFixed, Pencil, Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, GATEWAY_PORT, shortForwardingPort } from "@/lib/topologyPorts"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
-import { RemoveAction } from "./RemoveAction"
+import { RowActions } from "./RowActions"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
@@ -41,12 +42,15 @@ export function ConnectionList({
   selectedIndex,
   onSelectIndex,
   onShowInDiagram,
+  initialExpandedIndex = null,
 }: {
   variantIndex: number
   disabled: boolean
   selectedIndex?: number | null
   onSelectIndex?: (index: number | null) => void
   onShowInDiagram?: (index: number) => void
+  /** Row whose editor is open on mount (the canvas «Конфігурація» of a connection). */
+  initialExpandedIndex?: number | null
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Topology.Connections` as const
@@ -56,7 +60,14 @@ export function ConnectionList({
   const vpnEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN.Enabled` })
   const internetEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
   const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(initialExpandedIndex)
+  const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
+  const nodeCount = devices.length + (vpnEnabled ? 1 : 0) + (internetEnabled ? 1 : 0)
+  const freeNodeCount = devices.filter((device) => availableDevicePorts({ Connections: connections }, device).length > 0).length
+    + (["vpn", "internet"] as const).filter((kind) => (kind === "vpn" ? vpnEnabled : internetEnabled)
+      && !connections.some((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === kind))).length
+  const addBlockedReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices")
+    : freeNodeCount < 2 ? t("admin.exTopo.needFreePorts") : null
 
   function endpointSummary(endpoint: NormalizedEndpoint | undefined): string {
     if (!endpoint) return t("admin.exTopo.endpoint.placeholder")
@@ -84,6 +95,7 @@ export function ConnectionList({
   }
 
   function removeConnection(index: number) {
+    setPendingRemoval(null)
     remove(index)
     setExpandedIndex((current) => current === null || current === index ? null : current > index ? current - 1 : current)
     onSelectIndex?.(null)
@@ -118,24 +130,27 @@ export function ConnectionList({
     onSelectIndex?.(index)
   }
 
+  function addButton() {
+    const button = <Button type="button" variant="outline" size="sm" disabled={addBlockedReason !== null} onClick={addConnection}>
+      <Plus className="mr-1 h-4 w-4" />
+      {t("admin.exTopo.addConnection")}
+    </Button>
+    return addBlockedReason ? <HoverTooltip text={addBlockedReason} describe>{button}</HoverTooltip> : button
+  }
+
+  function removalDescription(index: number): string {
+    const [first, second] = connections[index]?.Endpoints ?? []
+    return t("admin.exTopo.removeConnectionConfirm", { first: endpointSummary(first), second: endpointSummary(second) })
+  }
+
   return (
     <div className="flex min-h-full flex-col gap-2">
-      {!disabled && fields.length > 0 && <div className="flex items-center justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={addConnection}>
-          <Plus className="mr-1 h-4 w-4" />
-          {t("admin.exTopo.addConnection")}
-        </Button>
-      </div>}
+      {!disabled && fields.length > 0 && <div className="flex items-center justify-end">{addButton()}</div>}
 
       {fields.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center py-2">
           <EmptyState message={t("admin.exTopo.noConnections")} className="min-h-0" />
-          {!disabled && (
-            <Button type="button" variant="outline" size="sm" className="mx-auto mb-3 flex" onClick={addConnection}>
-              <Plus className="mr-1 h-4 w-4" />
-              {t("admin.exTopo.addConnection")}
-            </Button>
-          )}
+          {!disabled && <div className="mx-auto mb-3 flex">{addButton()}</div>}
         </div>
       )}
 
@@ -145,7 +160,7 @@ export function ConnectionList({
             <th scope="col" className="w-14 px-3 py-2">#</th>
             <th scope="col" className="w-[39%] px-3 py-2">{t("admin.exTopo.endpoint.first")}</th>
             <th scope="col" className="w-[39%] px-3 py-2">{t("admin.exTopo.endpoint.second")}</th>
-            <th scope="col" className="w-24 px-2 py-2"><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
+            <th scope="col" className="w-32 px-2 py-2"><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
           </tr></thead>
           <tbody className="divide-y divide-border">
           {fields.map((field, ci) => <Fragment key={field.id}><tr data-testid={`connection-row-${ci}`}
@@ -164,13 +179,14 @@ export function ConnectionList({
                   onClick={() => toggleEditor(ci)} className="block w-full truncate rounded-sm text-left focus-visible:outline-2 focus-visible:outline-primary">{label}</button></HoverTooltip>
               </td>
             })}
-            <td className="px-2 py-1"><div className="flex items-center justify-end gap-1">
-              {onShowInDiagram && <HoverTooltip text={t("admin.exTopo.overview.showOnDiagram")}><Button type="button" variant="ghost" size="icon"
-                aria-label={`${t("admin.exTopo.overview.showOnDiagram")} ${ci + 1}`} disabled={!canShowOnDiagram(ci)}
-                className="h-8 w-8" onClick={() => onShowInDiagram(ci)}><LocateFixed className="h-4 w-4" /></Button></HoverTooltip>}
-              {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeConnection")} onClick={() => removeConnection(ci)}
-                className="h-8 w-8 px-0 pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100" />}
-            </div></td>
+            <td className="px-2 py-1"><RowActions actions={[
+              ...(onShowInDiagram ? [{ key: "show", label: t("admin.exTopo.overview.showOnDiagram"), icon: <LocateFixed className="h-4 w-4" />,
+                disabled: !canShowOnDiagram(ci), onSelect: () => onShowInDiagram(ci) }] : []),
+              { key: "edit", label: t(disabled ? "admin.exTopo.configure" : "admin.exTopo.overview.editConnection"), icon: <Pencil className="h-4 w-4" />,
+                onSelect: () => toggleEditor(ci) },
+              ...(disabled ? [] : [{ key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-4 w-4" />, danger: true,
+                onSelect: () => setPendingRemoval(ci) }]),
+            ]} /></td>
           </tr>
           {expandedIndex === ci && <tr><td colSpan={4} className="p-0"><div data-testid={`connection-editor-${ci}`}
             className="grid gap-2 bg-muted/20 p-3 sm:grid-cols-2">
@@ -209,6 +225,10 @@ export function ConnectionList({
           </tbody>
         </table>
       </div>}
+      <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
+        title={t("admin.exTopo.removeConnectionTitle")} description={pendingRemoval !== null ? removalDescription(pendingRemoval) : undefined}
+        cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeConnection")}
+        onConfirm={() => { if (pendingRemoval !== null) removeConnection(pendingRemoval) }} />
     </div>
   )
 }

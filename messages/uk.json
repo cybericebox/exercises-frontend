@@ -296,7 +296,7 @@
   "admin.exTopo.canvasSelectFirst": "Оберіть перший пристрій",
   "admin.exTopo.closeSettings": "Закрити конфігурацію",
   "admin.exTopo.resizeSettings": "Змінити ширину панелі конфігурації",
-  "admin.exTopo.removeDeviceConfirm": "Видалити пристрій і повʼязані з ним зʼєднання ({count})? Цю дію можна скасувати до збереження чернетки.",
+  "admin.exTopo.removeDeviceConfirm": "Пристрій «{name}» буде видалено зі схеми.",
   "admin.exTopo.configure": "Конфігурація",
   "admin.exTopo.icon.title": "Іконка на схемі",
   "admin.exTopo.icon.change": "Змінити іконку",
@@ -929,5 +929,13 @@
   "consent.settings": "Налаштування файлів cookie",
   "back.toAdmin": "Повернутися до адміністрування",
   "back.toEvent": "Повернутися до заходу",
-  "back.toCatalog": "Повернутися до каталогу завдань"
+  "back.toCatalog": "Повернутися до каталогу завдань",
+  "admin.exTopo.removeDeviceTitle": "Видалити пристрій?",
+  "admin.exTopo.removeDeviceConfirmLinks": "Пристрій «{name}» буде видалено зі схеми разом із повʼязаними зʼєднаннями: {count}.",
+  "admin.exTopo.removeConnection": "Видалити зʼєднання",
+  "admin.exTopo.removeConnectionTitle": "Видалити зʼєднання?",
+  "admin.exTopo.removeConnectionConfirm": "Зʼєднання {first} — {second} буде видалено зі схеми.",
+  "admin.exTopo.connectionMenu": "Дії зі зʼєднанням",
+  "admin.exTopo.needTwoDevices": "Спершу додайте щонайменше два пристрої",
+  "admin.exTopo.needFreePorts": "Потрібні щонайменше два пристрої з вільними портами"
 }
