@@ -10,7 +10,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FieldHelp } from "@/components/ui/field-help"
 import { SelectMenu } from "@/components/ui/select-menu"
 import RichTextEditor, { type LexicalState } from "@/components/editor/RichTextEditor"
-import { HINT_LEVELS, type HintLevel } from "@/api/exercises/versions"
+import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { addHint, canAddHint, moveHint, removeHint, setHintLevel } from "@/lib/hintSync"
 import { hintTextToState, stateToHintText } from "@/lib/hintText"
@@ -30,10 +30,10 @@ const levelHelpLines = () => [
  * The hint text as formatted text (the task description editor). Keeps the
  * last editor state so an edit without text (stored as "") does not reset it.
  */
-function HintTextEditor({ text, onChange, disabled, ariaLabel }: { text: string; onChange: (text: string) => void; disabled: boolean; ariaLabel: string }) {
+function HintTextEditor({ text, onChange, disabled, invalid, ariaLabel }: { text: string; onChange: (text: string) => void; disabled: boolean; invalid: boolean; ariaLabel: string }) {
   const [local, setLocal] = useState<{ text: string; state: LexicalState | null }>({ text: "", state: null })
   const value = local.text === text && local.state ? local.state : hintTextToState(text)
-  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} minHeightClassName="min-h-[4.5rem]"
+  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} invalid={invalid} minHeightClassName="min-h-[4.5rem]" allowAlignment={false}
     placeholder={t("exercises.hints.textPlaceholder")}
     onChange={(state) => {
       const next = stateToHintText(state)
@@ -45,7 +45,8 @@ function HintTextEditor({ text, onChange, disabled, ariaLabel }: { text: string;
 /**
  * HintsEditor — a task's hints. Count, order and level are shared by every
  * variant (changes apply to all of them); the text is edited per variant tab.
- * The price of a hint is set on the event, not here.
+ * The price of a hint is set on the event, not here. Text is required to
+ * publish; alignment is not offered (hints are short, left-aligned text).
  */
 export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantIndex: number; taskIndex: number; disabled: boolean }) {
   const { control, getValues, setValue, formState } = useFormContext<DraftFormValues>()
@@ -114,7 +115,7 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                   )}
                 </div>
                 {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
-                <HintTextEditor text={hint.Text} disabled={disabled} ariaLabel={t("exercises.hints.text")}
+                <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.text")}
                   onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
                 {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
               </li>

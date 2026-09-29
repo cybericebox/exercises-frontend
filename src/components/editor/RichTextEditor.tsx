@@ -20,8 +20,11 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setSelection,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_LOW,
   PASTE_COMMAND,
+  ParagraphNode,
+  type ElementNode,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
@@ -39,6 +42,7 @@ import {
 } from "lexical";
 import { $createCodeNode, $isCodeNode, CodeNode } from "@lexical/code";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { mergeRegister } from "@lexical/utils";
 import {
   $createHeadingNode,
   $createQuoteNode,
@@ -155,8 +159,12 @@ export interface RichTextEditorProps {
   className?: string;
   /** Min height of the editable area; short fields (hints) pass a smaller one. */
   minHeightClassName?: string;
+  /** false: no text alignment (no toolbar control; aligned content is reset to default). */
+  allowAlignment?: boolean;
   /** Accessible name of the editable area. */
   ariaLabel?: string;
+  /** Marks the field invalid (validation focus finds it via aria-invalid). */
+  invalid?: boolean;
   disabled?: boolean;
   showVariableNames?: boolean;
 }
@@ -345,7 +353,9 @@ function ToolbarPlugin({
   onInsertVariable,
   highlightVariables,
   onToggleVariableHighlight,
+  allowAlignment,
 }: {
+  allowAlignment: boolean;
   variables: VariableDef[];
   onInsertVariable?: (insert: (name: string, formats?: TextFormatType[]) => void, initialFormats: TextFormatType[]) => void;
   highlightVariables: boolean;
@@ -623,7 +633,7 @@ function ToolbarPlugin({
           {toolButton(t("admin.notif.editor.paragraph"), blockType === "paragraph", () => formatBlock("paragraph"), <Pilcrow size={16} aria-hidden />)}
         </div>
 
-        <div className={group}>
+        {allowAlignment && <div className={group}>
           <DropdownMenu modal={false}>
             <Tooltip label={t("admin.notif.editor.alignment")}>
               <DropdownMenuTrigger asChild>
@@ -643,7 +653,7 @@ function ToolbarPlugin({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </div>}
 
         <div className={group}>
           {toolButton(t("admin.notif.editor.bulletList"), blockType === "ul", () => insertList("ul"), <List size={16} aria-hidden />)}
@@ -908,6 +918,25 @@ function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | nu
 }
 
 // ---------------------------------------------------------------------------
+// NoAlignmentPlugin — alignment commands are ignored and aligned blocks
+// (pasted or loaded) fall back to the default alignment
+// ---------------------------------------------------------------------------
+
+function NoAlignmentPlugin(): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    const reset = (node: ElementNode) => {
+      if (node.getFormatType() !== "") node.setFormat("");
+    };
+    return mergeRegister(
+      editor.registerCommand(FORMAT_ELEMENT_COMMAND, () => true, COMMAND_PRIORITY_CRITICAL),
+      ...[ParagraphNode, HeadingNode, QuoteNode, ListItemNode].map((klass) => editor.registerNodeTransform(klass, reset)),
+    );
+  }, [editor]);
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // EditableSync — Lexical reads `editable` only on mount
 // ---------------------------------------------------------------------------
 
@@ -1014,7 +1043,9 @@ export function RichTextEditor({
   placeholder,
   className,
   minHeightClassName = "min-h-[200px]",
+  allowAlignment = true,
   ariaLabel,
+  invalid = false,
   disabled = false,
   showVariableNames = false,
 }: RichTextEditorProps): JSX.Element {
@@ -1054,11 +1085,12 @@ export function RichTextEditor({
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative rounded-lg overflow-visible bg-background border border-input",
+          "relative rounded-lg overflow-visible bg-background border",
+          invalid ? "border-destructive" : "border-input",
           className
         )}
       >
-        {!disabled && <ToolbarPlugin variables={variables} onInsertVariable={onInsertVariable}
+        {!disabled && <ToolbarPlugin allowAlignment={allowAlignment} variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
         <div className="relative">
@@ -1068,6 +1100,7 @@ export function RichTextEditor({
                 <ContentEditable
                   className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring")}
                   aria-label={ariaLabel}
+                  aria-invalid={invalid || undefined}
                   aria-placeholder={placeholder}
                   placeholder={() => (
                     <div className="absolute top-3 left-4 text-sm text-muted-foreground pointer-events-none">
@@ -1076,7 +1109,7 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none")} aria-label={ariaLabel} />
+                <ContentEditable className={cn(minHeightClassName, "px-4 py-3 text-sm text-foreground outline-none")} aria-label={ariaLabel} aria-invalid={invalid || undefined} />
               )
             }
             ErrorBoundary={LexicalErrorBoundary}
@@ -1089,6 +1122,7 @@ export function RichTextEditor({
         <LinkPlugin />
         <VariablePlugin variables={variables} />
         <MarkdownPastePlugin variables={variables} />
+        {!allowAlignment && <NoAlignmentPlugin />}
         <EditableSync editable={!disabled} />
         <ExternalStateSync value={value} lastEmittedRef={lastEmitted} />
       </div>

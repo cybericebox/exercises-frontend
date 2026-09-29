@@ -12,6 +12,7 @@ import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
 import { hintsAligned } from "@/lib/hintSync"
+import { hintTextHasContent } from "@/lib/hintText"
 import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
 import type {
   ConnectionDTO,
@@ -31,7 +32,7 @@ import type {
   VariantDTO,
   Version,
 } from "@/api/exercises/versions"
-import { HINT_LEVELS } from "@/api/exercises/versions"
+import { HINT_LEVELS } from "@/lib/hintLevels"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
@@ -400,7 +401,8 @@ const placeholderSchema = z
     }
   })
 
-// Text may stay empty in a draft; the server requires it at publish (20951).
+// Text may stay empty while a draft autosaves; publish requires it (the draft
+// refinement below, mirrored by the server's 20951).
 const hintSchema = z.object({
   ID: z.string(),
   Text: z.string().max(MAX_HINT_TEXT, t("exercises.hints.val.text")),
@@ -451,6 +453,11 @@ export const draftSchema = z
     draft.Variants.forEach((variant, i) => {
       const usedFlagTargets = new Set<string>()
       variant.Tasks.forEach((task, taskIndex) => {
+        task.Hints.forEach((hint, hintIndex) => {
+          if (!hintTextHasContent(hint.Text)) {
+            ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Hints", hintIndex, "Text"], message: t("exercises.hints.val.textRequired") })
+          }
+        })
         if (task.LinkedDeviceID) {
           const device = variant.Topology.Devices.find((candidate) => candidate.ID === task.LinkedDeviceID)
           if (!device || device.Type === "unmanaged-switch" || device.Type === "hub") {

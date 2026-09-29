@@ -685,6 +685,7 @@
   "exercises.noAccess.body": "У вас немає доступу до каталогу завдань.",
   "exercises.hints.val.max": "Не більше 10 підказок на завдання",
   "exercises.hints.val.text": "Текст підказки задовгий",
+  "exercises.hints.val.textRequired": "Додайте текст підказки",
   "exercises.hints.val.mismatch": "Підказки різняться між варіантами: кількість і рівень мають збігатися",
   "exercises.err.hintsInvalid": "Підказки різняться між варіантами: кількість і вартість мають збігатися",
   "exercises.err.hintTextRequired": "Для публікації кожна підказка має містити текст у кожному варіанті",

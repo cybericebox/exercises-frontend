@@ -20,6 +20,7 @@
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
 import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
+import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 
 const BASE = "/api/exercises"
 
@@ -111,9 +112,7 @@ export type TopologyDTO = {
   VisualRender?: Record<string, unknown>
 }
 
-/** How much a hint helps; the price is set per event, not in the catalog. */
-export const HINT_LEVELS = ["nudge", "direction", "steps", "near_solution"] as const
-export type HintLevel = (typeof HINT_LEVELS)[number]
+export { HINT_LEVELS, type HintLevel }
 
 /**
  * Hint: ID and Level match position-wise across variants; Text is per variant.

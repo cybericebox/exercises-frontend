@@ -1,15 +1,16 @@
 import { useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { FormProvider, useForm, type UseFormReturn } from "react-hook-form"
-import { emptyDraft, emptyVariant, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { draftSchema, emptyDraft, emptyVariant, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { HintsEditor } from "./HintsEditor"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 // Lexical does not type in jsdom: a textarea stands in and emits a document.
 vi.mock("@/components/editor/RichTextEditor", () => ({
-  default: ({ ariaLabel, disabled, onChange }: { ariaLabel: string; disabled: boolean; onChange: (state: unknown) => void }) => (
-    <textarea aria-label={ariaLabel} disabled={disabled} onChange={(event) => onChange({
+  default: ({ ariaLabel, disabled, invalid, allowAlignment, onChange }: { ariaLabel: string; disabled: boolean; invalid: boolean; allowAlignment: boolean; onChange: (state: unknown) => void }) => (
+    <textarea aria-label={ariaLabel} disabled={disabled} aria-invalid={invalid} data-alignment={String(allowAlignment)} onChange={(event) => onChange({
       root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: event.target.value }] }] },
     })} />
   ),
@@ -24,7 +25,7 @@ function twoVariants(): DraftFormValues {
 let current: UseFormReturn<DraftFormValues> | null = null
 const keep = (methods: UseFormReturn<DraftFormValues>) => { current = methods }
 function Harness({ disabled = false }: { disabled?: boolean }) {
-  const methods = useForm<DraftFormValues>({ defaultValues: twoVariants() })
+  const methods = useForm<DraftFormValues>({ defaultValues: twoVariants(), resolver: zodResolver(draftSchema) })
   useEffect(() => keep(methods), [methods])
   return <FormProvider {...methods}><HintsEditor variantIndex={0} taskIndex={0} disabled={disabled} /></FormProvider>
 }
@@ -55,6 +56,22 @@ describe("HintsEditor", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "exercises.hints.remove" })[0])
     expect(hints(0)).toHaveLength(1)
     expect(hints(1)).toHaveLength(1)
+  })
+
+  it("offers no text alignment for hints", () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
+    expect(screen.getByLabelText("exercises.hints.text").getAttribute("data-alignment")).toBe("false")
+  })
+
+  it("blocks publish validation on a hint without text and marks the card", async () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
+    let valid = true
+    await act(async () => { valid = await current!.trigger("Variants") })
+    expect(valid).toBe(false)
+    expect(screen.getAllByText("exercises.hints.val.textRequired").length).toBeGreaterThan(0)
+    expect(screen.getAllByLabelText("exercises.hints.text")[0].getAttribute("aria-invalid")).toBe("true")
   })
 
   it("is read-only when disabled", () => {

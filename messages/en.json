@@ -685,6 +685,7 @@
   "exercises.noAccess.body": "You do not have access to the exercise catalog.",
   "exercises.hints.val.max": "Up to 10 hints per task",
   "exercises.hints.val.text": "Hint text is too long",
+  "exercises.hints.val.textRequired": "Add the hint text",
   "exercises.hints.val.mismatch": "Hints differ between variants: count and level must match",
   "exercises.err.hintsInvalid": "Hints differ between variants: count and cost must match",
   "exercises.err.hintTextRequired": "Every hint needs text in every variant to publish",

@@ -2,6 +2,7 @@
  * hintText.ts — a hint's Text is a serialized rich-text (Lexical) document,
  * like a task description. Drafts saved before formatting hold plain text;
  * it opens as paragraphs and is rewritten as a document on the next edit.
+ * Hints carry no text alignment: it is stripped on save.
  */
 type LexicalState = Record<string, unknown>
 
@@ -34,10 +35,25 @@ function hasText(node: unknown): boolean {
   if (typeof node !== "object" || node === null) return false
   const value = node as Record<string, unknown>
   if (value.type === "text") return typeof value.text === "string" && value.text.trim() !== ""
+  if (value.type === "variable") return typeof value.varName === "string" && value.varName !== ""
   return Object.values(value).some(hasText)
+}
+
+/** True when a stored hint text says something (not blank, not only empty paragraphs). */
+export function hintTextHasContent(text: string): boolean {
+  const state = hintTextToState(text)
+  return state !== null && hasText(state)
+}
+
+// Element nodes keep alignment in a string `format` (text nodes use a number).
+function withoutAlignment(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutAlignment)
+  if (typeof node !== "object" || node === null) return node
+  return Object.fromEntries(Object.entries(node).map(([key, value]) =>
+    [key, key === "format" && typeof value === "string" ? "" : withoutAlignment(value)]))
 }
 
 /** Stored hint text for an editor state; an editor without text stores "". */
 export function stateToHintText(state: LexicalState | null): string {
-  return state && hasText(state) ? JSON.stringify(state) : ""
+  return state && hasText(state) ? JSON.stringify(withoutAlignment(state)) : ""
 }
