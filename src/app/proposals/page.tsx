@@ -7,6 +7,7 @@ import { AccessLevelFields, accessValueValid, type AccessValue } from "@/compone
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { Input } from "@/components/ui/input"
@@ -70,35 +71,29 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
 function RejectDialog({ proposal, onClose, onDone }: { proposal: Proposal; onClose: () => void; onDone: (proposal: Proposal) => void }) {
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
 
   async function reject() {
     setBusy(true)
+    setError("")
     try {
       onDone(await rejectProposal(proposal.ID, note))
-    } catch (error) {
-      toast.error(exerciseErrorMessage(error))
+    } catch (cause) {
+      setError(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("exercises.proposals.rejectTitle")}</DialogTitle>
-          <DialogDescription>{proposal.ExerciseName} · {proposal.EventName}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="reject-note">{t("exercises.proposals.rejectNote")}</Label>
-          <Textarea id="reject-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
-          <Button type="button" variant="destructive" disabled={busy} onClick={() => void reject()}>{t("exercises.proposals.reject")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open onCancel={onClose} tone="danger" busy={busy} error={error}
+      title={t("exercises.proposals.rejectTitle")} description={`${proposal.ExerciseName} · ${proposal.EventName}`}
+      cancelLabel={t("admin.exPage.dialog.cancel")} confirmLabel={t("exercises.proposals.reject")} onConfirm={() => void reject()}>
+      <div className="space-y-1.5">
+        <Label htmlFor="reject-note">{t("exercises.proposals.rejectNote")}</Label>
+        <Textarea id="reject-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
+      </div>
+    </ConfirmDialog>
   )
 }
 

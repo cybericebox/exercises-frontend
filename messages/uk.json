@@ -6,6 +6,7 @@
   "role.event.owner": "Власник",
   "role.event.moderator": "Модератор",
   "role.event.observer": "Спостерігач",
+  "confirm.cancel": "Скасувати",
   "error.generic": "Щось пішло не так",
   "error.page.title": "Не вдалося завантажити сторінку",
   "error.page.body": "Сталася непередбачена помилка. Оновіть сторінку або поверніться назад.",

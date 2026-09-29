@@ -5,7 +5,7 @@ import Link from "next/link"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listVersions, type Version } from "@/api/exercises/versions"
-import { ConfirmActionDialog } from "@/components/exercises/ConfirmActionDialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
@@ -17,9 +17,7 @@ import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
 import { useExerciseActions, type DeployTarget } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form } from "@/components/ui/form"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -318,13 +316,13 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onView={(target) => { setDialog(null); void actions.openVersion(target) }} />}
     {dialog === "snapshot" && <SnapshotDialog busy={actions.busy} onCancel={() => setDialog(null)}
       onConfirm={(note) => void actions.snapshot(note).then((ok) => { if (ok) setDialog(null) })} />}
-    <ConfirmActionDialog open={dialog === "revert"} busy={actions.busy}
+    <ConfirmDialog open={dialog === "revert"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.revert.title")} description={t("admin.exPage.revert.description")} confirmLabel={t("admin.exPage.revert.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.revert().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmActionDialog open={dialog === "archive"} busy={actions.busy}
+    <ConfirmDialog open={dialog === "archive"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.archive.title")} description={t("admin.exPage.archive.description")} confirmLabel={t("admin.exPage.archive.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.archive().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmActionDialog open={dialog === "delete"} busy={actions.busy} destructive
+    <ConfirmDialog open={dialog === "delete"} busy={actions.busy} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (!ok) setDialog(null) })} />
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
@@ -334,17 +332,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
     {deploy && <DeployTestDialog open onClose={() => setDeploy(null)} exerciseId={deploy.exerciseId}
       versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} />}
-    <Dialog open={leaveOffline} onOpenChange={(open) => { if (!open) { setLeaveOffline(false); leave.cancelLeave() } }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.exPage.leave.title")}</DialogTitle>
-          <DialogDescription>{t("admin.exPage.leave.description")}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => { setLeaveOffline(false); leave.cancelLeave() }}>{t("admin.exPage.leave.stay")}</Button>
-          <Button type="button" onClick={() => { setLeaveOffline(false); leave.finishLeave() }}>{t("admin.exPage.leave.go")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
+      title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
+      cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
+      onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
   </EditorPositionProvider>
 }

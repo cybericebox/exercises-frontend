@@ -8,7 +8,7 @@ import { FieldHelp } from "@/components/ui/field-help"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DNS_LABEL_RE, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
@@ -500,14 +500,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         setValue(`${base}.Connections`, [...getValues(`${base}.Connections`), { Endpoints: [first, second] }], { shouldDirty: true, shouldValidate: true })
         cancelConnect()
       }} />}
-    <Dialog open={pendingRemoval !== null} onOpenChange={(open) => { if (!open) setPendingRemoval(null) }}>
-      <DialogContent><DialogHeader><DialogTitle>{t("admin.exTopo.removeDevice")}</DialogTitle>
-        <DialogDescription>{t("admin.exTopo.removeDeviceConfirm").replace("{count}", String(linkedCount))}</DialogDescription></DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setPendingRemoval(null)}>{t("admin.exTopo.canvasCancel")}</Button>
-          <Button type="button" variant="destructive" onClick={confirmRemoval}>{t("admin.exTopo.removeDevice")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
+      title={t("admin.exTopo.removeDevice")} description={t("admin.exTopo.removeDeviceConfirm", { count: linkedCount })}
+      cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeDevice")} onConfirm={confirmRemoval} />
   </section>
 }
