@@ -1,0 +1,47 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# local env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+/.vitest/
+
+certificates
+# IDE / Qodana
+.idea/
+qodana.yaml
+
+# Local-only documentation and agent state
+/docs/
+/AGENTS.md
+/CLAUDE.md
+/RTK.md
+/.claude/
+/.codex/
+/.agents/
+/graphify-out/
+/.graphify/
+/.superpowers/
