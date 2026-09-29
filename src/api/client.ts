@@ -1,5 +1,5 @@
 // Minimal fetch-based API client.
-// The API origin is derived from NEXT_PUBLIC_DOMAIN as api.<domain>: every
+// The API origin is api.<NEXT_PUBLIC_DOMAIN> or NEXT_PUBLIC_API_DOMAIN: every
 // frontend calls the single api host cross-origin with credentials included,
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
@@ -129,12 +129,6 @@ async function request<T>(
   init: RequestInit = {},
   opts: ApiOptions = {}
 ): Promise<T> {
-  // Dev/demo mode: answer from the in-memory mock API (never in a normal build).
-  if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") {
-    const { mockRequest } = await import("@/mocks/api")
-    return mockRequest<T>(init.method ?? "GET", path, init.body,
-      (status, code, message) => new ApiError(status, { Status: { Code: code, Message: message } }, message, undefined, code))
-  }
   const url = `${BASE_URL}${path}`
 
   let res: Response

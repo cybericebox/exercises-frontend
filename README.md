@@ -1,74 +1,43 @@
 # exercises-frontend
 
-Cyber ICE Box exercise catalog («Каталог завдань»), served on `exercises.<domain>`.
-Static Next.js export. Moved out of admin-frontend: the catalog, the full
-exercise editor (tasks, flags, files, topology, drafts/versions, deploy test)
-and import/export.
+The exercise catalog of Cyber ICE Box, served on `exercises.<domain>`. Admins and event managers create and edit exercises here; events attach them as challenges. Sign-in goes through the ID app.
 
-## Routes
+## What you can do
 
-| Path | Page |
-| --- | --- |
-| `/` | Catalog |
-| `/detail?id=<exerciseID>[&version=<versionID>]` | Editor |
-| `/new[?event=<eventID>]` | Create (owner: catalog or one of your events) |
-| `/proposals` | Catalog proposals (admins) |
+- Browse and search the catalog; managers see their events' exercises and the published catalog.
+- Create an exercise for the catalog or for one of your events.
+- Edit an exercise: tasks, flags, hints, files, topology, drafts and versions; run a deploy test.
+- Import and export exercises (admins).
+- Review catalog proposals: approve or reject (admins).
+- Open from an event and return to it when done.
 
-Any page accepts `?return=<https URL>[&event=<eventID>]`. The URL must be on
-`NEXT_PUBLIC_DOMAIN` or a subdomain; the app then shows «← Повернутися до події».
-The return URL and event are kept in `sessionStorage` for the tab.
+## Environment variables
 
-## Auth
+Static builds (`npm run build`, GitHub Pages) read these at build time. The Docker image reads them at container start.
 
-Federated through the ID app, same as admin-frontend: every request goes to
-`https://api.<domain>/api/...` with credentials (session cookie on the API
-host). A 401 writes `return_to` and redirects to `id.<domain>` sign-in.
-`ServiceStatusGate` covers API outages.
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_DOMAIN` | yes | — | Platform apex domain, e.g. `cybericebox.com`. |
+| `NEXT_PUBLIC_API_DOMAIN` | no | `api.<domain>` | API host (bare host, no scheme). |
+| `NEXT_PUBLIC_ID_DOMAIN` | no | `id.<domain>` | ID app host. |
+| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | analytics off | Google Analytics 4 measurement id (`G-…`). |
 
-## Rights
-
-`GET /api/exercises/access` is loaded at startup. The app opens for admins and
-for anyone with at least one event membership. Admins see everything (all
-scopes, archive, import/export, access levels, proposals). Event managers see
-their events' exercises and the published catalog exercises available to their
-events; catalog exercises open read-only (published version). Actions follow
-the per-exercise `Permissions` from the API.
-
-## Environment
-
-| Variable | Required | Default |
-| --- | --- | --- |
-| `NEXT_PUBLIC_DOMAIN` | yes | — |
-| `NEXT_PUBLIC_API_DOMAIN` | no | `api.<domain>` |
-| `NEXT_PUBLIC_ID_DOMAIN` | no | `id.<domain>` |
-| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | analytics off |
-| `NEXT_PUBLIC_USE_MOCKS` | no | off; `1` = in-memory mock API for demos (`?mock=manager` / `?mock=admin`) |
-
-The Docker image builds with placeholders; `deploy/docker-entrypoint.sh`
-substitutes the real values at container start and fails without
-`NEXT_PUBLIC_DOMAIN`.
-
-## Scripts
+## Commands
 
 ```bash
 npm install
-npm run dev        # http://localhost:3005
-npm run typecheck  # tsc --noEmit
+npm run dev          # http://localhost:3005
+npm run build        # static export → out/
 npm run lint
-npm test           # vitest run
-NEXT_PUBLIC_DOMAIN=cybericebox.local npm run build   # → out/
+npm run typecheck
+npm test             # Vitest
+
+docker build -f deploy/Dockerfile -t cybericebox/exercises-frontend .
+docker run --rm -p 3000:3000 -e NEXT_PUBLIC_DOMAIN=cybericebox.local cybericebox/exercises-frontend
 ```
 
-## Layout
+## Deployment
 
-- `src/app` — routes (`page.tsx`, `detail/`, `new/`)
-- `src/api/exercises` — API client for `/api/exercises/...` (catalog, versions, access, proposals); `src/api/client.ts` — base fetch client
-- `src/lib/exerciseRights.ts` — rights logic; `src/lib/hintSync.ts` — hint sync across variants
-- `src/mocks/api.ts` — mock API behind `NEXT_PUBLIC_USE_MOCKS=1`
-- `src/lib/exerciseSchemas.ts` — exercise types and zod schemas
-- `src/components/exercises` — catalog dialogs and the editor
-- `src/components/editor` — rich text editor (Lexical)
-- `src/components/shell` — header, return bar, banners
-- `src/components/ui`, `src/styles/ds-tokens.css` — local copy of the ds-v2 design system
-- `messages/` — i18n (Ukrainian active, English reference)
-- `deploy/` — Dockerfile, nginx, entrypoint, Kubernetes manifests
+- **GitHub Pages** — publishing a release runs `.github/workflows/pages.yml`, which builds the static export and deploys it. Set the variables above (and secrets) on the `github-pages` environment (Settings → Environments); the custom domain is set in Settings → Pages.
+- **Docker images** — a push to `develop` builds `cybericebox/exercises-frontend:<commit sha>` (`develop-image.yml`); a published release builds `cybericebox/exercises-frontend:latest` and `:<release tag>` (`publish-image.yml`).
+- **Kubernetes** — manifests are in `deploy/manifests`. Put the values in `config.yaml`; an empty key uses the default.
