@@ -690,5 +690,22 @@
   "exercises.err.nameExists": "A catalog exercise with this name exists. Choose another name.",
   "exercises.nav.catalog": "Catalog",
   "exercises.nav.proposals": "Proposals",
-  "exercises.nav.label": "Sections"
+  "exercises.nav.label": "Sections",
+  "exercises.access.level.all": "All events",
+  "exercises.access.level.selected": "Selected events",
+  "exercises.access.level.own": "Own event only",
+  "exercises.infra.tooltip": "Requires infrastructure",
+  "exercises.badge.event": "Event exercise",
+  "exercises.badge.fork": "Catalog copy",
+  "exercises.badge.pending": "Under review",
+  "exercises.scope.label": "Scope",
+  "exercises.scope.all": "All",
+  "exercises.scope.catalog": "Catalog",
+  "exercises.scope.event": "Event exercises",
+  "exercises.filter.event": "Event",
+  "exercises.filter.eventAll": "All events",
+  "exercises.filter.infra": "Infrastructure",
+  "exercises.filter.infraAll": "Infrastructure: all",
+  "exercises.filter.infraYes": "Infrastructure: yes",
+  "exercises.filter.infraNo": "Infrastructure: no"
 }

@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 
 // Mutable permission state for the create link.
-const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn() }))
+const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 vi.mock('@/lib/useRole', () => ({
@@ -22,6 +22,8 @@ vi.mock('@/api/exercises/catalog', () => ({
   listExercisesPage: vi.fn(),
 }))
 vi.mock('@/api/exercises/archive', () => ({ EXPORT_LIMIT: 100 }))
+vi.mock('@/api/events/list', () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/components/shell/AccessContext', () => ({ useExerciseAccess: () => ({ access: h.access, loading: false }) }))
 vi.mock('@/components/exercises/ExportDialog', () => ({
   ExportDialog: ({ exerciseIds }: { exerciseIds: string[] }) => <div data-testid="export-dialog">{exerciseIds.join(',')}</div>,
 }))
@@ -274,5 +276,69 @@ describe('exercises catalog — archive, export and import', () => {
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.button' }))
     expect(screen.getByTestId('import-dialog')).toBeInTheDocument()
+  })
+})
+
+describe('exercises catalog — W4 scope, rights and badges', () => {
+  const manager = {
+    IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: false,
+    Events: [{ ID: 'ev1', Name: 'Winter CTF', Tag: 'winter', CanWrite: true, InfrastructureAllowed: false }],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    mockList.mockReset()
+    h.canWrite = true
+    h.canExport = true
+    h.access = null
+    mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('filters by scope and infrastructure', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'catalog' })))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'exercises.filter.infra' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'exercises.filter.infraYes' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ infrastructure: 'yes' })))
+  })
+
+  it('shows ownership badges, the infrastructure icon and admin access level', async () => {
+    mockList.mockResolvedValue({ Items: [
+      { ...item, ID: 'e1', Name: 'Event one', Scope: 'event', OwnerEventID: 'ev1', OwnerEventName: 'Winter CTF', AccessLevel: '',
+        ForkedFrom: { ExerciseID: 'c1', ExerciseName: 'Base', VersionID: 'v1' }, PendingProposalID: 'p1', Infrastructure: true },
+      { ...item, ID: 'e2', Name: 'Catalog one', AccessLevel: 'selected' },
+    ], Total: 2, Page: 1, PageSize: 50 })
+    render(<Page />)
+    await screen.findByText('Event one')
+    expect(screen.getByText('exercises.badge.event · Winter CTF')).toBeInTheDocument()
+    expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
+    expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
+    expect(screen.getByText('exercises.access.level.selected')).toBeInTheDocument()
+  })
+
+  it('gives managers their events, event scope by default and no admin tools', async () => {
+    h.access = manager
+    window.history.replaceState(null, '', '/?event=ev1')
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'event', event: 'ev1' }))
+    expect(screen.queryByRole('radio', { name: 'exercises.scope.all' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('exercises.access.level.all')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
+    expect(h.push).toHaveBeenCalledWith('/new?event=ev1')
+  })
+
+  it('hides create for event viewers', async () => {
+    h.access = { ...manager, Events: [{ ...manager.Events[0], CanWrite: false }] }
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.queryByRole('button', { name: 'admin.ex.create.button' })).not.toBeInTheDocument()
   })
 })

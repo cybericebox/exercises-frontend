@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation"
 import { Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
-import { listExercisesPage, type ExerciseListItem } from "@/api/exercises/catalog"
+import { listExercisesPage, type ExerciseListItem, type InfrastructureFilter, type ScopeFilter } from "@/api/exercises/catalog"
+import { listEventOptions, type EventOption } from "@/api/events/list"
+import { useExerciseAccess } from "@/components/shell/AccessContext"
+import { accessFromRbac, canCreateExercise, writableEvents } from "@/lib/exerciseRights"
+import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
@@ -35,6 +39,12 @@ function StatusBadges({ item }: { item: ExerciseListItem }) {
   )
 }
 
+/** ?event=<id> from the URL (static export: read once on mount, no Suspense needed). */
+function initialEventFilter(): string {
+  if (typeof window === "undefined") return ""
+  return new URLSearchParams(window.location.search).get("event")?.trim() ?? ""
+}
+
 export default function Page() {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -56,8 +66,17 @@ export default function Page() {
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
   const { can } = useRole()
-  const canWrite = can("exercises.write")
-  const canExport = can("exercises.export")
+  const { access: loadedAccess } = useExerciseAccess()
+  const access = loadedAccess ?? accessFromRbac(can)
+  const isAdmin = access.IsAdmin
+  const [scope, setScope] = useState<ScopeFilter>(isAdmin ? "" : "event")
+  const [eventFilter, setEventFilter] = useState(initialEventFilter)
+  const [infrastructure, setInfrastructure] = useState<InfrastructureFilter>("")
+  const [adminEvents, setAdminEvents] = useState<EventOption[]>([])
+  const canWrite = canCreateExercise(access)
+  // Import creates catalog exercises: admins only.
+  const canImport = access.CanCreateCatalog
+  const canExport = access.CanExport
   const atLimit = selected.size >= EXPORT_LIMIT
   const pageIds = rows.map((row) => row.ID)
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
@@ -88,6 +107,22 @@ export default function Page() {
   }
 
   useEffect(() => {
+    if (!isAdmin || !loadedAccess) return
+    let active = true
+    listEventOptions().then((events) => { if (active) setAdminEvents(events) }).catch(() => undefined)
+    return () => { active = false }
+  }, [isAdmin, loadedAccess])
+
+  const eventOptions: EventOption[] = isAdmin
+    ? [...access.Events.map(({ ID, Name, Tag }) => ({ ID, Name, Tag })), ...adminEvents.filter((event) => !access.Events.some((own) => own.ID === event.ID))]
+    : access.Events.map(({ ID, Name, Tag }) => ({ ID, Name, Tag }))
+  const writableEventIds = writableEvents(access).map((event) => event.ID)
+
+  function createHref(): string {
+    return eventFilter && writableEventIds.includes(eventFilter) ? `/new?event=${encodeURIComponent(eventFilter)}` : "/new"
+  }
+
+  useEffect(() => {
     const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
     return () => clearTimeout(id)
   }, [search])
@@ -99,13 +134,16 @@ export default function Page() {
       search: debounced, tags,
       status: status === "all" || status === "archived" ? "" : status,
       archived: status === "archived" ? "only" : undefined,
+      ...(scope ? { scope } : {}),
+      ...(eventFilter ? { event: eventFilter } : {}),
+      ...(infrastructure ? { infrastructure } : {}),
       page, pageSize, sortBy, sortDir,
     })
       .then((data) => { if (active) { setRows(data.Items); setTotal(data.Total) } })
       .catch(() => { if (active) setError(true) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [debounced, tags, status, page, pageSize, sortBy, sortDir, reloadKey])
+  }, [debounced, tags, status, scope, eventFilter, infrastructure, page, pageSize, sortBy, sortDir, reloadKey])
 
   function goToPage(next: number) {
     if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
@@ -141,17 +179,42 @@ export default function Page() {
             { value: "draft", label: t("admin.ex.status.draft") },
             { value: "published", label: t("admin.ex.status.published") },
             { value: "none", label: t("admin.ex.filterStatusNone") },
-            { value: "archived", label: t("admin.ex.filterStatusArchived") },
+            ...(isAdmin ? [{ value: "archived", label: t("admin.ex.filterStatusArchived") }] : []),
           ]}
           ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
-        {canWrite && (
+        {(canWrite || canImport) && (
           <div className="ml-auto flex shrink-0 gap-2">
-            <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-10 text-sm">
+            {canImport && <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-10 text-sm">
               <Upload aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.exImport.button")}
-            </Button>
-            <Button type="button" onClick={() => router.push("/new")} className="h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>
+            </Button>}
+            {canWrite && <Button type="button" onClick={() => router.push(createHref())} className="h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>}
           </div>
         )}
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
+          {([...(isAdmin ? [""] : []), "catalog", "event"] as ScopeFilter[]).map((value) => (
+            <button key={value || "all"} type="button" role="radio" aria-checked={scope === value}
+              onClick={() => { setScope(value); goToPage(1) }}
+              className={`h-8 rounded px-3 text-sm ${scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              {t(`exercises.scope.${value || "all"}`)}
+            </button>
+          ))}
+        </div>
+        {eventOptions.length > 0 && <SelectMenu value={eventFilter} onChange={(value) => { setEventFilter(value); goToPage(1) }}
+          options={[
+            { value: "", label: t("exercises.filter.eventAll") },
+            ...eventOptions.map((event) => ({ value: event.ID, label: event.Name || event.Tag })),
+            ...(eventFilter && !eventOptions.some((event) => event.ID === eventFilter) ? [{ value: eventFilter, label: eventFilter }] : []),
+          ]}
+          ariaLabel={t("exercises.filter.event")} className="h-10 min-w-48 max-w-72 text-sm" />}
+        <SelectMenu value={infrastructure} onChange={(value) => { setInfrastructure(value as InfrastructureFilter); goToPage(1) }}
+          options={[
+            { value: "", label: t("exercises.filter.infraAll") },
+            { value: "yes", label: t("exercises.filter.infraYes") },
+            { value: "no", label: t("exercises.filter.infraNo") },
+          ]}
+          ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
       </div>
 
       {canExport && selected.size > 0 && (
@@ -169,7 +232,7 @@ export default function Page() {
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <EmptyState message={t(debounced || tags.length > 0 || status !== "all" ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
+        <EmptyState message={t(debounced || tags.length > 0 || status !== "all" || eventFilter || infrastructure ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
       ) : (
         <div>
           <table className="w-full text-sm">
@@ -193,11 +256,15 @@ export default function Page() {
                   </td>}
                   <td className="px-3 py-2">
                     <Link href={`/detail?id=${item.ID}`} className="block">
-                      <span className="font-medium text-foreground">{item.Name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-medium text-foreground">{item.Name}</span>
+                        <InfrastructureIcon show={item.Infrastructure} />
+                      </span>
                       {item.Description && (
                         <span className="block max-w-md truncate text-xs text-muted-foreground">{item.Description}</span>
                       )}
                     </Link>
+                    <div className="mt-1"><OwnershipBadges exercise={item} showAccess={isAdmin} /></div>
                   </td>
                   <td className="px-3 py-2">
                     <span className="flex flex-wrap gap-1">

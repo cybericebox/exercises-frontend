@@ -690,5 +690,22 @@
   "exercises.err.nameExists": "У каталозі вже є завдання з такою назвою. Вкажіть іншу.",
   "exercises.nav.catalog": "Каталог",
   "exercises.nav.proposals": "Пропозиції",
-  "exercises.nav.label": "Розділи"
+  "exercises.nav.label": "Розділи",
+  "exercises.access.level.all": "Усім подіям",
+  "exercises.access.level.selected": "Обраним подіям",
+  "exercises.access.level.own": "Лише своїй події",
+  "exercises.infra.tooltip": "Потрібна інфраструктура",
+  "exercises.badge.event": "Завдання події",
+  "exercises.badge.fork": "Копія з каталогу",
+  "exercises.badge.pending": "На розгляді",
+  "exercises.scope.label": "Область",
+  "exercises.scope.all": "Усі",
+  "exercises.scope.catalog": "Каталог",
+  "exercises.scope.event": "Завдання подій",
+  "exercises.filter.event": "Подія",
+  "exercises.filter.eventAll": "Усі події",
+  "exercises.filter.infra": "Інфраструктура",
+  "exercises.filter.infraAll": "Інфраструктура: усі",
+  "exercises.filter.infraYes": "Інфраструктура: є",
+  "exercises.filter.infraNo": "Інфраструктура: немає"
 }
