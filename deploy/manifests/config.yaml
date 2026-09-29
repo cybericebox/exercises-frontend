@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exercises-frontend-config
+  namespace: cybericebox
+data:
+  # Platform apex; this app is served on exercises.<DOMAIN>.
+  DOMAIN: "cybericebox.com"
+  # Optional host overrides (bare host, no scheme). Empty → <service>.<DOMAIN>.
+  API_DOMAIN: ""
+  ID_DOMAIN: ""
+  # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
+  GOOGLE_ANALYTICS_ID: ""

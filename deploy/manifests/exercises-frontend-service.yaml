@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: exercises-frontend
+  namespace: cybericebox
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: exercises-frontend

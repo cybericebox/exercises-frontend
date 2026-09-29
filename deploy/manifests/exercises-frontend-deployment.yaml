@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exercises-frontend
+  namespace: cybericebox
+  labels:
+    app: exercises-frontend
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: exercises-frontend
+  template:
+    metadata:
+      name: exercises-frontend
+      namespace: cybericebox
+      labels:
+        app: exercises-frontend
+    spec:
+      containers:
+        - name: exercises-frontend
+          image: cybericebox/exercises-frontend:latest
+          env:
+            - name: NEXT_PUBLIC_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: DOMAIN
+            - name: NEXT_PUBLIC_API_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: API_DOMAIN
+            - name: NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: GOOGLE_ANALYTICS_ID
+            - name: NEXT_PUBLIC_ID_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: ID_DOMAIN
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              port: 3000
+              path: /healthz
+            initialDelaySeconds: 20
+          livenessProbe:
+            httpGet:
+              port: 3000
+              path: /healthz
+            initialDelaySeconds: 20
+            periodSeconds: 30
