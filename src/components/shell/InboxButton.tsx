@@ -16,6 +16,9 @@ import { NotificationPopIn } from "@/components/notifications/NotificationPopIn"
 import { popInDuration } from "@/components/notifications/popInDuration"
 import { t } from "@/i18n/t"
 
+// Dropdown height cap, the same in every app: tune it here.
+const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
+
 type Message = {
   ID: string
   Title: string
@@ -276,7 +279,7 @@ export function InboxButton() {
       </button>
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content align="end" sideOffset={8} collisionPadding={12} aria-label={t("inbox.panel")} className="z-50 flex max-h-[min(38rem,calc(100vh-5rem))] w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none">
+      <Popover.Content align="end" sideOffset={20} collisionPadding={12} aria-label={t("inbox.panel")} className={`z-50 flex ${panelMaxHeight} w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none`}>
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2><span className="sr-only">{t("inbox.title")}</span><Bell aria-hidden="true" className="h-[19px] w-[19px] text-muted-foreground" /></h2>
           <div className="flex shrink-0 items-center gap-2">
@@ -285,8 +288,9 @@ export function InboxButton() {
           </div>
         </div>
         {error && <p role="alert" className="mx-3 mt-3 rounded-md bg-[var(--ib-danger-bg)] p-2 text-xs text-[var(--ib-danger)]">{error}</p>}
-        <div ref={scrollAreaRef} className="min-h-0 overflow-y-auto">
-          {loading ? <LoadingArea compact className="min-h-48" label={t("inbox.loadingMessages")} /> : items.length === 0 ? <EmptyState message={t("inbox.empty")} inbox /> : <ul className="divide-y divide-border">{items.map((item, index) => {
+        <div ref={scrollAreaRef} className="flex min-h-0 flex-col overflow-y-auto">
+          {/* loading and empty share one centered box of the same height, so nothing jumps */}
+          {loading || items.length === 0 ? <div className="flex min-h-48 flex-1 items-center justify-center">{loading ? <LoadingArea compact label={t("inbox.loadingMessages")} /> : <EmptyState message={t("inbox.empty")} />}</div> : <ul className="divide-y divide-border">{items.map((item, index) => {
             const link = rowLink(item)
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className="px-4 py-3 hover:bg-accent/50">
               <NotificationMessageCard

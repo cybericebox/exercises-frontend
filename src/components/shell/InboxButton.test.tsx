@@ -218,15 +218,16 @@ describe("top-bar inbox", () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/events"))
   })
 
-  it("centers the unframed shared icon and disables read-all when the inbox is empty", async () => {
+  it("centers the framed shared icon and disables read-all when the inbox is empty", async () => {
     mockInbox([])
     render(<InboxButton />)
     fireEvent.click(screen.getByRole("button", { name: "Вхідні" }))
     const empty = await screen.findByText("Повідомлень поки немає.")
     expect(empty.closest("[data-empty-state]")?.querySelector("svg path")?.getAttribute("d"))
       .toBe("M4.5 5.5h15L21.5 18a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2l2-12.5Z")
-    expect(empty.closest("[data-empty-state]")?.querySelector("span")).not.toHaveClass("border")
-    expect(empty.closest("[data-empty-state]")?.querySelector("svg")).toHaveClass("h-8", "w-8")
+    expect(empty.closest("[data-empty-state]")?.querySelector("span")).toHaveClass("border")
+    expect(empty.closest("[data-empty-state]")?.querySelector("svg")).toHaveClass("h-5", "w-5")
+    expect(empty.closest("[data-empty-state]")?.parentElement).toHaveClass("min-h-48", "items-center", "justify-center")
     expect(screen.getByRole("button", { name: "Позначити все прочитаним" })).toBeDisabled()
     expect(document.querySelectorAll("svg.lucide-bell")).toHaveLength(2)
   })
