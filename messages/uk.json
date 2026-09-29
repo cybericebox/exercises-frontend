@@ -865,6 +865,7 @@
   "consent.label": "Згода на використання файлів cookie",
   "consent.text": "Ми використовуємо файли cookie, щоб сайт працював, і — за вашою згодою — щоб покращувати його. {link}",
   "consent.policyLink": "Політика файлів cookie",
+  "consent.policyLinkNewTab": "Політика файлів cookie (відкриється в новій вкладці)",
   "consent.policy": "Докладніше: {link}.",
   "consent.acceptAll": "Прийняти всі",
   "consent.customize": "Налаштувати",

@@ -106,6 +106,13 @@ export function saveConsent(prefs: ConsentPrefs): void {
   window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
 }
 
+/**
+ * The cookie-policy link inside the banner and panel opens in a new tab, so the
+ * panel and its unsaved toggles stay put. Spread onto the <a> with an aria-label
+ * that says so («відкриється в новій вкладці»).
+ */
+export const POLICY_LINK_ATTRS = { target: "_blank", rel: "noopener noreferrer" } as const
+
 /** «Налаштування файлів cookie»: open the preferences panel. */
 export function openConsentSettings(): void {
   window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))

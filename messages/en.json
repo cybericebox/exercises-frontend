@@ -865,6 +865,7 @@
   "consent.label": "Cookie consent",
   "consent.text": "We use cookies to make the site work and, with your consent, to improve it. {link}",
   "consent.policyLink": "Cookie Policy",
+  "consent.policyLinkNewTab": "Cookie Policy (opens in a new tab)",
   "consent.policy": "Details: {link}.",
   "consent.acceptAll": "Accept all",
   "consent.customize": "Customize",

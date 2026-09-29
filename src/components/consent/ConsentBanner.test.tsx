@@ -14,7 +14,7 @@ describe("ConsentBanner", () => {
   it("asks with a general line, the policy link, «Налаштувати» and «Прийняти всі»", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="https://cybericebox.com/cookies" />)
     expect(banner()).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Політика файлів cookie" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
+    expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Налаштувати", "Прийняти всі"])
   })
 
@@ -80,5 +80,18 @@ describe("ConsentBanner", () => {
     fireEvent.keyDown(panel(), { key: "Escape" })
     expect(screen.queryByRole("dialog")).toBeNull()
     expect(document.cookie).toContain("cib_consent=analytics:granted")
+  })
+
+  it("the policy link opens a new tab and keeps the panel and its unsaved toggles", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("Налаштувати")
+    fireEvent.click(screen.getByRole("switch", { name: "Аналітика" }))
+    const link = screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link.getAttribute("rel")).toContain("noopener")
+    fireEvent.click(link)
+    expect(panel()).toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "Аналітика" })).toBeChecked()
+    expect(document.cookie).not.toContain("cib_consent")
   })
 })
