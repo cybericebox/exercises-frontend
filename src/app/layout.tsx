@@ -7,9 +7,10 @@ import { ExercisesShell } from "@/components/shell/ExercisesShell"
 import { ServiceStatusGate } from "@/components/ServiceStatusGate"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
+import { t } from "@/i18n/t"
 
 // noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
-export const metadata = { title: "Каталог завдань · Cyber ICE Box", robots: { index: false, follow: false } }
+export const metadata = { title: t("exercises.meta.title"), description: t("exercises.meta.description"), robots: { index: false, follow: false } }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

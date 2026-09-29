@@ -805,5 +805,7 @@
   "exercises.help.statusFilter": "\"Published\" includes exercises whose draft has changes. \"Draft only\" means never published.",
   "exercises.help.accessCol": "Which events can add the exercise. An event exercise is available only to the event that created it.",
   "exercises.help.statusCol": "Participants see only the published version. Draft changes reach them after publishing. Archived exercises are hidden from selection.",
-  "exercises.access.searchHint": "Find other events with search"
+  "exercises.access.searchHint": "Find other events with search",
+  "exercises.meta.title": "Exercise catalog · Cyber ICE Box",
+  "exercises.meta.description": "Cyber ICE Box exercise catalog: creating exercises, versions and access for events"
 }
