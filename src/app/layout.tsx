@@ -14,7 +14,7 @@ export const metadata = { title: t("exercises.meta.title"), description: t("exer
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html lang="uk" className={`${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
       {/* Browser extensions can add attributes to body before React hydrates. */}
       <body className="grid-bg" suppressHydrationWarning>
