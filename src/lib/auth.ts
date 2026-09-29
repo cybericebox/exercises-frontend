@@ -1,3 +1,4 @@
+import { signInURL } from "@/lib/origins"
 /**
  * src/lib/auth.ts — Shared Design-System auth-state client helpers.
  *
@@ -56,16 +57,13 @@ export async function fetchMe(): Promise<Me | null> {
 /**
  * Redirect to the sign-in page, preserving where to return after auth. Prefer
  * the backend-advertised URL (ApiError.signInUrl from the X-Sign-In-URL header)
- * so the address isn't hardcoded; fall back to the local /sign-in. The return_to
+ * so the address isn't hardcoded; fall back to the ID app's /sign-in. The return_to
  * is appended here because only the client knows the current page URL.
  */
 export function redirectToSignIn(signInUrl?: string, returnTo?: string): void {
   if (typeof window === "undefined") return
-  const ret = returnTo ?? window.location.href
-  const base = signInUrl || "/sign-in"
-  const url = new URL(base, window.location.origin)
-  url.searchParams.set("return_to", ret)
-  window.location.href = url.toString()
+  const url = signInURL(returnTo ?? window.location.href, signInUrl)
+  if (url) window.location.href = url
 }
 
 /**

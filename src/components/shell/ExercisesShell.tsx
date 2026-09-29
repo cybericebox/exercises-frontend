@@ -7,7 +7,7 @@ import { ReturnContextProvider } from "./ReturnContext"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
-import { idOrigin, mainOrigin } from "@/lib/origins"
+import { mainOrigin, signInURL } from "@/lib/origins"
 import { hasCatalogAccess } from "@/lib/exerciseRights"
 import { AccessProvider, useExerciseAccess } from "./AccessContext"
 
@@ -16,7 +16,8 @@ export function ExercisesShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && role === null) {
-      window.location.assign(`${idOrigin}/sign-in?return_to=${encodeURIComponent(window.location.href)}`)
+      const url = signInURL(window.location.href)
+      if (url) window.location.assign(url)
     }
   }, [isLoading, role])
 
