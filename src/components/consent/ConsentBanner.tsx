@@ -153,7 +153,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId: string; policyHref: 
               <span className="block font-medium text-foreground">{t(`consent.${c.key}.title`)}</span>
               <span className="block text-xs">{t(`consent.${c.key}.text`)}</span>
             </span>
-            <Switch checked={c.checked} disabled={c.disabled} onCheckedChange={c.onChange} aria-label={t(`consent.${c.key}.title`)} />
+            <Switch checked={c.checked} disabled={c.disabled} onCheckedChange={c.onChange} aria-label={t(c.key === "necessary" ? "consent.necessary.switch" : `consent.${c.key}.title`)} />
           </li>
         ))}
       </ul>

@@ -871,9 +871,10 @@
   "consent.customize": "Customize",
   "consent.panelTitle": "Cookie settings",
   "consent.necessary.title": "Necessary",
-  "consent.necessary.text": "Sign-in, security and remembering your choice (session, consent, reCAPTCHA). Always on.",
+  "consent.necessary.text": "Needed for sign-in, security and remembering your choice.",
+  "consent.necessary.switch": "Necessary cookies are always on",
   "consent.analytics.title": "Analytics",
-  "consent.analytics.text": "Google Analytics: shows how visitors use the site. Off until you turn it on.",
+  "consent.analytics.text": "Helps us understand how you use the site so we can improve it (Google Analytics).",
   "consent.acceptSelected": "Accept selected",
   "consent.rejectAll": "Reject all",
   "consent.settings": "Cookie settings"
