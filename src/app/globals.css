@@ -1,0 +1,203 @@
+@import 'tailwindcss';
+@import '../styles/ds-tokens.css';
+
+.exercise-settings-layout {
+	display: grid;
+}
+
+.exercise-variant-tabs {
+	height: 44px;
+	padding: 4px;
+	gap: 4px;
+}
+
+.exercise-variant-tab {
+	height: 36px;
+}
+
+.exercise-variant-item:hover .exercise-variant-tab:not([data-state='active']),
+.exercise-variant-item:focus-within .exercise-variant-tab:not([data-state='active']) {
+	background: var(--background);
+	color: var(--foreground);
+	box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.exercise-variant-remove-anchor {
+	position: absolute;
+	right: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.exercise-variant-remove {
+	opacity: 0;
+	transition: opacity 150ms ease;
+}
+
+.exercise-variant-item:hover .exercise-variant-remove,
+.exercise-variant-item:focus-within .exercise-variant-remove {
+	opacity: 1;
+}
+
+.exercise-flag-mode {
+	height: 40px;
+	margin: -1px 0 -1px -1px;
+	border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px);
+}
+
+.exercise-editor-toolbar button:not(.bg-primary):hover,
+.exercise-editor-toolbar button:not(.bg-primary):focus-visible {
+	background: var(--accent);
+	color: var(--accent-foreground);
+	box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.exercise-editor-toolbar button.bg-primary:hover {
+	filter: brightness(0.94);
+}
+
+@media (hover: none) {
+	.exercise-variant-remove {
+		opacity: 1;
+	}
+}
+
+@media (min-width: 64rem) {
+	.exercise-settings-layout {
+		grid-template-columns: 13rem minmax(0, 1fr);
+	}
+}
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme {
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-placeholder: var(--ib-placeholder);
+
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+
+	--color-accent-warm: var(--accent-warm);
+	--color-accent-warm-foreground: var(--accent-warm-foreground);
+
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+
+	--radius-lg: var(--radius);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-sm: calc(var(--radius) - 4px);
+
+	--animate-accordion-down: accordion-down 0.2s ease-out;
+	--animate-accordion-up: accordion-up 0.2s ease-out;
+
+	--font-sans: var(--font-geist-sans);
+	--font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+	:root {
+		--background: var(--ib-paper);
+		--foreground: var(--ib-body);
+		--card: var(--ib-surface);
+		--card-foreground: var(--ib-body);
+		--popover: var(--ib-raised);
+		--popover-foreground: var(--ib-body);
+		--primary: var(--ib-action);
+		--primary-foreground: var(--ib-on-action);
+		--secondary: var(--ib-hero);
+		--secondary-foreground: var(--ib-ink);
+		--muted: var(--ib-hero);
+		--muted-foreground: var(--ib-dim);
+		--accent: var(--ib-hover);
+		--accent-foreground: var(--ib-ink);
+		--accent-warm: var(--ib-action);
+		--accent-warm-foreground: var(--ib-on-action);
+		--destructive: var(--ib-danger);
+		--destructive-foreground: var(--ib-on-action);
+		--border: var(--ib-line);
+		--input: var(--ib-control);
+		--ring: var(--ib-action);
+		--radius: var(--ib-r-lg);
+	}
+
+	*,
+	::after,
+	::before,
+	::backdrop,
+	::file-selector-button {
+		border-color: var(--color-border);
+	}
+
+	* {
+		@apply border-border;
+	}
+
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--ib-placeholder);
+		opacity: 1;
+	}
+
+	body {
+		@apply min-h-dvh w-full flex flex-col;
+		@apply bg-background text-foreground;
+		font-family: var(--ib-font);
+	}
+
+	main {
+		@apply grow overflow-auto h-full w-full;
+	}
+
+	body {
+		min-height: 100vh;
+	}
+}
+
+@layer components {
+  .frost-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: none;
+  }
+}
+
+@layer base {
+  .grid-bg {
+    background-color: var(--background);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+@keyframes draw-line {
+	from {
+		stroke-dashoffset: var(--draw-len, 600);
+	}
+}
+@keyframes notification-countdown {
+	from { transform: scaleX(1); }
+	to { transform: scaleX(0); }
+}

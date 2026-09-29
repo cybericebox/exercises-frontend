@@ -1,0 +1,81 @@
+/* Mirror of ds-v2/tokens.css for the standalone admin build.
+   Keep semantic roles and formulas in sync with the design-system source. */
+:root {
+  --ev-brand: #211A52;
+  --ev-accent-light: var(--ev-brand);
+  --ev-accent-dark: #E6E6EE;
+  --ib-brand: var(--ev-brand);
+  --ib-brand-hover: color-mix(in srgb, var(--ev-brand), #FFFFFF 5%);
+  --ib-brand-active: color-mix(in srgb, var(--ev-brand), #FFFFFF 13%);
+  --ib-brand-line: color-mix(in srgb, var(--ev-brand), #FFFFFF 17%);
+  --ib-on-brand: #FFFFFF;
+  --ib-on-brand-2: color-mix(in srgb, var(--ev-brand), #FFFFFF 86%);
+  --ib-on-brand-3: color-mix(in srgb, var(--ev-brand), #FFFFFF 60%);
+  --ib-ice-on-brand: #7FD0FA;
+  --ib-font: var(--font-geist-sans), "Geist", system-ui, sans-serif;
+  --ib-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --ib-placeholder: color-mix(in srgb, var(--ib-dim) 88%, var(--ib-surface));
+  --ib-admin-side-w: 224px;
+  --ib-admin-rail-w: 64px;
+  --ib-row-h: 38px;
+  --ib-r-sm: 4px;
+  --ib-r: 6px;
+  --ib-r-lg: 8px;
+  --ib-r-pill: 999px;
+}
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --ib-paper: #F7F7F9;
+  --ib-surface: #FFFFFF;
+  --ib-raised: #FFFFFF;
+  --ib-hero: #F0F0F5;
+  --ib-line: #E4E4EC;
+  --ib-control: #82839A;
+  --ib-ink: #16152B;
+  --ib-body: #2C2B42;
+  --ib-dim: #5A5A70;
+  --ib-action: var(--ev-brand);
+  --ib-ice: #1070A0;
+  --ib-action-hover: color-mix(in srgb, var(--ev-brand), #FFFFFF 8%);
+  --ib-on-action: #FFFFFF;
+  --ib-accent: var(--ev-accent-light);
+  --ib-soft: color-mix(in srgb, #FFFFFF, var(--ib-accent) 8%);
+  --ib-hover: color-mix(in srgb, var(--ib-ink) 6%, transparent);
+  --ib-ok: #1F7A55;
+  --ib-ok-bg: #E8F3EE;
+  --ib-danger: #B42318;
+  --ib-danger-bg: #FBECEA;
+  --ib-warn: #8A5A00;
+  --ib-warn-bg: #FAF1E0;
+  --ib-backdrop: rgba(22, 21, 43, .45);
+  --ib-shadow-overlay: 0 12px 32px -8px rgba(22, 21, 43, .28);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ib-paper: color-mix(in srgb, #403F41, var(--ev-brand) 25%);
+  --ib-surface: color-mix(in srgb, #4C4B4D, var(--ev-brand) 25%);
+  --ib-raised: color-mix(in srgb, #58575A, var(--ev-brand) 25%);
+  --ib-hero: var(--ib-paper);
+  --ib-line: color-mix(in srgb, #646363, var(--ev-brand) 25%);
+  --ib-control: #9896A6;
+  --ib-ink: #EEEDF6;
+  --ib-body: #DAD9E5;
+  --ib-dim: #BBB9CB;
+  --ib-action: #E6E6EE;
+  --ib-ice: #7FD0FA;
+  --ib-action-hover: #F5F5F9;
+  --ib-on-action: var(--ev-brand);
+  --ib-accent: var(--ev-accent-dark);
+  --ib-soft: color-mix(in srgb, var(--ib-surface), var(--ib-accent) 12%);
+  --ib-hover: color-mix(in srgb, var(--ib-ink) 6%, transparent);
+  --ib-ok: #7CE7AC;
+  --ib-ok-bg: color-mix(in srgb, #607167, var(--ev-brand) 25%);
+  --ib-danger: #FDA69E;
+  --ib-danger-bg: color-mix(in srgb, #5D4F4F, var(--ev-brand) 25%);
+  --ib-warn: #E8B45E;
+  --ib-warn-bg: color-mix(in srgb, #544E4A, var(--ev-brand) 25%);
+  --ib-backdrop: rgba(6, 5, 14, .62);
+  --ib-shadow-overlay: 0 18px 44px -10px rgba(0, 0, 0, .55);
+}

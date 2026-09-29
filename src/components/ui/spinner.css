@@ -1,0 +1,31 @@
+.crest-loader {
+  display: inline-block;
+  height: 1em;
+  aspect-ratio: 375 / 368;
+  line-height: 0;
+  animation: crest-loading-pulse 1.8s ease-in-out infinite;
+}
+.crest-loader img { width: 100%; height: 100%; object-fit: contain; }
+.crest-loader-sm { font-size: 20px; }
+.crest-loader-md { font-size: 32px; }
+.crest-loader-lg { font-size: 64px; }
+.loading-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  width: 100%;
+  padding: 1rem;
+  text-align: center;
+  container-type: inline-size;
+}
+.loading-area-label { color: var(--ib-dim); font-size: .8125rem; line-height: 1.4; }
+.loading-area-compact { min-height: 6rem; --crest-area-height: 6rem; --crest-max-size: 2.75rem; }
+.loading-area-panel { min-height: 10rem; --crest-area-height: 10rem; --crest-max-size: 4rem; }
+.loading-area-page { min-height: 100dvh; --crest-area-height: 100dvh; --crest-max-size: 5rem; }
+.crest-loader-auto { font-size: clamp(1.5rem, min(10cqi, calc(var(--crest-area-height) * .45)), var(--crest-max-size)); }
+@keyframes crest-loading-pulse { 50% { opacity: .45; transform: scale(.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .crest-loader { animation: none; }
+}
