@@ -2,7 +2,7 @@ import type { Version } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 
 export type IdUpdate = {
-  path: `Variants.${number}.ID` | `Variants.${number}.Tasks.${number}.ID`
+  path: `Variants.${number}.ID` | `Variants.${number}.Tasks.${number}.ID` | `Variants.${number}.Tasks.${number}.Hints.${number}.ID`
   value: string
 }
 
@@ -10,6 +10,8 @@ export type IdUpdate = {
 export type CapturedDraftIds = {
   variantIds: string[]
   taskIds: string[][]
+  /** Hint IDs per variant/task: server-assigned hint IDs must be kept (event hint cost overrides key on them). */
+  hintIds: string[][][]
 }
 
 /** Snapshot the current ID sequence right before sending — compare it against the LIVE form once the response lands. */
@@ -17,6 +19,7 @@ export function capturedDraftIds(form: DraftFormValues): CapturedDraftIds {
   return {
     variantIds: form.Variants.map((variant) => variant.ID),
     taskIds: form.Variants.map((variant) => variant.Tasks.map((task) => task.ID)),
+    hintIds: form.Variants.map((variant) => variant.Tasks.map((task) => (task.Hints ?? []).map((hint) => hint.ID))),
   }
 }
 
@@ -47,6 +50,17 @@ export function serverIdUpdates(sent: CapturedDraftIds, saved: Version, form: Dr
     variant.Tasks.forEach((task, ti) => {
       const id = savedVariant.Tasks[ti].ID
       if (!task.ID && id) updates.push({ path: `Variants.${vi}.Tasks.${ti}.ID`, value: id })
+      // Same sequence guard per task for hints: a hint added/removed/moved while
+      // saving must not inherit another hint's server ID.
+      const hints = task.Hints ?? []
+      const sentHints = sent.hintIds[vi]?.[ti] ?? []
+      const savedHints = savedVariant.Tasks[ti].Hints ?? []
+      if (hints.length !== sentHints.length || hints.length !== savedHints.length) return
+      if (hints.some((hint, hi) => hint.ID !== sentHints[hi])) return
+      hints.forEach((hint, hi) => {
+        const hintId = savedHints[hi].ID
+        if (!hint.ID && hintId) updates.push({ path: `Variants.${vi}.Tasks.${ti}.Hints.${hi}.ID`, value: hintId })
+      })
     })
   })
   return updates

@@ -678,5 +678,14 @@
   "exercises.hints.val.max": "Не більше 10 підказок на завдання",
   "exercises.hints.val.text": "Текст підказки задовгий (до 2000 символів)",
   "exercises.hints.val.cost": "Вартість — ціле число від 0 до 10000",
-  "exercises.hints.val.mismatch": "Підказки різняться між варіантами: кількість і вартість мають збігатися"
+  "exercises.hints.val.mismatch": "Підказки різняться між варіантами: кількість і вартість мають збігатися",
+  "exercises.err.hintsInvalid": "Підказки різняться між варіантами: кількість і вартість мають збігатися",
+  "exercises.err.hintTextRequired": "Для публікації кожна підказка має містити текст у кожному варіанті",
+  "exercises.err.infrastructureNotAllowed": "Для цієї події інфраструктуру не дозволено. Видаліть пристрої лабораторії.",
+  "exercises.err.accessInvalid": "Недійсний рівень доступу",
+  "exercises.err.proposalNotFound": "Пропозицію не знайдено",
+  "exercises.err.proposalInvalid": "Завдання зараз не можна запропонувати: спершу опублікуйте його або дочекайтеся розгляду",
+  "exercises.err.proposalDecided": "Пропозицію вже розглянуто",
+  "exercises.err.forbidden": "У вас немає доступу до цього завдання",
+  "exercises.err.nameExists": "У каталозі вже є завдання з такою назвою. Вкажіть іншу."
 }

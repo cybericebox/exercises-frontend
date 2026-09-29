@@ -678,5 +678,14 @@
   "exercises.hints.val.max": "Up to 10 hints per task",
   "exercises.hints.val.text": "Hint text is too long (max 2000)",
   "exercises.hints.val.cost": "Cost is a whole number from 0 to 10000",
-  "exercises.hints.val.mismatch": "Hints differ between variants: count and cost must match"
+  "exercises.hints.val.mismatch": "Hints differ between variants: count and cost must match",
+  "exercises.err.hintsInvalid": "Hints differ between variants: count and cost must match",
+  "exercises.err.hintTextRequired": "Every hint needs text in every variant to publish",
+  "exercises.err.infrastructureNotAllowed": "This event does not allow infrastructure. Remove the lab devices.",
+  "exercises.err.accessInvalid": "Invalid access level",
+  "exercises.err.proposalNotFound": "Proposal not found",
+  "exercises.err.proposalInvalid": "This exercise cannot be proposed now: publish it first or wait for the pending review",
+  "exercises.err.proposalDecided": "The proposal has already been decided",
+  "exercises.err.forbidden": "You do not have access to this exercise",
+  "exercises.err.nameExists": "A catalog exercise with this name exists. Choose another name."
 }

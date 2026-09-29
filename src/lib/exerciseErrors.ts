@@ -17,6 +17,15 @@ export const ERR_NO_DRAFT = 70905
 export const ERR_DRAFT_ALREADY_EXISTS = 70906
 export const ERR_EXERCISE_ARCHIVED = 70948
 export const ERR_EXERCISE_IN_USE = 70949
+export const ERR_HINTS_INVALID = 20950
+export const ERR_HINT_TEXT_REQUIRED = 20951
+export const ERR_INFRASTRUCTURE_NOT_ALLOWED = 70952
+export const ERR_ACCESS_INVALID = 20953
+export const ERR_PROPOSAL_NOT_FOUND = 30954
+export const ERR_PROPOSAL_INVALID = 70955
+export const ERR_PROPOSAL_DECIDED = 70956
+export const ERR_EXERCISE_FORBIDDEN = 60957
+export const ERR_NAME_EXISTS_ON_APPROVE = 70903
 
 export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
@@ -62,6 +71,16 @@ export const CODE_TO_KEY: Record<number, string> = {
   // exercise: placeholders
   20925: "admin.ex.err.placeholderInvalid",
   20926: "admin.ex.err.placeholderNode",
+  // W4: hints, infrastructure, access, proposals
+  20950: "exercises.err.hintsInvalid",
+  20951: "exercises.err.hintTextRequired",
+  70952: "exercises.err.infrastructureNotAllowed",
+  20953: "exercises.err.accessInvalid",
+  30954: "exercises.err.proposalNotFound",
+  70955: "exercises.err.proposalInvalid",
+  70956: "exercises.err.proposalDecided",
+  60957: "exercises.err.forbidden",
+  70903: "exercises.err.nameExists",
   // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",

@@ -57,3 +57,19 @@ describe('archive and usage conflicts', () => {
     expect(exerciseErrorMessage(apiError(409, ERR_EXERCISE_IN_USE, 'in use'))).toBe('admin.ex.err.inUse')
   })
 })
+
+describe('W4 error codes', () => {
+  it.each([
+    [20950, 'exercises.err.hintsInvalid'],
+    [20951, 'exercises.err.hintTextRequired'],
+    [70952, 'exercises.err.infrastructureNotAllowed'],
+    [20953, 'exercises.err.accessInvalid'],
+    [30954, 'exercises.err.proposalNotFound'],
+    [70955, 'exercises.err.proposalInvalid'],
+    [70956, 'exercises.err.proposalDecided'],
+    [60957, 'exercises.err.forbidden'],
+    [70903, 'exercises.err.nameExists'],
+  ])('maps %i', (code, key) => {
+    expect(exerciseErrorMessage(new ApiError(409, { Status: { Code: code, Message: 'x' } }))).toBe(key)
+  })
+})

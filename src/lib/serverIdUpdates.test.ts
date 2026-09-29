@@ -64,4 +64,27 @@ describe("serverIdUpdates", () => {
     form.Variants[0] = { ...form.Variants[0], ID: "" }
     expect(serverIdUpdates(sent, saved, form)).toEqual([])
   })
+
+  it("adopts server-assigned hint IDs so later saves keep them", () => {
+    const form = emptyDraft()
+    form.Variants[0].ID = "v1"
+    form.Variants[0].Tasks[0].ID = "t1"
+    form.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Cost: 0 }, { ID: "", Text: "b", Cost: 5 }]
+    const sent = capturedDraftIds(form)
+    const saved = savedFrom(form, { variant: "v1", tasks: ["t1"] })
+    saved.Variants[0].Tasks[0].Hints = [{ ID: "h-old", Text: "a", Cost: 0 }, { ID: "h-new", Text: "b", Cost: 5 }]
+    expect(serverIdUpdates(sent, saved, form)).toEqual([{ path: "Variants.0.Tasks.0.Hints.1.ID", value: "h-new" }])
+  })
+
+  it("skips hint IDs when the hints changed while saving", () => {
+    const form = emptyDraft()
+    form.Variants[0].ID = "v1"
+    form.Variants[0].Tasks[0].ID = "t1"
+    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "a", Cost: 0 }]
+    const sent = capturedDraftIds(form)
+    const saved = savedFrom(form, { variant: "v1", tasks: ["t1"] })
+    saved.Variants[0].Tasks[0].Hints = [{ ID: "h1", Text: "a", Cost: 0 }]
+    form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "new", Cost: 0 }, { ID: "", Text: "a", Cost: 0 }]
+    expect(serverIdUpdates(sent, saved, form)).toEqual([])
+  })
 })
