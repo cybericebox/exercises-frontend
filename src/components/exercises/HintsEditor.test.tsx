@@ -45,7 +45,7 @@ describe("HintsEditor", () => {
     expect(hints(0)[1].Level).toBe("steps")
     expect(hints(1)[1].Level).toBe("steps")
 
-    fireEvent.change(screen.getAllByLabelText("exercises.hints.text")[0], { target: { value: "Look at headers" } })
+    fireEvent.change(screen.getAllByLabelText("exercises.hints.textAria")[0], { target: { value: "Look at headers" } })
     expect(JSON.parse(hints(0)[0].Text).root.children[0].children[0].text).toBe("Look at headers")
     expect(hints(1)[0].Text).toBe("")
 
@@ -58,19 +58,20 @@ describe("HintsEditor", () => {
     expect(hints(1)).toHaveLength(1)
   })
 
-  it("marks level and text as required; a new hint starts at the nudge level", () => {
+  it("marks the level as required; a new hint starts at the nudge level", () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
     const row = screen.getByTestId("hint-row")
-    expect(row.querySelectorAll(".text-destructive[aria-hidden='true']")).toHaveLength(2)
-    expect(screen.getAllByText("admin.ex.field.required")).toHaveLength(2)
+    expect(row.querySelectorAll(".text-destructive[aria-hidden='true']")).toHaveLength(1)
+    expect(screen.getByText("exercises.hints.levelShort")).toBeInTheDocument()
+    expect(screen.queryByText("exercises.hints.text")).not.toBeInTheDocument()
     expect(hints(0)[0].Level).toBe("nudge")
   })
 
   it("offers no text alignment for hints", () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
-    expect(screen.getByLabelText("exercises.hints.text").getAttribute("data-alignment")).toBe("false")
+    expect(screen.getByLabelText("exercises.hints.textAria").getAttribute("data-alignment")).toBe("false")
   })
 
   it("blocks publish validation on a hint without text and marks the card", async () => {
@@ -80,7 +81,7 @@ describe("HintsEditor", () => {
     await act(async () => { valid = await current!.trigger("Variants") })
     expect(valid).toBe(false)
     expect(screen.getAllByText("exercises.hints.val.textRequired").length).toBeGreaterThan(0)
-    expect(screen.getAllByLabelText("exercises.hints.text")[0].getAttribute("aria-invalid")).toBe("true")
+    expect(screen.getAllByLabelText("exercises.hints.textAria")[0].getAttribute("aria-invalid")).toBe("true")
   })
 
   it("is read-only when disabled", () => {

@@ -91,19 +91,18 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
             const title = t("exercises.hints.item", { n: hintIndex + 1 })
             return (
               <li key={`${hint.ID || "new"}-${hintIndex}`} data-testid="hint-row" className="space-y-3 rounded-md border border-border p-3">
-                {/* Header: title left; level group (label over select) then the row actions on the right,
-                    top-aligned with the label row. Narrow screens: the level wraps under, full width. */}
-                <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                {/* One header row: title left; level (label + select inline) and the row actions right.
+                    Narrow screens: the level group wraps to its own full-width line. */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <span className="text-sm font-medium leading-5 text-foreground">{title}</span>
-                  <div className="order-last w-full space-y-1.5 sm:order-none sm:ml-auto sm:w-48">
-                    <ExerciseFieldLabel labelKey="exercises.hints.level" helpLines={levelHelpLines()} required />
-                    <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="w-full"
+                  <div className="order-last flex w-full items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
+                    <ExerciseFieldLabel labelKey="exercises.hints.levelShort" helpLines={levelHelpLines()} required />
+                    <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="h-8 min-w-0 flex-1 sm:w-44 sm:flex-none"
                       options={levelOptions()}
                       onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
-                    {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
                   </div>
                   {!disabled && (
-                    <span className="-mt-1 ml-auto flex items-center gap-1 sm:ml-0">
+                    <span className="ml-auto flex items-center gap-1 sm:ml-0">
                       <HoverTooltip text={t("exercises.hints.up")}>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t("exercises.hints.up")}
                           disabled={hintIndex === 0} onClick={() => apply((variants) => moveHint(variants, taskIndex, hintIndex, hintIndex - 1))}>
@@ -120,9 +119,9 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                     </span>
                   )}
                 </div>
+                {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
                 <div className="space-y-1.5">
-                  <ExerciseFieldLabel labelKey="exercises.hints.text" required />
-                  <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.text")}
+                  <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.textAria", { n: hintIndex + 1 })}
                     onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
                   {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
                 </div>
