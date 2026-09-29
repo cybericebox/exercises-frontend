@@ -52,10 +52,10 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-40 flex min-h-[56px] items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
+        <span className="flex min-w-0 items-center gap-3">
           <Logo size={28} />
-          <span className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</span>
-        </Link>
+          <Link href="/" className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</Link>
+        </span>
         <AppNav />
       </div>
       <div className="flex items-center gap-3">
