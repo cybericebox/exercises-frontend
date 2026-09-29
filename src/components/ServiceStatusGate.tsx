@@ -1,79 +1,110 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { CloudOff } from "lucide-react"
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 
-import { Wordmark } from "@/components/brand/Wordmark"
+import { CREST_SRC } from "@/components/brand/Logo"
 import { Button } from "@/components/ui/button"
 import { t } from "@/i18n/t"
 import { apiOrigin } from "@/lib/origins"
-import { confirmServiceUnavailable, getServiceStatus, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
+import { confirmServiceUnavailable, getServiceStatus, probeService, reportServiceAvailable, subscribeServiceStatus } from "@/lib/serviceStatus"
+import "./ServiceStatusGate.css"
 
-const POLL_MS = 5000
-const CONFIRM_MS = 12000
+// A failed call is confirmed by one probe before the modal shows, so a single
+// flaky request does not cover the page; the modal shows only when the probe
+// itself fails.
+const CONFIRM_MS = 3000
+// Seconds between automatic tries while the outage lasts.
+const BACKOFF_S = [3, 5, 10, 20, 30]
 
-async function probe(): Promise<boolean> {
-  try {
-    // /api/health is only a liveness check; /me also proves session storage works.
-    const response = await fetch(`${apiOrigin}/api/auth/me`, { cache: "no-store", credentials: "include", signal: AbortSignal.timeout(3000) })
-    return response.ok || response.status === 401
-  } catch {
-    return false
-  }
+function backoff(attempt: number): number {
+  return BACKOFF_S[Math.min(attempt, BACKOFF_S.length - 1)] * 1000
 }
 
-export function ServiceStatusGate() {
-  const status = useSyncExternalStore(subscribeServiceStatus, getServiceStatus, () => "up" as const)
+function OutageDialog({ onCheck }: { onCheck: () => Promise<void> }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+  const attemptRef = useRef(0)
+  const [deadline, setDeadline] = useState(() => Date.now() + backoff(0))
+  const [now, setNow] = useState(() => Date.now())
   const [checking, setChecking] = useState(false)
   const checkingRef = useRef(false)
 
-  const retry = useCallback(async () => {
+  const check = useCallback(async () => {
     if (checkingRef.current) return
     checkingRef.current = true
     setChecking(true)
     try {
-      if (await probe()) {
-        reportServiceAvailable()
-        // Revalidate /me and refetch failed page data on the current admin URL.
-        window.location.reload()
-      }
+      await onCheck()
     } finally {
+      attemptRef.current += 1
       checkingRef.current = false
       setChecking(false)
+      const at = Date.now()
+      setNow(at)
+      setDeadline(at + backoff(attemptRef.current))
     }
+  }, [onCheck])
+
+  useEffect(() => {
+    const dialog = ref.current
+    if (!dialog || dialog.open) return
+    // The top layer makes the page underneath inert while the outage lasts.
+    if (typeof dialog.showModal === "function") dialog.showModal()
+    else dialog.setAttribute("open", "")
   }, [])
+
+  useEffect(() => {
+    if (checking) return
+    const id = window.setInterval(() => {
+      const at = Date.now()
+      setNow(at)
+      if (at >= deadline) void check()
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [checking, deadline, check])
+
+  const seconds = Math.max(1, Math.ceil((deadline - now) / 1000))
+  return <dialog ref={ref} className="service-gate" role="alertdialog" aria-modal="true" aria-labelledby={titleId}
+    onCancel={(event) => event.preventDefault()}>
+    <div className="service-gate__body">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="service-gate__logo" src={CREST_SRC} alt="" width={48} height={48} />
+      <h2 className="service-gate__title" id={titleId}>{t("serviceGate.title")}</h2>
+      <p className="service-gate__desc">{t("serviceGate.body")}</p>
+      <p className="service-gate__hint" aria-live="polite">{checking ? t("serviceGate.checking") : t("serviceGate.nextTry", { seconds })}</p>
+    </div>
+    <footer className="service-gate__foot">
+      <Button type="button" variant="outline" busy={checking} onClick={() => { void check() }}>{t("serviceGate.retryNow")}</Button>
+    </footer>
+  </dialog>
+}
+
+/**
+ * App-wide outage modal, the same as the event site's. API calls report network
+ * failures and 5xx into the status store; one probe confirms before the modal
+ * shows. The page stays rendered and inert underneath; the modal cannot be
+ * dismissed, retries on a 3/5/10/20/30 s backoff or on «Спробувати зараз», and
+ * closes by itself once the API answers.
+ */
+export function ServiceStatusGate() {
+  const status = useSyncExternalStore(subscribeServiceStatus, getServiceStatus, () => "up" as const)
 
   useEffect(() => {
     if (status !== "suspect") return
     const id = window.setTimeout(async () => {
-      if (await probe()) reportServiceAvailable()
+      if (await probeService(apiOrigin)) reportServiceAvailable()
       else confirmServiceUnavailable()
     }, CONFIRM_MS)
     return () => window.clearTimeout(id)
   }, [status])
 
-  useEffect(() => {
-    if (status !== "down") return
-    const id = window.setInterval(() => { void retry() }, POLL_MS)
-    return () => window.clearInterval(id)
-  }, [status, retry])
+  const onCheck = useCallback(async () => {
+    if (!await probeService(apiOrigin)) return
+    reportServiceAvailable()
+    // Revalidate /me and refetch the page data that failed on the current URL.
+    window.location.reload()
+  }, [])
 
   if (status !== "down") return null
-
-  return (
-    <div role="alertdialog" aria-modal="true" aria-labelledby="service-down-title"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 p-4">
-      <div className="flex w-full max-w-md flex-col">
-        <div className="mb-6 flex justify-center"><Wordmark size="lg" href={null} /></div>
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
-          <CloudOff size={32} className="text-muted-foreground" aria-hidden />
-          <h1 id="service-down-title" className="text-lg font-semibold">{t("error.unavailableTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("error.unavailableBody")}</p>
-          <Button variant="outline" size="sm" onClick={() => { void retry() }} disabled={checking} className="mt-2">
-            {checking ? t("admin.loading") : t("error.retry")}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+  return <OutageDialog onCheck={onCheck} />
 }

@@ -5,7 +5,7 @@
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
 import { apiOrigin } from "@/lib/origins"
-import { isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
 const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
@@ -142,8 +142,8 @@ async function request<T>(
       },
     })
   } catch (error) {
-    // A caller-initiated abort (AbortController) is not an outage.
-    if (!init.signal?.aborted) reportServiceUnavailable()
+    // A caller-initiated abort or timeout is not an outage.
+    if (isNetworkOutage(error, init.signal)) reportServiceUnavailable()
     throw error
   }
 
@@ -169,7 +169,7 @@ export async function apiPostMultipart<T>(
   try {
     res = await fetch(url, { method: "POST", credentials: "include", body: form })
   } catch (error) {
-    reportServiceUnavailable()
+    if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error
   }
 
@@ -206,7 +206,7 @@ export async function apiPostBlob(path: string, body: unknown, opts: ApiOptions 
       body: JSON.stringify(body),
     })
   } catch (error) {
-    reportServiceUnavailable()
+    if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error
   }
   if (!res.ok) return finishRequest<never>(res, opts)

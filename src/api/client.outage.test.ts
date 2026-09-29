@@ -21,6 +21,18 @@ describe("API outage detection", () => {
     expect(isServiceDown()).toBe(true)
   })
 
+  it.each([400, 401, 403, 404, 429])("does not report an outage on HTTP %i", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
+    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
+  })
+
+  it("does not report an outage when the request timed out", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timeout", "TimeoutError")))
+    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toThrow("timeout")
+    expect(isServiceDown()).toBe(false)
+  })
+
   it("does not report an outage when the caller aborted the request", async () => {
     const controller = new AbortController()
     controller.abort()

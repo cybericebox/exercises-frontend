@@ -1,40 +1,80 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { confirmServiceUnavailable, reportServiceAvailable, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { confirmServiceUnavailable, getServiceStatus, reportServiceAvailable, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { ServiceStatusGate } from "./ServiceStatusGate"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/lib/origins", async (importOriginal) => ({ ...await importOriginal<object>(), apiOrigin: "https://api.test" }))
+
+const reload = vi.fn()
+Object.defineProperty(window, "location", { configurable: true, value: { ...window.location, reload } })
 
 afterEach(() => {
   act(() => { reportServiceAvailable() })
+  reload.mockClear()
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
 describe("ServiceStatusGate", () => {
-  it("shows the notice only after a failed confirmation twelve seconds later", async () => {
+  it("shows the modal only after the confirming probe fails", async () => {
     vi.useFakeTimers()
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 502 })))
-    render(<ServiceStatusGate />)
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")))
+    render(<><h1>page</h1><ServiceStatusGate /></>)
 
     act(() => { reportServiceUnavailable() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(2999) })
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    await act(async () => { vi.advanceTimersByTime(11999) })
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    await act(async () => { vi.advanceTimersByTime(1) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
     expect(screen.getByRole("alertdialog")).toBeInTheDocument()
+    expect(screen.getByText("serviceGate.title")).toBeInTheDocument()
+    expect(screen.getByText("serviceGate.nextTry 3")).toBeInTheDocument()
+    // The page underneath stays rendered.
+    expect(screen.getByText("page")).toBeInTheDocument()
   })
 
-  it("does not overlap a manual retry with the automatic availability probe", () => {
+  it("stays hidden when the probe gets a 4xx: the API answers", async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 403 }))
+    vi.stubGlobal("fetch", fetch)
+    render(<ServiceStatusGate />)
+    act(() => { reportServiceUnavailable() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    expect(fetch).toHaveBeenCalledWith("https://api.test/api/auth/me", expect.objectContaining({ credentials: "include" }))
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    expect(getServiceStatus()).toBe("up")
+  })
+
+  it("tries again on the 3/5 s backoff, hides and reloads once the API answers", async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+    vi.stubGlobal("fetch", fetch)
+    reportServiceUnavailable()
+    confirmServiceUnavailable()
+    render(<ServiceStatusGate />)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(screen.getByText("serviceGate.nextTry 5")).toBeInTheDocument()
+
+    fetch.mockResolvedValue(new Response("{}", { status: 401 }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+    expect(getServiceStatus()).toBe("up")
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it("does not overlap a manual retry with the automatic try", async () => {
     const fetch = vi.fn(() => new Promise<Response>(() => {}))
     vi.stubGlobal("fetch", fetch)
     reportServiceUnavailable()
     confirmServiceUnavailable()
     vi.useFakeTimers()
     render(<ServiceStatusGate />)
-    fireEvent.click(screen.getByRole("button", { name: "error.retry" }))
+    fireEvent.click(screen.getByRole("button", { name: "serviceGate.retryNow" }))
     expect(fetch).toHaveBeenCalledOnce()
-    act(() => { vi.advanceTimersByTime(5000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000) })
     expect(fetch).toHaveBeenCalledOnce()
   })
 })
