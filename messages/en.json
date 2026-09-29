@@ -737,5 +737,19 @@
   "exercises.owner.label": "Owner",
   "exercises.owner.catalog": "Platform catalog",
   "exercises.owner.pick": "Pick an event",
-  "exercises.owner.required": "Pick the event first"
+  "exercises.owner.required": "Pick the event first",
+  "exercises.hints.title": "Hints",
+  "exercises.hints.add": "Add hint",
+  "exercises.hints.help": "Count, order and cost are shared by all variants; the text is set in each variant tab.",
+  "exercises.hints.empty": "No hints",
+  "exercises.hints.item": "Hint {n}",
+  "exercises.hints.up": "Move up",
+  "exercises.hints.down": "Move down",
+  "exercises.hints.remove": "Remove hint",
+  "exercises.hints.text": "Text",
+  "exercises.hints.textPlaceholder": "What the team sees after unlocking",
+  "exercises.hints.cost": "Cost",
+  "exercises.hints.costHelp": "Points deducted when a team unlocks the hint. 0 = free.",
+  "exercises.hints.free": "Free",
+  "exercises.hints.points": "points"
 }

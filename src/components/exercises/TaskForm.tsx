@@ -11,6 +11,7 @@ import { AttachmentList, type AttachmentListHandle } from "./AttachmentList"
 import { FlagInput } from "./FlagInput"
 import { PlaceholderDialog } from "./PlaceholderDialog"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
+import { HintsEditor } from "./HintsEditor"
 import { isValidIPv4, type DraftFormValues, type PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import type { Difficulty } from "@/api/exercises/versions"
 import type { VariableDef } from "@/components/editor/variableUtils"
@@ -176,6 +177,8 @@ export function TaskForm({
         )}
       />
       </section>
+
+      <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
 
       {(linkable.length > 0 || linkedDeviceID) && <section className="space-y-3 border-t border-border pt-3">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exTask.flagDelivery")}</h4>

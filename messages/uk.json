@@ -737,5 +737,19 @@
   "exercises.owner.label": "Власник",
   "exercises.owner.catalog": "Каталог платформи",
   "exercises.owner.pick": "Оберіть подію",
-  "exercises.owner.required": "Спершу оберіть подію"
+  "exercises.owner.required": "Спершу оберіть подію",
+  "exercises.hints.title": "Підказки",
+  "exercises.hints.add": "Додати підказку",
+  "exercises.hints.help": "Кількість, порядок і вартість спільні для всіх варіантів; текст задається в кожному варіанті.",
+  "exercises.hints.empty": "Підказок немає",
+  "exercises.hints.item": "Підказка {n}",
+  "exercises.hints.up": "Вище",
+  "exercises.hints.down": "Нижче",
+  "exercises.hints.remove": "Видалити підказку",
+  "exercises.hints.text": "Текст",
+  "exercises.hints.textPlaceholder": "Що побачить команда після відкриття",
+  "exercises.hints.cost": "Вартість",
+  "exercises.hints.costHelp": "Бали, які знімаються, коли команда відкриває підказку. 0 = безкоштовно.",
+  "exercises.hints.free": "Безкоштовно",
+  "exercises.hints.points": "балів"
 }

@@ -126,7 +126,8 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
         ...variant,
         Tasks: variant.Tasks
           .filter((task) => !task.ID || info?.taskIds.has(task.ID))
-          .map((task) => ({ ...task, Flag: task.ID && info?.flags.has(task.ID) ? [...info.flags.get(task.ID)!] : [] })),
+          // Buffers written before hints existed carry no Hints array.
+          .map((task) => ({ ...task, Hints: task.Hints ?? [], Flag: task.ID && info?.flags.has(task.ID) ? [...info.flags.get(task.ID)!] : [] })),
         Topology: {
           ...variant.Topology,
           Devices: variant.Topology.Devices.map((device) => {
