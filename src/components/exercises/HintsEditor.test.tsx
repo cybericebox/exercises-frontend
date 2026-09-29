@@ -58,6 +58,15 @@ describe("HintsEditor", () => {
     expect(hints(1)).toHaveLength(1)
   })
 
+  it("marks level and text as required; a new hint starts at the nudge level", () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
+    const row = screen.getByTestId("hint-row")
+    expect(row.querySelectorAll(".text-destructive[aria-hidden='true']")).toHaveLength(2)
+    expect(screen.getAllByText("admin.ex.field.required")).toHaveLength(2)
+    expect(hints(0)[0].Level).toBe("nudge")
+  })
+
   it("offers no text alignment for hints", () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
