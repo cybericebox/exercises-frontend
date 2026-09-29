@@ -313,6 +313,8 @@
   "admin.ex.val.secretValue": "Введіть значення секретної змінної",
   "admin.exDetail.back": "Назад до каталогу",
   "admin.exDetail.notFound": "Завдання не знайдено",
+  "admin.exDetail.loadError": "Не вдалося завантажити завдання",
+  "admin.ex.filterTags.loadError": "Не вдалося завантажити теги",
   "admin.exDeploy.title": "Тестовий деплой",
   "admin.exDeploy.provisioning": "Розгортання лабораторії…",
   "admin.exDeploy.failed": "Помилка деплою",

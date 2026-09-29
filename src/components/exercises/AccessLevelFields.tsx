@@ -37,7 +37,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
   const [nearest, setNearest] = useState<EventOption[] | null>(null)
   const [known, setKnown] = useState<Record<string, EventOption>>(() =>
     Object.fromEntries(knownEvents.map((event) => [event.ID, { ID: event.ID, Name: event.Name, Tag: "" }])))
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [search, setSearch] = useState("")
   const [results, setResults] = useState<{ query: string; items: EventOption[] } | null>(null)
@@ -55,7 +55,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
     let active = true
     listNearestEvents()
       .then((items) => { if (active) { setNearest(items); remember(items) } })
-      .catch(() => { if (active) { setNearest([]); setFailed(true) } })
+      .catch((cause) => { if (active) { setNearest([]); setFailed({ cause }) } })
     return () => { active = false }
   }, [attempt])
 
@@ -74,8 +74,8 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
     let active = true
     const id = setTimeout(() => {
       listEventOptions(query, SEARCH_LIMIT)
-        .then((items) => { if (active) { setResults({ query, items }); remember(items) } })
-        .catch(() => { if (active) { setResults({ query, items: [] }); setFailed(true) } })
+        .then((items) => { if (active) { setResults({ query, items }); remember(items); setFailed(null) } })
+        .catch((cause) => { if (active) { setResults({ query, items: [] }); setFailed({ cause }) } })
     }, 250)
     return () => { active = false; clearTimeout(id) }
   }, [query, attempt])
@@ -126,8 +126,8 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
             {value.eventIds.map((id) => row(known[id] ?? { ID: id, Name: "", Tag: "" }))}
             {value.eventIds.length > 0 && (loading || candidates.length > 0) && <div role="separator" className="my-1 border-t border-border" />}
             {loading ? <LoadingArea compact className={value.eventIds.length ? "h-24" : "h-full"} label={t("admin.loading")} />
-              : failed && candidates.length === 0 ? <LoadError compact message={t("exercises.access.loadError")} className={value.eventIds.length ? "h-24" : "h-full"}
-                  onRetry={() => { setFailed(false); setNearest(null); setResults(null); setAttempt((key) => key + 1) }} />
+              : failed && candidates.length === 0 ? <LoadError compact message={t("exercises.access.loadError")} error={failed.cause} className={value.eventIds.length ? "h-24" : "h-full"}
+                  onRetry={() => { setFailed(null); setNearest(null); setResults(null); setAttempt((key) => key + 1) }} />
               : candidates.length === 0 ? value.eventIds.length === 0 && <EmptyState compact message={t("exercises.access.noEvents")} className="h-full min-h-0" />
               : candidates.map(row)}
             {!loading && !query && candidates.length > 0 && <p className="px-1.5 pt-1 text-xs text-muted-foreground">{t("exercises.access.searchHint")}</p>}

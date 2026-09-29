@@ -154,7 +154,7 @@ describe('TaskAccordion', () => {
     render(<NamedDeviceHarness />)
     expect(await screen.findByText('admin.exTask.flag.policyUnavailable')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTask.flag.randomExample')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.policyRetry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText(/ICE\{0{12}\}/)).toBeInTheDocument()
   })
 

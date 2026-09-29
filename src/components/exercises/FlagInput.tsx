@@ -13,6 +13,8 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, type ParsedFlagCandidate } from "@/lib/flagPattern"
 import type { FlagPolicy } from "@/api/exercises/flagPolicy"
+import { LoadError } from "@/components/ui/load-error"
+import { LoadingArea } from "@/components/ui/spinner"
 
 const TEMPLATE_PREFIX = "template:"
 type PasteMode = "fixed" | "template"
@@ -51,7 +53,7 @@ function FlagModeLabel({ hint, children }: { hint?: string; children: string }) 
 
 export function FlagInput({
   value, onChange, disabled, errors = [], linkedDeviceID, hasLinkableDevice = false,
-  policy = null, policyError = false, onRetryPolicy, namePrefix,
+  policy = null, policyError = null, onRetryPolicy, namePrefix,
 }: {
   value: string[]
   onChange: (v: string[]) => void
@@ -60,7 +62,7 @@ export function FlagInput({
   linkedDeviceID?: string
   hasLinkableDevice?: boolean
   policy?: FlagPolicy | null
-  policyError?: boolean
+  policyError?: { cause: unknown } | null
   onRetryPolicy?: () => void
   namePrefix?: string
 }) {
@@ -242,10 +244,9 @@ export function FlagInput({
         <p role="alert" className="text-xs text-destructive">{t("admin.exTask.flag.staticCount")}</p>}
       {dynamic && value.length === 0 && (policy
         ? <p className="text-xs text-muted-foreground">{t("admin.exTask.flag.randomExample")}: <code>{`ICE{${"0".repeat(policy.RandomHexLength)}}`}</code> · {policy.RandomBits} {t("admin.exTask.flag.bits")}</p>
-        : <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{t(policyError ? "admin.exTask.flag.policyUnavailable" : "admin.exTask.flag.policyLoading")}</span>
-          {policyError && onRetryPolicy && <button type="button" className="underline" onClick={onRetryPolicy}>{t("admin.exTask.flag.policyRetry")}</button>}
-        </div>)}
+        : policyError
+          ? <LoadError compact message={t("admin.exTask.flag.policyUnavailable")} error={policyError.cause} onRetry={onRetryPolicy} />
+          : <LoadingArea compact className="h-24" label={t("admin.exTask.flag.policyLoading")} />)}
       <Dialog open={pendingPaste !== null} onOpenChange={(open) => { if (!open) setPendingPaste(null) }}>
         <DialogContent className="max-h-[min(90dvh,38rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto">
           <DialogHeader>

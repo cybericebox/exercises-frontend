@@ -7,7 +7,7 @@ import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 
 // Error code carried by an API error: the numeric Status.Code first, then the HTTP status.
-function errorCode(error: unknown): number | undefined {
+export function errorCode(error: unknown): number | undefined {
   if (!error || typeof error !== "object") return undefined
   const { code, status } = error as { code?: unknown; status?: unknown }
   if (typeof code === "number") return code

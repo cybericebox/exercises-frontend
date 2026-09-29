@@ -313,6 +313,8 @@
   "admin.ex.val.secretValue": "Enter a value for the secret variable",
   "admin.exDetail.back": "Back to catalog",
   "admin.exDetail.notFound": "Exercise not found",
+  "admin.exDetail.loadError": "Could not load the exercise",
+  "admin.ex.filterTags.loadError": "Could not load tags",
   "admin.exDeploy.title": "Test deploy",
   "admin.exDeploy.provisioning": "Deploying the lab…",
   "admin.exDeploy.failed": "Deploy failed",

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listVersions, type Version } from "@/api/exercises/versions"
+import { ErrorScreen } from "@/components/ErrorScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { DraftVariants } from "@/components/exercises/DraftFields"
@@ -216,6 +217,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (editor.loadState === "notFound") return <ExerciseNotFound />
+  if (editor.loadState === "error") return <ErrorScreen title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
   const canManageAccess = Boolean(exercise && exercise.Scope === "catalog" && rights.manageAccess && !archived && !isVersion)

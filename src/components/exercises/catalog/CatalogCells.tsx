@@ -40,7 +40,7 @@ export function StatusCell({ item }: { item: ExerciseListItem }) {
 export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID: string }; eventName: (id: string) => string | undefined }) {
   const info = accessInfo(item)
   const [ids, setIds] = useState<string[] | null>(info.eventIds.length ? info.eventIds : null)
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<{ cause: unknown } | null>(null)
   const [names, setNames] = useState<Record<string, string>>({})
   const listed = Object.fromEntries(item.AccessEvents.map((event) => [event.ID, event.Name]))
   const nameOf = (id: string) => listed[id] || eventName(id) || names[id]
@@ -69,7 +69,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   const label = count ? t("exercises.accessCol.selectedCount", { count }) : t("exercises.access.level.selected")
 
   function fetchIds() {
-    getExercise(item.ID).then((card) => { setIds(card.AccessEventIDs); resolve(card.AccessEventIDs) }).catch(() => setFailed(true))
+    getExercise(item.ID).then((card) => { setIds(card.AccessEventIDs); resolve(card.AccessEventIDs) }).catch((cause) => setFailed({ cause }))
   }
 
   function load() {
@@ -86,7 +86,7 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
       </PopoverTrigger>
       <PopoverContent className="w-64">
         <p className="mb-1 text-xs text-muted-foreground">{t("exercises.accessCol.eventsTitle")}</p>
-        {failed ? <LoadError compact message={t("exercises.access.loadError")} className="h-40 min-h-0" onRetry={() => { setFailed(false); fetchIds() }} />
+        {failed ? <LoadError compact message={t("exercises.access.loadError")} error={failed.cause} className="h-40 min-h-0" onRetry={() => { setFailed(null); fetchIds() }} />
           : ids === null ? <LoadingArea compact className="h-40" label={t("admin.loading")} />
           : ids.length === 0 ? <EmptyState compact message={t("exercises.access.noEvents")} className="h-40 min-h-0" />
           : <ul className="h-40 space-y-1 overflow-y-auto">

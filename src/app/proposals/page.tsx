@@ -101,7 +101,7 @@ export default function ProposalsPage() {
   const { access } = useExerciseAccess()
   const [status, setStatus] = useState<ProposalStatus>("pending")
   const [items, setItems] = useState<Proposal[] | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reload, setReload] = useState(0)
   const [approving, setApproving] = useState<Proposal | null>(null)
   const [rejecting, setRejecting] = useState<Proposal | null>(null)
@@ -111,10 +111,10 @@ export default function ProposalsPage() {
   useEffect(() => {
     if (!isAdmin) return
     let active = true
-    queueMicrotask(() => { if (active) { setItems(null); setError(false) } })
+    queueMicrotask(() => { if (active) { setItems(null); setError(null) } })
     listProposals(status)
       .then((next) => { if (active) setItems(next) })
-      .catch(() => { if (active) { setItems([]); setError(true) } })
+      .catch((cause) => { if (active) { setItems([]); setError({ cause }) } })
     return () => { active = false }
   }, [isAdmin, status, reload])
 
@@ -147,7 +147,7 @@ export default function ProposalsPage() {
       )}
       <div className="min-h-0 flex-1 overflow-auto">
         {items === null ? <LoadingArea className="h-full" label={t("admin.loading")} />
-          : error ? <LoadError message={t("exercises.proposals.loadError")} onRetry={() => setReload((key) => key + 1)} className="h-full" />
+          : error ? <LoadError message={t("exercises.proposals.loadError")} error={error.cause} onRetry={() => setReload((key) => key + 1)} className="h-full" />
           : items.length === 0 ? <EmptyState message={t(`exercises.proposals.empty.${status}`)} className="h-full" />
           : (
             <table className="w-full text-sm">

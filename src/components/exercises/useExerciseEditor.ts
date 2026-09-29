@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { ApiError } from "@/api/client"
 import { createExercise, getExercise, updateExercise, updateExerciseKeepalive, type Exercise } from "@/api/exercises/catalog"
 import { getDraft, getVersion, isStoredVersionId, saveDraft, saveDraftKeepalive, type Version } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
@@ -18,7 +19,14 @@ import {
 import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { useExerciseAutosave, type ExerciseAutosave } from "./useExerciseAutosave"
 
-export type ExerciseLoadState = "loading" | "ready" | "notFound"
+export type ExerciseLoadState = "loading" | "ready" | "notFound" | "error"
+
+// A server (5xx / timeout / rate limit) or network failure is a load error with retry; a 4xx
+// answer (or "nothing published") means the exercise is not there for this user.
+function isLoadFailure(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 408 || error.status === 429
+  return error instanceof TypeError
+}
 
 export type UseExerciseEditorOptions = {
   exerciseId: string | null
@@ -40,6 +48,10 @@ export type UseExerciseEditorOptions = {
 
 export type ExerciseEditor = {
   loadState: ExerciseLoadState
+  /** The failure behind loadState "error" (carries the code shown by LoadError). */
+  loadError: unknown
+  /** Loads again after loadState "error". */
+  retryLoad: () => void
   exercise: Exercise | null
   setExercise: (exercise: Exercise) => void
   version: Version | null
@@ -77,6 +89,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   optionsRef.current = options
 
   const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
+  const [loadError, setLoadError] = useState<unknown>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [version, setVersion] = useState<Version | null>(null)
   // Set once a buffer is restored; the effect below marks the change against the live
@@ -292,8 +306,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
             optionsRef.current.onPendingRestored()
             setRestored(true)
           }
-        } catch {
-          if (!cancelled) setLoadState("notFound")
+        } catch (error) {
+          if (cancelled) return
+          if (isLoadFailure(error)) { setLoadError(error); setLoadState("error") }
+          else setLoadState("notFound")
         }
       } finally {
         finished = true
@@ -315,7 +331,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // Load once per route (the detail page remounts on id/version change) — see
     // loadStartedRef above for why later userId changes don't re-trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId, versionId, userId])
+  }, [exerciseId, versionId, userId, loadAttempt])
 
   useEffect(() => {
     if (restored) autosave.markChanged()
@@ -355,9 +371,16 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     applyValues(identityOf(loaded), workingCopyValues(draft))
   }, [applyValues, rememberDraftVersion])
 
+  const retryLoad = useCallback(() => {
+    loadStartedRef.current = false
+    setLoadError(null)
+    setLoadState("loading")
+    setLoadAttempt((attempt) => attempt + 1)
+  }, [])
+
   const getDraftVersionId = useCallback(() => draftVersionIdRef.current, [])
 
   return {
-    loadState, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly,
   }
 }

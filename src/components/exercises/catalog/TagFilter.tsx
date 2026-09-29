@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react"
 import { listExerciseTags, type ExerciseTagSuggestion } from "@/api/exercises/catalog"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 
@@ -23,6 +24,7 @@ export function TagFilter({ value, onChange, className }: {
   const [draft, setDraft] = useState("")
   const [options, setOptions] = useState<ExerciseTagSuggestion[]>([])
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  const [failed, setFailed] = useState<{ cause: unknown } | null>(null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const listId = useId()
@@ -33,8 +35,8 @@ export function TagFilter({ value, onChange, className }: {
     let current = true
     const id = setTimeout(() => {
       listExerciseTags(prefix, TAG_LIMIT)
-        .then((items) => { if (current) { setOptions(items); setLoadedFor(prefix); setActive(-1) } })
-        .catch(() => { if (current) { setOptions([]); setLoadedFor(prefix) } })
+        .then((items) => { if (current) { setOptions(items); setFailed(null); setLoadedFor(prefix); setActive(-1) } })
+        .catch((cause) => { if (current) { setOptions([]); setFailed({ cause }); setLoadedFor(prefix) } })
     }, prefix ? 200 : 0)
     return () => { current = false; clearTimeout(id) }
   }, [open, prefix, loadedFor])
@@ -85,6 +87,8 @@ export function TagFilter({ value, onChange, className }: {
         <div id={listId} role="listbox" aria-multiselectable="true" aria-label={t("admin.ex.filterTags.label")}
           className="absolute left-0 right-0 top-full z-[80] mt-1 h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
           {loadedFor !== prefix ? <LoadingArea compact className="h-full" label={t("admin.loading")} />
+            // The button must not blur the input: that would close the list before the click lands.
+            : failed ? <div className="h-full" onPointerDown={(event) => event.preventDefault()}><LoadError compact message={t("admin.ex.filterTags.loadError")} error={failed.cause} className="h-full min-h-0" onRetry={() => setLoadedFor(null)} /></div>
             : shown.length === 0 ? <EmptyState compact message={t("admin.ex.filterTags.empty")} className="h-full min-h-0" />
             : shown.map(({ Tag, Count }, index) => (
               <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={selected(Tag)}

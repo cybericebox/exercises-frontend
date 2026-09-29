@@ -62,7 +62,7 @@ export default function Page() {
   const [pageSize, setPageSize] = useState(50)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [exportOpen, setExportOpen] = useState(false)
@@ -154,10 +154,10 @@ export default function Page() {
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
     loadCatalogPage(listExercisesPage, filters, page, pageSize)
       .then((data) => { if (active) { setRows(data.Items); setTotal(data.Total) } })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [filters, page, pageSize, reloadKey])
@@ -173,7 +173,7 @@ export default function Page() {
     update({ sortBy: field, sortDir })
   }
 
-  const retry = () => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }
+  const retry = () => { setError(null); setLoading(true); setReloadKey((key) => key + 1) }
   const defaults = defaultFilters(isAdmin)
   const filtered = Boolean(filters.search || filters.tags.length > 0 || filters.status !== "all" || filters.events.length > 0
     || filters.infrastructure || filters.scope !== defaults.scope)
@@ -254,8 +254,8 @@ export default function Page() {
       )}
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && rows.length === 0 ? (
-        <LoadError message={t("admin.ex.loadError")} onRetry={retry} className="h-full" />
+      {error ? (
+        <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
@@ -314,7 +314,6 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && rows.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.ex.loadError")}</span><Button variant="outline" size="sm" onClick={retry}>{t("admin.ex.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />

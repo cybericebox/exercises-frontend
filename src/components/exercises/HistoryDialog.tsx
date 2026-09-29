@@ -40,14 +40,14 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
   onView: (versionId: string | null) => void
 }) {
   const [versions, setVersions] = useState<VersionListItem[] | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<{ cause: unknown } | null>(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     listVersions(exerciseId)
       .then((items) => { if (!cancelled) setVersions(sortHistory(items)) })
-      .catch(() => { if (!cancelled) setFailed(true) })
+      .catch((cause) => { if (!cancelled) setFailed({ cause }) })
     return () => { cancelled = true }
   }, [exerciseId, attempt])
 
@@ -63,7 +63,7 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
         <DialogDescription>{t("admin.exHistory.description")}</DialogDescription>
       </DialogHeader>
       <div className="max-h-[60vh] overflow-y-auto">
-        {failed ? <LoadError compact message={t("admin.exHistory.loadError")} className="h-48" onRetry={() => { setFailed(false); setVersions(null); setAttempt((key) => key + 1) }} />
+        {failed ? <LoadError compact message={t("admin.exHistory.loadError")} error={failed.cause} className="h-48" onRetry={() => { setFailed(null); setVersions(null); setAttempt((key) => key + 1) }} />
           : versions === null ? <LoadingArea compact className="h-48" label={t("admin.loading")} />
             : versions.length === 0 ? <EmptyState compact message={t("admin.exHistory.empty")} className="h-48" />
               : <ul>

@@ -1,6 +1,7 @@
 import { StrictMode, useLayoutEffect } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { ApiError } from "@/api/client"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
 
@@ -56,6 +57,7 @@ function Harness(props: Partial<UseExerciseEditorOptions>) {
   // findBy* sees the new DOM (a passive effect may still be pending at that point).
   useLayoutEffect(() => { latest = editor })
   if (editor.loadState === "notFound") return <p>not found</p>
+  if (editor.loadState === "error") return <button onClick={editor.retryLoad}>retry</button>
   if (editor.loadState !== "ready") return <p>loading</p>
   return <form>
     <input aria-label="name" {...editor.identityForm.register("Name")} />
@@ -186,6 +188,20 @@ describe("useExerciseEditor", () => {
 
   it("reports a missing exercise", async () => {
     mockGetExercise.mockRejectedValue(new Error("404"))
+    render(<Harness exerciseId="missing" />)
+    expect(await screen.findByText("not found")).toBeInTheDocument()
+  })
+
+  it("shows a load error for a server failure and loads again on retry", async () => {
+    mockGetExercise.mockRejectedValueOnce(new ApiError(503, null)).mockResolvedValue(exercise)
+    render(<Harness exerciseId="ex-1" />)
+    fireEvent.click(await screen.findByText("retry"))
+    await waitFor(() => expect(latest.loadState).toBe("ready"))
+    expect(mockGetExercise).toHaveBeenCalledTimes(2)
+  })
+
+  it("treats a 404 answer as a missing exercise, not a load error", async () => {
+    mockGetExercise.mockRejectedValue(new ApiError(404, null))
     render(<Harness exerciseId="missing" />)
     expect(await screen.findByText("not found")).toBeInTheDocument()
   })

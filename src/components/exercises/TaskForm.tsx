@@ -70,15 +70,15 @@ export function TaskForm({
   const editingPlaceholder = placeholders.find((placeholder) => placeholder.Key === editingPlaceholderKey) ?? null
   const [dragDepth, setDragDepth] = useState(0)
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
-  const [policyError, setPolicyError] = useState(false)
+  const [policyError, setPolicyError] = useState<{ cause: unknown } | null>(null)
   const [policyRetry, setPolicyRetry] = useState(0)
 
   useEffect(() => {
     let current = true
     getFlagPolicy().then((next) => {
-      if (current) { setPolicy(next); setPolicyError(false) }
-    }).catch(() => {
-      if (current) { setPolicy(null); setPolicyError(true) }
+      if (current) { setPolicy(next); setPolicyError(null) }
+    }).catch((cause) => {
+      if (current) { setPolicy(null); setPolicyError({ cause }) }
     })
     return () => { current = false }
   }, [policyRetry])
@@ -172,7 +172,7 @@ export function TaskForm({
             hasLinkableDevice={linkable.length > 0}
             policy={policy}
             policyError={policyError}
-            onRetryPolicy={() => { setPolicyError(false); setPolicyRetry((attempt) => attempt + 1) }}
+            onRetryPolicy={() => { setPolicyError(null); setPolicyRetry((attempt) => attempt + 1) }}
           />
         )}
       />

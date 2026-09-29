@@ -187,7 +187,7 @@ describe('exercises catalog page', () => {
     expect(screen.queryByText('Old SQLi')).not.toBeInTheDocument()
   })
 
-  it('retries a failed next page without discarding the loaded rows', async () => {
+  it('retries a failed next page with the shared load error', async () => {
     mockList.mockResolvedValueOnce({ Items: [item], Total: 51, Page: 1, PageSize: 50 })
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ Items: [{ ...item, ID: 'second', Name: 'Crypto basics' }], Total: 51, Page: 2, PageSize: 50 })
@@ -195,8 +195,7 @@ describe('exercises catalog page', () => {
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('admin.ex.loadError')
-    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText('Crypto basics')).toBeInTheDocument()
   })
 })
