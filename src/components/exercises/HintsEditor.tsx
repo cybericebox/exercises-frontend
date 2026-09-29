@@ -93,10 +93,6 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
               <li key={`${hint.ID || "new"}-${hintIndex}`} data-testid="hint-row" className="space-y-2 rounded-md border border-border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-foreground">{title}</span>
-                  <span className="ml-2"><ExerciseFieldLabel labelKey="exercises.hints.level" helpLines={levelHelpLines()} required /></span>
-                  <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="h-8 w-44"
-                    options={levelOptions()}
-                    onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
                   {!disabled && (
                     <span className="ml-auto flex items-center gap-1">
                       <HoverTooltip text={t("exercises.hints.up")}>
@@ -115,11 +111,22 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                     </span>
                   )}
                 </div>
-                {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
-                <ExerciseFieldLabel labelKey="exercises.hints.text" required />
-                <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.text")}
-                  onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
-                {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
+                {/* Text grows; the level is a fixed column (stacks under the text on narrow screens). */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <ExerciseFieldLabel labelKey="exercises.hints.text" required />
+                    <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.text")}
+                      onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
+                    {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
+                  </div>
+                  <div className="space-y-1.5 sm:w-48 sm:shrink-0">
+                    <ExerciseFieldLabel labelKey="exercises.hints.level" helpLines={levelHelpLines()} required />
+                    <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="w-full"
+                      options={levelOptions()}
+                      onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
+                    {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
+                  </div>
+                </div>
               </li>
             )
           })}
