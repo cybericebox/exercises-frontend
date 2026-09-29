@@ -839,6 +839,8 @@
   "inbox.resolve": "Вирішено",
   "inbox.resolved.resolved": "Вирішив {name}, {time}",
   "inbox.resolved.resolved.system": "Вирішено, {time}",
+  "inbox.resolved.expired.system": "Термін минув, {time}",
+  "inbox.resolved.withdrawn.system": "Відкликано, {time}",
   "inbox.emptyRequests": "Немає запитів",
   "inbox.tabs": "Категорії вхідних",
   "inbox.tab.all": "Усі",

@@ -839,6 +839,8 @@
   "inbox.resolve": "Resolved",
   "inbox.resolved.resolved": "Resolved by {name}, {time}",
   "inbox.resolved.resolved.system": "Resolved, {time}",
+  "inbox.resolved.expired.system": "Expired, {time}",
+  "inbox.resolved.withdrawn.system": "Withdrawn, {time}",
   "inbox.emptyRequests": "No requests",
   "inbox.tabs": "Inbox categories",
   "inbox.tab.all": "All",

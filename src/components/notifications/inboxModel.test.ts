@@ -105,6 +105,8 @@ it("queries carry the category and the event scope", () => {
 it("resolved line keys exist in both catalogs", () => {
   expect(inbox.resolutionKey("approved", true)).toBe("inbox.resolved.approved")
   expect(inbox.resolutionKey("fixed", false)).toBe("inbox.resolved.fixed.system")
+  expect(inbox.resolutionKey("expired", true)).toBe("inbox.resolved.expired.system")
+  expect(inbox.resolutionKey("withdrawn", false)).toBe("inbox.resolved.withdrawn.system")
   expect(inbox.resolutionKey("something-new", true)).toBe("inbox.resolved.other")
   expect(inbox.resolutionKey(null, false)).toBe("inbox.resolved.other.system")
   for (const lang of ["uk", "en"]) {
@@ -114,7 +116,7 @@ it("resolved line keys exist in both catalogs", () => {
         const key = inbox.resolutionKey(resolution, named)
         expect(catalog[key], `${lang}: ${key}`).toBeTruthy()
         expect(catalog[key].includes("{time}"), `${lang}: ${key} has {time}`).toBeTruthy()
-        if (named) expect(catalog[key].includes("{name}"), `${lang}: ${key} has {name}`).toBeTruthy()
+        if (named && !key.endsWith(".system")) expect(catalog[key].includes("{name}"), `${lang}: ${key} has {name}`).toBeTruthy()
       }
     }
     for (const tab of inbox.INBOX_TABS) expect(catalog[`inbox.tab.${tab}`], `${lang}: inbox.tab.${tab}`).toBeTruthy()

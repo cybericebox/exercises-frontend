@@ -11,8 +11,10 @@ export type InboxDefaultTab = InboxTab | "requestsIfOpen"
 /** Tab counts: requests = open requests; the others = unread. */
 export type InboxCounts = Record<InboxTab, number>
 
-export type InboxResolution = "approved" | "rejected" | "fixed" | "resolved"
-export const INBOX_RESOLUTIONS: readonly InboxResolution[] = ["approved", "rejected", "fixed", "resolved"]
+// expired (the event ended undecided) and withdrawn (the applicant left) are system closures: no resolver name.
+export type InboxResolution = "approved" | "rejected" | "fixed" | "resolved" | "expired" | "withdrawn"
+export const INBOX_RESOLUTIONS: readonly InboxResolution[] = ["approved", "rejected", "fixed", "resolved", "expired", "withdrawn"]
+const SYSTEM_RESOLUTIONS: readonly string[] = ["expired", "withdrawn"]
 
 /** The only request type a person may close by hand (§8.1): «Лабораторія впала». */
 export const MANUALLY_RESOLVABLE_TYPE = "event.lab.failed"
@@ -126,10 +128,10 @@ export function countsAfterReadAll(counts: InboxCounts, tab: InboxTab): InboxCou
   return { ...counts, all: Math.max(0, counts.all - counts[tab]), [tab]: 0 }
 }
 
-/** i18n key for the resolved line: with the resolver's name, or the system variant without it. */
+/** i18n key for the resolved line: with the resolver's name, or the label alone (system closures, no name). */
 export function resolutionKey(resolution: string | null | undefined, hasName: boolean): string {
-  const known = INBOX_RESOLUTIONS.includes(resolution as InboxResolution) ? resolution : "other"
-  return `inbox.resolved.${known}${hasName ? "" : ".system"}`
+  const known = INBOX_RESOLUTIONS.includes(resolution as InboxResolution) ? resolution! : "other"
+  return `inbox.resolved.${known}${hasName && !SYSTEM_RESOLUTIONS.includes(known) ? "" : ".system"}`
 }
 
 /** API query for a tab (and the event scope on event sites). */
