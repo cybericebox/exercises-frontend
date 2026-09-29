@@ -122,6 +122,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { t } from "@/i18n/t";
 import { type VariableDef } from "./variableUtils";
 import { VariablePickerMenu } from "./VariablePickerMenu";
@@ -274,19 +275,21 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
     formats.includes("bold") && "font-bold", formats.includes("italic") && "italic", formats.includes("underline") && "underline",
     formats.includes("strikethrough") && "line-through", formats.includes("code") && "font-mono");
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
-  if (onEdit) return <button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
-    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`} title={definition?.description ?? (missing ? content : name)}
-    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button>;
+  const hint = definition?.description ?? (missing ? content : name);
+  if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
+    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
+    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
+    <HoverTooltip text={hint} className="inline">
       <span
         data-notif-variable={showNames ? name : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}
-        title={definition?.description ?? (missing ? content : name)}
       >
         {content}
       </span>
+    </HoverTooltip>
   );
 }
 

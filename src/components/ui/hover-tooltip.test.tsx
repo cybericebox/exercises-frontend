@@ -57,4 +57,27 @@ describe("HoverTooltip", () => {
       bounds.mockRestore()
     }
   })
+  it("describes the child only while open when describe is set", () => {
+    render(<HoverTooltip text="Пояснення" describe><button type="button">Довідка</button></HoverTooltip>)
+    const trigger = screen.getByRole("button", { name: "Довідка" })
+    expect(trigger).not.toHaveAttribute("aria-describedby")
+
+    fireEvent.focus(trigger)
+    expect(trigger).toHaveAccessibleDescription("Пояснення")
+
+    fireEvent.blur(trigger)
+    expect(trigger).not.toHaveAttribute("aria-describedby")
+  })
+
+  it("opens a truncated hint only when the text overflows", () => {
+    render(<HoverTooltip text="Повний текст" truncated><span>Повний текст</span></HoverTooltip>)
+    const text = screen.getByText("Повний текст")
+    fireEvent.pointerEnter(text)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+    Object.defineProperty(text, "scrollWidth", { configurable: true, value: 200 })
+    Object.defineProperty(text, "clientWidth", { configurable: true, value: 100 })
+    fireEvent.pointerEnter(text)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Повний текст")
+  })
 })

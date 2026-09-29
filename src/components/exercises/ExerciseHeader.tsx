@@ -16,6 +16,7 @@ import type { AutosaveStatus } from "@/lib/autosaveQueue"
 import type { ReactNode } from "react"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
 export type HeaderPermissions = { write: boolean; publish: boolean; delete: boolean; export: boolean }
@@ -219,6 +220,15 @@ function MoreMenu(props: ExerciseHeaderProps) {
   )
 }
 
+// A disabled button cannot take focus, so the pending hint is also its description for screen readers.
+function ProposeButton({ pending, disabled, onClick }: { pending?: boolean; disabled: boolean; onClick: () => void }) {
+  const button = <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
+    <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+    {t("exercises.propose.button")}
+  </Button>
+  return pending ? <HoverTooltip text={t("exercises.badge.pending")} describe>{button}</HoverTooltip> : button
+}
+
 export function ExerciseHeader(props: ExerciseHeaderProps) {
   const { mode, title, badge, saveStatus, permissions, archived, publishable, busy, testAvailable } = props
   const created = mode !== "new"
@@ -269,11 +279,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
               </Button>
             )}
             {created && props.onPropose && (
-              <Button type="button" variant="outline" disabled={busy || props.proposalPending} onClick={props.onPropose}
-                title={props.proposalPending ? t("exercises.badge.pending") : undefined}>
-                <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-                {t("exercises.propose.button")}
-              </Button>
+              <ProposeButton pending={props.proposalPending} disabled={busy || !!props.proposalPending} onClick={props.onPropose} />
             )}
             {permissions.publish && (
               <Button type="button" disabled={!created || !publishable || busy} onClick={props.onPublish}>

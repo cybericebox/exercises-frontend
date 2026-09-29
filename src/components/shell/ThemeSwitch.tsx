@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Monitor, Moon, Sun } from "lucide-react"
 import { t } from "@/i18n/t"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { readThemeChoice, setThemeChoice, watchSystemTheme, type ThemeChoice } from "@/lib/theme"
 
 const OPTIONS = [
@@ -29,6 +30,6 @@ export function ThemeSwitch() {
   }
 
   return <div role="radiogroup" aria-label={t("theme.label")} className="inline-flex items-center gap-0.5 rounded-md border border-border p-0.5">
-    {OPTIONS.map(({ value, icon: Icon, label }) => <button key={value} type="button" role="radio" aria-checked={choice === value} aria-label={t(label)} title={t(label)} onClick={() => select(value)} className={`inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${choice === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><Icon className="h-4 w-4" /></button>)}
+    {OPTIONS.map(({ value, icon: Icon, label }) => <HoverTooltip key={value} text={t(label)}><button type="button" role="radio" aria-checked={choice === value} aria-label={t(label)} onClick={() => select(value)} className={`inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${choice === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}><Icon className="h-4 w-4" /></button></HoverTooltip>)}
   </div>
 }

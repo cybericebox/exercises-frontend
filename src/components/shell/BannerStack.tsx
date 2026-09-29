@@ -6,6 +6,7 @@ import { X } from "lucide-react"
 import { apiGet, apiPatch } from "@/api/client"
 import { onServiceRestored } from "@/lib/serviceStatus"
 import { t } from "@/i18n/t"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 type Banner = {
   ID: string
@@ -64,7 +65,7 @@ export function BannerStack() {
   return <div role="status" aria-live="polite" className="border-b border-border bg-[var(--ib-soft)] px-4 py-3 md:px-6">
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{current.Title}</p><div className="mt-0.5 text-sm text-foreground" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(current.Body ?? "") }} />{link && <a href={link} className="mt-1 inline-block text-sm font-medium text-primary underline-offset-2 hover:underline">{t("ui.banner.more")}</a>}{error && <p className="mt-1 text-xs text-destructive">{t("ui.banner.dismissError")}</p>}</div>
-      {current.Dismissible && <button type="button" aria-label={t("ui.banner.dismiss")} title={t("ui.banner.dismiss")} disabled={busy} onClick={() => void dismiss()} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"><X className="h-4 w-4" /></button>}
+      {current.Dismissible && <HoverTooltip text={t("ui.banner.dismiss")}><button type="button" aria-label={t("ui.banner.dismiss")} disabled={busy} onClick={() => void dismiss()} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"><X className="h-4 w-4" /></button></HoverTooltip>}
     </div>
   </div>
 }

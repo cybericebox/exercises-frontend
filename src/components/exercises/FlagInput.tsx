@@ -43,6 +43,11 @@ const INSERTION_GROUPS = [
 ] as const
 
 /** Candidate editor. The explicit mode switch never exposes the storage marker. */
+function FlagModeLabel({ hint, children }: { hint?: string; children: string }) {
+  const label = <span className="exercise-flag-mode flex w-28 items-center bg-primary px-2 text-sm font-medium text-primary-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-foreground" tabIndex={hint ? 0 : undefined}>{children}</span>
+  return hint ? <HoverTooltip text={hint} describe className="h-full">{label}</HoverTooltip> : label
+}
+
 export function FlagInput({
   value, onChange, disabled, errors = [], linkedDeviceID, hasLinkableDevice = false,
   policy = null, policyError = false, onRetryPolicy, namePrefix,
@@ -185,8 +190,7 @@ export function FlagInput({
                 onChange={(mode) => update(index, mode === "template" ? TEMPLATE_PREFIX + visible : visible)}
                 options={[{ value: "fixed", label: t("admin.exTask.flag.modeFixed") }, { value: "template", label: t("admin.exTask.flag.modeTemplate") }]}
                 className="exercise-flag-mode w-28 border-0 px-2 text-sm font-medium shadow-none focus-visible:ring-0" />
-                : <span className="exercise-flag-mode flex w-28 items-center bg-primary px-2 text-sm font-medium text-primary-foreground"
-                  title={!dynamic ? t(semanticsKey) : undefined}>{t(template ? "admin.exTask.flag.modeTemplate" : "admin.exTask.flag.modeFixed")}</span>}
+                : <FlagModeLabel hint={!dynamic ? t(semanticsKey) : undefined}>{t(template ? "admin.exTask.flag.modeTemplate" : "admin.exTask.flag.modeFixed")}</FlagModeLabel>}
             </div>
             <Input name={namePrefix ? `${namePrefix}.${index}` : undefined} value={visible} placeholder={template ? String.raw`ICE{room-\d}` : "ICE{...}"}
               ref={(node) => { if (node) inputRefs.current.set(index, node); else inputRefs.current.delete(index) }}

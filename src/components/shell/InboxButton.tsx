@@ -23,6 +23,7 @@ import { t } from "@/i18n/t"
 import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
 import { NotificationPopIn } from "@/components/notifications/NotificationPopIn"
 import { popInDuration } from "@/components/notifications/popInDuration"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import {
   INBOX_TABS, canResolve, countsAfterRead, countsAfterReadAll, countsAfterResolve, formatInboxTime, inTab, inboxQuery, isUnread, orderForTab,
   bellCount, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
@@ -401,7 +402,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
                 unread={unreadItem} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved
-                    ? <span className="min-w-0 truncate" title={formatInboxTime(item.CreatedAt)}>{resolvedLine(item)}</span>
+                    ? <HoverTooltip text={formatInboxTime(item.CreatedAt)} describe className="min-w-0"><span className="min-w-0 truncate" tabIndex={0}>{resolvedLine(item)}</span></HoverTooltip>
                     : <time dateTime={item.CreatedAt} className="min-w-0 truncate">{formatInboxTime(item.CreatedAt)}</time>}
                   {!event && <EventLabel name={item.EventName} />}
                 </span>}

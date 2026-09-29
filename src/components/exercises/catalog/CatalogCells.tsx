@@ -11,6 +11,7 @@ import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 const STATUS_BADGES: Record<CatalogStatus, { key: string; tone: BadgeTone }[]> = {
   published: [{ key: "admin.ex.status.published", tone: "ok" }],
@@ -58,7 +59,10 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
   if (info.kind === "unknown") return <span className="text-muted-foreground">—</span>
   if (info.kind !== "selected") {
     const origin = info.kind === "own" && info.eventIds[0] ? eventName(info.eventIds[0]) : undefined
-    return <span className="whitespace-nowrap text-sm" title={origin}>{t(`exercises.access.level.${info.kind}`)}</span>
+    const level = t(`exercises.access.level.${info.kind}`)
+    return origin
+      ? <HoverTooltip text={origin} describe><span className="whitespace-nowrap text-sm" tabIndex={0}>{level}</span></HoverTooltip>
+      : <span className="whitespace-nowrap text-sm">{level}</span>
   }
 
   const count = ids?.length
