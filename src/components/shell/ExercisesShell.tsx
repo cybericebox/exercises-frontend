@@ -8,12 +8,11 @@ import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
 import { PageLoader } from "@/components/ui/spinner"
 import { idOrigin, mainOrigin } from "@/lib/origins"
-
-// Permission that opens the catalog. Phase 2 widens this with per-user rights.
-export const CATALOG_PERMISSION = "exercises.read"
+import { hasCatalogAccess } from "@/lib/exerciseRights"
+import { AccessProvider, useExerciseAccess } from "./AccessContext"
 
 export function ExercisesShell({ children }: { children: React.ReactNode }) {
-  const { role, isLoading, can } = useRole()
+  const { role, isLoading } = useRole()
 
   useEffect(() => {
     if (!isLoading && role === null) {
@@ -30,8 +29,15 @@ export function ExercisesShell({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  // Authenticated without catalog rights → no-access panel (do NOT loop to sign-in).
-  if (!can(CATALOG_PERMISSION)) {
+  return <AccessProvider><AccessGate>{children}</AccessGate></AccessProvider>
+}
+
+function AccessGate({ children }: { children: React.ReactNode }) {
+  const { access, loading } = useExerciseAccess()
+  if (loading || !access) return <PageLoader label={t("admin.loading")} />
+
+  // Neither admin nor an event member → no-access panel (do NOT loop to sign-in).
+  if (!hasCatalogAccess(access)) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <div className="frost-panel frost-in max-w-md rounded-lg p-8 text-center">

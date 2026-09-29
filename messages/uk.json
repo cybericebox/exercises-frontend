@@ -687,5 +687,8 @@
   "exercises.err.proposalInvalid": "Завдання зараз не можна запропонувати: спершу опублікуйте його або дочекайтеся розгляду",
   "exercises.err.proposalDecided": "Пропозицію вже розглянуто",
   "exercises.err.forbidden": "У вас немає доступу до цього завдання",
-  "exercises.err.nameExists": "У каталозі вже є завдання з такою назвою. Вкажіть іншу."
+  "exercises.err.nameExists": "У каталозі вже є завдання з такою назвою. Вкажіть іншу.",
+  "exercises.nav.catalog": "Каталог",
+  "exercises.nav.proposals": "Пропозиції",
+  "exercises.nav.label": "Розділи"
 }

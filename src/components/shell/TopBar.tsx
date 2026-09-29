@@ -1,5 +1,6 @@
 "use client"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -10,6 +11,7 @@ import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { idOrigin } from "@/lib/origins"
+import { useExerciseAccess } from "./AccessContext"
 
 // Sign out from this origin so the API clears the session, then go straight to
 // the id sign-in page (same flow as the admin app).
@@ -22,6 +24,26 @@ async function signOutAndRedirect(): Promise<void> {
   if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
 }
 
+function AppNav() {
+  const pathname = usePathname()
+  const { access } = useExerciseAccess()
+  const items = [
+    { href: "/", label: t("exercises.nav.catalog"), active: pathname === "/" || pathname.startsWith("/detail") || pathname.startsWith("/new") },
+    ...(access?.IsAdmin ? [{ href: "/proposals", label: t("exercises.nav.proposals"), active: pathname.startsWith("/proposals") }] : []),
+  ]
+  if (items.length < 2) return null
+  return (
+    <nav aria-label={t("exercises.nav.label")} className="hidden items-center gap-1 sm:flex">
+      {items.map((item) => (
+        <Link key={item.href} href={item.href} aria-current={item.active ? "page" : undefined}
+          className={`rounded-md px-3 py-1.5 text-sm ${item.active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
 export function TopBar() {
   const { me } = useRole()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
@@ -29,10 +51,13 @@ export function TopBar() {
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
     <header className="sticky top-0 z-40 flex min-h-[56px] items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
-      <Link href="/" className="flex min-w-0 items-center gap-3">
-        <Logo size={28} />
-        <span className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</span>
-      </Link>
+      <div className="flex min-w-0 items-center gap-6">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          <Logo size={28} />
+          <span className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</span>
+        </Link>
+        <AppNav />
+      </div>
       <div className="flex items-center gap-3">
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />

@@ -687,5 +687,8 @@
   "exercises.err.proposalInvalid": "This exercise cannot be proposed now: publish it first or wait for the pending review",
   "exercises.err.proposalDecided": "The proposal has already been decided",
   "exercises.err.forbidden": "You do not have access to this exercise",
-  "exercises.err.nameExists": "A catalog exercise with this name exists. Choose another name."
+  "exercises.err.nameExists": "A catalog exercise with this name exists. Choose another name.",
+  "exercises.nav.catalog": "Catalog",
+  "exercises.nav.proposals": "Proposals",
+  "exercises.nav.label": "Sections"
 }
