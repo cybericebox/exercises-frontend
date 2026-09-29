@@ -10,8 +10,18 @@ import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { ThemeSwitch } from "./ThemeSwitch"
-import { idOrigin } from "@/lib/origins"
+import { Flag, House, LogOut, Settings, UserRound, type LucideIcon } from "lucide-react"
+import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
+import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
 import { useExerciseAccess } from "./AccessContext"
+
+// Unified account menu (lib/accountMenu): same labels and icons in every app.
+const ACCOUNT_ITEMS: Record<AccountLinkKey, { label: string; icon: LucideIcon }> = {
+  profile: { label: "admin.profile", icon: UserRound },
+  admin: { label: "admin.account.admin", icon: Settings },
+  exercises: { label: "admin.account.exercises", icon: Flag },
+  main: { label: "admin.account.home", icon: House },
+}
 
 // Sign out from this origin so the API clears the session, then go straight to
 // the id sign-in page (same flow as the admin app).
@@ -46,7 +56,13 @@ function AppNav() {
 
 export function TopBar() {
   const { me } = useRole()
+  const { access } = useExerciseAccess()
   const returnTo = typeof window !== "undefined" ? window.location.href : ""
+  const links = accountLinks(
+    "exercises",
+    { adminTier: Boolean(access?.IsAdmin), catalog: true, returnTo },
+    { id: idOrigin, admin: adminOrigin, exercises: "", main: mainOrigin },
+  )
   const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
@@ -84,12 +100,17 @@ export function TopBar() {
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href={`${idOrigin}/profile?return_to=${encodeURIComponent(returnTo)}`}>{t("admin.profile")}</a>
-            </DropdownMenuItem>
+            {links.map(({ key, href }) => {
+              const { label, icon: Icon } = ACCOUNT_ITEMS[key]
+              return (
+                <DropdownMenuItem key={key} asChild className="gap-2">
+                  <a href={href}><Icon className="h-4 w-4" aria-hidden="true" />{t(label)}</a>
+                </DropdownMenuItem>
+              )
+            })}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-              {t("admin.signOut")}
+            <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

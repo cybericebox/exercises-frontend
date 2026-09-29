@@ -41,6 +41,7 @@ jobs:
           # optional host overrides (bare host, no scheme); empty → <service>.<domain>
           NEXT_PUBLIC_API_DOMAIN: ${{ vars.NEXT_PUBLIC_API_DOMAIN }}
           NEXT_PUBLIC_ID_DOMAIN: ${{ vars.NEXT_PUBLIC_ID_DOMAIN }}
+          NEXT_PUBLIC_ADMIN_DOMAIN: ${{ vars.NEXT_PUBLIC_ADMIN_DOMAIN }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages
         uses: actions/configure-pages@v5

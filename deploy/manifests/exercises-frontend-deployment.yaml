@@ -46,6 +46,11 @@ spec:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: ID_DOMAIN
+            - name: NEXT_PUBLIC_ADMIN_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: ADMIN_DOMAIN
           ports:
             - containerPort: 3000
               protocol: TCP
