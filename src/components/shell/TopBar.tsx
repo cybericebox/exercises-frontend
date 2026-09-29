@@ -14,6 +14,7 @@ import { InboxButton } from "./InboxButton"
 import { House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
+import { initials } from "@/lib/initials"
 import { useExerciseAccess } from "./AccessContext"
 
 // Unified account menu (lib/accountMenu): same labels and icons in every app.
@@ -64,7 +65,7 @@ export function TopBar() {
     { adminTier: Boolean(access?.IsAdmin), catalog: true, returnTo },
     { id: idOrigin, admin: adminOrigin, exercises: "", main: mainOrigin },
   )
-  const initials = me ? `${me.FirstName?.[0] ?? ""}${me.LastName?.[0] ?? ""}` : ""
+  const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
     <header className="sticky top-0 z-40 flex min-h-[56px] items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
@@ -93,7 +94,7 @@ export function TopBar() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              initials || "?"
+              avatarInitials
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
