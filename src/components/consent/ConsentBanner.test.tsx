@@ -4,8 +4,8 @@ import { openConsentSettings } from "@/lib/consent"
 import { ConsentBanner } from "./ConsentBanner"
 
 const clear = () => { document.cookie = "cib_consent=; path=/; max-age=0" }
-const banner = () => screen.getByRole("region", { name: "Згода на cookie" })
-const panel = () => screen.getByRole("dialog", { name: "Налаштування cookie" })
+const banner = () => screen.getByRole("region", { name: "Згода на використання файлів cookie" })
+const panel = () => screen.getByRole("dialog", { name: "Налаштування файлів cookie" })
 const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }))
 
 describe("ConsentBanner", () => {
@@ -14,7 +14,7 @@ describe("ConsentBanner", () => {
   it("asks with a general line, the policy link, «Налаштувати» and «Прийняти всі»", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="https://cybericebox.com/cookies" />)
     expect(banner()).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Політика cookie" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
+    expect(screen.getByRole("link", { name: "Політика файлів cookie" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Налаштувати", "Прийняти всі"])
   })
 
@@ -71,7 +71,7 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
-  it("«Налаштування cookie» opens the panel with focus inside; Esc closes it unchanged", () => {
+  it("«Налаштування файлів cookie» opens the panel with focus inside; Esc closes it unchanged", () => {
     document.cookie = "cib_consent=analytics:granted; path=/"
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     act(() => openConsentSettings())
