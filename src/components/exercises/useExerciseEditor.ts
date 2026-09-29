@@ -28,6 +28,14 @@ export type UseExerciseEditorOptions = {
   userId: string | null
   onCreated: (exercise: Exercise) => void
   onPendingRestored: () => void
+  /** Owner event of a new exercise ("" or null = catalog). Read when the exercise is created. */
+  ownerEventId?: string | null
+  /**
+   * Decides from the loaded card whether only the published version may be read
+   * (non-admins on catalog exercises: no working copy). When set, the card is
+   * fetched first and the draft or the published version is loaded after it.
+   */
+  publishedOnly?: (exercise: Exercise) => boolean
 }
 
 export type ExerciseEditor = {
@@ -40,6 +48,8 @@ export type ExerciseEditor = {
   autosave: ExerciseAutosave
   getDraftVersionId: () => string
   reloadWorkingCopy: () => Promise<void>
+  /** The published version is shown read-only (no working copy access). */
+  readOnly: boolean
 }
 
 function identityOf(exercise: Exercise): IdentityFormValues {
@@ -73,6 +83,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   // queue. Calling markChanged() inside the load effect itself would, under StrictMode,
   // mark the queue that the simulated unmount then orphans and flushes (a duplicate create).
   const [restored, setRestored] = useState(false)
+  const [readOnly, setReadOnly] = useState(false)
   const exerciseIdRef = useRef<string | null>(exerciseId)
   const draftVersionIdRef = useRef("")
   const savedIdentityRef = useRef("")
@@ -125,7 +136,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         const name = identitySchema.shape.Name.safeParse(identity.Name)
         if (!name.success) return false
         const input = fullIdentity.success ? fullIdentity.data : { Name: name.data, Description: "", Tags: [] }
-        const createdExercise = await createExercise(input)
+        const owner = optionsRef.current.ownerEventId
+        const createdExercise = await createExercise(owner ? { ...input, OwnerEventID: owner } : input)
         id = createdExercise.ID
         exerciseIdRef.current = id
         savedIdentityRef.current = JSON.stringify(input)
@@ -238,11 +250,32 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           return
         }
         try {
-          const [loaded, loadedVersion] = await Promise.all([
-            getExercise(exerciseId),
-            versionId ? getVersion(exerciseId, versionId) : getDraft(exerciseId),
-          ])
+          const publishedOnly = optionsRef.current.publishedOnly
+          let loaded: Exercise
+          let loadedVersion: Version
+          let viewOnly = false
+          if (publishedOnly) {
+            loaded = await getExercise(exerciseId)
+            viewOnly = publishedOnly(loaded)
+            if (viewOnly && !versionId && !loaded.PublishedVersionID) throw new Error("nothing published")
+            loadedVersion = versionId || viewOnly
+              ? await getVersion(exerciseId, versionId ?? loaded.PublishedVersionID ?? "")
+              : await getDraft(exerciseId)
+          } else {
+            [loaded, loadedVersion] = await Promise.all([
+              getExercise(exerciseId),
+              versionId ? getVersion(exerciseId, versionId) : getDraft(exerciseId),
+            ])
+          }
           if (cancelled) return
+          if (viewOnly) {
+            setReadOnly(true)
+            setExercise(loaded)
+            setVersion(loadedVersion)
+            applyValues(identityOf(loaded), workingCopyValues(loadedVersion))
+            setLoadState("ready")
+            return
+          }
           const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
           const pending = key ? readPendingChanges(key) : null
           const apply = pending !== null && canWrite && !loaded.ArchivedAt
@@ -325,6 +358,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const getDraftVersionId = useCallback(() => draftVersionIdRef.current, [])
 
   return {
-    loadState, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy,
+    loadState, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly,
   }
 }

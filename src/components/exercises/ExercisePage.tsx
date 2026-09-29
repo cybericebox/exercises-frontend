@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
@@ -31,10 +31,18 @@ import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerci
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useUserNames } from "@/lib/userNames"
+import { useExerciseAccess } from "@/components/shell/AccessContext"
+import { useReturnContext } from "@/components/shell/ReturnContext"
+import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
+import { SelectMenu } from "@/components/ui/select-menu"
+import { AccessDialog } from "./AccessDialog"
+import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
+import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
+import { ProposeDialog } from "./ProposeDialog"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "archive" | "delete" | "export"
+type DialogName = "history" | "snapshot" | "revert" | "archive" | "delete" | "export" | "access" | "propose"
 
 export function ExerciseNotFound() {
   return <div className="frost-panel frost-in rounded-lg p-8 text-center">
@@ -70,12 +78,23 @@ function ExerciseMeta({ exercise, version, isVersion, publishedAt }: {
   return text ? <span className="text-xs text-muted-foreground">{text}</span> : null
 }
 
-function ExerciseScreen({ exerciseId, versionId }: Props) {
+function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const { can, me } = useRole()
-  const permissions = {
-    write: can("exercises.write"), publish: can("exercises.publish"),
-    delete: can("exercises.delete"), export: can("exercises.export"),
+  const { access } = useExerciseAccess()
+  const { returnUrl } = useReturnContext()
+  // Owner of a NEW exercise: "" = catalog, an event ID, or null = must be picked first.
+  const [owner, setOwner] = useState<string | null>(() => access ? defaultOwner(access, eventId) : "")
+  const [ownerTouched, setOwnerTouched] = useState(false)
+  // ?event= resolves after mount (return context): adopt it until the user picks an owner.
+  const [ownerFor, setOwnerFor] = useState(eventId)
+  if (eventId !== ownerFor) {
+    setOwnerFor(eventId)
+    if (!ownerTouched && access) setOwner(defaultOwner(access, eventId))
   }
+  const [loadedExercise, setLoadedExercise] = useState<Exercise | null>(null)
+  const rights = editorPermissions(loadedExercise, access, can)
+  const permissions = { write: rights.write, publish: rights.publish, delete: rights.delete, export: rights.export }
+  const [justDone, setJustDone] = useState<"created" | "published" | null>(null)
   const isVersion = versionId !== null
   const userId = me?.ID ?? null
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
@@ -90,19 +109,28 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
   const editor = useExerciseEditor({
     exerciseId,
     versionId,
-    editable: !isVersion && mode === "edit" && permissions.write,
+    editable: !isVersion && mode === "edit" && permissions.write && (exerciseId !== null || owner !== null),
     canWrite: permissions.write,
     userId,
+    ownerEventId: owner || null,
+    publishedOnly: access && !access.IsAdmin ? (loaded) => isReadOnlyCatalogView(access, loaded) : undefined,
     onCreated: (createdExercise) => {
       // Not router.replace: /new → /detail is another route segment and would remount the editor.
       window.history.replaceState(null, "", exerciseHref(createdExercise.ID))
       toast.success(t("admin.exPage.toast.created"))
+      setJustDone("created")
     },
     onPendingRestored: () => setMode("edit"),
   })
   const exercise = editor.exercise
+  // Rights follow the loaded card (server Permissions); synced from the editor state.
+  if (exercise !== loadedExercise) setLoadedExercise(exercise)
+  const readOnly = editor.readOnly
+  const ownerEventId = exercise ? exercise.OwnerEventID : owner || null
+  const infraAllowed = infrastructureAllowed(access, ownerEventId)
+  const publishedIdRef = useRef<string | null | undefined>(undefined)
   const archived = Boolean(exercise?.ArchivedAt)
-  const editing = !isVersion && !archived && mode === "edit" && permissions.write
+  const editing = !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
   const saveStatus = editor.autosave.status
   const leave = useExerciseLeaveGuard(editing && exercise !== null && (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error"))
   const actions = useExerciseActions({
@@ -142,7 +170,15 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
   const currentId = exercise?.ID ?? null
   const publishedVersionId = exercise?.PublishedVersionID ?? null
   useEffect(() => {
-    if (!currentId || !publishedVersionId) return
+    if (!currentId) return
+    const previous = publishedIdRef.current
+    publishedIdRef.current = publishedVersionId
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to a server-side publish
+    if (previous !== undefined && publishedVersionId && previous !== publishedVersionId) setJustDone("published")
+  }, [currentId, publishedVersionId])
+  useEffect(() => {
+    // Read-only viewers have no history access (403): the published date comes with the version.
+    if (!currentId || !publishedVersionId || readOnly) return
     let cancelled = false
     listVersions(currentId)
       .then((versions) => {
@@ -150,8 +186,9 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
       })
       .catch(() => undefined)
     return () => { cancelled = true }
-  }, [currentId, publishedVersionId])
-  const publishedAt = published && published.versionId === publishedVersionId ? published.at : null
+  }, [currentId, publishedVersionId, readOnly])
+  const publishedAt = readOnly ? editor.version?.PublishedAt ?? null
+    : published && published.versionId === publishedVersionId ? published.at : null
 
   useEffect(() => {
     if (!leave.destination) return
@@ -173,13 +210,17 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
 
+  const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
     return <p role="alert" className="text-sm text-destructive">{t("admin.ex.create.forbidden")}</p>
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (editor.loadState === "notFound") return <ExerciseNotFound />
 
-  const headerMode: HeaderMode = isVersion ? "version" : exercise === null ? "new" : mode
+  const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
+  const canManageAccess = Boolean(exercise && exercise.Scope === "catalog" && rights.manageAccess && !archived && !isVersion)
+  const canPropose = Boolean(exercise && exercise.Scope === "event" && rights.propose && exercise.PublishedVersionID && !archived && !isVersion)
+  const originEventName = exercise?.OriginEventID ? access?.Events.find((event) => event.ID === exercise.OriginEventID)?.Name : undefined
   const version = editor.version
   const badge: HeaderBadge | null = isVersion && version
     ? { kind: "version", label: t("admin.exPage.badge.version").replace("{date}", formatExerciseDate(version.PublishedAt ?? version.CreatedAt)) }
@@ -199,7 +240,7 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
         publishable={exercise ? canPublishExercise(exercise) : false}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
-        testAvailable={permissions.write && laboratories}
+        testAvailable={permissions.write && laboratories && infraAllowed}
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
@@ -215,7 +256,30 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
         onArchive={() => setDialog("archive")}
         onUnarchive={() => void actions.unarchive()}
         onDelete={() => setDialog("delete")}
+        onAccess={canManageAccess ? () => setDialog("access") : undefined}
+        onPropose={canPropose ? () => setDialog("propose") : undefined}
+        proposalPending={Boolean(exercise?.PendingProposalID)}
       />
+      {exercise && (exercise.Scope === "event" || exercise.ForkedFrom || exercise.PendingProposalID || exercise.Infrastructure || (access?.IsAdmin && exercise.AccessLevel)) && (
+        <div className="-mt-2 flex flex-wrap items-center gap-2">
+          <InfrastructureIcon show={exercise.Infrastructure} />
+          <OwnershipBadges exercise={exercise} showAccess={Boolean(access?.IsAdmin)} />
+        </div>
+      )}
+      {!exercise && owners.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span id="owner-label" className="text-sm font-medium text-foreground">{t("exercises.owner.label")}</span>
+          {owners.length === 1
+            ? <span className="text-sm text-muted-foreground">{owners[0].label}</span>
+            : <SelectMenu value={owner ?? "__none"} onChange={(value) => { setOwnerTouched(true); setOwner(value === "__none" ? null : value) }} ariaLabel={t("exercises.owner.label")}
+                options={[...(owner === null ? [{ value: "__none", label: t("exercises.owner.pick") }] : []), ...owners.map((option) => ({ value: option.value, label: option.label }))]}
+                className="h-10 min-w-56 text-sm" />}
+          {owner === null && <span className="text-xs text-muted-foreground">{t("exercises.owner.required")}</span>}
+        </div>
+      )}
+      {readOnly && <ReadOnlyBanner returnUrl={returnUrl} />}
+      {returnUrl && justDone && <EventReturnCallout returnUrl={returnUrl} kind={justDone} />}
+      {!infraAllowed && !readOnly && <InfrastructureBlockedNote />}
       {isVersion && version && exercise && <VersionBanner
         label={t("admin.exPage.version.banner").replace("{date}", formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt))}
         canRestore={permissions.write && !archived}
@@ -238,7 +302,7 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} />
+                <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
           </Form>
@@ -261,6 +325,10 @@ function ExerciseScreen({ exerciseId, versionId }: Props) {
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (!ok) setDialog(null) })} />
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
+    {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}
+      onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
+    {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
+      onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
     {deploy && <DeployTestDialog open onClose={() => setDeploy(null)} exerciseId={deploy.exerciseId}
       versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} />}
     <Dialog open={leaveOffline} onOpenChange={(open) => { if (!open) { setLeaveOffline(false); leave.cancelLeave() } }}>

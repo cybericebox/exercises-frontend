@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import {
   Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, LoaderCircle, Pencil, Play,
-  RotateCcw, Trash2,
+  RotateCcw, Send, ShieldCheck, Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,7 @@ import type { AutosaveStatus } from "@/lib/autosaveQueue"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
 
-export type HeaderMode = "new" | "view" | "edit" | "version"
+export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
 export type HeaderPermissions = { write: boolean; publish: boolean; delete: boolean; export: boolean }
 export type HeaderBadge = { kind: ExerciseBadgeKind } | { kind: "version"; label: string }
 export type TestVariantOption = { index: number; label: string; disabled: boolean }
@@ -46,6 +46,12 @@ export type ExerciseHeaderProps = {
   onArchive: () => void
   onUnarchive: () => void
   onDelete: () => void
+  /** Admins, catalog exercises: open the access level dialog. */
+  onAccess?: () => void
+  /** Managers, published event exercises: propose to the catalog. */
+  onPropose?: () => void
+  /** A proposal is already under review: the propose action is shown disabled. */
+  proposalPending?: boolean
 }
 
 const BADGE_CLASS: Record<HeaderBadge["kind"], string> = {
@@ -220,7 +226,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
         {(mode === "edit" || mode === "new") && <SaveIndicator status={saveStatus} onRetry={props.onRetrySave} />}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {mode === "version" ? (
+        {mode === "readonly" ? null : mode === "version" ? (
           <Button type="button" variant="outline" onClick={props.onHistory}>
             <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
             {t("admin.exPage.action.history")}
@@ -249,6 +255,19 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
             {mode === "edit" && (
               <Button type="button" variant="outline" disabled={busy} onClick={props.onDone}>
                 {t("admin.exPage.action.done")}
+              </Button>
+            )}
+            {created && props.onAccess && (
+              <Button type="button" variant="outline" disabled={busy} onClick={props.onAccess}>
+                <ShieldCheck aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+                {t("exercises.access.button")}
+              </Button>
+            )}
+            {created && props.onPropose && (
+              <Button type="button" variant="outline" disabled={busy || props.proposalPending} onClick={props.onPropose}
+                title={props.proposalPending ? t("exercises.badge.pending") : undefined}>
+                <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+                {t("exercises.propose.button")}
               </Button>
             )}
             {permissions.publish && (

@@ -10,8 +10,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { FieldHelp } from "@/components/ui/field-help"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { useEditorPosition } from "./EditorPosition"
+import { InfrastructureBlockedNote } from "./EventBanners"
 
-export function DraftVariants({ form, disabled }: { form: UseFormReturn<DraftFormValues>; disabled: boolean }) {
+export function DraftVariants({ form, disabled, infrastructureBlocked = false }: {
+  form: UseFormReturn<DraftFormValues>
+  disabled: boolean
+  /** The owner event forbids lab infrastructure: the topology editor is replaced by a note. */
+  infrastructureBlocked?: boolean
+}) {
   const [section, setSection] = useEditorPosition("section")
   return <section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
     <VariantTabs disabled={disabled} toolbar={() => <>
@@ -38,6 +44,7 @@ export function DraftVariants({ form, disabled }: { form: UseFormReturn<DraftFor
       </details>
       <div role="tabpanel" aria-label={t(`admin.exDraft.tab.${section}`)}>
         {section === "tasks" ? <TaskAccordion variantIndex={variantIndex} disabled={disabled} />
+          : infrastructureBlocked ? <InfrastructureBlockedNote />
           : <TopologySection variantIndex={variantIndex} disabled={disabled} />}
       </div>
     </div>} />
