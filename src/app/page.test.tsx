@@ -20,6 +20,8 @@ vi.mock('@/lib/useRole', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock('@/api/exercises/catalog', () => ({
   listExercisesPage: vi.fn(),
+  listExerciseTags: vi.fn(),
+  getExercise: vi.fn(),
 }))
 vi.mock('@/api/exercises/archive', () => ({ EXPORT_LIMIT: 100 }))
 vi.mock('@/api/events/list', () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
@@ -29,13 +31,17 @@ vi.mock('@/components/exercises/ExportDialog', () => ({
 }))
 vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: () => <div data-testid="import-dialog" /> }))
 
-import { listExercisesPage } from '@/api/exercises/catalog'
+import { getExercise, listExercisesPage, listExerciseTags } from '@/api/exercises/catalog'
 import Page from './page'
 import { OWNERSHIP } from '@/test/exerciseFixtures'
 
 const mockList = vi.mocked(listExercisesPage)
+const mockTags = vi.mocked(listExerciseTags)
+const mockCard = vi.mocked(getExercise)
 
 function resetStorage() {
+  window.history.replaceState(null, '', '/')
+  mockTags.mockResolvedValue([{ Tag: 'crypto', Count: 3 }])
   const storage = new Map<string, string>()
   Object.defineProperty(window, 'localStorage', { configurable: true, value: {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -73,7 +79,7 @@ describe('exercises catalog page', () => {
     expect(await screen.findByText('SQLi basics')).toBeInTheDocument()
     expect(screen.getByText('web')).toBeInTheDocument()
     expect(screen.getByText('sql')).toBeInTheDocument()
-    expect(screen.getByText('admin.ex.status.draft')).toBeInTheDocument()
+    expect(screen.getByText('admin.ex.status.draftOnly')).toBeInTheDocument()
     expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
     const link = screen.getByText('SQLi basics').closest('a')
     expect(link).toHaveAttribute('href', `/detail?id=${item.ID}`)
@@ -106,9 +112,9 @@ describe('exercises catalog page', () => {
   it('adds a tag filter chip and passes tags to listExercises', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    const tagBox = screen.getByPlaceholderText('admin.ex.filterTags.placeholder')
-    fireEvent.change(tagBox, { target: { value: 'crypto' } })
-    fireEvent.keyDown(tagBox, { key: 'Enter' })
+    const tagBox = screen.getByRole('combobox', { name: 'admin.ex.filterTags.label' })
+    fireEvent.change(tagBox, { target: { value: 'cry' } })
+    fireEvent.pointerDown(await screen.findByRole('option', { name: /crypto/ }))
     await waitFor(() => {
       const calls = mockList.mock.calls
       expect(calls[calls.length - 1][0]).toMatchObject({ tags: ['crypto'] })
@@ -172,9 +178,9 @@ describe('exercises catalog page', () => {
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     await waitFor(() => expect(resolveOldPage).toBeDefined())
-    const tagBox = screen.getByPlaceholderText('admin.ex.filterTags.placeholder')
-    fireEvent.change(tagBox, { target: { value: 'crypto' } })
-    fireEvent.keyDown(tagBox, { key: 'Enter' })
+    const tagBox = screen.getByRole('combobox', { name: 'admin.ex.filterTags.label' })
+    fireEvent.change(tagBox, { target: { value: 'cry' } })
+    fireEvent.pointerDown(await screen.findByRole('option', { name: /crypto/ }))
     expect(await screen.findByText('Crypto basics')).toBeInTheDocument()
     await act(async () => resolveOldPage?.({ Items: [stale], Total: 51, Page: 2, PageSize: 50 }))
     expect(screen.queryByText('Old SQLi')).not.toBeInTheDocument()
@@ -306,19 +312,75 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ infrastructure: 'yes' })))
   })
 
-  it('shows ownership badges, the infrastructure icon and admin access level', async () => {
+  it('shows the access column, one status per row and the infrastructure icon', async () => {
     mockList.mockResolvedValue({ Items: [
       { ...item, ID: 'e1', Name: 'Event one', Scope: 'event', OwnerEventID: 'ev1', OwnerEventName: 'Winter CTF', AccessLevel: '',
-        ForkedFrom: { ExerciseID: 'c1', ExerciseName: 'Base', VersionID: 'v1' }, PendingProposalID: 'p1', Infrastructure: true },
-      { ...item, ID: 'e2', Name: 'Catalog one', AccessLevel: 'selected' },
-    ], Total: 2, Page: 1, PageSize: 50 })
+        ForkedFrom: { ExerciseID: 'c1', ExerciseName: 'Base', VersionID: 'v1' }, PendingProposalID: 'p1', Infrastructure: true,
+        HasPublished: true, HasDraft: true },
+      { ...item, ID: 'e2', Name: 'Catalog one', AccessLevel: 'all', HasPublished: true, HasDraft: false },
+      { ...item, ID: 'e3', Name: 'Archived one', AccessLevel: 'own', ArchivedAt: '2026-09-20T00:00:00Z' },
+    ], Total: 3, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('Event one')
-    expect(screen.getByText('exercises.badge.event · Winter CTF')).toBeInTheDocument()
+    expect(screen.getByText('exercises.accessCol.event')).toBeInTheDocument()
+    expect(screen.queryByText('exercises.badge.event · Winter CTF')).not.toBeInTheDocument()
+    expect(screen.getByText('exercises.access.level.all')).toBeInTheDocument()
+    expect(screen.getByText('exercises.access.level.own')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
-    expect(screen.getByText('exercises.access.level.selected')).toBeInTheDocument()
+    expect(screen.getByText('admin.ex.status.changed')).toBeInTheDocument()
+    expect(screen.getByText('admin.ex.status.published')).toBeInTheDocument()
+    expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-status]')).toHaveLength(3)
+  })
+
+  it('lists the selected events of an exercise on demand', async () => {
+    h.access = { ...manager, IsAdmin: true, Events: [manager.Events[0], { ...manager.Events[0], ID: 'ev2', Name: 'Spring CTF' }] }
+    mockList.mockResolvedValue({ Items: [{ ...item, AccessLevel: 'selected' }], Total: 1, Page: 1, PageSize: 50 })
+    mockCard.mockResolvedValue({ ...item, AccessLevel: 'selected', AccessEventIDs: ['ev1', 'ev2'] } as never)
+    render(<Page />)
+    const trigger = await screen.findByRole('button', { name: 'exercises.access.level.selected' })
+    fireEvent.click(trigger)
+    expect(await screen.findByText('Spring CTF')).toBeInTheDocument()
+    expect(mockCard).toHaveBeenCalledWith(item.ID)
+    expect(screen.getByRole('button', { name: 'exercises.access.level.selected · 2' })).toBeInTheDocument()
+  })
+
+  it('puts help icons next to the filters and the access / status headers', async () => {
+    h.access = manager
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    for (const key of ['exercises.help.scope', 'exercises.help.events', 'exercises.help.infra', 'exercises.help.statusFilter',
+      'exercises.help.accessCol', 'exercises.help.statusCol']) {
+      expect(screen.getByRole('button', { name: key })).toBeInTheDocument()
+    }
+  })
+
+  it('filters by several events and keeps the filters in the URL', async () => {
+    h.access = { ...manager, Events: [manager.Events[0], { ...manager.Events[0], ID: 'ev2', Name: 'Spring CTF' }] }
+    mockList.mockImplementation(async (filter) => ({
+      Items: filter.event === 'ev2' ? [{ ...item, ID: 'two', Name: 'Spring task' }] : [item], Total: 1, Page: 1, PageSize: filter.pageSize,
+    }))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.event' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Winter CTF/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Spring CTF/ }))
+    expect(await screen.findByText('Spring task')).toBeInTheDocument()
+    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev1', page: 1, pageSize: 200 }))
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ event: 'ev2', page: 1, pageSize: 200 }))
+    expect(window.location.search).toBe('?event=ev1&event=ev2')
+  })
+
+  it('restores filters from the URL', async () => {
+    window.history.replaceState(null, '', '/?status=changed&infra=yes&tag=web&sort=name&dir=asc')
+    mockList.mockResolvedValue({ Items: [{ ...item, HasPublished: true, HasDraft: true }], Total: 1, Page: 1, PageSize: 200 })
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ status: 'published', infrastructure: 'yes', tags: ['web'], sortBy: 'name', sortDir: 'asc' }))
+    expect(screen.getByRole('button', { name: 'admin.ex.filterStatus' })).toHaveTextContent('admin.ex.filterStatusChanged')
   })
 
   it('gives managers their events, event scope by default and no admin tools', async () => {
@@ -330,7 +392,6 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.queryByRole('radio', { name: 'exercises.scope.all' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.queryByText('exercises.access.level.all')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
     expect(h.push).toHaveBeenCalledWith('/new?event=ev1')
   })
