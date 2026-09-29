@@ -51,7 +51,7 @@ describe("consent", () => {
     }
     expect(run("")).toEqual(["default"])
     expect(run("cib_consent=analytics:denied")).toEqual(["default"])
-    expect(run("ib_theme=dark; cib_consent=analytics:granted")).toEqual(["default", "update"])
+    expect(run("cib_theme=dark; cib_consent=analytics:granted")).toEqual(["default", "update"])
   })
 
   it("accept all grants analytics_storage only", () => {
@@ -100,7 +100,7 @@ describe("consent", () => {
   })
 
   it("reads the stored choice back from the cookie string", () => {
-    expect(consent.parseConsent("ib_theme=dark; cib_consent=analytics:granted")).toEqual({ analytics: true })
+    expect(consent.parseConsent("cib_theme=dark; cib_consent=analytics:granted")).toEqual({ analytics: true })
     expect(consent.parseConsent("cib_consent=analytics:denied")).toEqual({ analytics: false })
     expect(consent.parseConsent("xcib_consent=analytics:granted")).toBeNull()
     expect(consent.parseConsent("cib_consent=granted")).toBeNull()
