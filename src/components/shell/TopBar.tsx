@@ -14,6 +14,7 @@ import { InboxButton } from "./InboxButton"
 import { useRef } from "react"
 import { Cookie, House, LogOut, Settings, UserRound, type LucideIcon, Puzzle } from "lucide-react"
 import { openConsentSettings } from "@/lib/consent"
+import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin, mainOrigin } from "@/lib/origins"
 import { accountLinks, type AccountLinkKey } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
@@ -57,9 +58,6 @@ function AppNav() {
     </nav>
   )
 }
-
-// «Налаштування файлів cookie» only when GA (and so the consent banner) is configured.
-const HAS_ANALYTICS = Boolean(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID)
 
 export function TopBar() {
   const { me } = useRole()
@@ -131,11 +129,13 @@ export function TopBar() {
                 </DropdownMenuItem>
               )
             })}
-            {HAS_ANALYTICS && (
-              <DropdownMenuItem className="gap-2" onSelect={() => { openConsentRef.current = true }}>
+            {/* «Налаштування файлів cookie», always shown: a link to the cookie policy. With JS only the
+                navigation is cancelled (on the native event, so the menu still sees the select). */}
+            <DropdownMenuItem asChild className="gap-2" onSelect={() => { openConsentRef.current = true }}>
+              <a href={COOKIE_POLICY_HREF} onClick={(e) => e.nativeEvent.preventDefault()}>
                 <Cookie className="h-4 w-4" aria-hidden="true" />{t("consent.settings")}
-              </DropdownMenuItem>
-            )}
+              </a>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
               <LogOut className="h-4 w-4" aria-hidden="true" />{t("admin.signOut")}

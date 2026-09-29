@@ -22,7 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
         </RoleProvider>
         <ServiceStatusGate />
-        {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && <Analytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />}
+        {/* the consent panel is always mounted («Налаштування файлів cookie»); GA loads only when configured */}
+        <Analytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />
       </body>
     </html>
   )

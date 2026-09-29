@@ -117,3 +117,12 @@ export const POLICY_LINK_ATTRS = { target: "_blank", rel: "noopener noreferrer" 
 export function openConsentSettings(): void {
   window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))
 }
+
+/**
+ * «Налаштування файлів cookie» is always an <a href> to the cookie policy (works without JS
+ * and without GA); with JS the click opens the preferences panel instead of navigating.
+ */
+export function interceptSettingsLink(e: { preventDefault(): void }): void {
+  e.preventDefault()
+  openConsentSettings()
+}

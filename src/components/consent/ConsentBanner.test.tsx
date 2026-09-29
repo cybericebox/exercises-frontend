@@ -95,3 +95,14 @@ describe("ConsentBanner", () => {
     expect(document.cookie).not.toContain("cib_consent")
   })
 })
+
+describe("ConsentBanner without GA", () => {
+  afterEach(clear)
+
+  it("never asks on its own but opens the panel on request", () => {
+    render(<ConsentBanner policyHref="/cookies" />)
+    expect(screen.queryByRole("region")).not.toBeInTheDocument()
+    act(() => openConsentSettings())
+    expect(panel()).toBeInTheDocument()
+  })
+})
