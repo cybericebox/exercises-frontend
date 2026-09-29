@@ -1,78 +1,165 @@
 "use client"
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { t } from "@/i18n/t"
-import { CONSENT_CHANGE_EVENT, CONSENT_OPEN_EVENT, readConsent, saveConsent, shouldShowBanner, type ConsentChoice } from "@/lib/consent"
+import {
+  ACCEPT_ALL,
+  CONSENT_CHANGE_EVENT,
+  CONSENT_OPEN_EVENT,
+  REJECT_ALL,
+  readConsent,
+  saveConsent,
+  shouldShowBanner,
+  type ConsentPrefs,
+} from "@/lib/consent"
 
 function subscribe(onChange: () => void) {
   window.addEventListener(CONSENT_CHANGE_EVENT, onChange)
   return () => window.removeEventListener(CONSENT_CHANGE_EVENT, onChange)
 }
-// "none" = no choice yet; "ssr" = server render, where the cookie is unknown (render nothing).
-const snapshot = () => readConsent() ?? "none"
+// A primitive snapshot: "none" = no choice yet; "ssr" = server render, cookie unknown (render nothing).
+const snapshot = () => {
+  const prefs = readConsent()
+  return prefs ? (prefs.analytics ? "granted" : "denied") : "none"
+}
 const serverSnapshot = () => "ssr"
 
-// Analytics consent banner: non-blocking, bottom of the page, two equal buttons.
-// Shown when GA is configured and no choice exists, or when «Налаштування cookie»
-// reopens it. Esc closes a reopened banner without changing the choice; it never
-// counts as consent.
+// A message with a {link} placeholder, the link inserted in place (t() has no rich variant).
+function withLink(key: string, link: ReactNode) {
+  const [before, after = ""] = t(key).split("{link}")
+  return (
+    <>
+      {before}
+      {link}
+      {after}
+    </>
+  )
+}
+
+const BOX =
+  "fixed inset-x-2 bottom-2 z-[60] mx-auto rounded-md border border-border bg-card text-sm leading-relaxed text-muted-foreground focus-visible:outline-2 focus-visible:outline-[var(--ib-action)] sm:inset-x-4 sm:bottom-4"
+const TEXT_BUTTON =
+  "cursor-pointer text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ib-action)]"
+
+// Cookie consent in two layers, fixed to the bottom, non-blocking.
+// 1. Banner: a general line, «Налаштувати» and «Прийняти всі».
+// 2. Panel: categories (Необхідні — always on; Аналітика — off by default),
+//    «Прийняти вибрані», «Прийняти всі» and a small «Відхилити всі».
+// Shown when GA is configured and no choice exists; «Налаштування cookie» opens the panel.
+// Esc never counts as consent: it steps back from the panel, or closes a panel opened from settings.
 export function ConsentBanner({ gaId, policyHref }: { gaId: string; policyHref: string }) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
-  const [reopened, setReopened] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
+  // null = follow the stored choice; "panel" = preferences open.
+  const [layer, setLayer] = useState<"banner" | "panel" | null>(null)
+  const [analytics, setAnalytics] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const returnToRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const onOpen = () => {
       returnToRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      setReopened(true)
+      setAnalytics(readConsent()?.analytics ?? false)
+      setLayer("panel")
     }
     window.addEventListener(CONSENT_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(CONSENT_OPEN_EVENT, onOpen)
   }, [])
 
-  // Opened on request: move focus into the banner. Shown on load: leave focus where it is.
+  // The panel was opened on request: move focus into it. Shown on load: leave focus where it is.
   useEffect(() => {
-    if (reopened) panelRef.current?.focus()
-  }, [reopened])
+    if (layer === "panel") rootRef.current?.focus()
+  }, [layer])
 
   const close = () => {
-    setReopened(false)
+    setLayer(null)
     returnToRef.current?.focus()
     returnToRef.current = null
   }
-  const choose = (choice: ConsentChoice) => {
-    saveConsent(choice)
+  const choose = (prefs: ConsentPrefs) => {
+    saveConsent(prefs)
     close()
   }
 
-  const visible = stored !== "ssr" && (reopened || shouldShowBanner(gaId, stored === "none" ? null : (stored as ConsentChoice)))
-  if (!visible) return null
+  if (stored === "ssr") return null
+  const asking = shouldShowBanner(gaId, stored === "none" ? null : { analytics: stored === "granted" })
+  const shown = layer ?? (asking ? "banner" : null)
+  if (!shown) return null
 
-  const [before, after = ""] = t("consent.text").split("{link}")
+  const policyLink = (
+    <a href={policyHref} className="text-foreground underline underline-offset-[3px]">
+      {t("consent.policyLink")}
+    </a>
+  )
+
+  if (shown === "banner") {
+    return (
+      <div
+        ref={rootRef}
+        role="region"
+        aria-label={t("consent.label")}
+        tabIndex={-1}
+        className={`${BOX} flex max-w-[880px] flex-col items-stretch gap-3 px-5 py-4 sm:flex-row sm:items-center sm:gap-6`}
+      >
+        <p className="min-w-0 flex-1">{withLink("consent.text", policyLink)}</p>
+        <div className="flex flex-none gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+          <Button type="button" variant="outline" size="sm" onClick={() => setLayer("panel")}>
+            {t("consent.customize")}
+          </Button>
+          <Button type="button" size="sm" onClick={() => choose(ACCEPT_ALL)}>
+            {t("consent.acceptAll")}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return
+    if (asking) setLayer("banner")
+    else close()
+  }
+  const categories = [
+    { key: "necessary", checked: true, disabled: true, onChange: () => {} },
+    { key: "analytics", checked: analytics, disabled: false, onChange: setAnalytics },
+  ]
+
   return (
     <div
-      ref={panelRef}
-      role="region"
+      ref={rootRef}
+      role="dialog"
+      aria-modal="false"
       aria-labelledby="cb-consent-title"
       tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && reopened && stored !== "none") close()
-      }}
-      className="fixed inset-x-2 bottom-2 z-[60] mx-auto flex max-w-[880px] flex-col items-stretch gap-3 rounded-md border border-border bg-card px-5 py-4 text-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-[var(--ib-action)] sm:inset-x-4 sm:bottom-4 sm:flex-row sm:items-center sm:gap-6"
+      onKeyDown={onKeyDown}
+      className={`${BOX} max-h-[calc(100dvh-2rem)] max-w-[560px] overflow-y-auto p-5`}
     >
-      <div className="min-w-0 flex-1 leading-relaxed">
-        <p id="cb-consent-title" className="font-semibold text-foreground">{t("consent.title")}</p>
-        <p>
-          {before}
-          <a href={policyHref} className="text-foreground underline underline-offset-[3px]">{t("consent.policyLink")}</a>
-          {after}
-        </p>
-      </div>
-      <div className="flex flex-none gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
-        <Button type="button" variant="outline" size="sm" onClick={() => choose("denied")}>{t("consent.reject")}</Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => choose("granted")}>{t("consent.accept")}</Button>
+      <p id="cb-consent-title" className="text-base font-semibold text-foreground">
+        {t("consent.panelTitle")}
+      </p>
+      <ul className="mt-3">
+        {categories.map((c) => (
+          <li key={c.key} className="flex items-center justify-between gap-4 border-t border-border py-3">
+            <span>
+              <span className="block font-medium text-foreground">{t(`consent.${c.key}.title`)}</span>
+              <span className="block text-xs">{t(`consent.${c.key}.text`)}</span>
+            </span>
+            <Switch checked={c.checked} disabled={c.disabled} onCheckedChange={c.onChange} aria-label={t(`consent.${c.key}.title`)} />
+          </li>
+        ))}
+      </ul>
+      <p className="border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <button type="button" className={`${TEXT_BUTTON} order-last basis-full text-center sm:order-none sm:mr-auto sm:basis-auto`} onClick={() => choose(REJECT_ALL)}>
+          {t("consent.rejectAll")}
+        </button>
+        <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => choose({ analytics })}>
+          {t("consent.acceptSelected")}
+        </Button>
+        <Button type="button" size="sm" className="flex-1 sm:flex-none" onClick={() => choose(ACCEPT_ALL)}>
+          {t("consent.acceptAll")}
+        </Button>
       </div>
     </div>
   )

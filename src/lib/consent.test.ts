@@ -1,5 +1,5 @@
-// Analytics consent (Google Consent Mode v2): denied by default, accept grants analytics only,
-// the choice is one cookie on the parent domain, the banner asks only when needed.
+// Cookie consent (Google Consent Mode v2): denied by default; accept all / accept selected /
+// reject all map to analytics_storage only; the choice is one cookie on the parent domain.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import * as consent from "./consent"
 
@@ -43,45 +43,74 @@ describe("consent", () => {
     expect(boot).toContain('"ad_storage":"denied"')
   })
 
-  it("accept grants analytics_storage only", () => {
-    fakeCookies()
-    expect(consent.consentUpdate("granted")).toEqual({ analytics_storage: "granted" })
-    consent.saveConsent("granted")
-    expect(gtag.mock.calls).toEqual([["consent", "update", { analytics_storage: "granted" }]])
+  it("the boot script grants analytics only for a stored analytics:granted", () => {
+    const run = (cookie: string) => {
+      const w = { dataLayer: [] as ArrayLike<unknown>[] }
+      new Function("window", "document", "dataLayer", consent.gtagBootScript("G-TEST"))(w, { cookie }, w.dataLayer)
+      return w.dataLayer.map((a) => Array.from(a)).filter((c) => c[0] === "consent").map((c) => c[1])
+    }
+    expect(run("")).toEqual(["default"])
+    expect(run("cib_consent=analytics:denied")).toEqual(["default"])
+    expect(run("ib_theme=dark; cib_consent=analytics:granted")).toEqual(["default", "update"])
   })
 
-  it("reject keeps everything denied and drops GA cookies", () => {
+  it("accept all grants analytics_storage only", () => {
+    fakeCookies()
+    expect(consent.consentUpdate(consent.ACCEPT_ALL)).toEqual({ analytics_storage: "granted" })
+    consent.saveConsent(consent.ACCEPT_ALL)
+    expect(gtag.mock.calls).toEqual([["consent", "update", { analytics_storage: "granted" }]])
+    expect(consent.readConsent()).toEqual({ analytics: true })
+  })
+
+  it("customize: accept selected with analytics on grants it", () => {
+    fakeCookies()
+    consent.saveConsent({ analytics: true })
+    expect(gtag.mock.calls).toEqual([["consent", "update", { analytics_storage: "granted" }]])
+    expect(consent.readConsent()).toEqual({ analytics: true })
+  })
+
+  it("customize: accept selected with analytics off keeps everything denied", () => {
+    const { jar } = fakeCookies()
+    jar.set("_ga", "GA1.1.1")
+    consent.saveConsent({ analytics: false })
+    expect(gtag.mock.calls).toEqual([["consent", "update", { analytics_storage: "denied" }]])
+    expect(consent.readConsent()).toEqual({ analytics: false })
+    expect(jar.has("_ga")).toBe(false)
+  })
+
+  it("reject all keeps everything denied and drops GA cookies", () => {
     const { jar } = fakeCookies()
     jar.set("_ga", "GA1.1.1")
     jar.set("_ga_TEST", "GS1.1")
-    consent.saveConsent("denied")
+    consent.saveConsent(consent.REJECT_ALL)
     expect(gtag.mock.calls).toEqual([["consent", "update", { analytics_storage: "denied" }]])
-    expect(consent.readConsent()).toBe("denied")
+    expect(consent.readConsent()).toEqual({ analytics: false })
     expect(jar.has("_ga") || jar.has("_ga_TEST")).toBe(false)
   })
 
-  it("writes the choice to one cookie on the parent domain", () => {
-    expect(consent.consentCookie("granted", { domain: "cybericebox.com", secure: true })).toBe(
-      "cib_consent=granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
+  it("writes the choice per category to one cookie on the parent domain", () => {
+    expect(consent.consentCookie(consent.ACCEPT_ALL, { domain: "cybericebox.com", secure: true })).toBe(
+      "cib_consent=analytics:granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
     )
-    expect(consent.consentCookie("denied", { secure: false })).toBe("cib_consent=denied; path=/; max-age=31536000; SameSite=Lax")
+    expect(consent.consentCookie(consent.REJECT_ALL, { secure: false })).toBe("cib_consent=analytics:denied; path=/; max-age=31536000; SameSite=Lax")
     vi.stubEnv("NEXT_PUBLIC_DOMAIN", "cybericebox.com")
     const { writes } = fakeCookies()
-    consent.saveConsent("granted")
-    expect(writes[0]).toMatch(/^cib_consent=granted; .*domain=\.cybericebox\.com/)
+    consent.saveConsent(consent.ACCEPT_ALL)
+    expect(writes[0]).toMatch(/^cib_consent=analytics:granted; .*domain=\.cybericebox\.com/)
   })
 
   it("reads the stored choice back from the cookie string", () => {
-    expect(consent.parseConsent("ib_theme=dark; cib_consent=granted")).toBe("granted")
-    expect(consent.parseConsent("cib_consent=denied")).toBe("denied")
-    expect(consent.parseConsent("xcib_consent=granted")).toBeNull()
+    expect(consent.parseConsent("ib_theme=dark; cib_consent=analytics:granted")).toEqual({ analytics: true })
+    expect(consent.parseConsent("cib_consent=analytics:denied")).toEqual({ analytics: false })
+    expect(consent.parseConsent("xcib_consent=analytics:granted")).toBeNull()
+    expect(consent.parseConsent("cib_consent=granted")).toBeNull()
     expect(consent.parseConsent("")).toBeNull()
   })
 
   it("shows the banner only when GA is configured and no choice exists", () => {
     expect(consent.shouldShowBanner("G-TEST", null)).toBe(true)
-    expect(consent.shouldShowBanner("G-TEST", "granted")).toBe(false)
-    expect(consent.shouldShowBanner("G-TEST", "denied")).toBe(false)
+    expect(consent.shouldShowBanner("G-TEST", { analytics: true })).toBe(false)
+    expect(consent.shouldShowBanner("G-TEST", { analytics: false })).toBe(false)
     expect(consent.shouldShowBanner(undefined, null)).toBe(false)
     expect(consent.shouldShowBanner("", null)).toBe(false)
   })

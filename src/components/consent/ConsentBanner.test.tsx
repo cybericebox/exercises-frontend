@@ -4,18 +4,22 @@ import { openConsentSettings } from "@/lib/consent"
 import { ConsentBanner } from "./ConsentBanner"
 
 const clear = () => { document.cookie = "cib_consent=; path=/; max-age=0" }
+const banner = () => screen.getByRole("region", { name: "Згода на cookie" })
+const panel = () => screen.getByRole("dialog", { name: "Налаштування cookie" })
+const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }))
 
 describe("ConsentBanner", () => {
   afterEach(clear)
 
-  it("asks when no choice exists", () => {
+  it("asks with a general line, the policy link, «Налаштувати» and «Прийняти всі»", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="https://cybericebox.com/cookies" />)
-    expect(screen.getByRole("region", { name: "Аналітичні cookie" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Політиці cookie" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
+    expect(banner()).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Політика cookie" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Налаштувати", "Прийняти всі"])
   })
 
   it("is hidden once a choice exists", () => {
-    document.cookie = "cib_consent=denied; path=/"
+    document.cookie = "cib_consent=analytics:denied; path=/"
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     expect(screen.queryByRole("region")).toBeNull()
   })
@@ -25,23 +29,56 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("region")).toBeNull()
   })
 
-  it("stores the choice and hides; Esc on first ask is not consent", () => {
+  it("accept all grants analytics and hides", () => {
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
-    fireEvent.keyDown(screen.getByRole("region"), { key: "Escape" })
-    expect(screen.getByRole("region")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Прийняти аналітику" }))
-    expect(document.cookie).toContain("cib_consent=granted")
+    fireEvent.keyDown(banner(), { key: "Escape" })
+    expect(banner()).toBeInTheDocument()
+    click("Прийняти всі")
+    expect(document.cookie).toContain("cib_consent=analytics:granted")
     expect(screen.queryByRole("region")).toBeNull()
   })
 
-  it("reopens from «Налаштування cookie» with focus inside; Esc closes it unchanged", () => {
-    document.cookie = "cib_consent=granted; path=/"
+  it("customize: necessary is locked on, analytics starts off; accept selected keeps it off", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("Налаштувати")
+    expect(panel()).toHaveFocus()
+    const [necessary, analytics] = screen.getAllByRole("switch")
+    expect(necessary).toBeChecked()
+    expect(necessary).toBeDisabled()
+    expect(analytics).not.toBeChecked()
+    click("Прийняти вибрані")
+    expect(document.cookie).toContain("cib_consent=analytics:denied")
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("customize: accept selected with analytics on grants it", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("Налаштувати")
+    fireEvent.click(screen.getByRole("switch", { name: "Аналітика" }))
+    click("Прийняти вибрані")
+    expect(document.cookie).toContain("cib_consent=analytics:granted")
+  })
+
+  it("reject all from the panel stores denied; Esc in the panel steps back without consent", () => {
+    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    click("Налаштувати")
+    fireEvent.keyDown(panel(), { key: "Escape" })
+    expect(banner()).toBeInTheDocument()
+    expect(document.cookie).not.toContain("cib_consent")
+    click("Налаштувати")
+    click("Відхилити всі")
+    expect(document.cookie).toContain("cib_consent=analytics:denied")
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("«Налаштування cookie» opens the panel with focus inside; Esc closes it unchanged", () => {
+    document.cookie = "cib_consent=analytics:granted; path=/"
     render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
     act(() => openConsentSettings())
-    const region = screen.getByRole("region")
-    expect(region).toHaveFocus()
-    fireEvent.keyDown(region, { key: "Escape" })
-    expect(screen.queryByRole("region")).toBeNull()
-    expect(document.cookie).toContain("cib_consent=granted")
+    expect(panel()).toHaveFocus()
+    expect(screen.getByRole("switch", { name: "Аналітика" })).toBeChecked()
+    fireEvent.keyDown(panel(), { key: "Escape" })
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(document.cookie).toContain("cib_consent=analytics:granted")
   })
 })
