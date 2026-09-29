@@ -3,9 +3,11 @@ import { FieldHelp } from "@/components/ui/field-help"
 import { FormLabel } from "@/components/ui/form"
 
 /** One label treatment for required marks and contextual help in the exercise editor. */
-export function ExerciseFieldLabel({ labelKey, helpKey, required = false, form = false, htmlFor }: {
+export function ExerciseFieldLabel({ labelKey, helpKey, helpLines, required = false, form = false, htmlFor }: {
   labelKey: string
-  helpKey: string
+  helpKey?: string
+  /** Structured help: one sentence per line (instead of helpKey). */
+  helpLines?: string[]
   required?: boolean
   form?: boolean
   htmlFor?: string
@@ -19,6 +21,6 @@ export function ExerciseFieldLabel({ labelKey, helpKey, required = false, form =
     {form ? <FormLabel className="leading-5">{content}</FormLabel> : htmlFor
       ? <label htmlFor={htmlFor} className="text-sm font-medium leading-5 text-foreground">{content}</label>
       : <span className="text-sm font-medium leading-5 text-foreground">{content}</span>}
-    <FieldHelp text={t(helpKey)} />
+    {helpLines ? <FieldHelp lines={helpLines} /> : helpKey && <FieldHelp text={t(helpKey)} />}
   </div>
 }

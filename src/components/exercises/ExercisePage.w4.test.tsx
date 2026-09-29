@@ -28,7 +28,7 @@ vi.mock("@/api/exercises/catalog", () => ({
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
 vi.mock("@/api/exercises/proposals", () => ({ proposeExercise: vi.fn() }))
-vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]) }))
+vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), listNearestEvents: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
 vi.mock("@/api/exercises/versions", () => ({
   EMPTY_VERSION_ID: "00000000-0000-0000-0000-000000000000",
   isStoredVersionId: (id: string) => id !== "" && id !== "00000000-0000-0000-0000-000000000000",
@@ -92,7 +92,8 @@ describe("exercise editor — W4 rights", () => {
       ProposedBy: null, ProposedByName: "", ProposedAt: "", DecidedAt: null, DecisionNote: "", CatalogExerciseID: null,
     })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
-    expect(await screen.findByText("exercises.badge.event · Spring Cup")).toBeInTheDocument()
+    expect(await screen.findByText("exercises.accessCol.event")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1 }).parentElement).toContainElement(screen.getByText("exercises.accessCol.event"))
     expect(getDraft).toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "exercises.propose.button" }))
     fireEvent.change(screen.getByLabelText("exercises.propose.note"), { target: { value: "Good for juniors" } })

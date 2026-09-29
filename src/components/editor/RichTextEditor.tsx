@@ -20,8 +20,11 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setSelection,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_LOW,
   PASTE_COMMAND,
+  ParagraphNode,
+  type ElementNode,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
@@ -39,6 +42,7 @@ import {
 } from "lexical";
 import { $createCodeNode, $isCodeNode, CodeNode } from "@lexical/code";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { mergeRegister } from "@lexical/utils";
 import {
   $createHeadingNode,
   $createQuoteNode,
@@ -118,6 +122,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { t } from "@/i18n/t";
 import { type VariableDef } from "./variableUtils";
 import { VariablePickerMenu } from "./VariablePickerMenu";
@@ -153,6 +158,14 @@ export interface RichTextEditorProps {
   onEditVariable?: (name: string) => void;
   placeholder?: string;
   className?: string;
+  /** Default and min height of the scroll area; short fields (hints) pass a smaller one. */
+  minHeightClassName?: string;
+  /** false: no text alignment (no toolbar control; aligned content is reset to default). */
+  allowAlignment?: boolean;
+  /** Accessible name of the editable area. */
+  ariaLabel?: string;
+  /** Marks the field invalid (validation focus finds it via aria-invalid). */
+  invalid?: boolean;
   disabled?: boolean;
   showVariableNames?: boolean;
 }
@@ -262,19 +275,21 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
     formats.includes("bold") && "font-bold", formats.includes("italic") && "italic", formats.includes("underline") && "underline",
     formats.includes("strikethrough") && "line-through", formats.includes("code") && "font-mono");
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
-  if (onEdit) return <button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
-    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`} title={definition?.description ?? (missing ? content : name)}
-    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button>;
+  const hint = definition?.description ?? (missing ? content : name);
+  if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
+    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
+    onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
+    <HoverTooltip text={hint} className="inline">
       <span
         data-notif-variable={showNames ? name : undefined}
         className={style}
         style={cleanStyle}
         contentEditable={false}
-        title={definition?.description ?? (missing ? content : name)}
       >
         {content}
       </span>
+    </HoverTooltip>
   );
 }
 
@@ -315,7 +330,7 @@ function Tooltip({
       {children}
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity shadow-md"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
       >
         {label}
       </div>
@@ -341,7 +356,9 @@ function ToolbarPlugin({
   onInsertVariable,
   highlightVariables,
   onToggleVariableHighlight,
+  allowAlignment,
 }: {
+  allowAlignment: boolean;
   variables: VariableDef[];
   onInsertVariable?: (insert: (name: string, formats?: TextFormatType[]) => void, initialFormats: TextFormatType[]) => void;
   highlightVariables: boolean;
@@ -619,7 +636,7 @@ function ToolbarPlugin({
           {toolButton(t("admin.notif.editor.paragraph"), blockType === "paragraph", () => formatBlock("paragraph"), <Pilcrow size={16} aria-hidden />)}
         </div>
 
-        <div className={group}>
+        {allowAlignment && <div className={group}>
           <DropdownMenu modal={false}>
             <Tooltip label={t("admin.notif.editor.alignment")}>
               <DropdownMenuTrigger asChild>
@@ -639,7 +656,7 @@ function ToolbarPlugin({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </div>}
 
         <div className={group}>
           {toolButton(t("admin.notif.editor.bulletList"), blockType === "ul", () => insertList("ul"), <List size={16} aria-hidden />)}
@@ -705,7 +722,7 @@ function ToolbarPlugin({
                 setLinkUrl("");
               }
             }}
-            placeholder="https://…"
+            placeholder={t("editor.linkPlaceholder")}
             className="h-8 flex-1 text-sm border border-input rounded-md px-2 outline-none focus:border-primary bg-background text-foreground"
           />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleLinkInsert} disabled={!linkUrl}
@@ -801,7 +818,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const rect = anchorElementRef.current.getBoundingClientRect();
     return createPortal(
       <div
-        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input shadow-lg"
+        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
         style={{ top: rect.bottom + 4, left: rect.left }}
       >
         {menuOptions.map((opt, idx) => (
@@ -900,6 +917,25 @@ function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | nu
     });
   }, [editor, value, lastEmittedRef]);
 
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// NoAlignmentPlugin — alignment commands are ignored and aligned blocks
+// (pasted or loaded) fall back to the default alignment
+// ---------------------------------------------------------------------------
+
+function NoAlignmentPlugin(): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    const reset = (node: ElementNode) => {
+      if (node.getFormatType() !== "") node.setFormat("");
+    };
+    return mergeRegister(
+      editor.registerCommand(FORMAT_ELEMENT_COMMAND, () => true, COMMAND_PRIORITY_CRITICAL),
+      ...[ParagraphNode, HeadingNode, QuoteNode, ListItemNode].map((klass) => editor.registerNodeTransform(klass, reset)),
+    );
+  }, [editor]);
   return null;
 }
 
@@ -1009,6 +1045,10 @@ export function RichTextEditor({
   onEditVariable,
   placeholder,
   className,
+  minHeightClassName = "min-h-[200px]",
+  allowAlignment = true,
+  ariaLabel,
+  invalid = false,
   disabled = false,
   showVariableNames = false,
 }: RichTextEditorProps): JSX.Element {
@@ -1048,19 +1088,22 @@ export function RichTextEditor({
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative rounded-lg overflow-visible bg-background border border-input",
+          "relative rounded-lg overflow-visible bg-background border",
+          invalid ? "border-destructive" : "border-input",
           className
         )}
       >
-        {!disabled && <ToolbarPlugin variables={variables} onInsertVariable={onInsertVariable}
+        {!disabled && <ToolbarPlugin allowAlignment={allowAlignment} variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
-        <div className="relative">
+        <div className={cn("editor-scroll relative has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring", minHeightClassName)}>
           <RichTextPlugin
             contentEditable={
-              placeholder ? (
+              <div className="editor-scroll__body">{placeholder ? (
                 <ContentEditable
-                  className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="px-4 py-3 text-sm text-foreground outline-none"
+                  aria-label={ariaLabel}
+                  aria-invalid={invalid || undefined}
                   aria-placeholder={placeholder}
                   placeholder={() => (
                     <div className="absolute top-3 left-4 text-sm text-muted-foreground pointer-events-none">
@@ -1069,8 +1112,8 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className="min-h-[200px] px-4 py-3 text-sm text-foreground outline-none" />
-              )
+                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" aria-label={ariaLabel} aria-invalid={invalid || undefined} />
+              )}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
@@ -1082,6 +1125,7 @@ export function RichTextEditor({
         <LinkPlugin />
         <VariablePlugin variables={variables} />
         <MarkdownPastePlugin variables={variables} />
+        {!allowAlignment && <NoAlignmentPlugin />}
         <EditableSync editable={!disabled} />
         <ExternalStateSync value={value} lastEmittedRef={lastEmitted} />
       </div>

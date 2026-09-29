@@ -24,10 +24,10 @@ export function InfrastructureIcon({ show }: { show: boolean }) {
   )
 }
 
-/** Scope, fork, proposal and (for admins) access badges of an exercise. */
-export function OwnershipBadges({ exercise, showAccess }: { exercise: ExerciseOwnership; showAccess: boolean }) {
+/** Scope, fork, proposal and (for admins) access badges; the catalog table shows scope and access in their own column. */
+export function OwnershipBadges({ exercise, showAccess, showEvent = true }: { exercise: ExerciseOwnership; showAccess: boolean; showEvent?: boolean }) {
   const badges: { key: string; label: string; tone: string }[] = []
-  if (exercise.Scope === "event") {
+  if (showEvent && exercise.Scope === "event") {
     badges.push({
       key: "event",
       label: exercise.OwnerEventName ? `${t("exercises.badge.event")} · ${exercise.OwnerEventName}` : t("exercises.badge.event"),

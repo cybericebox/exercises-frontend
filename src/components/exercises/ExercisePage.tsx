@@ -5,7 +5,8 @@ import Link from "next/link"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listVersions, type Version } from "@/api/exercises/versions"
-import { ConfirmActionDialog } from "@/components/exercises/ConfirmActionDialog"
+import { ErrorScreen } from "@/components/ErrorScreen"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
@@ -17,9 +18,7 @@ import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
 import { useExerciseActions, type DeployTarget } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form } from "@/components/ui/form"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,7 +26,7 @@ import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
 import { exerciseHref } from "@/lib/exerciseRoutes"
-import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
+import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useUserNames } from "@/lib/userNames"
@@ -38,6 +37,8 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
 import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
+import { AccessCell, StatusBadges } from "./catalog/CatalogCells"
+import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
@@ -216,15 +217,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (editor.loadState === "notFound") return <ExerciseNotFound />
+  if (editor.loadState === "error") return <ErrorScreen title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
   const canManageAccess = Boolean(exercise && exercise.Scope === "catalog" && rights.manageAccess && !archived && !isVersion)
   const canPropose = Boolean(exercise && exercise.Scope === "event" && rights.propose && exercise.PublishedVersionID && !archived && !isVersion)
   const originEventName = exercise?.OriginEventID ? access?.Events.find((event) => event.ID === exercise.OriginEventID)?.Name : undefined
   const version = editor.version
+  // A version shows its date; the current exercise shows the catalog status badges (in meta).
   const badge: HeaderBadge | null = isVersion && version
-    ? { kind: "version", label: t("admin.exPage.badge.version").replace("{date}", formatExerciseDate(version.PublishedAt ?? version.CreatedAt)) }
-    : exercise ? { kind: exerciseBadgeKind(exercise) } : null
+    ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
+    : null
 
   return <EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
@@ -234,6 +237,12 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         mode={headerMode}
         title={exercise?.Name ?? t("admin.ex.create.title")}
         badge={badge}
+        meta={exercise && !isVersion ? <>
+          <StatusBadges status={headerStatus(exercise)} />
+          <InfrastructureIcon show={exercise.Infrastructure} />
+          <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
+          <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />
+        </> : undefined}
         saveStatus={saveStatus}
         permissions={permissions}
         archived={archived}
@@ -251,21 +260,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onDone={() => void actions.done()}
         onPublish={() => void actions.publish()}
         onSnapshot={() => setDialog("snapshot")}
-        onRevert={() => setDialog("revert")}
+        onRevert={() => { actions.clearConfirmError(); setDialog("revert") }}
         onExport={() => setDialog("export")}
-        onArchive={() => setDialog("archive")}
+        onArchive={() => { actions.clearConfirmError(); setDialog("archive") }}
         onUnarchive={() => void actions.unarchive()}
-        onDelete={() => setDialog("delete")}
+        onDelete={() => { actions.clearConfirmError(); setDialog("delete") }}
         onAccess={canManageAccess ? () => setDialog("access") : undefined}
         onPropose={canPropose ? () => setDialog("propose") : undefined}
         proposalPending={Boolean(exercise?.PendingProposalID)}
       />
-      {exercise && (exercise.Scope === "event" || exercise.ForkedFrom || exercise.PendingProposalID || exercise.Infrastructure || (access?.IsAdmin && exercise.AccessLevel)) && (
-        <div className="-mt-2 flex flex-wrap items-center gap-2">
-          <InfrastructureIcon show={exercise.Infrastructure} />
-          <OwnershipBadges exercise={exercise} showAccess={Boolean(access?.IsAdmin)} />
-        </div>
-      )}
       {!exercise && owners.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <span id="owner-label" className="text-sm font-medium text-foreground">{t("exercises.owner.label")}</span>
@@ -315,15 +318,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onView={(target) => { setDialog(null); void actions.openVersion(target) }} />}
     {dialog === "snapshot" && <SnapshotDialog busy={actions.busy} onCancel={() => setDialog(null)}
       onConfirm={(note) => void actions.snapshot(note).then((ok) => { if (ok) setDialog(null) })} />}
-    <ConfirmActionDialog open={dialog === "revert"} busy={actions.busy}
+    <ConfirmDialog open={dialog === "revert"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.revert.title")} description={t("admin.exPage.revert.description")} confirmLabel={t("admin.exPage.revert.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.revert().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmActionDialog open={dialog === "archive"} busy={actions.busy}
+    <ConfirmDialog open={dialog === "archive"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.archive.title")} description={t("admin.exPage.archive.description")} confirmLabel={t("admin.exPage.archive.confirm")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.archive().then((ok) => { if (ok) setDialog(null) })} />
-    <ConfirmActionDialog open={dialog === "delete"} busy={actions.busy} destructive
+    <ConfirmDialog open={dialog === "delete"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")}
-      onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (!ok) setDialog(null) })} />
+      onCancel={() => setDialog(null)} onConfirm={() => void actions.remove()} />
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
     {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
@@ -331,17 +334,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
     {deploy && <DeployTestDialog open onClose={() => setDeploy(null)} exerciseId={deploy.exerciseId}
       versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} />}
-    <Dialog open={leaveOffline} onOpenChange={(open) => { if (!open) { setLeaveOffline(false); leave.cancelLeave() } }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.exPage.leave.title")}</DialogTitle>
-          <DialogDescription>{t("admin.exPage.leave.description")}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => { setLeaveOffline(false); leave.cancelLeave() }}>{t("admin.exPage.leave.stay")}</Button>
-          <Button type="button" onClick={() => { setLeaveOffline(false); leave.finishLeave() }}>{t("admin.exPage.leave.go")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
+      title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
+      cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
+      onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
   </EditorPositionProvider>
 }

@@ -10,7 +10,7 @@ import { emptyTask, emptyVariant, type DraftFormValues } from "@/lib/exerciseSch
 import { hintsForNewVariant } from "@/lib/hintSync"
 import { RemoveAction } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 /**
  * VariantTabs — variant tabs on top of useFieldArray("Variants").
@@ -78,21 +78,14 @@ export function VariantTabs({
           {renderVariant(i)}
         </TabsContent>
       ))}
-      <Dialog open={pendingRemoval !== null} onOpenChange={(open) => { if (!open) setPendingRemoval(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("admin.exDraft.removeVariantTitle")}</DialogTitle>
-            <DialogDescription>{t("admin.exDraft.removeVariantDescription")}{pendingRemoval !== null ? ` ${t("admin.exDraft.variant")} ${pendingRemoval + 1}.` : ""}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPendingRemoval(null)}>{t("admin.exDraft.removeVariantCancel")}</Button>
-            <Button type="button" variant="destructive" onClick={() => {
-              if (pendingRemoval !== null) removeVariant(pendingRemoval)
-              setPendingRemoval(null)
-            }}>{t("admin.exDraft.removeVariantConfirm")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
+        title={t("admin.exDraft.removeVariantTitle")}
+        description={`${t("admin.exDraft.removeVariantDescription")}${pendingRemoval !== null ? ` ${t("admin.exDraft.variant")} ${pendingRemoval + 1}.` : ""}`}
+        cancelLabel={t("admin.exDraft.removeVariantCancel")} confirmLabel={t("admin.exDraft.removeVariantConfirm")}
+        onConfirm={() => {
+          if (pendingRemoval !== null) removeVariant(pendingRemoval)
+          setPendingRemoval(null)
+        }} />
     </Tabs>
   )
 }

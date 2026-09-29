@@ -13,9 +13,18 @@ function Snapshot() {
   return <output data-testid="topology-snapshot">{JSON.stringify(topology)}</output>
 }
 
-function Harness() {
-  const form = useForm<DraftFormValues>({ defaultValues: emptyDraft() })
-  return <FormProvider {...form}><TopologySection variantIndex={0} disabled={false} /><Snapshot /></FormProvider>
+function Harness({ disabled = false, draft }: { disabled?: boolean; draft?: DraftFormValues } = {}) {
+  const form = useForm<DraftFormValues>({ defaultValues: draft ?? emptyDraft() })
+  return <FormProvider {...form}><TopologySection variantIndex={0} disabled={disabled} /><Snapshot /></FormProvider>
+}
+
+function connectHostAndSwitch() {
+  addNode("container")
+  addNode("switch")
+  fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
+  fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
+  fireEvent.click(within(diagram()).getByRole("button", { name: "sw-1" }))
+  fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.canvasConnect" }))
 }
 
 function topology() {
@@ -63,14 +72,30 @@ describe("topology workspace", () => {
     expect(visual?.positions?.[nodeId]).toBeUndefined()
   })
 
+  it("marks the active tab at rest and explains only that tab", () => {
+    render(<Harness />)
+    const tab = (name: string) => screen.getByRole("button", { name })
+    expect(tab("admin.exTopo.diagram")).toHaveAttribute("aria-current", "page")
+    expect(tab("admin.exTopo.diagram")).toHaveClass("bg-card", "text-foreground")
+    expect(tab("admin.exTopo.devices")).not.toHaveClass("bg-card")
+    expect(screen.getByRole("button", { name: "admin.exTopo.tabHelp.diagram.what admin.exTopo.tabHelp.diagram.connect" })).toBeInTheDocument()
+    fireEvent.click(tab("admin.exTopo.connections"))
+    expect(tab("admin.exTopo.connections")).toHaveClass("bg-card")
+    expect(screen.getByRole("button", { name: "admin.exTopo.tabHelp.connections.what admin.exTopo.tabHelp.connections.gateway" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "admin.exTopo.connections" })).not.toBeInTheDocument()
+    expect(tab("admin.exTopo.connections").querySelector("button")).toBeNull()
+  })
+
   it("uses separate diagram, device and connection screens", () => {
     render(<Harness />)
     expect(diagram()).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     expect(screen.queryByRole("img", { name: "admin.exTopo.diagram" })).not.toBeInTheDocument()
-    expect(screen.getByText("admin.exTopo.noDevices")).toBeInTheDocument()
+    // Empty panels show the shared EmptyState, filling and centered in the panel.
+    const noDevices = screen.getByText("admin.exTopo.noDevices").closest("[data-empty-state]")
+    expect(noDevices).toHaveClass("flex-1", "items-center", "justify-center")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
-    expect(screen.getByText("admin.exTopo.noConnections")).toBeInTheDocument()
+    expect(screen.getByText("admin.exTopo.noConnections").closest("[data-empty-state]")?.parentElement).toHaveClass("flex-1", "items-center", "justify-center")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
     expect(diagram()).toBeInTheDocument()
   })
@@ -493,7 +518,7 @@ describe("topology workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
     expect(screen.getByTestId("connection-row-0")).toHaveClass("bg-accent")
     expect(screen.getByRole("table", { name: "admin.exTopo.connections" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.overview.showOnDiagram 1" }))
+    fireEvent.click(within(screen.getByTestId("connection-row-0")).getByRole("button", { name: "admin.exTopo.overview.showOnDiagram" }))
     expect(diagram().querySelector('[data-edge="e0"]')).toHaveClass("stroke-primary")
   })
 
@@ -539,7 +564,7 @@ describe("topology workspace", () => {
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-2" }))
     expect(screen.queryByRole("dialog", { name: "admin.exTopo.canvasConnect" })).not.toBeInTheDocument()
     fireEvent.contextMenu(vpn)
-    expect(screen.getByRole("menuitem", { name: "admin.exTopo.addConnection" })).toBeDisabled()
+    expect(screen.getByRole("menuitem", { name: "admin.exTopo.addConnection" })).toHaveAttribute("aria-disabled", "true")
   })
 
   it("cascades linked VPN connections only after confirmed removal", async () => {
@@ -555,9 +580,71 @@ describe("topology workspace", () => {
     fireEvent.click(within(screen.getByRole("row", { name: /admin.exTopo.vpn/ })).getByRole("button", { name: "admin.exTopo.removeDevice" }))
     expect(topology().Connections).toHaveLength(1)
     await act(async () => {
-      fireEvent.click(within(screen.getByRole("dialog", { name: "admin.exTopo.removeDevice" })).getByRole("button", { name: "admin.exTopo.removeDevice" }))
+      fireEvent.click(within(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).getByRole("button", { name: "admin.exTopo.removeDevice" }))
     })
     expect(topology().VPN.Enabled).toBe(false)
     expect(topology().Connections).toHaveLength(0)
+  })
+
+  it("disables «add connection» with a reason until two devices exist", () => {
+    render(<Harness />)
+    const add = () => screen.getByRole("button", { name: "admin.exTopo.addConnection" })
+    expect(add()).toBeDisabled()
+    fireEvent.pointerEnter(add().parentElement!)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("admin.exTopo.needTwoDevices")
+    addNode("container")
+    expect(add()).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
+    expect(screen.getByRole("button", { name: "admin.exTopo.addConnection" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
+    addNode("switch")
+    expect(add()).toBeEnabled()
+  })
+
+  it("opens a connection's settings in the connections tab from the canvas menu", () => {
+    render(<Harness />)
+    connectHostAndSwitch()
+    fireEvent.contextMenu(diagram().querySelector('[data-edge="e0"]')!)
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
+    expect(screen.getByRole("button", { name: "admin.exTopo.connections" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByTestId("connection-editor-0")).toBeInTheDocument()
+    expect(screen.getByTestId("connection-row-0")).toHaveClass("bg-accent")
+  })
+
+  it("deletes a connection from the canvas menu only after the danger confirmation", async () => {
+    render(<Harness />)
+    connectHostAndSwitch()
+    fireEvent.contextMenu(diagram().querySelector('[data-edge="e0"]')!)
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeConnection" }))
+    const dialog = screen.getByRole("dialog", { name: "admin.exTopo.removeConnectionTitle" })
+    expect(topology().Connections).toHaveLength(1)
+    await act(async () => { fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTopo.removeConnection" })) })
+    expect(topology().Connections).toHaveLength(0)
+    expect(topology().Devices).toHaveLength(2)
+  })
+
+  it("warns that a device's connections go with it", () => {
+    render(<Harness />)
+    connectHostAndSwitch()
+    fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeDevice" }))
+    expect(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).toHaveTextContent("admin.exTopo.removeDeviceConfirmLinks")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.canvasCancel" }))
+    addNode("container")
+    fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-2" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeDevice" }))
+    expect(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).toHaveTextContent("admin.exTopo.removeDeviceConfirm")
+    expect(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).not.toHaveTextContent("removeDeviceConfirmLinks")
+  })
+
+  it("opens the device inspector read-only from the canvas menu when the editor is locked", () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Topology.VPN.Enabled = true
+    render(<Harness disabled draft={draft} />)
+    fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "admin.exTopo.vpn" }))
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["admin.exTopo.configure"])
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
+    expect(screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exTopo.renameDevice: admin.exTopo.vpn" })).toBeDisabled()
   })
 })

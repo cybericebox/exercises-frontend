@@ -1,6 +1,7 @@
-import { StrictMode, useEffect } from "react"
+import { StrictMode, useLayoutEffect } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { ApiError } from "@/api/client"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
 
@@ -51,10 +52,12 @@ function Harness(props: Partial<UseExerciseEditorOptions>) {
     exerciseId: null, versionId: null, editable: true, canWrite: true, userId: "editor-1",
     onCreated: vi.fn(), onPendingRestored: vi.fn(), ...props,
   })
-  // Reassigning a module-scope variable during render is impure; capture it in an
-  // effect instead — flushed synchronously by `act()` before any assertion runs.
-  useEffect(() => { latest = editor })
+  // Reassigning a module-scope variable during render is impure; capture it in a
+  // layout effect instead — it runs within the commit, so it is current as soon as
+  // findBy* sees the new DOM (a passive effect may still be pending at that point).
+  useLayoutEffect(() => { latest = editor })
   if (editor.loadState === "notFound") return <p>not found</p>
+  if (editor.loadState === "error") return <button onClick={editor.retryLoad}>retry</button>
   if (editor.loadState !== "ready") return <p>loading</p>
   return <form>
     <input aria-label="name" {...editor.identityForm.register("Name")} />
@@ -155,6 +158,9 @@ describe("useExerciseEditor", () => {
     expect(latest.draftForm.getValues("Variants.0.Tasks.0.Flag")).toEqual(["ICE{server}"])
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
     expect(onPendingRestored).toHaveBeenCalled()
+    // The restore is queued by a passive effect that can run after the inputs commit;
+    // flushing before it would find nothing to send.
+    await waitFor(() => expect(latest.autosave.hasUnsaved()).toBe(true))
     await act(async () => { await latest.autosave.flush() })
     expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] })
     expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({
@@ -182,6 +188,20 @@ describe("useExerciseEditor", () => {
 
   it("reports a missing exercise", async () => {
     mockGetExercise.mockRejectedValue(new Error("404"))
+    render(<Harness exerciseId="missing" />)
+    expect(await screen.findByText("not found")).toBeInTheDocument()
+  })
+
+  it("shows a load error for a server failure and loads again on retry", async () => {
+    mockGetExercise.mockRejectedValueOnce(new ApiError(503, null)).mockResolvedValue(exercise)
+    render(<Harness exerciseId="ex-1" />)
+    fireEvent.click(await screen.findByText("retry"))
+    await waitFor(() => expect(latest.loadState).toBe("ready"))
+    expect(mockGetExercise).toHaveBeenCalledTimes(2)
+  })
+
+  it("treats a 404 answer as a missing exercise, not a load error", async () => {
+    mockGetExercise.mockRejectedValue(new ApiError(404, null))
     render(<Harness exerciseId="missing" />)
     expect(await screen.findByText("not found")).toBeInTheDocument()
   })

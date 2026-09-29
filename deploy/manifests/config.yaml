@@ -9,5 +9,6 @@ data:
   # Optional host overrides (bare host, no scheme). Empty → <service>.<DOMAIN>.
   API_DOMAIN: ""
   ID_DOMAIN: ""
+  ADMIN_DOMAIN: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""

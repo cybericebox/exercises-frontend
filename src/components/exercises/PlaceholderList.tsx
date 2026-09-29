@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { emptyPlaceholder, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { RemoveAction } from "./RemoveAction"
@@ -149,15 +149,16 @@ export function PlaceholderList({
                     control={control}
                     name={`${name}.${pi}.ShowMask`}
                     render={({ field: maskField }) => (
-                      <Checkbox
-                        id={`ph-mask-${variantIndex}-${taskIndex}-${pi}`}
-                        ref={maskField.ref}
-                        checked={maskField.value}
-                        onChange={(e) => maskField.onChange(e.target.checked)}
-                        onBlur={maskField.onBlur}
-                        disabled={disabled}
-                        label={t("admin.exPh.showMask")}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`ph-mask-${variantIndex}-${taskIndex}-${pi}`}
+                          ref={maskField.ref}
+                          checked={maskField.value}
+                          onCheckedChange={maskField.onChange}
+                          disabled={disabled}
+                        />
+                        <label htmlFor={`ph-mask-${variantIndex}-${taskIndex}-${pi}`} className="text-sm leading-snug cursor-pointer select-none">{t("admin.exPh.showMask")}</label>
+                      </div>
                     )}
                   />
                   <FieldHelp text={t("admin.exPh.showMaskHelp")} />

@@ -115,7 +115,7 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
                 <textarea
                   readOnly
                   value={status.VPNConfig}
-                  className="mt-1 h-32 w-full rounded-md border bg-muted p-2 font-mono text-xs"
+                  className="mt-1 h-32 min-h-32 w-full rounded-md border bg-muted p-2 font-mono text-xs"
                 />
                 <Button
                   type="button"

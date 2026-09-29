@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { GripVertical, Images, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react"
+import { FieldHelp } from "@/components/ui/field-help"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DNS_LABEL_RE, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
-import { availableDevicePorts } from "@/lib/topologyPorts"
+import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { TOPOLOGY_ICONS, topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import type { DeviceType } from "@/api/exercises/versions"
@@ -48,6 +49,13 @@ const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
 ]
 
 /** The form owns topology; only view, selection and transient actions live here. */
+/** Help lines of each topology tab: admin.exTopo.tabHelp.<tab>.<line>. */
+const TAB_HELP = {
+  diagram: ["what", "connect"],
+  devices: ["what", "open"],
+  connections: ["what", "gateway"],
+} as const
+
 export function TopologySection({ variantIndex, disabled }: { variantIndex: number; disabled: boolean }) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology` as const
@@ -66,6 +74,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   const [nameDraft, setNameDraft] = useState("")
   const [nameError, setNameError] = useState("")
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
+  const [pendingConnectionRemoval, setPendingConnectionRemoval] = useState<number | null>(null)
+  const [connectionEditIndex, setConnectionEditIndex] = useState<number | null>(null)
   const [connectMode, setConnectMode] = useState(false)
   const [linkNodes, setLinkNodes] = useState<string[]>([])
   const [canvasExpanded, setCanvasExpanded] = useState(false)
@@ -98,6 +108,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
       && (topology?.Connections ?? []).some((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === kind))),
   ]
   const freeConnectionNodeCount = availableNodes.size - unavailableConnectionNodes.length
+  const linkUnavailableReason = availableNodes.size < 2 ? t("admin.exTopo.needTwoDevices")
+    : freeConnectionNodeCount < 2 ? t("admin.exTopo.needFreePorts") : null
   const pendingPair = connectMode && linkNodes.length === 2 ? linkNodes as [string, string] : null
   const linkedCount = (topology?.Connections ?? []).filter((connection) => connection.Endpoints.some((endpoint) =>
     endpoint.Kind === pendingRemoval || (endpoint.Kind === "device" && endpoint.DeviceID === pendingRemoval))).length
@@ -301,6 +313,34 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
 
   function cancelConnect() { setConnectMode(false); setLinkNodes([]) }
 
+  function nodeName(key: string): string {
+    if (key === "vpn" || key === "internet") return gatewayLabelFor(topology?.VisualRender ?? null, key, t(`admin.exTopo.${key}`))
+    return devices.find((device) => device.ID === key)?.Name || t("admin.exTopo.unnamedDevice")
+  }
+
+  function connectionName(index: number): { first: string; second: string } {
+    const [first, second] = topology?.Connections[index]?.Endpoints ?? []
+    const side = (endpoint: typeof first) => !endpoint ? "—"
+      : `${nodeName(endpoint.Kind === "device" ? endpoint.DeviceID : endpoint.Kind)} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
+    return { first: side(first), second: side(second) }
+  }
+
+  function openConnectionSettings(index: number) {
+    cancelConnect()
+    setSelectedConnectionIndex(index)
+    setSelectedKey(null)
+    setConnectionEditIndex(index)
+    setActiveSection("connections")
+  }
+
+  function confirmConnectionRemoval() {
+    if (pendingConnectionRemoval === null) return
+    const index = pendingConnectionRemoval
+    setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((_, candidate) => candidate !== index), { shouldDirty: true, shouldValidate: true })
+    setSelectedConnectionIndex((current) => current === null || current === index ? null : current > index ? current - 1 : current)
+    setPendingConnectionRemoval(null)
+  }
+
   function confirmRemoval() {
     if (!pendingRemoval) return
     const target = pendingRemoval
@@ -331,32 +371,38 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   return <section data-testid="topology-workspace" className={canvasExpanded
     ? "fixed inset-0 z-[45] flex h-dvh min-h-0 min-w-0 flex-col bg-background p-0"
     : "flex min-h-[32rem] min-w-0 flex-col gap-3 lg:h-[min(72dvh,48rem)]"}>
-    {!canvasExpanded && <nav aria-label={t("admin.exDraft.topology.title")} className="flex shrink-0 gap-1 border-b border-border">
+    {!canvasExpanded && <div className="flex shrink-0 items-center justify-between gap-3">
+    <nav aria-label={t("admin.exDraft.topology.title")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
       {(["diagram", "devices", "connections"] as const).map((item) =>
         <button key={item} type="button" aria-current={view === item ? "page" : undefined}
           onClick={() => {
             cancelConnect()
+            setConnectionEditIndex(null)
             exitExpandedCanvas()
             if (activeSection.startsWith("device:")) setSettingsTarget(activeSection.slice("device:".length))
             setActiveSection(item)
           }}
-          className="rounded-t-md px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary aria-current:border-b-2 aria-current:border-primary aria-current:text-primary">
+          className={`h-8 rounded px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary ${view === item ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           {t(`admin.exTopo.${item}`)}
         </button>)}
-    </nav>}
+    </nav>
+    {/* One help for the active tab, outside the tab buttons. */}
+    <FieldHelp key={view} lines={TAB_HELP[view].map((line) => t(`admin.exTopo.tabHelp.${view}.${line}`))} />
+    </div>}
 
     {view === "diagram" && <div ref={layoutRef} data-testid="topology-canvas-layout" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
     <div data-testid="topology-canvas-surface" className={canvasExpanded
       ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
       : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-background"}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <p className="text-sm font-medium">{t("admin.exTopo.diagram")}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           {connectMode && <span className="text-xs text-muted-foreground">{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>}
           {!disabled && (connectMode ? <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>
-            : <Button type="button" variant="outline" size="sm" disabled={freeConnectionNodeCount < 2} onClick={() => { setConnectMode(true); setLinkNodes([]) }}>
-              <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
-            </Button>)}
+            : <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null}>
+              <Button type="button" variant="outline" size="sm" disabled={linkUnavailableReason !== null} onClick={() => { setConnectMode(true); setLinkNodes([]) }}>
+                <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
+              </Button>
+            </HoverTooltip>)}
           {!disabled && <DropdownMenu>
             <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t("admin.exTopo.addDevice")}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -374,7 +420,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           </Button></HoverTooltip>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="relative min-h-0 flex-1 overflow-auto">
         {topology && <TopologyDiagram topology={topology} onPositionChange={disabled ? undefined : moveNode}
           onLabelOffsetChange={disabled ? undefined : moveLabel}
           onPortLabelOffsetChange={disabled ? undefined : movePortLabel}
@@ -383,20 +429,21 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           selectedNodes={connectMode ? linkNodes : selectedKey ? [selectedKey] : []}
           connectionMode={connectMode} unavailableConnectionNodes={unavailableConnectionNodes}
           selectedConnectionIndex={selectedConnectionIndex} onEdgeSelect={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null) }}
-          onNodeSelect={selectNode} onNodeSettings={disabled ? undefined : openSettings}
+          onNodeSelect={selectNode} onNodeSettings={openSettings}
+          onEdgeSettings={openConnectionSettings} onEdgeRemove={disabled ? undefined : setPendingConnectionRemoval}
+          linkUnavailableReason={linkUnavailableReason}
           onNodeRemove={disabled ? undefined : setPendingRemoval}
           onNodeLinkStart={disabled ? undefined : (key) => { if (unavailableConnectionNodes.includes(key)) return; setSelectedKey(key); setConnectMode(true); setLinkNodes([key]) }}
           onCanvasSelect={() => { if (!connectMode) { if (!settingsTarget) setSelectedKey(null); setSelectedConnectionIndex(null) } }}
           onCanvasAddNode={disabled ? undefined : (kind, position) => kind === "vpn" || kind === "internet"
             ? addGateway(kind, position) : addDevice(kind, position)}
-          onCanvasLinkStart={disabled || freeConnectionNodeCount < 2 ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
+          onCanvasLinkStart={disabled ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
       </div>
-      {availableNodes.size === 0 && <div className="p-3 text-center text-sm text-muted-foreground">{t("admin.exTopo.noDevices")}</div>}
     </div>
     {settingsTarget !== null && <aside role="complementary"
       aria-label={t("admin.exTopo.deviceSettings")}
       style={{ "--topology-inspector-width": `${displayedInspectorWidth}px` } as CSSProperties}
-      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background shadow-lg xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[28rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border xl:shadow-none">
+      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[28rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
       <div role="separator" aria-orientation="vertical" aria-label={t("admin.exTopo.resizeSettings")}
         aria-valuemin={INSPECTOR_MIN_WIDTH} aria-valuemax={inspectorMaxWidth} aria-valuenow={displayedInspectorWidth}
         tabIndex={0}
@@ -409,7 +456,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <HoverTooltip text={t("admin.exTopo.resizeSettings")}
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <span data-testid="topology-inspector-resize-grip" aria-hidden="true"
-            className="flex h-12 w-6 items-center justify-center rounded-full border border-primary/50 bg-background text-primary shadow-sm group-hover:border-primary group-hover:bg-accent group-focus-visible:border-primary group-focus-visible:bg-accent">
+            className="flex h-12 w-6 items-center justify-center rounded-full border border-primary/50 bg-background text-primary group-hover:border-primary group-hover:bg-accent group-focus-visible:border-primary group-focus-visible:bg-accent">
             <GripVertical className="h-4 w-4" />
           </span>
         </HoverTooltip>
@@ -472,13 +519,13 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     </aside>}
     </div>}
 
-    {view === "devices" && <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-border p-2">
+    {view === "devices" && <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-md border border-border p-2">
       {topology && <TopologyDeviceOverview topology={topology} disabled={disabled} selectedKey={selectedKey}
         onOpen={(key) => { openSettings(key); setActiveSection("diagram") }} onRemove={setPendingRemoval} />}
     </div>}
 
-    {view === "connections" && <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-border p-3">
-      <ConnectionList variantIndex={variantIndex} disabled={disabled} selectedIndex={selectedConnectionIndex}
+    {view === "connections" && <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-md border border-border p-3">
+      <ConnectionList variantIndex={variantIndex} disabled={disabled} selectedIndex={selectedConnectionIndex} initialExpandedIndex={connectionEditIndex}
         onSelectIndex={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null) }}
         onShowInDiagram={(index) => { setSelectedConnectionIndex(index); setSelectedKey(null); setActiveSection("diagram") }} />
     </div>}
@@ -488,14 +535,13 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         setValue(`${base}.Connections`, [...getValues(`${base}.Connections`), { Endpoints: [first, second] }], { shouldDirty: true, shouldValidate: true })
         cancelConnect()
       }} />}
-    <Dialog open={pendingRemoval !== null} onOpenChange={(open) => { if (!open) setPendingRemoval(null) }}>
-      <DialogContent><DialogHeader><DialogTitle>{t("admin.exTopo.removeDevice")}</DialogTitle>
-        <DialogDescription>{t("admin.exTopo.removeDeviceConfirm").replace("{count}", String(linkedCount))}</DialogDescription></DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setPendingRemoval(null)}>{t("admin.exTopo.canvasCancel")}</Button>
-          <Button type="button" variant="destructive" onClick={confirmRemoval}>{t("admin.exTopo.removeDevice")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
+      title={t("admin.exTopo.removeDeviceTitle")}
+      description={t(linkedCount > 0 ? "admin.exTopo.removeDeviceConfirmLinks" : "admin.exTopo.removeDeviceConfirm", { name: pendingRemoval ? nodeName(pendingRemoval) : "", count: linkedCount })}
+      cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeDevice")} onConfirm={confirmRemoval} />
+    <ConfirmDialog open={pendingConnectionRemoval !== null} onCancel={() => setPendingConnectionRemoval(null)} tone="danger"
+      title={t("admin.exTopo.removeConnectionTitle")}
+      description={pendingConnectionRemoval !== null ? t("admin.exTopo.removeConnectionConfirm", connectionName(pendingConnectionRemoval)) : undefined}
+      cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={t("admin.exTopo.removeConnection")} onConfirm={confirmConnectionRemoval} />
   </section>
 }

@@ -7,7 +7,7 @@
  */
 import { ApiError, redirectRequiredAuth } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
-import { isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
 
 const BASE_URL = apiOrigin
 const FILES = "/api/exercises/files"
@@ -33,7 +33,7 @@ export function uploadExerciseFile(file: File, onProgress?: (percent: number) =>
       }
     }
     request.onerror = () => {
-      reportServiceUnavailable()
+      if (isNetworkOutage(null)) reportServiceUnavailable()
       reject(new ApiError(0, null, "Network error"))
     }
     request.onabort = () => reject(new ApiError(0, null, "Upload aborted"))

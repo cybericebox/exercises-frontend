@@ -215,7 +215,10 @@ describe('RichTextEditor', () => {
     const token = await screen.findByRole('button', { name: /10\.0\.0\.5/ })
     expect(token).toHaveClass('font-bold', 'italic')
     expect(token).not.toHaveClass('bg-primary/10')
-    expect(token).toHaveAttribute('title', 'IP')
+    expect(token).not.toHaveAttribute('title')
+    fireEvent.focus(token)
+    expect(token).toHaveAccessibleDescription('IP')
+    fireEvent.blur(token)
 
     const reveal = screen.getByRole('button', { name: 'Показати підстановки' })
     expect(reveal).not.toHaveTextContent('Показати підстановки')

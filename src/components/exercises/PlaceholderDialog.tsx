@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -95,8 +95,10 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
             <Input id="placeholder-static-octets" value={draft.Octets1to3} onChange={(event) => setDraft({ ...draft, Octets1to3: event.target.value })} />
           </div>}
         </div>}
-        <Checkbox checked={draft.ShowMask} onChange={(event) => setDraft({ ...draft, ShowMask: event.target.checked })}
-          label={t("admin.exPh.showMask")} />
+        <div className="flex items-center gap-2">
+          <Switch id="placeholder-show-mask" checked={draft.ShowMask} onCheckedChange={(ShowMask) => setDraft({ ...draft, ShowMask })} />
+          <label htmlFor="placeholder-show-mask" className="text-sm leading-snug cursor-pointer select-none">{t("admin.exPh.showMask")}</label>
+        </div>
       </div>}
       {draft?.Kind === "external.link" && <div className="border-t border-border pt-4">
         <span className="mb-1 block text-sm font-medium">{t("admin.exPh.device")}</span>

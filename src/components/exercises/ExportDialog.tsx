@@ -4,8 +4,8 @@ import { useState, type FormEvent } from "react"
 import { exportExercises } from "@/api/exercises/archive"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
@@ -16,6 +16,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [includeSecrets, setIncludeSecrets] = useState(false)
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,11 +57,11 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
         {includeSecrets && <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="export-password">{t("admin.exExport.password")}</Label>
-            <Input id="export-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <PasswordInput id="export-password" shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="export-confirm">{t("admin.exExport.confirm")}</Label>
-            <Input id="export-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+            <PasswordInput id="export-confirm" shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
           </div>
           <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
         </div>}

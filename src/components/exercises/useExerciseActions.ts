@@ -33,6 +33,7 @@ export function useExerciseActions({
 }: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState("")
   const [usage, setUsage] = useState<{ exerciseId: string; events: ExerciseUsageEvent[] } | null>(null)
   const exerciseId = editor.exercise?.ID ?? null
 
@@ -49,21 +50,25 @@ export function useExerciseActions({
    * Busy from the first moment (before the flush), so confirm buttons disable at once
    * and a double click can't start the action twice. With `flushFirst`, unsaved edits
    * are saved first; an action returning false reports "not done" without a toast.
+   * With `inline` the failure goes to `confirmError` for the open ConfirmDialog.
    */
-  async function run(action: () => Promise<boolean | void>, flushFirst = false): Promise<boolean> {
+  async function run(action: () => Promise<boolean | void>, flushFirst = false, inline = false): Promise<boolean> {
     setBusy(true)
+    if (inline) setConfirmError("")
     try {
-      if (flushFirst && !(await flushOrWarn())) return false
+      if (flushFirst && !(await flushOrWarn(inline))) return false
       return (await action()) !== false
     } catch (cause) {
-      toast.error(exerciseErrorMessage(cause))
+      if (inline) setConfirmError(exerciseErrorMessage(cause))
+      else toast.error(exerciseErrorMessage(cause))
       return false
     } finally {
       setBusy(false)
     }
   }
 
-  async function flushOrWarn(): Promise<boolean> {
+  async function flushOrWarn(inline = false): Promise<boolean> {
+    const report = (message: string) => { if (inline) setConfirmError(message); else toast.error(message) }
     // An invalid identity is never sent, so flush() would report "not saved";
     // point the user at the field instead of a misleading save-failed toast.
     const identity = identitySchema.safeParse(editor.identityForm.getValues())
@@ -72,11 +77,11 @@ export function useExerciseActions({
       await editor.identityForm.trigger()
       setPosition((current) => ({ ...current, tab: "general" }))
       focusField(identity.error.issues[0]?.path ?? [])
-      toast.error(t("admin.exPage.toast.invalidName"))
+      report(t("admin.exPage.toast.invalidName"))
       return false
     }
     const ok = await editor.autosave.flush()
-    if (!ok) toast.error(t("admin.exPage.toast.saveFailed"))
+    if (!ok) report(t("admin.exPage.toast.saveFailed"))
     return ok
   }
 
@@ -114,7 +119,7 @@ export function useExerciseActions({
       await restoreVersion(exerciseId, publishedId)
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.reverted"))
-    }, true)
+    }, true, true)
   }
 
   async function restore(versionId: string): Promise<void> {
@@ -133,7 +138,7 @@ export function useExerciseActions({
       editor.setExercise(await archiveExercise(exerciseId))
       setMode("view")
       toast.success(t("admin.exPage.toast.archived"))
-    }, true)
+    }, true, true)
   }
 
   async function unarchive(): Promise<void> {
@@ -147,6 +152,7 @@ export function useExerciseActions({
   async function remove(): Promise<boolean> {
     if (!exerciseId) return false
     setBusy(true)
+    setConfirmError("")
     try {
       await editor.autosave.flush()
       await deleteExercise(exerciseId)
@@ -155,7 +161,7 @@ export function useExerciseActions({
       router.push("/")
       return true
     } catch (cause) {
-      toast.error(exerciseErrorMessage(cause))
+      setConfirmError(exerciseErrorMessage(cause))
       // 409 without an event list: someone attached the exercise meanwhile — refresh the usage.
       if (exerciseErrorCode(cause) === ERR_EXERCISE_IN_USE) {
         const result = await getExerciseUsage(exerciseId).catch(() => null)
@@ -190,6 +196,8 @@ export function useExerciseActions({
 
   return {
     busy,
+    confirmError,
+    clearConfirmError: () => setConfirmError(""),
     usageEvents: usage && usage.exerciseId === exerciseId ? usage.events : [],
     publish, snapshot, revert, restore, archive, unarchive, remove, test, done, openVersion,
   }

@@ -7,7 +7,9 @@ import { AccessLevelFields, accessValueValid, type AccessValue } from "@/compone
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingArea } from "@/components/ui/spinner"
@@ -69,35 +71,29 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
 function RejectDialog({ proposal, onClose, onDone }: { proposal: Proposal; onClose: () => void; onDone: (proposal: Proposal) => void }) {
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
 
   async function reject() {
     setBusy(true)
+    setError("")
     try {
       onDone(await rejectProposal(proposal.ID, note))
-    } catch (error) {
-      toast.error(exerciseErrorMessage(error))
+    } catch (cause) {
+      setError(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("exercises.proposals.rejectTitle")}</DialogTitle>
-          <DialogDescription>{proposal.ExerciseName} · {proposal.EventName}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="reject-note">{t("exercises.proposals.rejectNote")}</Label>
-          <Textarea id="reject-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
-          <Button type="button" variant="destructive" disabled={busy} onClick={() => void reject()}>{t("exercises.proposals.reject")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog open onCancel={onClose} tone="danger" busy={busy} error={error}
+      title={t("exercises.proposals.rejectTitle")} description={`${proposal.ExerciseName} · ${proposal.EventName}`}
+      cancelLabel={t("admin.exPage.dialog.cancel")} confirmLabel={t("exercises.proposals.reject")} onConfirm={() => void reject()}>
+      <div className="space-y-1.5">
+        <Label htmlFor="reject-note">{t("exercises.proposals.rejectNote")}</Label>
+        <Textarea id="reject-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
+      </div>
+    </ConfirmDialog>
   )
 }
 
@@ -105,7 +101,7 @@ export default function ProposalsPage() {
   const { access } = useExerciseAccess()
   const [status, setStatus] = useState<ProposalStatus>("pending")
   const [items, setItems] = useState<Proposal[] | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reload, setReload] = useState(0)
   const [approving, setApproving] = useState<Proposal | null>(null)
   const [rejecting, setRejecting] = useState<Proposal | null>(null)
@@ -115,10 +111,10 @@ export default function ProposalsPage() {
   useEffect(() => {
     if (!isAdmin) return
     let active = true
-    queueMicrotask(() => { if (active) { setItems(null); setError(false) } })
+    queueMicrotask(() => { if (active) { setItems(null); setError(null) } })
     listProposals(status)
       .then((next) => { if (active) setItems(next) })
-      .catch(() => { if (active) { setItems([]); setError(true) } })
+      .catch((cause) => { if (active) { setItems([]); setError({ cause }) } })
     return () => { active = false }
   }, [isAdmin, status, reload])
 
@@ -151,10 +147,7 @@ export default function ProposalsPage() {
       )}
       <div className="min-h-0 flex-1 overflow-auto">
         {items === null ? <LoadingArea className="h-full" label={t("admin.loading")} />
-          : error ? <div className="flex flex-col items-center gap-3 py-8">
-              <p role="alert" className="text-sm text-destructive">{t("exercises.proposals.loadError")}</p>
-              <Button variant="outline" onClick={() => setReload((key) => key + 1)}>{t("admin.ex.retry")}</Button>
-            </div>
+          : error ? <LoadError message={t("exercises.proposals.loadError")} error={error.cause} onRetry={() => setReload((key) => key + 1)} className="h-full" />
           : items.length === 0 ? <EmptyState message={t(`exercises.proposals.empty.${status}`)} className="h-full" />
           : (
             <table className="w-full text-sm">

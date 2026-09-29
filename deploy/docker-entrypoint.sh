@@ -15,8 +15,9 @@ fi
 # code-side fallback is gone): service hosts derive from the domain, analytics is empty.
 : "${NEXT_PUBLIC_API_DOMAIN:=api.$NEXT_PUBLIC_DOMAIN}"
 : "${NEXT_PUBLIC_ID_DOMAIN:=id.$NEXT_PUBLIC_DOMAIN}"
+: "${NEXT_PUBLIC_ADMIN_DOMAIN:=admin.$NEXT_PUBLIC_DOMAIN}"
 : "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:=}"
-export NEXT_PUBLIC_API_DOMAIN NEXT_PUBLIC_ID_DOMAIN NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
+export NEXT_PUBLIC_API_DOMAIN NEXT_PUBLIC_ID_DOMAIN NEXT_PUBLIC_ADMIN_DOMAIN NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
 
 printenv | grep '^NEXT_PUBLIC_' | while IFS='=' read -r key value; do
   # Escape sed-special chars in the replacement (| delimiter, & match-ref, \).

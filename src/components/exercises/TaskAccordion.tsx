@@ -9,7 +9,7 @@ import { emptyTask, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { TaskForm } from "./TaskForm"
 import { RemoveAction } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 /** TaskAccordion — a variant's stages: local navigation and one focused editor. */
@@ -80,21 +80,13 @@ export function TaskAccordion({
           <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} />
         </div>}
       </div>
-      <Dialog open={pendingRemoval !== null} onOpenChange={(open) => { if (!open) setPendingRemoval(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("admin.exTask.removeTitle")}</DialogTitle>
-            <DialogDescription>{t("admin.exTask.removeDescription")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPendingRemoval(null)}>{t("admin.exTask.removeCancel")}</Button>
-            <Button type="button" variant="destructive" onClick={() => {
-              if (pendingRemoval !== null) removeSharedTask(pendingRemoval)
-              setPendingRemoval(null)
-            }}>{t("admin.exTask.removeConfirm")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
+        title={t("admin.exTask.removeTitle")} description={t("admin.exTask.removeDescription")}
+        cancelLabel={t("admin.exTask.removeCancel")} confirmLabel={t("admin.exTask.removeConfirm")}
+        onConfirm={() => {
+          if (pendingRemoval !== null) removeSharedTask(pendingRemoval)
+          setPendingRemoval(null)
+        }} />
     </section>
   )
 }

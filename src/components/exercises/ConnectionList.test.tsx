@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useForm, FormProvider, useFormContext, useWatch } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -31,7 +31,7 @@ function Snapshot() {
   return <output data-testid="links">{JSON.stringify(links)}</output>
 }
 
-function Harness({ existingVPN = true, usedSwitch = false, canvasPair = false, gatewayLabel = "", onShowInDiagram, onDialogClose }: { existingVPN?: boolean; usedSwitch?: boolean; canvasPair?: boolean; gatewayLabel?: string; onShowInDiagram?: (index: number) => void; onDialogClose?: () => void } = {}) {
+function Harness({ existingVPN = true, usedSwitch = false, canvasPair = false, gatewayLabel = "", extraHost = false, onlyDevice = false, disabled = false, onShowInDiagram, onDialogClose }: { existingVPN?: boolean; usedSwitch?: boolean; canvasPair?: boolean; gatewayLabel?: string; extraHost?: boolean; onlyDevice?: boolean; disabled?: boolean; onShowInDiagram?: (index: number) => void; onDialogClose?: () => void } = {}) {
   const [draft] = useState(() => {
     const initial = emptyDraft()
     const web = emptyDevice()
@@ -40,10 +40,12 @@ function Harness({ existingVPN = true, usedSwitch = false, canvasPair = false, g
     sw.Name = 'sw1'
     sw.Type = 'unmanaged-switch'
     sw.Interfaces = []
-    initial.Variants[0].Topology.Devices = [web, sw]
-    initial.Variants[0].Topology.VPN.Enabled = true
+    const db = emptyDevice()
+    db.Name = 'db'
+    initial.Variants[0].Topology.Devices = onlyDevice ? [web] : extraHost ? [web, sw, db] : [web, sw]
+    initial.Variants[0].Topology.VPN.Enabled = !onlyDevice
     if (gatewayLabel) initial.Variants[0].Topology.VisualRender = { version: 1, gatewayLabels: { vpn: gatewayLabel } }
-    initial.Variants[0].Topology.Connections = existingVPN ? [{
+    initial.Variants[0].Topology.Connections = existingVPN && !onlyDevice ? [{
       Endpoints: [
         { Kind: 'vpn', DeviceID: '', Interface: 'eth0' },
         { Kind: 'device', DeviceID: web.ID, Interface: 'eth0' },
@@ -59,7 +61,7 @@ function Harness({ existingVPN = true, usedSwitch = false, canvasPair = false, g
   const webID = draft.Variants[0].Topology.Devices[0].ID
   return (
     <FormProvider {...form}>
-      <ConnectionList variantIndex={0} disabled={false} onShowInDiagram={onShowInDiagram} />
+      <ConnectionList variantIndex={0} disabled={disabled} onShowInDiagram={onShowInDiagram} />
       {canvasPair && <TopologyConnectionDialog variantIndex={0} pair={['vpn', webID]} onClose={onDialogClose ?? (() => {})}
         onAdd={(first, second) => form.setValue('Variants.0.Topology.Connections', [
           ...form.getValues('Variants.0.Topology.Connections'), { Endpoints: [first, second] },
@@ -106,7 +108,7 @@ describe('ConnectionList', () => {
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.endpoint.first' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 2' }))
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.endpoint.first' })).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.showOnDiagram 2' }))
+    fireEvent.click(within(screen.getByTestId('connection-row-1')).getByRole('button', { name: 'admin.exTopo.overview.showOnDiagram' }))
     expect(onShowInDiagram).toHaveBeenCalledWith(1)
     expect(screen.queryByText(/sw-id|web-id/)).not.toBeInTheDocument()
   })
@@ -116,20 +118,20 @@ describe('ConnectionList', () => {
     const row = screen.getByTestId('connection-row-0')
     const remove = screen.getByRole('button', { name: 'admin.exTopo.removeConnection' })
     expect(row).toContainElement(remove)
-    expect(remove).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100')
+    expect(remove.parentElement?.parentElement).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100')
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 1' }))
     expect(screen.getByTestId('connection-editor-0')).not.toContainElement(remove)
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.removeConnection' })).toHaveLength(1)
   })
 
   it('adds an empty connection', () => {
-    render(<Harness />)
+    render(<Harness existingVPN={false} />)
     fireEvent.click(screen.getByText('admin.exTopo.addConnection'))
     expect(screen.getAllByText('admin.exTopo.endpoint.placeholder').length).toBeGreaterThan(0)
   })
 
   it('does not offer an already-connected VPN or a disabled Internet gateway', () => {
-    render(<Harness />)
+    render(<Harness extraHost />)
     fireEvent.click(screen.getByText('admin.exTopo.addConnection'))
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.endpoint.first' }), { key: 'ArrowDown' })
     expect(screen.queryByRole('menuitemradio', { name: 'admin.exTopo.endpoint.vpn' })).not.toBeInTheDocument()
@@ -166,5 +168,49 @@ describe('ConnectionList', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.endpoint.first' }), { key: 'ArrowDown' })
     expect(screen.queryByRole('menuitemradio', { name: 'sw1 · Gi0/1' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitemradio', { name: 'sw1 · Gi0/2' })).toBeInTheDocument()
+  })
+
+  it('deletes a row only after the danger confirmation', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByTestId('connection-row-0')).getByRole('button', { name: 'admin.exTopo.removeConnection' }))
+    const dialog = screen.getByRole('dialog', { name: 'admin.exTopo.removeConnectionTitle' })
+    expect(JSON.parse(screen.getByTestId('links').textContent ?? '[]')).toHaveLength(1)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exTopo.canvasCancel' }))
+    expect(JSON.parse(screen.getByTestId('links').textContent ?? '[]')).toHaveLength(1)
+    fireEvent.click(within(screen.getByTestId('connection-row-0')).getByRole('button', { name: 'admin.exTopo.removeConnection' }))
+    const confirm = within(screen.getByRole('dialog', { name: 'admin.exTopo.removeConnectionTitle' })).getByRole('button', { name: 'admin.exTopo.removeConnection' })
+    expect(confirm).toHaveClass('bg-destructive')
+    fireEvent.click(confirm)
+    expect(JSON.parse(screen.getByTestId('links').textContent ?? '[]')).toHaveLength(0)
+  })
+
+  it('opens the row editor from the edit action', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByTestId('connection-row-0')).getByRole('button', { name: 'admin.exTopo.overview.editConnection' }))
+    expect(screen.getByTestId('connection-editor-0')).toBeInTheDocument()
+  })
+
+  it('shows only view actions when read-only', () => {
+    render(<Harness disabled />)
+    const row = screen.getByTestId('connection-row-0')
+    expect(within(row).queryByRole('button', { name: 'admin.exTopo.removeConnection' })).not.toBeInTheDocument()
+    fireEvent.click(within(row).getByRole('button', { name: 'admin.exTopo.configure' }))
+    expect(screen.getByTestId('connection-editor-0')).toBeInTheDocument()
+    expect(screen.queryByText('admin.exTopo.addConnection')).not.toBeInTheDocument()
+  })
+
+  it('disables «add connection» with a reason while there are fewer than two devices', () => {
+    render(<Harness onlyDevice />)
+    const add = screen.getByRole('button', { name: 'admin.exTopo.addConnection' })
+    expect(add).toBeDisabled()
+    fireEvent.pointerEnter(add.parentElement!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('admin.exTopo.needTwoDevices')
+  })
+
+  it('disables «add connection» when fewer than two devices have free ports', () => {
+    render(<Harness />)
+    expect(screen.getByRole('button', { name: 'admin.exTopo.addConnection' })).toBeDisabled()
+    fireEvent.pointerEnter(screen.getByRole('button', { name: 'admin.exTopo.addConnection' }).parentElement!)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('admin.exTopo.needFreePorts')
   })
 })

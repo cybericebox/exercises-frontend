@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
@@ -77,7 +78,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="import-password">{t("admin.exImport.password")}</Label>
-          <Input id="import-password" type="password" autoComplete="off" value={password} aria-invalid={passwordNeeded}
+          <PasswordInput id="import-password" autoComplete="off" value={password} aria-invalid={passwordNeeded}
             className={passwordNeeded ? "border-destructive" : undefined} onChange={(event) => setPassword(event.target.value)} />
         </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

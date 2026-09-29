@@ -20,6 +20,7 @@
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
 import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
+import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 
 const BASE = "/api/exercises"
 
@@ -111,9 +112,14 @@ export type TopologyDTO = {
   VisualRender?: Record<string, unknown>
 }
 
-/** Hint: ID and Cost match position-wise across variants; Text is per variant. */
-export type HintDTO = { ID?: string; Text: string; Cost: number }
-export type NormalizedHint = { ID: string; Text: string; Cost: number }
+export { HINT_LEVELS, type HintLevel }
+
+/**
+ * Hint: ID and Level match position-wise across variants; Text is per variant.
+ * Text is a serialized rich-text document (plain text from older drafts still reads).
+ */
+export type HintDTO = { ID?: string; Text: string; Level: HintLevel }
+export type NormalizedHint = { ID: string; Text: string; Level: HintLevel }
 
 export type TaskDTO = {
   ID?: string
@@ -238,7 +244,7 @@ function normalizeTask(raw: TaskDTO): NormalizedTask {
     DeviceFlagVar: raw.DeviceFlagVar ?? "",
     Attachments: raw.Attachments ?? [],
     Placeholders: raw.Placeholders ?? [],
-    Hints: (raw.Hints ?? []).map((hint) => ({ ID: hint.ID ?? "", Text: hint.Text ?? "", Cost: hint.Cost ?? 0 })),
+    Hints: (raw.Hints ?? []).map((hint) => ({ ID: hint.ID ?? "", Text: hint.Text ?? "", Level: HINT_LEVELS.includes(hint.Level) ? hint.Level : "nudge" })),
   }
 }
 

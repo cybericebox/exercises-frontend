@@ -32,7 +32,7 @@ describe("Spinner", () => {
 
   it("falls back to aria-label when no label is given", () => {
     render(<Spinner />)
-    expect(screen.getByRole("status")).toHaveAttribute("aria-label", "loading")
+    expect(screen.getByRole("status")).toHaveAttribute("aria-label", "Завантаження…")
   })
 
   it("merges a caller className", () => {

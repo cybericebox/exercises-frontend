@@ -38,6 +38,11 @@ describe("resolveReturnContext", () => {
     expect(resolveReturnContext(new URLSearchParams(""))).toEqual(context)
   })
 
+  it("reads return_to before the older return", () => {
+    const context = resolveReturnContext(new URLSearchParams("return_to=https://admin.cybericebox.local/events&return=https://ctf.cybericebox.local/"))
+    expect(context.returnUrl).toBe("https://admin.cybericebox.local/events")
+  })
+
   it("ignores an unsafe return URL and keeps the stored one", () => {
     resolveReturnContext(new URLSearchParams("return=https://ctf.cybericebox.local/"))
     const context = resolveReturnContext(new URLSearchParams("return=https://evil.com/&event=x"))

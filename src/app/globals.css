@@ -19,7 +19,8 @@
 .exercise-variant-item:focus-within .exercise-variant-tab:not([data-state='active']) {
 	background: var(--background);
 	color: var(--foreground);
-	box-shadow: inset 0 0 0 1px var(--border);
+	outline: 1px solid var(--border);
+	outline-offset: -1px;
 }
 
 .exercise-variant-remove-anchor {
@@ -49,7 +50,8 @@
 .exercise-editor-toolbar button:not(.bg-primary):focus-visible {
 	background: var(--accent);
 	color: var(--accent-foreground);
-	box-shadow: inset 0 0 0 1px var(--border);
+	outline: 1px solid var(--border);
+	outline-offset: -1px;
 }
 
 .exercise-editor-toolbar button.bg-primary:hover {
@@ -157,6 +159,13 @@
 		opacity: 1;
 	}
 
+	/* Multi-line fields keep their height, scroll inside and resize only vertically. */
+	textarea {
+		resize: vertical;
+		overflow-y: auto;
+		max-height: 80vh;
+	}
+
 	body {
 		@apply min-h-dvh w-full flex flex-col;
 		@apply bg-background text-foreground;
@@ -177,6 +186,30 @@
     background: var(--card);
     border: 1px solid var(--border);
     box-shadow: none;
+  }
+
+  /* Scroll area of a contenteditable editor: the toolbar stays above it, the content
+     scrolls inside, and the bottom-right grip resizes it vertically. Its min-height
+     (set where it is used) is also the default height; dragging sets an inline height. */
+  .editor-scroll {
+    display: flex;
+    flex-direction: column;
+    height: 0;
+    resize: vertical;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 80vh;
+  }
+
+  .editor-scroll > * {
+    flex: 1 0 auto;
+  }
+
+  /* The contenteditable sits in this grid wrapper, not directly in the flex column:
+     Chrome mis-handles focus for contenteditable inside flex containers. The single
+     auto row stretches, so the editable still fills the whole scroll area. */
+  .editor-scroll__body {
+    display: grid;
   }
 }
 

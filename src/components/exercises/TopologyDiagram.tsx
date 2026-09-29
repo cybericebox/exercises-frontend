@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { ChevronDown, Maximize, Pencil, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, ChevronDown, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { fitViewport, initialTopologyViewport, pointInWorld, TOPOLOGY_VIEWPORT_DEFAULT, zoomViewportAt, type TopologyViewport } from "@/lib/topologyViewport"
 import { TopologyGlyph, type TopologyGlyphKind } from "./TopologyGlyph"
+import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMenu"
 
 /**
  * TopologyDiagram — topology canvas. Positions are stored in VisualRender while
@@ -30,8 +31,8 @@ type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: s
 type Point = { x: number; y: number }
 type DiagramHint = { text: string; left: number; top: number; below: boolean }
 type AddNodeKind = "container" | "unmanaged-switch" | "hub" | "vpn" | "internet"
-type Context = { kind: "node"; key: string; x: number; y: number }
-  | { kind: "canvas"; x: number; y: number; position: Point }
+type Context = ({ kind: "node"; key: string } | { kind: "edge"; index: number } | { kind: "canvas"; position: Point })
+  & { x: number; y: number; trigger: HTMLElement | SVGElement | null }
 
 const DEFAULT_SIZE = { width: 960, height: 560 }
 const ICON_SIZE = 56
@@ -52,6 +53,10 @@ const PORT_LABEL_DISTANCE = 32
 const PORT_LABEL_SIDE_GAP = -9
 const MIN_X = 70
 const MIN_Y = 48
+
+function isMenuKey(event: { key: string; shiftKey: boolean }): boolean {
+  return event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")
+}
 
 function clampPoint(point: Point, width: number, height: number): Point {
   return { x: Math.max(MIN_X, Math.min(width - MIN_X, point.x)), y: Math.max(MIN_Y, Math.min(height - MIN_Y, point.y)) }
@@ -159,7 +164,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point): Point {
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
   unavailableConnectionNodes = [], connectionMode = false }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
@@ -175,6 +180,10 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   onCanvasLinkStart?: () => void
   onCanvasSelect?: () => void
   onEdgeSelect?: (index: number) => void
+  onEdgeSettings?: (index: number) => void
+  onEdgeRemove?: (index: number) => void
+  /** Why a new connection cannot start now (fewer than two nodes with free ports); null when it can. */
+  linkUnavailableReason?: string | null
   selectedNodes?: string[]
   selectedConnectionIndex?: number | null
   unavailableConnectionNodes?: string[]
@@ -199,7 +208,6 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   const [pan, setPan] = useState<{ start: Point; initial: TopologyViewport; moved: boolean; captured: boolean } | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
-  const contextMenuRef = useRef<HTMLDivElement>(null)
   const spaceHeld = useRef(false)
   const pointerInside = useRef(false)
   const W = Math.max(size.width, 680)
@@ -268,18 +276,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       window.removeEventListener("blur", onBlur)
     }
   }, [])
-  useEffect(() => {
-    if (!context) return
-    const closeOutside = (event: MouseEvent) => {
-      if (!contextMenuRef.current?.contains(event.target as Node)) setContext(null)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setContext(null)
-    }
-    document.addEventListener("click", closeOutside)
-    document.addEventListener("keydown", closeOnEscape)
-    return () => { document.removeEventListener("click", closeOutside); document.removeEventListener("keydown", closeOnEscape) }
-  }, [context])
+  const closeContext = useCallback(() => setContext(null), [])
   const { nodes, edges } = useMemo(() => {
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
       key: d.ID,
@@ -401,6 +398,42 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     onPortLabelOffsetChange?.(key, { x: Number(offset.x.toFixed(4)), y: Number(offset.y.toFixed(4)) })
   }
 
+  function contextEntries(menu: Context): TopologyMenuEntry[] {
+    if (menu.kind === "node") {
+      const noPort = unavailableConnectionNodes.includes(menu.key)
+      return [
+        ...(onNodeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onNodeSettings(menu.key) }] as const : []),
+        ...(onNodeLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />,
+          disabled: noPort || !!linkUnavailableReason, reason: noPort ? t("admin.exTopo.noFreePort") : linkUnavailableReason ?? undefined,
+          onSelect: () => onNodeLinkStart(menu.key) }] as const : []),
+        ...(onNodeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeDevice"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!(onNodeSettings || onNodeLinkStart),
+          onSelect: () => onNodeRemove(menu.key) }] as const : []),
+      ]
+    }
+    if (menu.kind === "edge") {
+      return [
+        ...(onEdgeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onEdgeSettings(menu.index) }] as const : []),
+        ...(onEdgeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!onEdgeSettings,
+          onSelect: () => onEdgeRemove(menu.index) }] as const : []),
+      ]
+    }
+    const addNode = onCanvasAddNode
+    return [
+      ...(addNode ? [
+        { kind: "label", key: "add-label", label: t("admin.exTopo.addDevice") } as const,
+        ...(([
+          ["container", "admin.exTopo.type.container", "host"], ["unmanaged-switch", "admin.exTopo.type.switch", "switch"],
+          ["hub", "admin.exTopo.type.hub", "hub"], ["vpn", "admin.exTopo.vpn", "vpn"], ["internet", "admin.exTopo.internet", "internet"],
+        ] as const).map(([kind, label, glyph]) => ({ kind: "item", key: kind, label: t(label),
+          icon: <TopologyGlyph kind={glyph} className="h-5 w-5 shrink-0" />,
+          disabled: (kind === "vpn" && topology.VPN.Enabled) || (kind === "internet" && topology.Internet.Enabled),
+          onSelect: () => addNode(kind, menu.position) }) as const)),
+      ] : []),
+      ...(onCanvasLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />, separated: !!addNode,
+        disabled: !!linkUnavailableReason, reason: linkUnavailableReason ?? undefined, onSelect: onCanvasLinkStart }] as const : []),
+    ]
+  }
+
   function showHint(element: Element, text: string) {
     const rect = element.getBoundingClientRect()
     const below = rect.top < 56
@@ -438,7 +471,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         if (!onCanvasAddNode && !onCanvasLinkStart) return
         event.preventDefault()
         const position = pointInWorld(canvasPoint(event.clientX, event.clientY, event.currentTarget), viewport)
-        setContext({ kind: "canvas", x: event.clientX, y: event.clientY,
+        setHint(null)
+        setContext({ kind: "canvas", x: event.clientX, y: event.clientY, trigger: null,
           position: { x: Number((position.x / W).toFixed(4)), y: Number((position.y / H).toFixed(4)) } })
       }}
       onPointerMove={(event) => {
@@ -546,7 +580,25 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             onMouseLeave={() => setHint(null)}
             onFocus={(event) => showHint(event.currentTarget, `${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`)}
             onBlur={() => setHint(null)}
-            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onEdgeSelect?.(edge.index) } }}
+            onContextMenu={(event) => {
+              if (!onEdgeSettings && !onEdgeRemove) return
+              event.preventDefault()
+              event.stopPropagation()
+              setHint(null)
+              onEdgeSelect?.(edge.index)
+              setContext({ kind: "edge", index: edge.index, x: event.clientX, y: event.clientY, trigger: event.currentTarget })
+            }}
+            onKeyDown={(event) => {
+              if ((onEdgeSettings || onEdgeRemove) && isMenuKey(event)) {
+                event.preventDefault()
+                setHint(null)
+                const rect = event.currentTarget.getBoundingClientRect()
+                setContext({ kind: "edge", index: edge.index, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, trigger: event.currentTarget })
+                return
+              }
+              if (onEdgeRemove && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onEdgeRemove(edge.index); return }
+              if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onEdgeSelect?.(edge.index) }
+            }}
             className={onEdgeSelect ? "group cursor-pointer focus:outline-none" : undefined}>
             {onEdgeSelect && <path data-edge-hit={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
               fill="none" stroke="transparent" strokeWidth={16} pointerEvents="stroke" />}
@@ -597,16 +649,18 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               event.preventDefault()
               event.stopPropagation()
               setHint(null)
-              setContext({ kind: "node", key: node.key, x: event.clientX, y: event.clientY })
+              setContext({ kind: "node", key: node.key, x: event.clientX, y: event.clientY, trigger: event.currentTarget })
             }}
             onDoubleClick={() => { setHint(null); onNodeSettings?.(node.key) }}
             onKeyDown={(event) => {
-              if ((onNodeSettings || onNodeLinkStart || onNodeRemove) && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+              if ((onNodeSettings || onNodeLinkStart || onNodeRemove) && isMenuKey(event)) {
                 event.preventDefault()
+                setHint(null)
                 const rect = event.currentTarget.getBoundingClientRect()
-                setContext({ kind: "node", key: node.key, x: rect.left, y: rect.bottom })
+                setContext({ kind: "node", key: node.key, x: rect.left, y: rect.bottom, trigger: event.currentTarget })
                 return
               }
+              if (onNodeRemove && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onNodeRemove(node.key); return }
               if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!connectionMode || !unavailableConnectionNodes.includes(node.key)) onNodeSelect?.(node.key); return }
               if (!onPositionChange) return
               const delta = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[event.key]
@@ -627,7 +681,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               x={Math.max(8, Math.min(W - 248, labelX - 120))} y={labelY - 22} width={240} height={editingLabel.error ? 64 : 40}
               onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
               onDoubleClick={(event) => event.stopPropagation()}>
-              <div className="rounded-md bg-background p-1 shadow-lg">
+              <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
                   value={editingLabel.draft} maxLength={node.kind === "device" ? 63 : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
@@ -697,7 +751,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1 shadow-sm">
+    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1">
       <HoverTooltip text={t("admin.exTopo.zoomOut")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
@@ -710,7 +764,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           {Math.round(viewport.scale * 100)}%<ChevronDown className="h-3 w-3" />
         </Button></PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal><PopoverPrimitive.Content align="center" sideOffset={6}
-          className="z-50 w-44 rounded-md border border-border bg-popover p-2 shadow-md">
+          className="z-50 w-44 rounded-md border border-border bg-popover p-2">
           <div className="grid grid-cols-2 gap-1">
             {[50, 75, 100, 125, 150, 200, 250].map((percent) => <Button key={percent} type="button" variant="ghost" size="sm"
               className="h-7 justify-start px-2 text-xs tabular-nums" onClick={() => setZoomPercent(percent)}>{percent}%</Button>)}
@@ -729,30 +783,10 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
     </div>
-    {context && <div ref={contextMenuRef} role="menu" aria-label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : "admin.exTopo.diagram")}
-      className="fixed z-50 max-h-[calc(100dvh-1rem)] min-w-32 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md"
-      style={{ left: Math.max(8, Math.min(context.x, window.innerWidth - 190)), top: Math.max(8, Math.min(context.y, window.innerHeight - 230)) }}>
-      {context.kind === "node" ? <>
-        {onNodeSettings && <button type="button" role="menuitem" autoFocus className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none"
-          onClick={() => { onNodeSettings(context.key); setContext(null) }}>{t("admin.exTopo.configure")}</button>}
-        {onNodeLinkStart && <HoverTooltip text={unavailableConnectionNodes.includes(context.key) ? t("admin.exTopo.noFreePort") : t("admin.exTopo.addConnection")}><button type="button" role="menuitem" disabled={unavailableConnectionNodes.includes(context.key)}
-          className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
-          onClick={() => { onNodeLinkStart(context.key); setContext(null) }}>{t("admin.exTopo.addConnection")}</button></HoverTooltip>}
-        {onNodeRemove && <button type="button" role="menuitem" className="block w-full rounded-sm px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:outline-none"
-          onClick={() => { onNodeRemove(context.key); setContext(null) }}>{t("admin.exTopo.removeDevice")}</button>}
-      </> : <>
-        {onCanvasAddNode && ([
-          ["container", "admin.exTopo.type.container"], ["unmanaged-switch", "admin.exTopo.type.switch"],
-          ["hub", "admin.exTopo.type.hub"], ["vpn", "admin.exTopo.vpn"], ["internet", "admin.exTopo.internet"],
-        ] as const).map(([kind, label]) => <button key={kind} type="button" role="menuitem"
-          disabled={(kind === "vpn" && topology.VPN.Enabled) || (kind === "internet" && topology.Internet.Enabled)}
-          className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none disabled:opacity-40"
-          onClick={() => { onCanvasAddNode(kind, context.position); setContext(null) }}>{t(label)}</button>)}
-        {onCanvasLinkStart && <button type="button" role="menuitem" className="block w-full rounded-sm border-t border-border px-3 py-2 text-left text-sm hover:bg-accent focus:bg-accent focus:outline-none"
-          onClick={() => { onCanvasLinkStart(); setContext(null) }}>{t("admin.exTopo.addConnection")}</button>}
-      </>}
-    </div>}
-    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground shadow-md"
+    {context && <TopologyContextMenu x={context.x} y={context.y} entries={contextEntries(context)} onClose={closeContext}
+      returnFocus={context.trigger}
+      label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : context.kind === "edge" ? "admin.exTopo.connectionMenu" : "admin.exTopo.diagram")} />}
+    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
       style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )

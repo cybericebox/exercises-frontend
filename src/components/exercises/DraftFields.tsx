@@ -24,7 +24,7 @@ export function DraftVariants({ form, disabled, infrastructureBlocked = false }:
       <div role="tablist" aria-label={t("admin.exDraft.sections")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
         {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value}
           onClick={() => setSection(value)}
-          className={`h-7 rounded px-3 text-sm ${section === value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          className={`h-7 rounded px-3 text-sm ${section === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           {t(`admin.exDraft.tab.${value}`)}
         </button>)}
       </div>
@@ -39,7 +39,7 @@ export function DraftVariants({ form, disabled, infrastructureBlocked = false }:
         </summary>
         <div className="pt-2">
           <label htmlFor={`variant-note-${variantIndex}`} className="sr-only">{t("admin.exDraft.variantNote")}</label>
-          <Textarea id={`variant-note-${variantIndex}`} rows={5} className="max-h-40 overflow-y-auto resize-y" {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
+          <Textarea id={`variant-note-${variantIndex}`} rows={5} {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
         </div>
       </details>
       <div role="tabpanel" aria-label={t(`admin.exDraft.tab.${section}`)}>

@@ -31,9 +31,26 @@ describe("TopologyDeviceOverview", () => {
     expect(onRemove).toHaveBeenCalledWith("host-id")
     expect(onOpen).toHaveBeenCalledTimes(1)
     expect(host).toHaveClass("group")
-    expect(within(host).getByRole("button", { name: "admin.exTopo.removeDevice" })).toHaveClass("opacity-0", "group-hover:opacity-100", "group-focus-within:opacity-100")
+    expect(within(host).getByRole("button", { name: "admin.exTopo.removeDevice" }).parentElement?.parentElement)
+      .toHaveClass("opacity-0", "group-hover:opacity-100", "group-focus-within:opacity-100")
+    fireEvent.click(within(host).getByRole("button", { name: "admin.exTopo.configure" }))
+    expect(onOpen).toHaveBeenCalledTimes(2)
 
     const gateway = within(table).getByRole("row", { name: /admin.exTopo.vpn/ })
     expect(within(gateway).getByText("—")).toBeInTheDocument()
+  })
+
+  it("keeps only the settings action when the editor is read-only", () => {
+    const topology = emptyVariant(0).Topology
+    const device = emptyDevice()
+    device.ID = "host-id"
+    device.Name = "web"
+    topology.Devices = [device]
+    const onOpen = vi.fn()
+    render(<TopologyDeviceOverview topology={topology} disabled selectedKey={null} onOpen={onOpen} onRemove={vi.fn()} />)
+    const row = screen.getByRole("row", { name: /web/ })
+    expect(within(row).queryByRole("button", { name: "admin.exTopo.removeDevice" })).not.toBeInTheDocument()
+    fireEvent.click(within(row).getByRole("button", { name: "admin.exTopo.configure" }))
+    expect(onOpen).toHaveBeenCalledWith("host-id")
   })
 })

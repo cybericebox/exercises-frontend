@@ -1,15 +1,17 @@
 "use client"
 
+import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import type { TopologyFormValues } from "@/lib/exerciseSchemas"
 import { topologyIconFor } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { topologyDeviceRows } from "@/lib/topologyOverview"
-import { RemoveAction } from "./RemoveAction"
+import { Settings2, Trash2 } from "lucide-react"
+import { RowActions } from "./RowActions"
 import { TopologyGlyph } from "./TopologyGlyph"
 
-/** Read-only device overview; all configuration stays in the canvas inspector. */
+/** Device overview; the row actions open the canvas inspector or remove the device (after a confirm). */
 export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen, onRemove }: {
   topology: TopologyFormValues
   disabled: boolean
@@ -18,7 +20,7 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
   onRemove: (key: string) => void
 }) {
   const rows = topologyDeviceRows(topology)
-  if (rows.length === 0) return <p className="px-3 py-4 text-sm text-muted-foreground">{t("admin.exTopo.noDevices")}</p>
+  if (rows.length === 0) return <EmptyState message={t("admin.exTopo.noDevices")} className="flex-1" />
 
   return <div className="min-w-0 overflow-x-auto">
     <table aria-label={t("admin.exTopo.devices")} className="w-full min-w-[42rem] table-fixed border-collapse text-sm">
@@ -30,7 +32,7 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
           <th scope="col" className="w-[10%] px-3 py-2">{t("admin.exTopo.overview.free")}</th>
           <th scope="col" className="w-[10%] px-3 py-2">{t("admin.exTopo.overview.links")}</th>
           <th scope="col" className="w-[13%] px-3 py-2">{t("admin.exTopo.overview.external")}</th>
-          <th scope="col" className="w-[3rem] px-1 py-2"><span className="sr-only">{t("admin.exTopo.removeDevice")}</span></th>
+          <th scope="col" className="w-[5.5rem] px-1 py-2"><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
@@ -57,7 +59,10 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
             <td className="px-3 py-1.5 tabular-nums">{row.free}</td>
             <td className="px-3 py-1.5 tabular-nums">{row.linkCount}</td>
             <td className="px-3 py-1.5">{row.externalEnabled === null ? "—" : t(row.externalEnabled ? "admin.exTopo.overview.yes" : "admin.exTopo.overview.no")}</td>
-            <td className="px-1 py-1.5">{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeDevice")} onClick={() => onRemove(row.key)} className="h-8 w-8 px-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" />}</td>
+            <td className="px-1 py-1"><RowActions actions={[
+              { key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-4 w-4" />, onSelect: () => onOpen(row.key) },
+              ...(disabled ? [] : [{ key: "remove", label: t("admin.exTopo.removeDevice"), icon: <Trash2 className="h-4 w-4" />, danger: true, onSelect: () => onRemove(row.key) }]),
+            ]} /></td>
           </tr>
         })}
       </tbody>

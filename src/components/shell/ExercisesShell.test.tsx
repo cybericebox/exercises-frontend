@@ -21,27 +21,9 @@ describe("exercises shell", () => {
     rights.value = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, Events: [] }
   })
 
-  it("renders the page without a return bar by default", async () => {
+  it("renders the page", async () => {
     render(<ExercisesShell><span>content</span></ExercisesShell>)
     expect(await screen.findByText("content")).toBeInTheDocument()
-    expect(screen.queryByRole("link", { name: /exercises.returnToEvent/ })).not.toBeInTheDocument()
-  })
-
-  it("shows the return link for a platform URL and keeps it after navigation", async () => {
-    window.history.replaceState(null, "", "/?return=https%3A%2F%2Fctf.cybericebox.local%2Fadmin&event=ev-1")
-    const { unmount } = render(<ExercisesShell><span>content</span></ExercisesShell>)
-    expect(await screen.findByRole("link", { name: /exercises.returnToEvent/ })).toHaveAttribute("href", "https://ctf.cybericebox.local/admin")
-    unmount()
-    window.history.replaceState(null, "", "/detail?id=x")
-    render(<ExercisesShell><span>content</span></ExercisesShell>)
-    expect(await screen.findByRole("link", { name: /exercises.returnToEvent/ })).toHaveAttribute("href", "https://ctf.cybericebox.local/admin")
-  })
-
-  it("ignores a foreign return URL", async () => {
-    window.history.replaceState(null, "", "/?return=https%3A%2F%2Fevil.com%2F")
-    render(<ExercisesShell><span>content</span></ExercisesShell>)
-    await screen.findByText("content")
-    expect(screen.queryByRole("link", { name: /exercises.returnToEvent/ })).not.toBeInTheDocument()
   })
 
   it("shows the no-access panel for a user who is neither admin nor event member", async () => {

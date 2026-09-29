@@ -43,7 +43,7 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
           <DialogTitle>{t("exercises.access.dialogTitle")}</DialogTitle>
           <DialogDescription>{t("exercises.access.dialogDescription")}</DialogDescription>
         </DialogHeader>
-        <AccessLevelFields value={value} onChange={setValue} allowOwn={allowOwn} originEventName={originEventName} disabled={busy} />
+        <AccessLevelFields value={value} onChange={setValue} allowOwn={allowOwn} originEventName={originEventName} disabled={busy} knownEvents={exercise.AccessEvents} />
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
           <Button type="button" disabled={busy || !accessValueValid(value)} onClick={() => void save()}>{t("exercises.access.save")}</Button>

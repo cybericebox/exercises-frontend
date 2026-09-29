@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import {
-  Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, LoaderCircle, Pencil, Play,
+  Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, Pencil, Play,
   RotateCcw, Send, ShieldCheck, Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,19 +11,24 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
+import { Spinner } from "@/components/ui/spinner"
 import type { AutosaveStatus } from "@/lib/autosaveQueue"
+import type { ReactNode } from "react"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
 export type HeaderPermissions = { write: boolean; publish: boolean; delete: boolean; export: boolean }
-export type HeaderBadge = { kind: ExerciseBadgeKind } | { kind: "version"; label: string }
+export type HeaderBadge = { kind: ExerciseBadgeKind; label?: string } | { kind: "version"; label: string }
 export type TestVariantOption = { index: number; label: string; disabled: boolean }
 
 export type ExerciseHeaderProps = {
   mode: HeaderMode
   title: string
   badge: HeaderBadge | null
+  /** Shown on the title line after the status (infrastructure, access, fork/proposal). */
+  meta?: ReactNode
   saveStatus: AutosaveStatus
   permissions: HeaderPermissions
   archived: boolean
@@ -65,7 +70,7 @@ const BADGE_CLASS: Record<HeaderBadge["kind"], string> = {
 const ICON = "h-4 w-4"
 
 function StatusBadge({ badge }: { badge: HeaderBadge }) {
-  const label = badge.kind === "version" ? badge.label : t(`admin.exPage.badge.${badge.kind}`)
+  const label = badge.label ?? t(`admin.exPage.badge.${badge.kind}`)
   return (
     <span
       data-badge={badge.kind}
@@ -99,7 +104,7 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
       {saved ? (
         <Check aria-hidden="true" className="h-3.5 w-3.5" />
       ) : (
-        <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+        <span aria-hidden="true" className="inline-flex"><Spinner size="sm" /></span>
       )}
       {t(saved ? "admin.exPage.save.saved" : "admin.exPage.save.saving")}
     </span>
@@ -215,6 +220,15 @@ function MoreMenu(props: ExerciseHeaderProps) {
   )
 }
 
+// A disabled button cannot take focus, so the pending hint is also its description for screen readers.
+function ProposeButton({ pending, disabled, onClick }: { pending?: boolean; disabled: boolean; onClick: () => void }) {
+  const button = <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
+    <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+    {t("exercises.propose.button")}
+  </Button>
+  return pending ? <HoverTooltip text={t("exercises.badge.pending")} describe>{button}</HoverTooltip> : button
+}
+
 export function ExerciseHeader(props: ExerciseHeaderProps) {
   const { mode, title, badge, saveStatus, permissions, archived, publishable, busy, testAvailable } = props
   const created = mode !== "new"
@@ -223,6 +237,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
         <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
         {badge && <StatusBadge badge={badge} />}
+        {props.meta}
         {(mode === "edit" || mode === "new") && <SaveIndicator status={saveStatus} onRetry={props.onRetrySave} />}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -264,11 +279,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
               </Button>
             )}
             {created && props.onPropose && (
-              <Button type="button" variant="outline" disabled={busy || props.proposalPending} onClick={props.onPropose}
-                title={props.proposalPending ? t("exercises.badge.pending") : undefined}>
-                <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-                {t("exercises.propose.button")}
-              </Button>
+              <ProposeButton pending={props.proposalPending} disabled={busy || !!props.proposalPending} onClick={props.onPropose} />
             )}
             {permissions.publish && (
               <Button type="button" disabled={!created || !publishable || busy} onClick={props.onPublish}>

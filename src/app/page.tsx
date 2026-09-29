@@ -9,56 +9,60 @@ import { listExercisesPage, type ExerciseListItem, type InfrastructureFilter, ty
 import { listEventOptions, type EventOption } from "@/api/events/list"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { accessFromRbac, canCreateExercise, writableEvents } from "@/lib/exerciseRights"
+import { defaultFilters, filtersFromSearch, filtersToSearch, loadCatalogPage, type CatalogFilters, type StatusFilter } from "@/lib/catalogList"
 import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
+import { AccessCell, StatusCell } from "@/components/exercises/catalog/CatalogCells"
+import { EventMultiSelect } from "@/components/exercises/catalog/EventMultiSelect"
+import { TagFilter } from "@/components/exercises/catalog/TagFilter"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
-import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { FieldHelp } from "@/components/ui/field-help"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { SelectMenu } from "@/components/ui/select-menu"
 
-function StatusBadges({ item }: { item: ExerciseListItem }) {
+/** Label row of a filter, with a help icon. */
+function FilterField({ label, help, helpContent, children, className }: { label: string; help?: string[]; helpContent?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <span className="flex flex-wrap gap-1">
-      {item.ArchivedAt && (
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("admin.ex.status.archived")}</span>
-      )}
-      {item.HasDraft && (
-        <span className="rounded-full bg-secondary/40 px-2 py-0.5 text-xs">{t("admin.ex.status.draft")}</span>
-      )}
-      {item.HasPublished && (
-        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{t("admin.ex.status.published")}</span>
-      )}
-      {!item.ArchivedAt && !item.HasDraft && !item.HasPublished && <span className="text-xs text-muted-foreground">—</span>}
-    </span>
+    <div className={`flex min-w-0 flex-col gap-1 ${className ?? ""}`}>
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">{label}{help && <FieldHelp lines={help} content={helpContent} />}</span>
+      {children}
+    </div>
   )
 }
 
-/** ?event=<id> from the URL (static export: read once on mount, no Suspense needed). */
-function initialEventFilter(): string {
-  if (typeof window === "undefined") return ""
-  return new URLSearchParams(window.location.search).get("event")?.trim() ?? ""
+/** One i18n key per help line: `${prefix}.${name}`. */
+function helpLines(prefix: string, names: string[]): string[] {
+  return names.map((name) => t(`${prefix}.${name}`))
+}
+
+/** Filters from the URL (static export: read once on mount, no Suspense needed). */
+function initialFilters(isAdmin: boolean): CatalogFilters {
+  return typeof window === "undefined" ? defaultFilters(isAdmin) : filtersFromSearch(window.location.search, isAdmin)
+}
+
+const STATUS_OPTION_KEYS: Record<StatusFilter, string> = {
+  all: "admin.ex.filterStatusAll",
+  published: "admin.ex.filterStatusPublished",
+  changed: "admin.ex.filterStatusChanged",
+  draft: "admin.ex.filterStatusDraftOnly",
+  archived: "admin.ex.filterStatusArchived",
 }
 
 export default function Page() {
   const router = useRouter()
-  const [search, setSearch] = useState("")
-  const [debounced, setDebounced] = useState("")
-  const [tags, setTags] = useState<string[]>([])
-  const [status, setStatus] = useState("all")
   const [rows, setRows] = useState<ExerciseListItem[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
   const [total, setTotal] = useState(0)
-  const [sortBy, setSortBy] = useState("updated")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [exportOpen, setExportOpen] = useState(false)
@@ -69,9 +73,8 @@ export default function Page() {
   const { access: loadedAccess } = useExerciseAccess()
   const access = loadedAccess ?? accessFromRbac(can)
   const isAdmin = access.IsAdmin
-  const [scope, setScope] = useState<ScopeFilter>(isAdmin ? "" : "event")
-  const [eventFilter, setEventFilter] = useState(initialEventFilter)
-  const [infrastructure, setInfrastructure] = useState<InfrastructureFilter>("")
+  const [filters, setFilters] = useState<CatalogFilters>(() => initialFilters(isAdmin))
+  const [search, setSearch] = useState(filters.search)
   const [adminEvents, setAdminEvents] = useState<EventOption[]>([])
   const canWrite = canCreateExercise(access)
   // Import creates catalog exercises: admins only.
@@ -80,7 +83,7 @@ export default function Page() {
   const atLimit = selected.size >= EXPORT_LIMIT
   const pageIds = rows.map((row) => row.ID)
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
-  const selectionLabel = t("admin.ex.selection.count").replace("{count}", String(selected.size))
+  const selectionLabel = t("admin.ex.selection.count", { count: selected.size })
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -116,34 +119,48 @@ export default function Page() {
   const eventOptions: EventOption[] = isAdmin
     ? [...access.Events.map(({ ID, Name, Tag }) => ({ ID, Name, Tag })), ...adminEvents.filter((event) => !access.Events.some((own) => own.ID === event.ID))]
     : access.Events.map(({ ID, Name, Tag }) => ({ ID, Name, Tag }))
+  const eventName = (id: string) => {
+    const event = eventOptions.find((option) => option.ID === id)
+    return event ? event.Name || event.Tag : undefined
+  }
   const writableEventIds = writableEvents(access).map((event) => event.ID)
 
   function createHref(): string {
-    return eventFilter && writableEventIds.includes(eventFilter) ? `/new?event=${encodeURIComponent(eventFilter)}` : "/new"
+    const [only] = filters.events
+    return filters.events.length === 1 && writableEventIds.includes(only) ? `/new?event=${encodeURIComponent(only)}` : "/new"
+  }
+
+  function update(patch: Partial<CatalogFilters>) {
+    setFilters((current) => ({ ...current, ...patch }))
+    goToPage(1)
   }
 
   useEffect(() => {
-    const id = setTimeout(() => { setDebounced(search.trim()); setPage(1) }, 300)
+    const id = setTimeout(() => {
+      const next = search.trim()
+      if (next !== filters.search) update({ search: next })
+    }, 300)
     return () => clearTimeout(id)
-  }, [search])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- update only sets state
+  }, [search, filters.search])
+
+  // Keep the filters in the address bar so a reload or a shared link restores them.
+  useEffect(() => {
+    const query = filtersToSearch(filters, isAdmin)
+    if (window.location.search.replace(/^\?/, "") !== query) {
+      window.history.replaceState(window.history.state, "", query ? `?${query}` : window.location.pathname)
+    }
+  }, [filters, isAdmin])
 
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) { setLoading(true); setError(false) } })
-    listExercisesPage({
-      search: debounced, tags,
-      status: status === "all" || status === "archived" ? "" : status,
-      archived: status === "archived" ? "only" : undefined,
-      ...(scope ? { scope } : {}),
-      ...(eventFilter ? { event: eventFilter } : {}),
-      ...(infrastructure ? { infrastructure } : {}),
-      page, pageSize, sortBy, sortDir,
-    })
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null) } })
+    loadCatalogPage(listExercisesPage, filters, page, pageSize)
       .then((data) => { if (active) { setRows(data.Items); setTotal(data.Total) } })
-      .catch(() => { if (active) setError(true) })
+      .catch((cause) => { if (active) setError({ cause }) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [debounced, tags, status, scope, eventFilter, infrastructure, page, pageSize, sortBy, sortDir, reloadKey])
+  }, [filters, page, pageSize, reloadKey])
 
   function goToPage(next: number) {
     if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0
@@ -152,12 +169,20 @@ export default function Page() {
   }
 
   function sort(field: string) {
-    setSortDir(field === sortBy ? sortDir === "asc" ? "desc" : "asc" : field === "updated" ? "desc" : "asc")
-    setSortBy(field)
-    goToPage(1)
+    const sortDir = field === filters.sortBy ? filters.sortDir === "asc" ? "desc" : "asc" : field === "updated" ? "desc" : "asc"
+    update({ sortBy: field, sortDir })
   }
 
-  const retry = () => { setError(false); setLoading(true); setReloadKey((key) => key + 1) }
+  const retry = () => { setError(null); setLoading(true); setReloadKey((key) => key + 1) }
+  const defaults = defaultFilters(isAdmin)
+  const filtered = Boolean(filters.search || filters.tags.length > 0 || filters.status !== "all" || filters.events.length > 0
+    || filters.infrastructure || filters.scope !== defaults.scope)
+  // Broadest to narrowest; «Усі» is admin-only.
+  const scopeTabs: ScopeFilter[] = [...(isAdmin ? [""] as ScopeFilter[] : []), "catalog", "event"]
+  const scopeHelpLine = (value: ScopeFilter) => t("exercises.help.scope.line", { name: t(`exercises.scope.${value || "all"}`), text: t(`exercises.help.scope.${value || "all"}`) })
+  // The events filter means different things per tab (server: owned, available, or both).
+  const eventsMode = filters.scope || "all"
+  const statusOptions: StatusFilter[] = ["all", "published", "changed", "draft", ...(isAdmin ? ["archived" as const] : [])]
 
   return (
     <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
@@ -170,18 +195,6 @@ export default function Page() {
           aria-label={t("admin.ex.search")}
           className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm"
         />
-        <div className="min-w-64 max-w-md flex-1">
-          <TagInput value={tags} onChange={(value) => { setTags(value); goToPage(1) }} placeholder={t("admin.ex.filterTags.placeholder")} className="min-h-10" />
-        </div>
-        <SelectMenu value={status} onChange={(value) => { setStatus(value); goToPage(1) }}
-          options={[
-            { value: "all", label: t("admin.ex.filterStatusAll") },
-            { value: "draft", label: t("admin.ex.status.draft") },
-            { value: "published", label: t("admin.ex.status.published") },
-            { value: "none", label: t("admin.ex.filterStatusNone") },
-            ...(isAdmin ? [{ value: "archived", label: t("admin.ex.filterStatusArchived") }] : []),
-          ]}
-          ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
         {(canWrite || canImport) && (
           <div className="ml-auto flex shrink-0 gap-2">
             {canImport && <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-10 text-sm">
@@ -191,30 +204,44 @@ export default function Page() {
           </div>
         )}
       </div>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
-          {([...(isAdmin ? [""] : []), "catalog", "event"] as ScopeFilter[]).map((value) => (
-            <button key={value || "all"} type="button" role="radio" aria-checked={scope === value}
-              onClick={() => { setScope(value); goToPage(1) }}
-              className={`h-8 rounded px-3 text-sm ${scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {t(`exercises.scope.${value || "all"}`)}
-            </button>
-          ))}
-        </div>
-        {eventOptions.length > 0 && <SelectMenu value={eventFilter} onChange={(value) => { setEventFilter(value); goToPage(1) }}
-          options={[
-            { value: "", label: t("exercises.filter.eventAll") },
-            ...eventOptions.map((event) => ({ value: event.ID, label: event.Name || event.Tag })),
-            ...(eventFilter && !eventOptions.some((event) => event.ID === eventFilter) ? [{ value: eventFilter, label: eventFilter }] : []),
-          ]}
-          ariaLabel={t("exercises.filter.event")} className="h-10 min-w-48 max-w-72 text-sm" />}
-        <SelectMenu value={infrastructure} onChange={(value) => { setInfrastructure(value as InfrastructureFilter); goToPage(1) }}
-          options={[
-            { value: "", label: t("exercises.filter.infraAll") },
-            { value: "yes", label: t("exercises.filter.infraYes") },
-            { value: "no", label: t("exercises.filter.infraNo") },
-          ]}
-          ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value))}
+          helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
+            <li key={value || "all"}><strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong> — {t(`exercises.help.scope.${value || "all"}`)}</li>
+          ))}</ul>}>
+          <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
+            {scopeTabs.map((value) => (
+              <button key={value || "all"} type="button" role="radio" aria-checked={filters.scope === value}
+                onClick={() => update({ scope: value })}
+                className={`h-8 rounded px-3 text-sm ${filters.scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                {t(`exercises.scope.${value || "all"}`)}
+              </button>
+            ))}
+          </div>
+        </FilterField>
+        {(eventOptions.length > 0 || filters.events.length > 0) && (
+          <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={[t(`exercises.help.events.${eventsMode}`)]}>
+            <EventMultiSelect label={t(`exercises.filter.events.${eventsMode}`)} options={eventOptions} value={filters.events}
+              onChange={(events) => update({ events })} className="min-w-48 max-w-72 text-sm" />
+          </FilterField>
+        )}
+        <FilterField label={t("exercises.filter.infra")} help={helpLines("exercises.help.infra", ["needed", "notNeeded"])}>
+          <SelectMenu value={filters.infrastructure} onChange={(value) => update({ infrastructure: value as InfrastructureFilter })}
+            options={[
+              { value: "", label: t("exercises.filter.infraAll") },
+              { value: "yes", label: t("exercises.filter.infraYes") },
+              { value: "no", label: t("exercises.filter.infraNo") },
+            ]}
+            ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
+        </FilterField>
+        <FilterField label={t("admin.ex.col.status")} help={helpLines("exercises.help.statusFilter", ["published", "changed", "draftOnly"])}>
+          <SelectMenu value={filters.status} onChange={(value) => update({ status: value as StatusFilter })}
+            options={statusOptions.map((value) => ({ value, label: t(STATUS_OPTION_KEYS[value]) }))}
+            ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
+        </FilterField>
+        <FilterField label={t("admin.ex.filterTags.label")} help={helpLines("exercises.help.tags", ["any", "existing"])} className="min-w-64 max-w-md flex-1">
+          <TagFilter value={filters.tags} onChange={(tags) => update({ tags })} />
+        </FilterField>
       </div>
 
       {canExport && selected.size > 0 && (
@@ -227,24 +254,29 @@ export default function Page() {
       )}
 
       <div ref={tableScrollRef} className="relative min-h-0 flex-1 overflow-auto" aria-busy={loading}>
-      {error && rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-8"><p role="alert" className="text-center text-sm text-destructive">{t("admin.ex.loadError")}</p><Button variant="outline" onClick={retry}>{t("admin.ex.retry")}</Button></div>
+      {error ? (
+        <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} className="h-full" />
       ) : loading && rows.length === 0 ? (
         <LoadingArea className="h-full" label={t("admin.loading")} />
       ) : rows.length === 0 ? (
-        <EmptyState message={t(debounced || tags.length > 0 || status !== "all" || eventFilter || infrastructure ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
+        <EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="h-full" />
       ) : (
         <div>
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[56rem] text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                 {canExport && <th className="w-10 px-3 py-2">
                   <input type="checkbox" aria-label={t("admin.ex.select.all")} checked={allOnPage} onChange={toggleAll} className="h-4 w-4 accent-primary" />
                 </th>}
-                <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={sortBy} direction={sortDir} onSort={sort} />
-                <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={sortBy} direction={sortDir} onSort={sort} />
-                <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={sortBy} direction={sortDir} onSort={sort} />
-                <SortableHeader label={t("admin.ex.col.updated")} field="updated" activeField={sortBy} direction={sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.ex.col.name")} field="name" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
+                <SortableHeader label={t("admin.ex.col.tags")} field="tags" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
+                <th scope="col" className="sticky top-0 z-10 bg-card px-3 py-2 text-left font-medium">
+                  <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "none", "event"])} /></span>
+                </th>
+                <SortableHeader label={t("admin.ex.col.status")} field="status" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort}>
+                  <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />
+                </SortableHeader>
+                <SortableHeader label={t("admin.ex.col.updated")} field="updated" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
               </tr>
             </thead>
             <tbody>
@@ -255,16 +287,14 @@ export default function Page() {
                       disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item.ID)} className="h-4 w-4 accent-primary" />
                   </td>}
                   <td className="px-3 py-2">
-                    <Link href={`/detail?id=${item.ID}`} className="block">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{item.Name}</span>
-                        <InfrastructureIcon show={item.Infrastructure} />
-                      </span>
-                      {item.Description && (
-                        <span className="block max-w-md truncate text-xs text-muted-foreground">{item.Description}</span>
-                      )}
-                    </Link>
-                    <div className="mt-1"><OwnershipBadges exercise={item} showAccess={isAdmin} /></div>
+                    <span className="flex items-center gap-1.5">
+                      <Link href={`/detail?id=${item.ID}`} className="font-medium text-foreground hover:underline">{item.Name}</Link>
+                      <InfrastructureIcon show={item.Infrastructure} />
+                    </span>
+                    {item.Description && (
+                      <span className="block max-w-md truncate text-xs text-muted-foreground">{item.Description}</span>
+                    )}
+                    <div className="mt-1 empty:hidden"><OwnershipBadges exercise={item} showAccess={false} showEvent={false} /></div>
                   </td>
                   <td className="px-3 py-2">
                     <span className="flex flex-wrap gap-1">
@@ -273,7 +303,8 @@ export default function Page() {
                       ))}
                     </span>
                   </td>
-                  <td className="px-3 py-2"><StatusBadges item={item} /></td>
+                  <td className="px-3 py-2"><AccessCell item={item} eventName={eventName} /></td>
+                  <td className="px-3 py-2"><StatusCell item={item} /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
                   </td>
@@ -283,7 +314,6 @@ export default function Page() {
           </table>
         </div>
       )}
-      {error && rows.length > 0 && <div className="sticky bottom-3 ml-auto mr-3 flex w-fit items-center gap-2 rounded-md border border-destructive bg-card px-3 py-1.5 text-xs text-destructive"><span role="alert">{t("admin.ex.loadError")}</span><Button variant="outline" size="sm" onClick={retry}>{t("admin.ex.retry")}</Button></div>}
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} busy={loading}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />

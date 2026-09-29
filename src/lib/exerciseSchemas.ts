@@ -12,7 +12,8 @@ import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
 import { hintsAligned } from "@/lib/hintSync"
-import { MAX_HINTS, MAX_HINT_COST, MAX_HINT_TEXT } from "@/lib/hintLimits"
+import { hintTextHasContent } from "@/lib/hintText"
+import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
 import type {
   ConnectionDTO,
   DeviceDTO,
@@ -31,6 +32,7 @@ import type {
   VariantDTO,
   Version,
 } from "@/api/exercises/versions"
+import { HINT_LEVELS } from "@/lib/hintLevels"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
@@ -399,12 +401,12 @@ const placeholderSchema = z
     }
   })
 
-// Text may stay empty in a draft; the server requires it at publish (20951).
+// Text may stay empty while a draft autosaves; publish requires it (the draft
+// refinement below, mirrored by the server's 20951).
 const hintSchema = z.object({
   ID: z.string(),
   Text: z.string().max(MAX_HINT_TEXT, t("exercises.hints.val.text")),
-  Cost: z.number({ error: t("exercises.hints.val.cost") }).int(t("exercises.hints.val.cost"))
-    .min(0, t("exercises.hints.val.cost")).max(MAX_HINT_COST, t("exercises.hints.val.cost")),
+  Level: z.enum(HINT_LEVELS, { error: t("exercises.hints.val.level") }),
 })
 
 const taskSchema = z.object({
@@ -451,6 +453,11 @@ export const draftSchema = z
     draft.Variants.forEach((variant, i) => {
       const usedFlagTargets = new Set<string>()
       variant.Tasks.forEach((task, taskIndex) => {
+        task.Hints.forEach((hint, hintIndex) => {
+          if (!hintTextHasContent(hint.Text)) {
+            ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Hints", hintIndex, "Text"], message: t("exercises.hints.val.textRequired") })
+          }
+        })
         if (task.LinkedDeviceID) {
           const device = variant.Topology.Devices.find((candidate) => candidate.ID === task.LinkedDeviceID)
           if (!device || device.Type === "unmanaged-switch" || device.Type === "hub") {
@@ -633,7 +640,7 @@ function taskToDTO(task: TaskFormValues): TaskDTO {
     ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
     Attachments: task.Attachments,
     Placeholders: task.Placeholders.map(placeholderToDTO),
-    Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Cost: hint.Cost })),
+    Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Level: hint.Level })),
   }
 }
 

@@ -15,7 +15,7 @@ const base = { ID: 'e1', Name: 'Web', Description: '', Tags: null, DraftVersionI
 describe('normalizeOwnership', () => {
   it('defaults an old payload to a plain catalog exercise without server permissions', () => {
     expect(normalizeOwnership({})).toEqual({
-      Scope: 'catalog', OwnerEventID: null, OwnerEventName: '', AccessLevel: '', AccessEventIDs: [],
+      Scope: 'catalog', OwnerEventID: null, OwnerEventName: '', OwnerEvent: null, AccessLevel: '', AccessEventIDs: [], AccessEvents: [],
       OriginEventID: null, ForkedFrom: null, Infrastructure: false, PendingProposalID: null, Permissions: null,
     })
   })
@@ -29,10 +29,10 @@ describe('normalizeOwnership', () => {
 describe('W4 catalog client', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('sends scope, event and infrastructure filters', async () => {
+  it('sends scope, several events and infrastructure filters', async () => {
     mockApiGet.mockResolvedValueOnce({ Items: [], Total: 0, Page: 1, PageSize: 50 })
-    await listExercisesPage({ scope: 'event', event: 'ev1', infrastructure: 'yes', page: 1, pageSize: 50, sortBy: 'updated', sortDir: 'desc' })
-    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?scope=event&event=ev1&infrastructure=yes&page=1&pageSize=50&sortBy=updated&sortDir=desc')
+    await listExercisesPage({ scope: 'event', events: ['ev1', 'ev2'], infrastructure: 'yes', page: 1, pageSize: 50, sortBy: 'updated', sortDir: 'desc' })
+    expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?scope=event&event=ev1&event=ev2&infrastructure=yes&page=1&pageSize=50&sortBy=updated&sortDir=desc')
   })
 
   it('keeps ownership, fork and permissions from the card', async () => {

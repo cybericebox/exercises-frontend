@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { CheckCircle2, CircleAlert, TriangleAlert, X } from "lucide-react"
+import { t } from "@/i18n/t"
 
 type Tone = "success" | "warning" | "error"
 type Toast = { id: number; message: string; tone: Tone }
@@ -47,14 +48,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   return <>
     {children}
-    <div className="pointer-events-none fixed left-1/2 top-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-2" aria-label="Повідомлення про дії">
+    <div className="pointer-events-none fixed left-1/2 top-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-2" aria-label={t("ui.toast.region")}>
       {items.map((item) => <div key={item.id} role={item.tone === "success" ? "status" : "alert"} data-tone={item.tone}
-        className={`pointer-events-auto flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg ${toneStyle[item.tone]}`}>
+        className={`pointer-events-auto flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${toneStyle[item.tone]}`}>
         {item.tone === "success" ? <CheckCircle2 aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />
           : item.tone === "warning" ? <TriangleAlert aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />
             : <CircleAlert aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />}
         <span className="min-w-0 flex-1">{item.message}</span>
-        <button type="button" aria-label={`Закрити сповіщення ${item.message}`} onClick={() => dismiss(item.id)}
+        <button type="button" aria-label={t("ui.toast.close", { message: item.message })} onClick={() => dismiss(item.id)}
           className="rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
           <X aria-hidden="true" className="h-4 w-4" />
         </button>

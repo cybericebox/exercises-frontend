@@ -82,7 +82,7 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
         render={({ field }) => <Switch aria-label={label} checked={field.value} onCheckedChange={(value) => { if (value && dhcp) ensureRange(); field.onChange(value) }} disabled={disabled} />} />
     </div>}
     {enabled && <div className="flex items-center justify-between gap-4 border-t border-border pt-2">
-      <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground">DHCP</span><FieldHelp text={t("admin.exTopo.dhcpHelp")} /></div>
+      <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground">{t("admin.exTopo.dhcp")}</span><FieldHelp text={t("admin.exTopo.dhcpHelp")} /></div>
       <Controller control={control} name={`Variants.${variantIndex}.Topology.${network}.DHCP`}
         render={({ field }) => <Switch aria-label={t(dhcpLabel)} checked={field.value} onCheckedChange={(value) => { if (value) ensureRange(); field.onChange(value) }} disabled={disabled} />} />
     </div>}

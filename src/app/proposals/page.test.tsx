@@ -9,7 +9,7 @@ vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.f
 vi.mock("@/components/shell/AccessContext", () => ({
   useExerciseAccess: () => ({ access: { IsAdmin: h.isAdmin, CanCreateCatalog: h.isAdmin, CanPublish: false, CanDelete: false, CanExport: false, Events: [] }, loading: false }),
 }))
-vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
+vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([]), listNearestEvents: vi.fn().mockResolvedValue([]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
 vi.mock("@/api/exercises/proposals", () => ({ listProposals: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn() }))
 
 import { approveProposal, listProposals, rejectProposal } from "@/api/exercises/proposals"

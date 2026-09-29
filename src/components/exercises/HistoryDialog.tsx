@@ -5,6 +5,8 @@ import { listVersions, type VersionListItem } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { LoadingArea } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useUserNames } from "@/lib/userNames"
@@ -38,15 +40,16 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
   onView: (versionId: string | null) => void
 }) {
   const [versions, setVersions] = useState<VersionListItem[] | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<{ cause: unknown } | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     listVersions(exerciseId)
       .then((items) => { if (!cancelled) setVersions(sortHistory(items)) })
-      .catch(() => { if (!cancelled) setFailed(true) })
+      .catch((cause) => { if (!cancelled) setFailed({ cause }) })
     return () => { cancelled = true }
-  }, [exerciseId])
+  }, [exerciseId, attempt])
 
   const names = useUserNames((versions ?? []).map((version) => version.CreatedBy))
   const currentId = versions?.find((version) => version.Status === "draft")?.ID
@@ -60,9 +63,9 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
         <DialogDescription>{t("admin.exHistory.description")}</DialogDescription>
       </DialogHeader>
       <div className="max-h-[60vh] overflow-y-auto">
-        {failed ? <p role="alert" className="py-6 text-center text-sm text-destructive">{t("admin.exHistory.loadError")}</p>
-          : versions === null ? <LoadingArea compact label={t("admin.loading")} />
-            : versions.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">{t("admin.exHistory.empty")}</p>
+        {failed ? <LoadError compact message={t("admin.exHistory.loadError")} error={failed.cause} className="h-48" onRetry={() => { setFailed(null); setVersions(null); setAttempt((key) => key + 1) }} />
+          : versions === null ? <LoadingArea compact className="h-48" label={t("admin.loading")} />
+            : versions.length === 0 ? <EmptyState compact message={t("admin.exHistory.empty")} className="h-48" />
               : <ul>
                 {versions.map((version) => {
                   const isCurrent = version.ID === currentId
