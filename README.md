@@ -21,7 +21,6 @@ Static builds (`npm run build`, GitHub Pages) read these at build time. The Dock
 | `NEXT_PUBLIC_API_DOMAIN` | no | `api.<domain>` | API host (bare host, no scheme). |
 | `NEXT_PUBLIC_ID_DOMAIN` | no | `id.<domain>` | ID app host. |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | analytics off | Google Analytics 4 measurement id (`G-…`). |
-| `NEXT_PUBLIC_USE_MOCKS` | no | off | `1` runs against an in-memory mock API (local dev and demo builds; the Docker image ignores it). |
 
 ## Commands
 

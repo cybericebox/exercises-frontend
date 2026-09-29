@@ -129,12 +129,6 @@ async function request<T>(
   init: RequestInit = {},
   opts: ApiOptions = {}
 ): Promise<T> {
-  // Dev/demo mode: answer from the in-memory mock API (never in a normal build).
-  if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") {
-    const { mockRequest } = await import("@/mocks/api")
-    return mockRequest<T>(init.method ?? "GET", path, init.body,
-      (status, code, message) => new ApiError(status, { Status: { Code: code, Message: message } }, message, undefined, code))
-  }
   const url = `${BASE_URL}${path}`
 
   let res: Response
