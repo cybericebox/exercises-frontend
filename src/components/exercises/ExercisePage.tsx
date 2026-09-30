@@ -5,13 +5,15 @@ import { useWatch } from "react-hook-form"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
-import { getExercise, type Exercise } from "@/api/exercises/catalog"
+import type { Exercise } from "@/api/exercises/catalog"
 import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { listVersions, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
+import { useExerciseNames } from "@/lib/useExerciseNames"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
@@ -98,8 +100,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const router = useRouter()
-  // The user's running test of another exercise (one test lab at a time), offered instead of a start.
-  const [otherTest, setOtherTest] = useState<{ item: DeployListItem; name: string } | null>(null)
+  // The user's running test labs, offered instead of a start once the limit of running labs is reached.
+  const [limitReached, setLimitReached] = useState<DeployListItem[] | null>(null)
+  const [maxTests, setMaxTests] = useState(1)
+  const limitNames = useExerciseNames((limitReached ?? []).map((item) => item.ExerciseID))
   const activeDeploys = useActiveDeploys(exerciseId)
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
@@ -164,7 +168,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) setLaboratories(capabilities.Laboratories) })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)) } })
       .catch(() => { if (!cancelled) setLaboratories(false) })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -276,14 +280,12 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onTest={(index) => {
           void actions.test(index).then(async (target) => {
             if (!target) return
-            // One active test lab per user, across all exercises: open it instead of failing.
-            const running = (await listDeploys().catch(() => []))[0]
-            if (running && running.ExerciseID === target.exerciseId) { openTest(running.DeployID); return }
-            if (running) {
-              const name = await getExercise(running.ExerciseID).then((other) => other.Name, () => "")
-              setOtherTest({ item: running, name })
-              return
-            }
+            // A user runs a limited number of test labs across all exercises: open the running
+            // one (this exercise's, or pick among them) instead of failing.
+            const running = await listDeploys().catch(() => [] as DeployListItem[])
+            const here = running.find((item) => item.ExerciseID === target.exerciseId)
+            if (here) { openTest(here.DeployID); return }
+            if (running.length >= maxTests) { setLimitReached(running); return }
             leave.allowNavigation()
             router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
           })
@@ -365,9 +367,19 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    <ConfirmDialog open={otherTest !== null} title={t("admin.exTest.activeTitle")} description={t("admin.exTest.activeDescription", { name: otherTest?.name ?? "" })}
-      confirmLabel={t("admin.exTest.activeOpen")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={() => setOtherTest(null)}
-      onConfirm={() => { const target = otherTest; setOtherTest(null); if (target) openTest(target.item.DeployID, target.item.ExerciseID) }} />
+    <ConfirmDialog open={limitReached !== null} title={t("admin.exTest.limitTitle")}
+      description={t("admin.exTest.limitDescription", { n: limitReached?.length ?? 0, max: maxTests })}
+      confirmLabel={limitReached?.length === 1 ? t("admin.exTest.activeOpen") : t("admin.exTest.limitOk")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      onCancel={() => setLimitReached(null)}
+      onConfirm={() => { const only = limitReached?.length === 1 ? limitReached[0] : null; setLimitReached(null); if (only) openTest(only.DeployID, only.ExerciseID) }}>
+      <ul className="space-y-1.5">
+        {(limitReached ?? []).map((item) => <li key={item.DeployID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+          <span className="min-w-0 truncate">{limitNames[item.ExerciseID] ?? t("admin.exTest.unknownExercise")}</span>
+          <Button type="button" variant="outline" size="sm" aria-label={`${t("admin.exDeploy.open")} ${limitNames[item.ExerciseID] ?? ""}`.trim()}
+            onClick={() => { setLimitReached(null); openTest(item.DeployID, item.ExerciseID) }}>{t("admin.exDeploy.open")}</Button>
+        </li>)}
+      </ul>
+    </ConfirmDialog>
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}

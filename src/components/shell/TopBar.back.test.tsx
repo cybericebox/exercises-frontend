@@ -7,6 +7,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { FirstName: "Ada", LastName: "L", Email: "a@example.org" } }) }))
 vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmin: true } }) }))
 vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
+vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
 vi.mock("./ThemeSwitch", () => ({ ThemeSwitch: () => null }))
 vi.mock("@/lib/origins", () => ({
   publicDomain: "cybericebox.local",

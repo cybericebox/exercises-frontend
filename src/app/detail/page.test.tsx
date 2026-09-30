@@ -287,10 +287,32 @@ describe("exercise page — one test lab per user", () => {
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
     await pickVariant()
     const dialog = await screen.findByRole("dialog")
-    expect(within(dialog).getByText("admin.exTest.activeTitle")).toBeInTheDocument()
+    expect(within(dialog).getByText("admin.exTest.limitTitle")).toBeInTheDocument()
     expect(h.push).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.activeOpen" }))
     expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-2&deploy=run-9")
+  })
+
+  it("starts a new test while fewer labs run than the limit allows", async () => {
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2 })
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
+    await pickVariant()
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true })
+  })
+
+  it("lists every running lab once the limit is reached, each with «Відкрити»", async () => {
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2 })
+    const lab = (id: string, ex: string) => ({ DeployID: id, Lab: "lab", ExerciseID: ex, VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] })
+    vi.mocked(listDeploys).mockResolvedValue([lab("run-8", "ex-8"), lab("run-9", "ex-9")])
+    await pickVariant()
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exTest.limitDescription")).toBeInTheDocument()
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(2)
+    expect(h.push).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getAllByRole("button", { name: /admin\.exDeploy\.open/ })[1])
+    expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-9&deploy=run-9")
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true })
   })
 
   it("opens the running test straight away when it belongs to this exercise", async () => {

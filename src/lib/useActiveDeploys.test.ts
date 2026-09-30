@@ -67,3 +67,19 @@ describe("useActiveDeploys", () => {
     expect(result.current.items).toHaveLength(0)
   })
 })
+
+describe("useActiveDeploys — all exercises", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks() })
+  afterEach(() => vi.useRealTimers())
+
+  it("lists the running tests of every exercise when asked for all, polling while one runs", async () => {
+    mocked.listDeploys.mockResolvedValue([item("d1")])
+    const { result } = renderHook(() => useActiveDeploys(null, true))
+    await act(async () => {})
+    expect(result.current.items.map((i) => i.DeployID)).toEqual(["d1"])
+    expect(mocked.listDeploys).toHaveBeenCalledWith(undefined)
+    mocked.listDeploys.mockClear()
+    await act(async () => { await vi.advanceTimersByTimeAsync(ACTIVE_DEPLOYS_POLL_MS) })
+    expect(mocked.listDeploys).toHaveBeenCalledTimes(1)
+  })
+})

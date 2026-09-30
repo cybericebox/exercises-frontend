@@ -10,7 +10,9 @@ import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 
 export const ACTIVE_DEPLOYS_POLL_MS = 15000
 
-export function useActiveDeploys(exerciseId: string | null) {
+/** `all` lists the user's running tests of every exercise (the navbar), otherwise those of `exerciseId`. */
+export function useActiveDeploys(exerciseKey: string | null, all = false) {
+  const exerciseId = all ? "*" : exerciseKey
   const [state, setState] = useState<{ exerciseId: string | null; items: DeployListItem[] }>({ exerciseId: null, items: [] })
   const items = state.exerciseId === exerciseId ? state.items : []
   const forgotten = useRef(new Set<string>())
@@ -20,14 +22,14 @@ export function useActiveDeploys(exerciseId: string | null) {
     if (!exerciseId) return
     const mine = ++sequence.current
     try {
-      const next = await listDeploys(exerciseId)
+      const next = await listDeploys(all ? undefined : exerciseId)
       if (mine !== sequence.current) return
       forgotten.current = new Set([...forgotten.current].filter((id) => next.some((item) => item.DeployID === id)))
       setState({ exerciseId, items: next.filter((item) => !forgotten.current.has(item.DeployID)) })
     } catch {
       // Keep what is shown; the next tick or focus tries again.
     }
-  }, [exerciseId])
+  }, [exerciseId, all])
 
   useEffect(() => {
     void refresh()

@@ -9,6 +9,7 @@ import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
+import { RunningTestsMenu } from "./RunningTestsMenu"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
 import { useRef } from "react"
@@ -98,6 +99,7 @@ export function TopBar() {
         <AppNav />
       </div>
       <div className="flex items-center gap-3">
+        <RunningTestsMenu />
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />
         <InboxButton defaultTab="requestsIfOpen" />
