@@ -834,9 +834,6 @@
   "exercises.help.events.all": "Власні завдання обраних заходів і завдання каталогу, відкриті для них.",
   "ui.toast.region": "Повідомлення про дії",
   "ui.toast.close": "Закрити сповіщення: {message}",
-  "ui.banner.more": "Докладніше",
-  "ui.banner.dismissError": "Не вдалося закрити банер. Спробуйте ще раз.",
-  "ui.banner.dismiss": "Закрити банер",
   "app.brand": "Cyber ICE Box",
   "admin.exTopo.imagePlaceholder": "nginx:1.27",
   "admin.exEnv.namePlaceholder": "DB_PASS",
@@ -939,5 +936,8 @@
   "admin.exTopo.removeConnectionConfirm": "Зʼєднання {first} — {second} буде видалено зі схеми.",
   "admin.exTopo.connectionMenu": "Дії зі зʼєднанням",
   "admin.exTopo.needTwoDevices": "Спершу додайте щонайменше два пристрої",
-  "admin.exTopo.needFreePorts": "Потрібні щонайменше два пристрої з вільними портами"
+  "admin.exTopo.needFreePorts": "Потрібні щонайменше два пристрої з вільними портами",
+  "siteBanner.label": "Оголошення",
+  "siteBanner.dismiss": "Закрити оголошення",
+  "siteBanner.more": "Докладніше"
 }

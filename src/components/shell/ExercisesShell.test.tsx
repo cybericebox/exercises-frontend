@@ -10,7 +10,7 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => role.value }))
 vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox.local", idOrigin: "https://id.cybericebox.local", mainOrigin: "https://cybericebox.local" }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("./TopBar", () => ({ TopBar: () => <header>top</header> }))
-vi.mock("./BannerStack", () => ({ BannerStack: () => null }))
+vi.mock("./SiteBanners", () => ({ SiteBanners: () => null }))
 vi.mock("@/api/exercises/access", () => ({ getExerciseAccess: () => Promise.resolve(rights.value) }))
 
 describe("exercises shell", () => {

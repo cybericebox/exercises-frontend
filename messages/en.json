@@ -834,9 +834,6 @@
   "exercises.help.events.all": "The selected events' own exercises and catalog exercises open to them.",
   "ui.toast.region": "Action notifications",
   "ui.toast.close": "Close notification: {message}",
-  "ui.banner.more": "Learn more",
-  "ui.banner.dismissError": "Could not close the banner. Try again.",
-  "ui.banner.dismiss": "Close banner",
   "app.brand": "Cyber ICE Box",
   "admin.exTopo.imagePlaceholder": "nginx:1.27",
   "admin.exEnv.namePlaceholder": "DB_PASS",
@@ -939,5 +936,8 @@
   "admin.exTopo.removeConnectionConfirm": "The connection {first} — {second} will be removed from the diagram.",
   "admin.exTopo.connectionMenu": "Connection actions",
   "admin.exTopo.needTwoDevices": "Add at least two devices first",
-  "admin.exTopo.needFreePorts": "At least two devices need free ports"
+  "admin.exTopo.needFreePorts": "At least two devices need free ports",
+  "siteBanner.label": "Announcements",
+  "siteBanner.dismiss": "Dismiss announcement",
+  "siteBanner.more": "Learn more"
 }
