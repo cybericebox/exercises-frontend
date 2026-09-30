@@ -20,6 +20,7 @@ import { exerciseHref, testLabHref } from "@/lib/exerciseRoutes"
 import { downloadBlob } from "@/lib/downloadBlob"
 import { LAB_SIDEBAR_COLLAPSED_KEY, LAB_TOPOLOGY_SHOWN_KEY, LAB_TOPOLOGY_WIDTH_KEY, pruneLayouts, removeLayout } from "@/lib/labLayout"
 import { taskValues } from "@/lib/placeholderResolve"
+import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 
 /** What the page was opened with: a running deploy, or a variant to start one for. */
@@ -136,6 +137,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     return () => clearTimeout(timer)
   }, [leaseEnd, deploy.deployId])
 
+  const othersRunning = useOtherLabsRunning(endOpen ? deploy.deployId : null, 1)
   const status = deploy.status
   // What the server remembers plus what was just checked, so the tick shows before the next poll.
   const solvedIds = useMemo(() => new Set([...solved, ...(status?.SolvedTaskIDs ?? [])]), [solved, status?.SolvedTaskIDs])
@@ -242,7 +244,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     )}
 
     <ConfirmDialog open={endOpen} tone="danger" busy={ending} error={endError} title={t("admin.exTest.endTitle")}
-      description={t("admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEndOpen(false)} onConfirm={() => void endTest()} />
   </div>
 }

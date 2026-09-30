@@ -592,3 +592,21 @@ describe("TestLabPage — hints, long text and sidebar tooltip placement", () =>
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 })
+
+describe("TestLabPage — end dialog copy", () => {
+  it("promises the VPN stops only when this is the author's last running lab", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exTest.endDescription")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exPage.dialog.cancel" }))
+  })
+
+  it("says the VPN stays when other labs of the author still run", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([running, { ...running, DeployID: "run-2" }])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(await within(dialog).findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
+  })
+})

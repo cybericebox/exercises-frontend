@@ -351,6 +351,7 @@
   "admin.exTest.end": "Завершити тест",
   "admin.exTest.endTitle": "Завершити тест?",
   "admin.exTest.endDescription": "Лабораторію буде видалено разом з усім, що в ній змінено. VPN-конфігурація і вебдоступ перестануть працювати.",
+  "admin.exTest.endDescriptionOthers": "Лабораторію буде видалено разом з усім, що в ній змінено, і вебдоступ до неї. VPN залишиться: у вас є інші запущені лабораторії.",
   "admin.exTest.endConfirm": "Завершити",
   "admin.exTest.tasks": "Задачі",
   "admin.exTest.noTasks": "У цьому варіанті немає задач",

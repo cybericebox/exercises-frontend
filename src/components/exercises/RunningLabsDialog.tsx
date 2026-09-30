@@ -12,6 +12,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { testLabHref } from "@/lib/exerciseRoutes"
+import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
 import { useExerciseNames, useVariantNumbers } from "@/lib/useExerciseNames"
 
 /** "1:42" — hours and minutes left, rounded up; "0:00" at the end. */
@@ -40,6 +41,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
   const [ending, setEnding] = useState<DeployListItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const othersRunning = useOtherLabsRunning(ending?.DeployID ?? null, items.length)
   const nameOf = (item: DeployListItem) => names[item.ExerciseID] ?? t("admin.exTest.unknownExercise")
 
   async function end() {
@@ -95,7 +97,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
       </DialogContent>
     </Dialog>
     <ConfirmDialog open={ending !== null} tone="danger" busy={busy} error={error} title={t("admin.exTest.endTitle")}
-      description={t("admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEnding(null)} onConfirm={() => void end()} />
   </>
 }

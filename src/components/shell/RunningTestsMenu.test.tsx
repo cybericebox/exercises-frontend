@@ -70,6 +70,25 @@ describe("RunningTestsMenu", () => {
     expect(within(dialog).queryByText("Exercise ex-1")).not.toBeInTheDocument()
   })
 
+  it("tells whether the end of a lab also ends the VPN: only for the author's last lab", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 60), lab("run-2", "ex-2", 60)])
+    const { unmount } = render(<RunningTestsMenu />)
+    fireEvent.click(await screen.findByRole("button", { name: /admin\.exTest\.running 2/ }))
+    const dialog = await screen.findByRole("dialog")
+    await within(dialog).findByText("Exercise ex-1")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endLabNamed Exercise ex-1" }))
+    expect(await screen.findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
+    unmount()
+
+    vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 60)])
+    render(<RunningTestsMenu />)
+    fireEvent.click(await screen.findByRole("button", { name: /admin\.exTest\.running 1/ }))
+    const single = await screen.findByRole("dialog")
+    await within(single).findByText("Exercise ex-1")
+    fireEvent.click(within(single).getByRole("button", { name: "admin.exTest.endLabNamed Exercise ex-1" }))
+    expect(await screen.findByText("admin.exTest.endDescription")).toBeInTheDocument()
+  })
+
   it("keeps the previous list while a refresh fails, so the indicator does not flicker", async () => {
     vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 60)])
     render(<RunningTestsMenu />)
