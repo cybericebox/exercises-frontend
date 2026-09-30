@@ -186,7 +186,7 @@
   "admin.ex.err.difficultyInvalid": "Некоректна складність задачі",
   "admin.ex.err.flagInvalid": "Прапорець має бути у форматі ICE{...} без пробілів",
   "admin.ex.err.deviceNameInvalid": "Назва контейнера має бути DNS-міткою: малі латинські літери, цифри та дефіси, без дефіса на початку й в кінці",
-  "admin.ex.err.deviceNameTooLong": "Назва контейнера — не більше 37 символів",
+  "admin.ex.err.deviceNameTooLong": "Назва контейнера — не більше 35 символів",
   "admin.ex.err.deviceDisplayNameInvalid": "Назва комутатора або концентратора не може бути порожньою",
   "admin.ex.err.addressRefInvalid": "Перевірте статичну адресу, шлюз і маршрути з автопідмережі",
   "admin.ex.err.addressRefUnreachable": "Інтерфейс зі статичною адресою має бути підʼєднаний до відповідного шлюзу",

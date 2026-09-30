@@ -31,14 +31,14 @@ describe('DNS_LABEL_RE', () => {
     ['web', true],
     ['a', true],
     ['web-01', true],
-    ['a'.repeat(37), true],
-    ['a-'.repeat(18) + 'a', true],
+    ['a'.repeat(35), true],
+    ['a-'.repeat(17) + 'a', true],
     ['', false],
     ['-web', false],
     ['web-', false],
     ['Web', false],
     ['web_01', false],
-    ['a'.repeat(38), false],
+    ['a'.repeat(36), false],
     ['a'.repeat(63), false],
   ])('%s → %s', (input, ok) => {
     expect(DNS_LABEL_RE.test(input)).toBe(ok)
@@ -48,7 +48,7 @@ describe('DNS_LABEL_RE', () => {
 describe('containerNameError', () => {
   it('is null for a valid name, distinguishes too long from bad charset', () => {
     expect(containerNameError('web-01')).toBeNull()
-    expect(containerNameError('a'.repeat(38))).toBe('admin.ex.val.deviceNameTooLong')
+    expect(containerNameError('a'.repeat(36))).toBe('admin.ex.val.deviceNameTooLong')
     expect(containerNameError('Web')).toBe('admin.ex.val.deviceName')
   })
 })

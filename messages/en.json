@@ -186,7 +186,7 @@
   "admin.ex.err.difficultyInvalid": "Invalid task difficulty",
   "admin.ex.err.flagInvalid": "Flag must use ICE{...} with no spaces",
   "admin.ex.err.deviceNameInvalid": "Container name must be a DNS label: lowercase letters, digits and hyphens, not starting or ending with a hyphen",
-  "admin.ex.err.deviceNameTooLong": "Container name must be at most 37 characters",
+  "admin.ex.err.deviceNameTooLong": "Container name must be at most 35 characters",
   "admin.ex.err.deviceDisplayNameInvalid": "Switch or hub name cannot be blank",
   "admin.ex.err.addressRefInvalid": "Check the static address, gateway, and auto-subnet routes",
   "admin.ex.err.addressRefUnreachable": "A static-address interface must be connected to the selected gateway",

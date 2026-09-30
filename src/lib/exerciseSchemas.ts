@@ -39,10 +39,10 @@ import { HINT_LEVELS } from "@/lib/hintLevels"
 /**
  * A container's name becomes part of the lab's web address
  * (<name>-<labid>.<domain>), which must be one 63-char DNS label with a fixed
- * 26-char suffix. Keep in sync with the backend and laboratory (37).
+ * 26-char suffix (max 37); we use 35 for a round limit. Keep in sync with the backend and laboratory.
  */
-export const MAX_DEVICE_NAME_LEN = 37
-export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,35}[a-z0-9])?$/
+export const MAX_DEVICE_NAME_LEN = 35
+export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,33}[a-z0-9])?$/
 
 /** Inline error for a container name, or null when it is valid. */
 export function containerNameError(name: string): string | null {
