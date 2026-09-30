@@ -122,8 +122,7 @@ describe("TestLabPage — header", () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
     expect(screen.getByText("admin.exDraft.variant 2")).toBeInTheDocument()
-    expect(screen.getByText("admin.exDeploy.phase.ready", { selector: "[data-deploy-status]" })).toBeInTheDocument()
-    expect(screen.getByText(/admin\.exTest\.until \d\d:\d\d/)).toBeInTheDocument()
+    expect(screen.getByText(/^admin\.exDeploy\.phase\.ready · admin\.exTest\.until \d\d:\d\d$/, { selector: "[data-deploy-status]" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exTest.openWeb web" })).toBeInTheDocument()
   })
 
@@ -159,7 +158,7 @@ describe("TestLabPage — task as a participant sees it", () => {
   it("lists the variant's tasks and renders the chosen one with this lab's values", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
-    expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["Login", "Escalate"])
+    expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["1Login", "2Escalate"])
     expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
     // the subnet is a CIDR, the IP link is an <a>, the external link is a button
     expect(document.querySelector('[data-task-variable="net"]')).toHaveTextContent("10.128.1.0/24")
@@ -184,7 +183,7 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("lists attachments for download and the hints as text", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const file = await screen.findByRole("link", { name: "notes.pdf" })
+    const file = await screen.findByRole("link", { name: "admin.exTest.download notes.pdf" })
     expect(file).toHaveAttribute("download", "notes.pdf")
     expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
     expect(screen.getByText("Look at the robots file")).toBeInTheDocument()
@@ -195,7 +194,7 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("switches to another task", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    fireEvent.click(await screen.findByRole("button", { name: "Escalate" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Escalate/ }))
     expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
     expect(screen.getByText("Second task body")).toBeInTheDocument()
     // this task has no injected flag, so no check field
@@ -209,10 +208,24 @@ describe("TestLabPage — task as a participant sees it", () => {
     fireEvent.change(input, { target: { value: "FLAG{a}" } })
     fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
     expect(await screen.findByText(/admin\.exDeploy\.correct/)).toBeInTheDocument()
+    // the task's number badge turns into a ✓ once the flag was right
+    expect(screen.getByLabelText("admin.exTest.solved")).toBeInTheDocument()
     expect(checkDeployFlag).toHaveBeenCalledWith("run-1", "t1", "FLAG{a}")
     fireEvent.change(input, { target: { value: "FLAG{b}" } })
     fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
     expect(await screen.findByText(/admin\.exDeploy\.wrong/)).toBeInTheDocument()
+  })
+
+  it("puts the web access under the task list and opens a device from there", async () => {
+    const tab = { location: { href: "" }, close: vi.fn(), opener: "self" }
+    vi.stubGlobal("open", vi.fn(() => tab))
+    vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=z", ExpiresAt: "" })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const section = await screen.findByRole("region", { name: "admin.exTest.webAccess" })
+    expect(within(section).getByText("web")).toBeInTheDocument()
+    fireEvent.click(within(section).getByRole("button", { name: "admin.exTest.openWeb web" }))
+    await waitFor(() => expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443))
+    vi.unstubAllGlobals()
   })
 
   it("shows an empty state when the variant has no tasks", async () => {
