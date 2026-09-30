@@ -30,6 +30,23 @@ export type DeployResponse = {
   Flags?: DeployFlag[]
 }
 
+/** One of the caller's own active test deploys, as GET /exercises/deploys lists it. */
+export type DeployListItem = {
+  DeployID: string
+  Lab: string
+  VersionID: string
+  VariantID: string
+  CreatedAt: string
+  /** When the lease ends. */
+  ExpiresAt: string
+  Flags: DeployFlag[]
+}
+
+/** The caller's active test deploys of one exercise. */
+export function listDeploys(exerciseId: string): Promise<DeployListItem[]> {
+  return apiGet<DeployListItem[]>(`${BASE}/deploys?exerciseID=${encodeURIComponent(exerciseId)}`)
+}
+
 export type DeployDeviceStatus = { Name: string; Ready: boolean }
 
 export type DeployAccess = {

@@ -44,6 +44,9 @@ export type ExerciseHeaderProps = {
   onRetrySave: () => void
   onCancelNew: () => void
   onTest: (variantIndex: number) => void
+  /** The caller already has a test lab running for this exercise: its lease end (ISO). */
+  activeTestUntil?: string | null
+  onOpenTest?: () => void
   onHistory: () => void
   onEdit: () => void
   onDone: () => void
@@ -256,6 +259,14 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
           </Button>
         ) : (
           <>
+            {testAvailable && props.activeTestUntil && props.onOpenTest && (
+              <span className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-sm">
+                <span className="text-foreground">
+                  {t("admin.exPage.test.running", { time: new Date(props.activeTestUntil).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }) })}
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={props.onOpenTest}>{t("admin.exPage.test.open")}</Button>
+              </span>
+            )}
             {testAvailable && <TestMenu disabled={!created || busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
             <Button type="button" variant="outline" disabled={!created} onClick={props.onHistory}>
               <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />

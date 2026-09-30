@@ -41,6 +41,19 @@ describe("ExerciseHeader", () => {
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
   })
 
+  it("shows the running test lab next to Test and reopens it", () => {
+    const props = makeProps({ activeTestUntil: "2026-09-30T12:00:00Z", onOpenTest: vi.fn() })
+    render(<ExerciseHeader {...props} />)
+    expect(screen.getByText("admin.exPage.test.running")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
+    expect(props.onOpenTest).toHaveBeenCalled()
+  })
+
+  it("shows no running-test chip without an active deploy", () => {
+    render(<ExerciseHeader {...makeProps()} />)
+    expect(screen.queryByText("admin.exPage.test.running")).not.toBeInTheDocument()
+  })
+
   it("shows Done and the save indicator while editing", () => {
     const props = makeProps({ mode: "edit" })
     render(<ExerciseHeader {...props} />)

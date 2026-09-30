@@ -27,6 +27,10 @@ vi.mock("@/api/exercises/catalog", () => ({
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
+vi.mock("@/api/exercises/deploy", () => ({
+  listDeploys: vi.fn().mockResolvedValue([]), deployVariant: vi.fn(), deployStatus: vi.fn().mockResolvedValue({ Phase: "Provisioning", Ready: false }),
+  destroyDeploy: vi.fn().mockResolvedValue(undefined), openDeployLink: vi.fn(),
+}))
 vi.mock("@/api/exercises/proposals", () => ({ proposeExercise: vi.fn() }))
 vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), listNearestEvents: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
 vi.mock("@/api/exercises/versions", () => ({
@@ -37,6 +41,7 @@ vi.mock("@/api/exercises/versions", () => ({
 }))
 
 import { createExercise, getExercise, setExerciseAccess } from "@/api/exercises/catalog"
+import { deployStatus, deployVariant, listDeploys } from "@/api/exercises/deploy"
 import { proposeExercise } from "@/api/exercises/proposals"
 import { getDraft, getVersion, listVersions, saveDraft } from "@/api/exercises/versions"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
@@ -109,6 +114,22 @@ describe("exercise editor — W4 rights", () => {
     expect((await screen.findAllByText("exercises.infra.blocked")).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
     expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+  })
+
+  it("shows the author's running test lab and reopens it instead of starting a second", async () => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
+      Flags: [{ TaskID: "t1", Name: "Find it", Flag: "ICE{kept}" }] }])
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Ready", Ready: true })
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+
+    expect(await screen.findByText("admin.exPage.test.running")).toBeInTheDocument()
+    expect(listDeploys).toHaveBeenCalledWith("ex-1")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
+    expect(await screen.findByText("ICE{kept}")).toBeInTheDocument()
+    expect(deployStatus).toHaveBeenCalledWith("run-1")
+    expect(deployVariant).not.toHaveBeenCalled()
   })
 
   it("lets admins set the access level of a catalog exercise", async () => {

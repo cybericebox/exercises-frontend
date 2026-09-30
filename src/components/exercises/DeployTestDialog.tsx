@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 
+import type { DeployFlag } from "@/api/exercises/deploy"
 import type { TaskDTO } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -19,6 +20,8 @@ type Props = {
   versionId: string
   variantId: string
   tasks: TaskDTO[]
+  /** Reopen a deploy that is already running instead of starting a new one. */
+  attach?: { deployId: string; flags: DeployFlag[] }
 }
 
 /**
@@ -27,16 +30,18 @@ type Props = {
  * deployed lab's real values, the web-access buttons, and the tester's VPN config.
  * Closing (button, overlay, escape) tears the deploy down via the hook.
  */
-export function DeployTestDialog({ open, onClose, exerciseId, versionId, variantId, tasks }: Props) {
+export function DeployTestDialog({ open, onClose, exerciseId, versionId, variantId, tasks, attach }: Props) {
   const deploy = useDeployTest()
 
   useEffect(() => {
-    if (open && variantId) {
+    if (open && attach) {
+      deploy.attach(attach.deployId, attach.flags)
+    } else if (open && variantId) {
       void deploy.start(exerciseId, versionId, variantId)
     }
     // deploy is a fresh closure each render; starting is keyed on open+variantId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, variantId, exerciseId, versionId])
+  }, [open, variantId, exerciseId, versionId, attach?.deployId])
 
   function handleClose() {
     deploy.close()

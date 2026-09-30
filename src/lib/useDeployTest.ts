@@ -125,6 +125,18 @@ export function useDeployTest() {
     [poll]
   )
 
+  /** Reopen a deploy that is already running: poll it instead of creating a new one. */
+  const attach = useCallback(
+    (deployID: string, flags: DeployFlag[]) => {
+      ++requestSequence.current
+      clearTimer()
+      activeId.current = deployID
+      setState({ ...IDLE, busy: true, deployId: deployID, flags })
+      void poll(deployID)
+    },
+    [poll]
+  )
+
   const close = useCallback(() => {
     ++requestSequence.current
     clearTimer()
@@ -146,5 +158,5 @@ export function useDeployTest() {
     []
   )
 
-  return { ...state, start, close, openLink, retryLink }
+  return { ...state, start, attach, close, openLink, retryLink }
 }

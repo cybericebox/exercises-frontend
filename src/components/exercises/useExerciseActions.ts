@@ -6,6 +6,7 @@ import {
   archiveExercise, deleteExercise, getExerciseUsage, unarchiveExercise, type ExerciseUsageEvent,
 } from "@/api/exercises/catalog"
 import { createCheckpoint, isStoredVersionId, publishDraft, restoreVersion, type TaskDTO } from "@/api/exercises/versions"
+import type { DeployFlag } from "@/api/exercises/deploy"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
@@ -15,7 +16,14 @@ import { exerciseHref } from "@/lib/exerciseRoutes"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
 import type { ExerciseEditor } from "./useExerciseEditor"
 
-export type DeployTarget = { exerciseId: string; versionId: string; variantId: string; tasks: TaskDTO[] }
+export type DeployTarget = {
+  exerciseId: string
+  versionId: string
+  variantId: string
+  tasks: TaskDTO[]
+  /** Set when the dialog reopens a running deploy instead of starting one. */
+  attach?: { deployId: string; flags: DeployFlag[] }
+}
 
 export type UseExerciseActionsOptions = {
   editor: ExerciseEditor

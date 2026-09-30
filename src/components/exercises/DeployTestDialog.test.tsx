@@ -36,6 +36,16 @@ describe("DeployTestDialog", () => {
     expect(alert).toHaveTextContent("70958")
   })
 
+  it("reopens a running deploy: polls it, shows its flags and starts nothing", async () => {
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]}
+      attach={{ deployId: "running", flags: [{ TaskID: "t1", Name: "Login", Flag: "ICE{kept}" }] }} />)
+
+    expect(await screen.findByText("ICE{kept}")).toBeInTheDocument()
+    expect(mocked.deployVariant).not.toHaveBeenCalled()
+    expect(mocked.deployStatus).toHaveBeenCalledWith("running")
+  })
+
   it("lists each task's resolved test flag with a copy button", async () => {
     mocked.deployVariant.mockResolvedValue({ DeployID: "d3", Lab: "lab", Flags: [
       { TaskID: "t1", Name: "Login", Flag: "ICE{aaa}" },

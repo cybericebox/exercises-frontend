@@ -91,6 +91,8 @@
   "admin.exPage.save.error": "Not saved",
   "admin.exPage.save.retry": "Retry",
   "admin.exPage.action.test": "Test",
+  "admin.exPage.test.running": "Test running · until {time}",
+  "admin.exPage.test.open": "Open",
   "admin.exPage.action.testNoDevices": "Nothing to test: add devices to the topology",
   "admin.exPage.action.testNoPlatform": "Platform infrastructure is not connected",
   "admin.exPage.action.testMenu": "Deploy for testing",

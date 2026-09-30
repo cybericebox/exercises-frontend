@@ -10,6 +10,8 @@ import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
+import { useActiveDeploys } from "@/lib/useActiveDeploys"
+import type { DeployListItem } from "@/api/exercises/deploy"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
@@ -96,6 +98,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const [deploy, setDeploy] = useState<DeployTarget | null>(null)
+  const activeDeploys = useActiveDeploys(exerciseId)
+  const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
@@ -207,6 +211,14 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
 
+  const attachTarget = (item: DeployListItem): DeployTarget => ({
+    exerciseId: exerciseId ?? "",
+    versionId: item.VersionID,
+    variantId: item.VariantID,
+    tasks: editor.draftForm.getValues("Variants").find((variant) => variant.ID === item.VariantID)?.Tasks ?? [],
+    attach: { deployId: item.DeployID, flags: item.Flags },
+  })
+
   // Test deploy needs a topology with devices and a connected platform infrastructure.
   const hasDevices = watchedVariants.some((variant) => variant.Topology.Devices.length > 0)
   const testBlockedReason = laboratories === null ? "" : !infraAllowed ? t("exercises.infra.blocked")
@@ -258,7 +270,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
         onCancelNew={() => void editor.autosave.discard()}
-        onTest={(index) => void actions.test(index).then((target) => { if (target) setDeploy(target) })}
+        activeTestUntil={activeDeploy?.ExpiresAt ?? null}
+        onOpenTest={activeDeploy ? () => setDeploy(attachTarget(activeDeploy)) : undefined}
+        onTest={(index) => {
+          // One lab per author and exercise: a second start opens the running one.
+          if (activeDeploy) { setDeploy(attachTarget(activeDeploy)); return }
+          void actions.test(index).then((target) => {
+            if (!target) return
+            setDeploy(target)
+            setTimeout(() => void activeDeploys.refresh(), 2500)
+          })
+        }}
         onHistory={() => setDialog("history")}
         onEdit={() => setMode("edit")}
         onDone={() => void actions.done()}
@@ -336,8 +358,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    {deploy && <DeployTestDialog open onClose={() => setDeploy(null)} exerciseId={deploy.exerciseId}
-      versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} />}
+    {deploy && <DeployTestDialog open onClose={() => { setDeploy(null); if (deploy.attach) activeDeploys.forget(deploy.attach.deployId); setTimeout(() => void activeDeploys.refresh(), 1500) }}
+      exerciseId={deploy.exerciseId} versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} attach={deploy.attach} />}
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
