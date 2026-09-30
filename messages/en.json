@@ -320,6 +320,8 @@
   "admin.exDeploy.vpnConfig": "VPN config",
   "admin.exDeploy.download": "Download",
   "admin.exDeploy.access": "Web access",
+  "admin.exDeploy.sessionOpening": "Opening web access…",
+  "admin.exDeploy.sessionFailed": "Could not open web access to the lab",
   "admin.exDeploy.resolved": "Resolved values",
   "admin.exDeploy.noValues": "No placeholders",
   "admin.exDraft.variant": "Variant",

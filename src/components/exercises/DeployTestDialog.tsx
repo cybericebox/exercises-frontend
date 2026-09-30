@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import type { TaskDTO } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { resolvePlaceholders } from "@/lib/placeholderResolve"
@@ -58,16 +59,17 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
         </DialogHeader>
 
         {deploy.error || failed ? (
-          <p role="alert" className="text-sm text-destructive">
-            {t("admin.exDeploy.failed")}{deploy.error ? `: ${deploy.error}` : ""}
-          </p>
+          <LoadError
+            compact
+            message={t("admin.exDeploy.failed")}
+            onRetry={() => void deploy.start(exerciseId, versionId, variantId)}
+          />
         ) : !ready ? (
-          <div className="space-y-2 text-center">
-            <LoadingArea compact label={t("admin.exDeploy.provisioning")} />
-            <span className="block text-sm text-muted-foreground">
-              {status?.Phase && status.Phase !== "Ready" ? status.Phase : t("admin.exDeploy.provisioning")}
-            </span>
-          </div>
+          <LoadingArea
+            compact
+            label={t("admin.exDeploy.provisioning")}
+            message={status?.Phase && status.Phase !== "Ready" ? status.Phase : t("admin.exDeploy.provisioning")}
+          />
         ) : (
           <div className="max-h-[60vh] space-y-4 overflow-y-auto">
             {tasks.map((task, i) => {
@@ -95,15 +97,21 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
             {status?.Access && status.Access.length > 0 && (
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exDeploy.access")}</div>
-                <ul className="mt-1 space-y-0.5 text-sm">
-                  {status.Access.map((a, i) => (
-                    <li key={i}>
-                      <a href={a.URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                        {a.Device} — {a.URL}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                {deploy.session === "error" ? (
+                  <LoadError compact message={t("admin.exDeploy.sessionFailed")} error={deploy.sessionError} onRetry={deploy.retrySession} />
+                ) : deploy.session !== "open" ? (
+                  <LoadingArea compact label={t("admin.exDeploy.sessionOpening")} message={t("admin.exDeploy.sessionOpening")} />
+                ) : (
+                  <ul className="mt-1 space-y-0.5 text-sm">
+                    {status.Access.map((a, i) => (
+                      <li key={i}>
+                        <a href={a.URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                          {a.Device} — {a.URL}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 

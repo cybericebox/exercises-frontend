@@ -8,6 +8,9 @@
  * lab provisions in the background; the caller polls deployStatus until Phase is
  * "Ready" (or "Failed"), then reads the CIDRs / access URLs / VPN config to
  * resolve the task placeholders inline and offer the tester their VPN.
+ *
+ * Web devices need the author's proxy cookie: POST /api/exercises/deploys/:id/session
+ * (openDeploySession) sets it once the lab is ready and lasts until the deploy's lease ends.
  */
 import { apiGet, apiPost, apiDelete } from "@/api/client"
 
@@ -51,6 +54,13 @@ export function deployVariant(exerciseId: string, versionId: string, variantId: 
 /** Poll a running deploy's status. */
 export function deployStatus(group: string): Promise<DeployStatus> {
   return apiGet<DeployStatus>(`${BASE}/deploys/${encodeURIComponent(group)}`)
+}
+
+export type DeploySession = { ExpiresAt: string }
+
+/** Open the author's web session (sets the proxy cookie) for a ready test deploy. */
+export function openDeploySession(group: string): Promise<DeploySession> {
+  return apiPost<DeploySession>(`${BASE}/deploys/${encodeURIComponent(group)}/session`, {})
 }
 
 /** Tear a test deploy down. */

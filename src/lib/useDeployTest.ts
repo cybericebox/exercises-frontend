@@ -9,9 +9,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { deployVariant, deployStatus, destroyDeploy, type DeployStatus } from "@/api/exercises/deploy"
+import { deployVariant, deployStatus, destroyDeploy, openDeploySession, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
+
+/** The proxy cookie for the web devices: needed only when the lab exposes any. */
+export type DeploySessionState = "none" | "opening" | "open" | "error"
 
 export type DeployTestState = {
   deployId: string | null
@@ -19,9 +22,11 @@ export type DeployTestState = {
   error: string | null
   /** true while starting or polling a not-yet-terminal deploy. */
   busy: boolean
+  session: DeploySessionState
+  sessionError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, busy: false }
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, busy: false, session: "none", sessionError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -35,6 +40,21 @@ export function useDeployTest() {
       timer.current = null
     }
   }
+
+  const openSession = useCallback(async (id: string) => {
+    setState((p) => ({ ...p, session: "opening", sessionError: null }))
+    try {
+      await openDeploySession(id)
+    } catch (e) {
+      if (activeId.current === id) setState((p) => ({ ...p, session: "error", sessionError: e }))
+      return
+    }
+    if (activeId.current === id) setState((p) => ({ ...p, session: "open" }))
+  }, [])
+
+  const retrySession = useCallback(() => {
+    if (activeId.current) void openSession(activeId.current)
+  }, [openSession])
 
   const poll = useCallback(async (id: string) => {
     let s: DeployStatus
@@ -50,8 +70,12 @@ export function useDeployTest() {
     setState((p) => ({ ...p, status: s, busy: !terminal }))
     if (!terminal) {
       timer.current = setTimeout(() => void poll(id), POLL_MS)
+    } else if (s.Ready && (s.Access?.length ?? 0) > 0) {
+      // Asked once, when the lab is ready and only if it has web devices; the cookie
+      // lasts until the deploy's lease ends, so there is no refresh loop.
+      void openSession(id)
     }
-  }, [])
+  }, [openSession])
 
   const start = useCallback(
     async (exerciseId: string, versionId: string, variantId: string) => {
@@ -100,5 +124,5 @@ export function useDeployTest() {
     []
   )
 
-  return { ...state, start, close }
+  return { ...state, start, close, retrySession }
 }

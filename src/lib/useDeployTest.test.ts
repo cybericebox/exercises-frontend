@@ -104,4 +104,54 @@ describe("useDeployTest", () => {
     expect(mocked.destroyDeploy).toHaveBeenCalledWith("first-deploy")
     expect(result.current.deployId).toBe("second-deploy")
   })
+
+  describe("web session", () => {
+    const web = { Phase: "Ready", Ready: true, Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
+
+    it("opens the session once when a lab with web devices is ready", async () => {
+      mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
+      mocked.deployStatus.mockResolvedValue(web)
+      mocked.openDeploySession.mockResolvedValue({ ExpiresAt: "2026-10-01T00:00:00Z" })
+
+      const { result } = renderHook(() => useDeployTest())
+      await act(async () => {
+        await result.current.start("ex", "ver", "var")
+      })
+
+      await waitFor(() => expect(result.current.session).toBe("open"))
+      expect(mocked.openDeploySession).toHaveBeenCalledTimes(1)
+      expect(mocked.openDeploySession).toHaveBeenCalledWith("g1")
+    })
+
+    it("does not ask for a session when the lab has no web devices", async () => {
+      mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
+      mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, VPNConfig: "cfg" })
+
+      const { result } = renderHook(() => useDeployTest())
+      await act(async () => {
+        await result.current.start("ex", "ver", "var")
+      })
+
+      await waitFor(() => expect(result.current.status?.Ready).toBe(true))
+      expect(result.current.session).toBe("none")
+      expect(mocked.openDeploySession).not.toHaveBeenCalled()
+    })
+
+    it("keeps the error and retries the session on demand", async () => {
+      mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
+      mocked.deployStatus.mockResolvedValue(web)
+      mocked.openDeploySession.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ ExpiresAt: "2026-10-01T00:00:00Z" })
+
+      const { result } = renderHook(() => useDeployTest())
+      await act(async () => {
+        await result.current.start("ex", "ver", "var")
+      })
+      await waitFor(() => expect(result.current.session).toBe("error"))
+      expect(result.current.sessionError).toBeInstanceOf(Error)
+
+      act(() => result.current.retrySession())
+      await waitFor(() => expect(result.current.session).toBe("open"))
+      expect(mocked.openDeploySession).toHaveBeenCalledTimes(2)
+    })
+  })
 })
