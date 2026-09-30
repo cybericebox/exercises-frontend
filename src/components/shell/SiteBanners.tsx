@@ -7,6 +7,7 @@ import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { BANNER_POLL_MS, bannerHref, bannerLevel, dismissKey, isDismissed, parseBanners, rememberDismissed, sortBanners, type SiteBanner } from "@/lib/siteBanners"
 import "@/styles/site-banner.css"
+import { keepBrand } from "@/i18n/brand"
 
 // Presentational: the visible banners, most severe first.
 export function SiteBannerList({ banners, onDismiss }: { banners: SiteBanner[]; onDismiss?: (banner: SiteBanner) => void }) {
@@ -18,8 +19,8 @@ export function SiteBannerList({ banners, onDismiss }: { banners: SiteBanner[]; 
         return (
           <div key={dismissKey(banner)} className={`ib-site-banner ib-site-banner--${bannerLevel(banner.Level)}`}>
             <p className="ib-site-banner__text">
-              {banner.Text}
-              {href ? <a className="ib-site-banner__link" href={href}>{banner.LinkLabel || t("siteBanner.more")}</a> : null}
+              {keepBrand(banner.Text)}
+              {href ? <a className="ib-site-banner__link" href={href}>{keepBrand(banner.LinkLabel || t("siteBanner.more"))}</a> : null}
             </p>
             {banner.Dismissible ? (
               <HoverTooltip text={t("siteBanner.dismiss")}>
