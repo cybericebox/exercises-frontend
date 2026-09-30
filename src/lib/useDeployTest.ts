@@ -1,6 +1,8 @@
 /**
- * useDeployTest — drives the per-variant test-deploy lifecycle: start a deploy,
- * poll its status until it is Ready or Failed, and tear it down on close/unmount.
+ * useDeployTest — drives the per-variant test-deploy lifecycle: start a deploy (or
+ * attach to a running one) and poll its status until it is Ready or Failed. Leaving
+ * the screen only stops the polling; the lab lives until the author ends it (close)
+ * or its lease runs out, so the author can come back to it.
  *
  * The deploy is stateless on the server (the lab group IS the state), so this hook
  * owns nothing but the active deploy id and a polling timer. Stale responses (from
@@ -9,6 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
@@ -91,7 +94,7 @@ export function useDeployTest() {
       return
     }
     if (activeId.current !== id) return // a newer deploy (or a close) superseded this one
-    const terminal = s.Ready || s.Phase === "Failed"
+    const terminal = s.Ready || isTerminalPhase(s.Phase)
     setState((p) => ({ ...p, status: s, busy: !terminal }))
     if (!terminal) {
       timer.current = setTimeout(() => void poll(id), POLL_MS)
@@ -146,14 +149,13 @@ export function useDeployTest() {
     setState(IDLE)
   }, [])
 
-  // Tear the deploy down if the component unmounts mid-flight.
+  // Leaving the screen stops the polling and drops a start still in flight (its lab is
+  // torn down when it answers); a lab that is already known keeps running.
   useEffect(
     () => () => {
       ++requestSequence.current
       clearTimer()
-      const id = activeId.current
       activeId.current = null
-      if (id) void Promise.resolve(destroyDeploy(id)).catch(() => {})
     },
     []
   )

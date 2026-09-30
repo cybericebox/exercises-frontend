@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   archiveExercise, deleteExercise, getExerciseUsage, unarchiveExercise, type ExerciseUsageEvent,
 } from "@/api/exercises/catalog"
-import { createCheckpoint, isStoredVersionId, publishDraft, restoreVersion, type TaskDTO } from "@/api/exercises/versions"
-import type { DeployTask } from "@/api/exercises/deploy"
+import { createCheckpoint, isStoredVersionId, publishDraft, restoreVersion } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
@@ -20,9 +19,6 @@ export type DeployTarget = {
   exerciseId: string
   versionId: string
   variantId: string
-  tasks: TaskDTO[]
-  /** Set when the dialog reopens a running deploy instead of starting one. */
-  attach?: { deployId: string; tasks: DeployTask[] }
 }
 
 export type UseExerciseActionsOptions = {
@@ -189,7 +185,7 @@ export function useExerciseActions({
       toast.error(t("admin.exPage.toast.saveFailed"))
       return null
     }
-    return { exerciseId, versionId, variantId: variant.ID, tasks: variant.Tasks }
+    return { exerciseId, versionId, variantId: variant.ID }
   }
 
   async function done(): Promise<void> {

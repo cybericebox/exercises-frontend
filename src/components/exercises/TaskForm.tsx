@@ -51,7 +51,7 @@ export function TaskForm({
       placeholder.Kind === "internet.subnet" ? "admin.exPh.kind.internetSubnet" :
       placeholder.Kind === "external.link" ? "admin.exPh.kind.externalLink" : "admin.exPh.kind.ip"
     const example = placeholder.Kind === "external.link" ? exampleLabLink(placeholder.DeviceName || "web") :
-      placeholder.Kind === "vpn.subnet" || placeholder.Kind === "internet.subnet" ? `10.0.0.0${placeholder.ShowMask ? "/24" : ""}` :
+      placeholder.Kind === "vpn.subnet" || placeholder.Kind === "internet.subnet" ? "10.0.0.0/24" :
       ipExample(placeholder)
     return { name: placeholder.Key, description: t(labelKey), example }
   })

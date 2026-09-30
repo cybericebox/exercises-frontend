@@ -103,6 +103,25 @@ describe("useDeployTest", () => {
     expect(mocked.deployStatus).not.toHaveBeenCalled()
   })
 
+  it("keeps a known deploy running when the screen is left, so the author can come back", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "kept", Lab: "lab" })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    const { result, unmount } = renderHook(() => useDeployTest())
+    await act(async () => { await result.current.start("ex", "ver", "var") })
+    await waitFor(() => expect(result.current.status?.Ready).toBe(true))
+
+    unmount()
+    expect(mocked.destroyDeploy).not.toHaveBeenCalled()
+  })
+
+  it("stops polling on a terminal Error phase like on Failed", async () => {
+    mocked.deployStatus.mockResolvedValue({ Phase: "Error", Ready: false })
+    const { result } = renderHook(() => useDeployTest())
+    act(() => result.current.attach("g5", []))
+    await waitFor(() => expect(result.current.status?.Phase).toBe("Error"))
+    expect(result.current.busy).toBe(false)
+  })
+
   it("tears down the previous deploy when testing another variant", async () => {
     mocked.deployVariant
       .mockResolvedValueOnce({ DeployID: "first-deploy", Lab: "lab" })

@@ -12,9 +12,6 @@ vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.f
 vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
-vi.mock("@/components/exercises/DeployTestDialog", () => ({
-  DeployTestDialog: (p: { versionId: string; variantId: string }) => <div data-testid="deploy">{p.versionId}/{p.variantId}</div>,
-}))
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
 vi.mock("@/api/exercises/catalog", () => ({
@@ -267,12 +264,12 @@ describe("exercise page — publishing and history", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
   })
 
-  it("runs a test deploy of the chosen variant from the header", async () => {
+  it("opens the testing page for the chosen variant from the header", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
     fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
-    expect(await screen.findByTestId("deploy")).toHaveTextContent("draft-1/variant-1")
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
   })
 })
 

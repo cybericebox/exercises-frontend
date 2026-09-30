@@ -5,13 +5,14 @@ import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
 
 const h = vi.hoisted(() => ({
+  push: vi.fn(),
   access: null as ExerciseAccess | null,
   returnUrl: null as string | null,
 }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "user-1" }, isLoading: false, can: () => false }) }))
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }))
@@ -41,7 +42,7 @@ vi.mock("@/api/exercises/versions", () => ({
 }))
 
 import { createExercise, getExercise, setExerciseAccess } from "@/api/exercises/catalog"
-import { deployStatus, deployVariant, listDeploys } from "@/api/exercises/deploy"
+import { deployVariant, listDeploys } from "@/api/exercises/deploy"
 import { proposeExercise } from "@/api/exercises/proposals"
 import { getDraft, getVersion, listVersions, saveDraft } from "@/api/exercises/versions"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
@@ -116,19 +117,17 @@ describe("exercise editor — W4 rights", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
   })
 
-  it("shows the author's running test lab and reopens it instead of starting a second", async () => {
+  it("shows the author's running test lab and opens its page instead of starting a second", async () => {
     h.access = adminAccess
     vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
       Tasks: [{ TaskID: "t1", Name: "Find it" }] }])
-    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Ready", Ready: true })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
 
     expect(await screen.findByText("admin.exPage.test.running")).toBeInTheDocument()
     expect(listDeploys).toHaveBeenCalledWith("ex-1")
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
-    expect(await screen.findByLabelText("admin.exDeploy.flagInput")).toBeInTheDocument()
-    expect(deployStatus).toHaveBeenCalledWith("run-1")
+    expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&deploy=run-1")
     expect(deployVariant).not.toHaveBeenCalled()
   })
 

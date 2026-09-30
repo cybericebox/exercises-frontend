@@ -3,15 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useWatch } from "react-hook-form"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listVersions, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
-import type { DeployListItem } from "@/api/exercises/deploy"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
@@ -20,7 +19,7 @@ import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOpti
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
-import { useExerciseActions, type DeployTarget } from "@/components/exercises/useExerciseActions"
+import { useExerciseActions } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
 import { Card, CardContent } from "@/components/ui/card"
 import { Form } from "@/components/ui/form"
@@ -29,7 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
-import { exerciseHref } from "@/lib/exerciseRoutes"
+import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoutes"
 import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
@@ -97,7 +96,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const userId = me?.ID ?? null
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
-  const [deploy, setDeploy] = useState<DeployTarget | null>(null)
+  const router = useRouter()
   const activeDeploys = useActiveDeploys(exerciseId)
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
@@ -211,13 +210,12 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
 
-  const attachTarget = (item: DeployListItem): DeployTarget => ({
-    exerciseId: exerciseId ?? "",
-    versionId: item.VersionID,
-    variantId: item.VariantID,
-    tasks: editor.draftForm.getValues("Variants").find((variant) => variant.ID === item.VariantID)?.Tasks ?? [],
-    attach: { deployId: item.DeployID, tasks: item.Tasks },
-  })
+  // The testing page: an active lab is reopened, otherwise the page starts one for the chosen variant.
+  const openTest = () => {
+    if (!exerciseId || !activeDeploy) return
+    leave.allowNavigation()
+    router.push(testLabHref(exerciseId, activeDeploy.DeployID))
+  }
 
   // Test deploy needs a topology with devices and a connected platform infrastructure.
   const hasDevices = watchedVariants.some((variant) => variant.Topology.Devices.length > 0)
@@ -271,14 +269,14 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onRetrySave={() => void editor.autosave.flush()}
         onCancelNew={() => void editor.autosave.discard()}
         activeTestUntil={activeDeploy?.ExpiresAt ?? null}
-        onOpenTest={activeDeploy ? () => setDeploy(attachTarget(activeDeploy)) : undefined}
+        onOpenTest={activeDeploy ? openTest : undefined}
         onTest={(index) => {
           // One lab per author and exercise: a second start opens the running one.
-          if (activeDeploy) { setDeploy(attachTarget(activeDeploy)); return }
+          if (activeDeploy) { openTest(); return }
           void actions.test(index).then((target) => {
             if (!target) return
-            setDeploy(target)
-            setTimeout(() => void activeDeploys.refresh(), 2500)
+            leave.allowNavigation()
+            router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
           })
         }}
         onHistory={() => setDialog("history")}
@@ -358,8 +356,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    {deploy && <DeployTestDialog open onClose={() => { setDeploy(null); if (deploy.attach) activeDeploys.forget(deploy.attach.deployId); setTimeout(() => void activeDeploys.refresh(), 1500) }}
-      exerciseId={deploy.exerciseId} versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} attach={deploy.attach} />}
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}

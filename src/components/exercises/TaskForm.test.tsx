@@ -107,7 +107,7 @@ describe('TaskForm inline placeholders', () => {
     }, { discrete: true })
     initial.Variants[0].Tasks[0].Description = editor.getEditorState().toJSON() as unknown as Record<string, unknown>
     render(<Harness initial={initial} />)
-    fireEvent.click(await screen.findByRole('button', { name: /Редагувати підстановку: 10\.0\.0\.0/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Редагувати підстановку: 10\.0\.0\.0\/24/ })) // a subnet previews as a CIDR even without ShowMask
     expect(screen.getByRole('dialog', { name: 'Редагувати підстановку' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('switch', { name: 'Показувати маску' }))
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
