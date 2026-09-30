@@ -56,7 +56,7 @@ describe("resolveReturnContext", () => {
   })
 
   it("drops a malformed stored value", () => {
-    window.sessionStorage.setItem("cybericebox.exercises.return", "{not json")
+    window.sessionStorage.setItem("cib_exercises_return", "{not json")
     expect(readStoredReturnContext()).toEqual({ returnUrl: null, eventId: null })
   })
 })

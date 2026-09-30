@@ -62,7 +62,7 @@ describe("site banners", () => {
     fireEvent.click(screen.getByRole("button", { name: "Закрити оголошення" }))
     expect(screen.queryByText("Планові роботи")).not.toBeInTheDocument()
     expect(screen.getByText("Без закриття")).toBeInTheDocument()
-    expect(Object.keys(localStorage).some((key) => key.includes("b1:1"))).toBe(true)
+    expect(Object.keys(localStorage).some((key) => key.includes("b1_1"))).toBe(true)
     view.unmount()
     render(<SiteBanners />)
     await screen.findByText("Без закриття")
@@ -70,7 +70,7 @@ describe("site banners", () => {
   })
 
   it("an edited banner (new Version) reappears", async () => {
-    localStorage.setItem("site-banner-dismissed:b1:1", "1")
+    localStorage.setItem("cib_site_banner_dismissed_b1_1", "1")
     api.get.mockResolvedValue([banner({ Version: 2 })])
     render(<SiteBanners />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()

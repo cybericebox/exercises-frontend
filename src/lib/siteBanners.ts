@@ -1,3 +1,4 @@
+import { siteBannerDismissedKey } from "@/lib/storageKeys"
 // Site banners (docs/BROADCASTS.md, «Банери»): pure model shared in spirit by every frontend.
 // GET /api/banners is public; the server already filters by activity, window and audience.
 // Dismissal lives in the browser only, under `${ID}:${Version}` (an edited banner gets a new Version).
@@ -15,7 +16,6 @@ export type SiteBanner = {
 }
 
 export const BANNER_POLL_MS = 60_000
-const KEY_PREFIX = "site-banner-dismissed:"
 const SEVERITY: Record<BannerLevel, number> = { critical: 0, warning: 1, info: 2 }
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">
@@ -41,7 +41,7 @@ export function sortBanners(items: readonly SiteBanner[]): SiteBanner[] {
 }
 
 export function dismissKey(banner: Pick<SiteBanner, "ID" | "Version">): string {
-  return `${KEY_PREFIX}${banner.ID}:${banner.Version ?? ""}`
+  return siteBannerDismissedKey(banner.ID, banner.Version ?? "")
 }
 
 function browserStorage(): StorageLike | null {

@@ -1,4 +1,5 @@
 import { publicDomain } from "@/lib/origins"
+import { STORAGE_EXERCISES_RETURN } from "@/lib/storageKeys"
 
 // Return context: an event page (or admin) opens the catalog with ?return_to=<absolute
 // https URL>[&event=<eventID>] (older links: ?return=). The URL is only accepted on
@@ -7,7 +8,6 @@ import { publicDomain } from "@/lib/origins"
 
 export type ReturnContext = { returnUrl: string | null; eventId: string | null }
 
-const STORAGE_KEY = "cybericebox.exercises.return"
 const EMPTY: ReturnContext = { returnUrl: null, eventId: null }
 
 /** Accepts only https URLs on `${domain}` or its subdomains; everything else → null. */
@@ -33,7 +33,7 @@ function cleanEventId(value: string | null | undefined): string | null {
 
 export function readStoredReturnContext(): ReturnContext {
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    const raw = window.sessionStorage.getItem(STORAGE_EXERCISES_RETURN)
     if (!raw) return EMPTY
     const parsed = JSON.parse(raw) as Partial<ReturnContext>
     const returnUrl = safeReturnUrl(parsed.returnUrl ?? null)
@@ -45,7 +45,7 @@ export function readStoredReturnContext(): ReturnContext {
 
 function store(context: ReturnContext): void {
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(context))
+    window.sessionStorage.setItem(STORAGE_EXERCISES_RETURN, JSON.stringify(context))
   } catch { /* Storage may be disabled; the bar then lives for this page only. */ }
 }
 

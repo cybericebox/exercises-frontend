@@ -1,3 +1,4 @@
+import { STORAGE_BACK } from "@/lib/storageKeys"
 /**
  * backLink.ts — where the "back" arrow leads, one copy per app (id, exercises; keep them identical).
  *
@@ -21,7 +22,6 @@ export const BACK_LABELS: Record<BackDestination, string> = {
   event: "back.toEvent",
 }
 
-const STORAGE_KEY = "cybericebox.back"
 
 const hostOf = (origin: string) => {
   try {
@@ -79,10 +79,10 @@ export function resolveBack(
   const fresh = fromReturnTo ?? (fromReferrer && new URL(fromReferrer.href).hostname !== currentHost.toLowerCase() ? fromReferrer : null)
   try {
     if (fresh) {
-      storage?.setItem(STORAGE_KEY, fresh.href)
+      storage?.setItem(STORAGE_BACK, fresh.href)
       return fresh
     }
-    return classifyBack(storage?.getItem(STORAGE_KEY), hosts)
+    return classifyBack(storage?.getItem(STORAGE_BACK), hosts)
   } catch {
     // Storage may be disabled: the link then lives for this page only.
     return fresh

@@ -6,8 +6,7 @@
  * env values mean "keep the stored value" on save.
  */
 import type { DeviceFormValues, DraftFormValues, IdentityFormValues } from "@/lib/exerciseSchemas"
-
-const PREFIX = "cybericebox.admin.exercise-pending.v1:"
+import { exercisePendingKey } from "@/lib/storageKeys"
 
 export type PendingChanges = {
   version: 1
@@ -17,7 +16,7 @@ export type PendingChanges = {
 }
 
 export function pendingBufferKey(userId: string, exerciseId: string | null): string {
-  return `${PREFIX}${userId}:${exerciseId ?? "new"}`
+  return exercisePendingKey(userId, exerciseId ?? "new")
 }
 
 export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {

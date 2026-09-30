@@ -23,9 +23,9 @@ import { TopologyDeviceOverview } from "./TopologyDeviceOverview"
 import { TopologyDiagram } from "./TopologyDiagram"
 import { TopologyGlyph } from "./TopologyGlyph"
 import { useEditorPosition } from "./EditorPosition"
+import { STORAGE_TOPOLOGY_INSPECTOR_WIDTH } from "@/lib/storageKeys"
 
 type Gateway = "vpn" | "internet"
-const INSPECTOR_WIDTH_KEY = "cybericebox:topology-inspector-width"
 const INSPECTOR_DEFAULT_WIDTH = 480
 const INSPECTOR_MIN_WIDTH = 448
 const INSPECTOR_MAX_WIDTH = 720
@@ -34,7 +34,7 @@ const INSPECTOR_GAP = 8
 function initialInspectorWidth() {
   if (typeof window === "undefined") return INSPECTOR_DEFAULT_WIDTH
   try {
-    const raw = window.localStorage?.getItem(INSPECTOR_WIDTH_KEY)
+    const raw = window.localStorage?.getItem(STORAGE_TOPOLOGY_INSPECTOR_WIDTH)
     if (raw !== null && raw !== undefined) {
       const stored = Number(raw)
       if (Number.isInteger(stored) && stored > 0) return Math.max(INSPECTOR_MIN_WIDTH, Math.min(INSPECTOR_MAX_WIDTH, stored))
@@ -157,7 +157,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   }
 
   function saveInspectorWidth() {
-    try { window.localStorage?.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidthRef.current)) }
+    try { window.localStorage?.setItem(STORAGE_TOPOLOGY_INSPECTOR_WIDTH, String(inspectorWidthRef.current)) }
     catch { /* Resizing still works for this session if storage is blocked. */ }
   }
 

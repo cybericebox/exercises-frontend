@@ -117,9 +117,9 @@ describe("new exercise page", () => {
     fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(createExercise).not.toHaveBeenCalled()
-    expect(storage.get("cybericebox.admin.exercise-pending.v1:editor-1:new")).toContain("Qz")
+    expect(storage.get("cib_exercise_pending_editor-1_new")).toContain("Qz")
     fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
-    expect(storage.has("cybericebox.admin.exercise-pending.v1:editor-1:new")).toBe(false)
+    expect(storage.has("cib_exercise_pending_editor-1_new")).toBe(false)
   })
 
   it("refuses without exercises.write", () => {

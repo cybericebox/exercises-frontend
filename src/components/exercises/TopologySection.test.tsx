@@ -401,7 +401,7 @@ describe("topology workspace", () => {
   })
 
   it("resizes the canvas inspector and restores its width from this browser", () => {
-    const storageKey = "cybericebox:topology-inspector-width"
+    const storageKey = "cib_topology_inspector_width"
     const values = new Map([[storageKey, "400"]])
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => values.get(key) ?? null,
