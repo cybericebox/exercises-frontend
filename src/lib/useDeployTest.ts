@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployStatus } from "@/api/exercises/deploy"
+import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployFlag, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
 
@@ -23,6 +23,10 @@ export type DeployTestState = {
   deployId: string | null
   status: DeployStatus | null
   error: string | null
+  /** The raw failure behind `error`, for mapping its backend code to a message. */
+  errorCause: unknown
+  /** Test flags injected into the linked devices, known from the start of the deploy. */
+  flags: DeployFlag[]
   /** true while starting or polling a not-yet-terminal deploy. */
   busy: boolean
   link: DeployLinkState
@@ -31,7 +35,7 @@ export type DeployTestState = {
   linkError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, busy: false, link: "idle", linkKey: null, linkError: null }
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, flags: [], busy: false, link: "idle", linkKey: null, linkError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -83,7 +87,7 @@ export function useDeployTest() {
       s = await deployStatus(id)
     } catch (e) {
       if (activeId.current !== id) return
-      setState((p) => ({ ...p, error: (e as Error).message, busy: false }))
+      setState((p) => ({ ...p, error: (e as Error).message, errorCause: e, busy: false }))
       return
     }
     if (activeId.current !== id) return // a newer deploy (or a close) superseded this one
@@ -103,10 +107,11 @@ export function useDeployTest() {
       if (previousId) void Promise.resolve(destroyDeploy(previousId)).catch(() => {})
       setState({ ...IDLE, busy: true })
       let deployID: string
+      let flags: DeployFlag[]
       try {
-        ;({ DeployID: deployID } = await deployVariant(exerciseId, versionId, variantId))
+        ;({ DeployID: deployID, Flags: flags = [] } = await deployVariant(exerciseId, versionId, variantId))
       } catch (e) {
-        if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message })
+        if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message, errorCause: e })
         return
       }
       if (sequence !== requestSequence.current) {
@@ -114,7 +119,7 @@ export function useDeployTest() {
         return
       }
       activeId.current = deployID
-      setState((p) => ({ ...p, deployId: deployID }))
+      setState((p) => ({ ...p, deployId: deployID, flags }))
       void poll(deployID)
     },
     [poll]

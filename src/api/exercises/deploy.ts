@@ -20,10 +20,14 @@ const BASE = "/api/exercises"
 
 export type DeployPhase = "Pending" | "Provisioning" | "Ready" | "Failed"
 
+/** The test value injected into a task's linked device (a flag for the author to compare). */
+export type DeployFlag = { TaskID: string; Name: string; Flag: string }
+
 export type DeployResponse = {
   DeployID: string
   Lab: string
   VPNClient?: string
+  Flags?: DeployFlag[]
 }
 
 export type DeployDeviceStatus = { Name: string; Ready: boolean }

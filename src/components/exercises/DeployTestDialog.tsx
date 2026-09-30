@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 import type { TaskDTO } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
+import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { resolvePlaceholders } from "@/lib/placeholderResolve"
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 
@@ -42,6 +43,15 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
     onClose()
   }
 
+  const [copiedFlag, setCopiedFlag] = useState<string | null>(null)
+
+  function copyFlag(key: string, flag: string) {
+    void navigator.clipboard?.writeText(flag).then(() => {
+      setCopiedFlag(key)
+      setTimeout(() => setCopiedFlag((current) => (current === key ? null : current)), 1500)
+    })
+  }
+
   const status = deploy.status
   const ready = status?.Ready ?? false
   const failed = status?.Phase === "Failed"
@@ -61,7 +71,8 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
         {deploy.error || failed ? (
           <LoadError
             compact
-            message={t("admin.exDeploy.failed")}
+            error={deploy.errorCause}
+            message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
             onRetry={() => void deploy.start(exerciseId, versionId, variantId)}
           />
         ) : !ready ? (
@@ -97,6 +108,35 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
                 </div>
               )
             })}
+
+            {deploy.flags.length > 0 && (
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exDeploy.flags")}</div>
+                <p className="text-xs text-muted-foreground">{t("admin.exDeploy.flagsHelp")}</p>
+                <ul className="mt-1 space-y-1 text-sm">
+                  {deploy.flags.map((f, i) => {
+                    const key = f.TaskID || String(i)
+                    return (
+                      <li key={key} className="flex items-center justify-between gap-2">
+                        <span className="min-w-0">
+                          <span className="block truncate">{f.Name}</span>
+                          <code className="block break-all font-mono text-xs">{f.Flag}</code>
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-label={t("admin.exDeploy.copyFlag", { name: f.Name })}
+                          onClick={() => copyFlag(key, f.Flag)}
+                        >
+                          {copiedFlag === key ? t("admin.exDeploy.copied") : t("admin.exDeploy.copy")}
+                        </Button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
 
             {status?.Access && status.Access.length > 0 && (
               <div>

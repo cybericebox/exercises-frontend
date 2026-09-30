@@ -3,8 +3,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 import { DeployTestDialog } from "./DeployTestDialog"
 import * as deployApi from "@/api/exercises/deploy"
+import { ApiError } from "@/api/client"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => (vars ? `${key} ${JSON.stringify(vars)}` : key) }))
 vi.mock("@/api/exercises/deploy")
 
 const mocked = vi.mocked(deployApi)
@@ -23,6 +24,34 @@ describe("DeployTestDialog", () => {
 
     expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
     expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+  })
+
+  it("shows the mapped reason when the deploy request fails", async () => {
+    mocked.deployVariant.mockRejectedValue(new ApiError(409, { Status: { Code: 70958, Message: "The variant has no laboratory to test" } }, "x", undefined, 70958))
+
+    render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]} />)
+
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent('admin.exDeploy.failedReason {"reason":"admin.ex.err.testDeployNoLab"}')
+    expect(alert).toHaveTextContent("70958")
+  })
+
+  it("lists each task's resolved test flag with a copy button", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d3", Lab: "lab", Flags: [
+      { TaskID: "t1", Name: "Login", Flag: "ICE{aaa}" },
+      { TaskID: "t2", Name: "Root", Flag: "ICE{bbb}" },
+    ] })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal("navigator", { clipboard: { writeText } })
+
+    render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]} />)
+
+    expect(await screen.findByText("ICE{aaa}")).toBeInTheDocument()
+    expect(screen.getByText("Root")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: 'admin.exDeploy.copyFlag {"name":"Root"}' }))
+    expect(writeText).toHaveBeenCalledWith("ICE{bbb}")
+    vi.unstubAllGlobals()
   })
 
   it("renders a link-form IP placeholder as a real link", async () => {

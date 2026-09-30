@@ -60,6 +60,8 @@ export const CODE_TO_KEY: Record<number, string> = {
   20920: "admin.ex.err.endpointUnresolved",
   20921: "admin.ex.err.portInUse",
   20924: "admin.ex.err.flagDeviceUnresolved",
+  20942: "admin.ex.err.flagEnvConflict",
+  20943: "admin.ex.err.forwardingPortInvalid",
   20929: "admin.ex.err.vpnDisabled",
   20930: "admin.ex.err.internetDisabled",
   20931: "admin.ex.err.vpnGatewayInUse",
@@ -82,6 +84,12 @@ export const CODE_TO_KEY: Record<number, string> = {
   70956: "exercises.err.proposalDecided",
   60957: "exercises.err.forbidden",
   70903: "exercises.err.nameExists",
+  // test deploy
+  30937: "admin.ex.err.deployNotFound",
+  70958: "admin.ex.err.testDeployNoLab",
+  70959: "admin.ex.err.testDeployNotReady",
+  30960: "admin.ex.err.noWebDevice",
+  71401: "admin.ex.err.infrastructureUnavailable",
   // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",
