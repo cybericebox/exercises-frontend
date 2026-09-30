@@ -84,6 +84,8 @@
   "admin.exPage.save.error": "Не збережено",
   "admin.exPage.save.retry": "Повторити",
   "admin.exPage.action.test": "Тест",
+  "admin.exPage.action.testNoDevices": "Немає інфраструктури для тестування: додайте пристрої до топології",
+  "admin.exPage.action.testNoPlatform": "Інфраструктуру платформи не підключено",
   "admin.exPage.action.testMenu": "Розгорнути для перевірки",
   "admin.exPage.action.history": "Історія",
   "admin.exPage.action.edit": "Редагувати",

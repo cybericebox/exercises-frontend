@@ -15,6 +15,7 @@ vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () =
 vi.mock("@/components/exercises/DeployTestDialog", () => ({
   DeployTestDialog: (p: { versionId: string; variantId: string }) => <div data-testid="deploy">{p.versionId}/{p.variantId}</div>,
 }))
+import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
 vi.mock("@/api/exercises/catalog", () => ({
   getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
@@ -247,6 +248,23 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exPage.action.revert" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.revert.confirm" }))
     await waitFor(() => expect(restoreVersion).toHaveBeenCalledWith("ex-1", "pub-1"))
+  })
+
+  it("disables the test action when the topology has no devices", async () => {
+    render(<Page />)
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled())
+    await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
+    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+  })
+
+  it("disables the test action when the platform infrastructure is not connected", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false })
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
   })
 
   it("runs a test deploy of the chosen variant from the header", async () => {

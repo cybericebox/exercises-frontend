@@ -36,6 +36,9 @@ export type ExerciseHeaderProps = {
   revertable: boolean
   busy: boolean
   testAvailable: boolean
+  /** The test action is shown but disabled; the reason (when known) appears in a tooltip. */
+  testBlocked?: boolean
+  testBlockedReason?: string
   getTestVariants: () => TestVariantOption[]
   usageEvents: string[]
   onRetrySave: () => void
@@ -113,27 +116,32 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
 
 function TestMenu({
   disabled,
+  blockedReason,
   getVariants,
   onTest,
 }: {
   disabled: boolean
+  blockedReason?: string
   getVariants: () => TestVariantOption[]
   onTest: (index: number) => void
 }) {
   const [variants, setVariants] = useState<TestVariantOption[]>([])
+  const trigger = (
+    <DropdownMenuTrigger asChild>
+      <Button type="button" variant="outline" disabled={disabled}>
+        <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+        {t("admin.exPage.action.test")}
+        <ChevronDown aria-hidden="true" className={cn(ICON, "ml-1")} />
+      </Button>
+    </DropdownMenuTrigger>
+  )
   return (
     <DropdownMenu
       onOpenChange={(open) => {
         if (open) setVariants(getVariants())
       }}
     >
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" disabled={disabled}>
-          <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-          {t("admin.exPage.action.test")}
-          <ChevronDown aria-hidden="true" className={cn(ICON, "ml-1")} />
-        </Button>
-      </DropdownMenuTrigger>
+      {blockedReason ? <HoverTooltip text={blockedReason} describe>{trigger}</HoverTooltip> : trigger}
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t("admin.exPage.action.testMenu")}
@@ -248,7 +256,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
           </Button>
         ) : (
           <>
-            {testAvailable && <TestMenu disabled={!created || busy} getVariants={props.getTestVariants} onTest={props.onTest} />}
+            {testAvailable && <TestMenu disabled={!created || busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
             <Button type="button" variant="outline" disabled={!created} onClick={props.onHistory}>
               <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
               {t("admin.exPage.action.history")}

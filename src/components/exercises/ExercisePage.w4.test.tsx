@@ -108,7 +108,7 @@ describe("exercise editor — W4 rights", () => {
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     expect((await screen.findAllByText("exercises.infra.blocked")).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
-    expect(screen.queryByRole("button", { name: "admin.exPage.action.test" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
   })
 
   it("lets admins set the access level of a catalog exercise", async () => {

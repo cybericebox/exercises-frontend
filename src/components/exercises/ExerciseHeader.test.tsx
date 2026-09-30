@@ -58,6 +58,11 @@ describe("ExerciseHeader", () => {
     expect(props.onRetrySave).toHaveBeenCalled()
   })
 
+  it("disables the test action when blocked, keeping the reason", () => {
+    render(<ExerciseHeader {...makeProps({ testBlocked: true, testBlockedReason: "admin.exPage.action.testNoDevices" })} />)
+    expect(screen.getByRole("button", { name: /admin.exPage.action.test/ })).toBeDisabled()
+  })
+
   it("keeps only History in version view", () => {
     render(<ExerciseHeader {...makeProps({ mode: "version", badge: { kind: "version", label: "Version of 12.09.2026" } })} />)
     expect(screen.getByText("Version of 12.09.2026")).toBeInTheDocument()

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useWatch } from "react-hook-form"
 import Link from "next/link"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
@@ -95,7 +96,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const [deploy, setDeploy] = useState<DeployTarget | null>(null)
-  const [laboratories, setLaboratories] = useState(false)
+  const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
@@ -198,12 +199,19 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leave.destination])
 
+  const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
       label: `${t("admin.exDraft.variant")} ${index + 1}`,
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
+
+  // Test deploy needs a topology with devices and a connected platform infrastructure.
+  const hasDevices = watchedVariants.some((variant) => variant.Topology.Devices.length > 0)
+  const testBlockedReason = laboratories === null ? "" : !infraAllowed ? t("exercises.infra.blocked")
+    : !laboratories ? t("admin.exPage.action.testNoPlatform") : !hasDevices ? t("admin.exPage.action.testNoDevices") : ""
+  const testBlocked = laboratories === null || testBlockedReason !== ""
 
   const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
@@ -243,7 +251,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         publishable={exercise ? canPublishExercise(exercise) : false}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
-        testAvailable={permissions.write && laboratories && infraAllowed}
+        testAvailable={permissions.write}
+        testBlocked={testBlocked}
+        testBlockedReason={testBlockedReason}
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
