@@ -540,3 +540,20 @@ describe("TestLabPage — the author's arrangement of the topology", () => {
     setItem.mockRestore()
   })
 })
+
+describe("TestLabPage — sidebar tooltips", () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it("shows the full task name in the tooltip, expanded and collapsed", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    fireEvent.pointerEnter(within(nav).getByRole("button", { name: "Escalate" }))
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Escalate")
+    fireEvent.pointerLeave(within(nav).getByRole("button", { name: "Escalate" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
+    const collapsedItem = within(nav).getByRole("button", { name: "Escalate" })
+    expect(collapsedItem).not.toHaveTextContent("Escalate")
+    fireEvent.pointerEnter(collapsedItem)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Escalate")
+  })
+})

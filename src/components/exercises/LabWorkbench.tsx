@@ -142,9 +142,10 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
           const current = entry.ID === selectedId
           const done = solved.has(entry.ID)
           return (
-            <button key={entry.ID || index} type="button" aria-current={current ? "true" : undefined} aria-label={collapsed ? entry.Name : undefined}
+            <HoverTooltip key={entry.ID || index} text={entry.Name} className="w-full">
+            <button type="button" aria-current={current ? "true" : undefined} aria-label={entry.Name}
               onClick={() => onSelect(entry.ID)}
-              className={cn("flex items-start gap-3 rounded-md p-2 text-left text-sm transition-colors hover:bg-muted", collapsed && "justify-center", current ? "text-foreground" : "text-muted-foreground")}>
+              className={cn("flex w-full items-start gap-3 rounded-md p-2 text-left text-sm transition-colors hover:bg-muted", collapsed && "justify-center", current ? "text-foreground" : "text-muted-foreground")}>
               <span data-task-number data-state={done ? "solved" : current ? "current" : "todo"}
                 className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold",
                   done ? "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]" : current ? "bg-[var(--ib-brand)] text-white" : "bg-secondary/60 text-foreground")}>
@@ -152,6 +153,7 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
               </span>
               {!collapsed && <span className={cn("min-w-0 break-words pt-1", current && "font-medium")}>{entry.Name}</span>}
             </button>
+            </HoverTooltip>
           )
         })}
       </nav>
