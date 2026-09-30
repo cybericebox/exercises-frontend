@@ -10,7 +10,7 @@
  * resolve the task placeholders inline and offer the tester their VPN.
  *
  * A web device opens through a link: POST /api/exercises/deploys/:id/link
- * (openDeployLink) returns https://<device>-<labid>.<base>/_auth?t=... for a ready lab.
+ * (openDeployLink) returns https://<device>-<code>.<base>/_auth?t=... for a ready lab.
  * The link is short-lived and single use, so it is fetched on every click; the lab proxy
  * turns it into its own cookie on the lab domain, which lasts until the deploy's lease ends.
  */
