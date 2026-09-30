@@ -9,7 +9,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { resolvePlaceholders } from "@/lib/placeholderResolve"
-import { useDeployTest } from "@/lib/useDeployTest"
+import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 
 type Props = {
   open: boolean
@@ -23,7 +23,7 @@ type Props = {
 /**
  * DeployTestDialog runs a variant's test deploy and renders its progress: a
  * spinner while the lab provisions, then each task's placeholders resolved to the
- * deployed lab's real values, the web-access links, and the tester's VPN config.
+ * deployed lab's real values, the web-access buttons, and the tester's VPN config.
  * Closing (button, overlay, escape) tears the deploy down via the hook.
  */
 export function DeployTestDialog({ open, onClose, exerciseId, versionId, variantId, tasks }: Props) {
@@ -97,20 +97,30 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
             {status?.Access && status.Access.length > 0 && (
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exDeploy.access")}</div>
-                {deploy.session === "error" ? (
-                  <LoadError compact message={t("admin.exDeploy.sessionFailed")} error={deploy.sessionError} onRetry={deploy.retrySession} />
-                ) : deploy.session !== "open" ? (
-                  <LoadingArea compact label={t("admin.exDeploy.sessionOpening")} message={t("admin.exDeploy.sessionOpening")} />
-                ) : (
-                  <ul className="mt-1 space-y-0.5 text-sm">
-                    {status.Access.map((a, i) => (
-                      <li key={i}>
-                        <a href={a.URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                          {a.Device} — {a.URL}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+                <ul className="mt-1 space-y-1 text-sm">
+                  {status.Access.map((a, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">{a.Device} — {a.URL}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        busy={deploy.link === "opening" && deploy.linkKey === `${a.Device}:${a.Port}`}
+                        disabled={deploy.link === "opening"}
+                        onClick={() => deploy.openLink(a.Device, a.Port)}
+                      >
+                        {t("admin.exDeploy.open")}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                {deploy.link === "error" && (
+                  <LoadError
+                    compact
+                    message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")}
+                    error={deploy.linkError}
+                    onRetry={deploy.retryLink}
+                  />
                 )}
               </div>
             )}

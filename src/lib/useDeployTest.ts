@@ -9,12 +9,15 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { deployVariant, deployStatus, destroyDeploy, openDeploySession, type DeployStatus } from "@/api/exercises/deploy"
+import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
 
-/** The proxy cookie for the web devices: needed only when the lab exposes any. */
-export type DeploySessionState = "none" | "opening" | "open" | "error"
+/** Opening a web device: the link is fetched on every click, nothing is kept. */
+export type DeployLinkState = "idle" | "opening" | "error"
+
+/** The browser refused the new tab (pop-ups blocked). */
+export class PopupBlockedError extends Error {}
 
 export type DeployTestState = {
   deployId: string | null
@@ -22,11 +25,13 @@ export type DeployTestState = {
   error: string | null
   /** true while starting or polling a not-yet-terminal deploy. */
   busy: boolean
-  session: DeploySessionState
-  sessionError: unknown
+  link: DeployLinkState
+  /** "device:port" of the row being opened. */
+  linkKey: string | null
+  linkError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, busy: false, session: "none", sessionError: null }
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, busy: false, link: "idle", linkKey: null, linkError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -41,20 +46,36 @@ export function useDeployTest() {
     }
   }
 
-  const openSession = useCallback(async (id: string) => {
-    setState((p) => ({ ...p, session: "opening", sessionError: null }))
-    try {
-      await openDeploySession(id)
-    } catch (e) {
-      if (activeId.current === id) setState((p) => ({ ...p, session: "error", sessionError: e }))
+  const lastLink = useRef<{ device: string; port: number } | null>(null)
+
+  // The tab is opened synchronously inside the click, before the request, so the
+  // browser treats it as user-initiated; its location is set once the link arrives.
+  const openLink = useCallback((device: string, port: number) => {
+    const id = activeId.current
+    if (!id) return
+    lastLink.current = { device, port }
+    const tab = window.open("about:blank", "_blank")
+    if (!tab) {
+      setState((p) => ({ ...p, link: "error", linkKey: null, linkError: new PopupBlockedError() }))
       return
     }
-    if (activeId.current === id) setState((p) => ({ ...p, session: "open" }))
+    tab.opener = null
+    setState((p) => ({ ...p, link: "opening", linkKey: `${device}:${port}`, linkError: null }))
+    openDeployLink(id, device, port).then(
+      (l) => {
+        tab.location.href = l.URL
+        if (activeId.current === id) setState((p) => ({ ...p, link: "idle", linkKey: null }))
+      },
+      (e) => {
+        tab.close()
+        if (activeId.current === id) setState((p) => ({ ...p, link: "error", linkKey: null, linkError: e }))
+      }
+    )
   }, [])
 
-  const retrySession = useCallback(() => {
-    if (activeId.current) void openSession(activeId.current)
-  }, [openSession])
+  const retryLink = useCallback(() => {
+    if (lastLink.current) openLink(lastLink.current.device, lastLink.current.port)
+  }, [openLink])
 
   const poll = useCallback(async (id: string) => {
     let s: DeployStatus
@@ -70,12 +91,8 @@ export function useDeployTest() {
     setState((p) => ({ ...p, status: s, busy: !terminal }))
     if (!terminal) {
       timer.current = setTimeout(() => void poll(id), POLL_MS)
-    } else if (s.Ready && (s.Access?.length ?? 0) > 0) {
-      // Asked once, when the lab is ready and only if it has web devices; the cookie
-      // lasts until the deploy's lease ends, so there is no refresh loop.
-      void openSession(id)
     }
-  }, [openSession])
+  }, [])
 
   const start = useCallback(
     async (exerciseId: string, versionId: string, variantId: string) => {
@@ -124,5 +141,5 @@ export function useDeployTest() {
     []
   )
 
-  return { ...state, start, close, retrySession }
+  return { ...state, start, close, openLink, retryLink }
 }

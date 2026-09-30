@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { act, renderHook, waitFor } from "@testing-library/react"
 
-import { useDeployTest } from "./useDeployTest"
+import { PopupBlockedError, useDeployTest } from "./useDeployTest"
 import * as deployApi from "@/api/exercises/deploy"
 
 vi.mock("@/api/exercises/deploy")
@@ -105,53 +105,73 @@ describe("useDeployTest", () => {
     expect(result.current.deployId).toBe("second-deploy")
   })
 
-  describe("web session", () => {
+  describe("web links", () => {
     const web = { Phase: "Ready", Ready: true, Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
+    let tab: { location: { href: string }; close: ReturnType<typeof vi.fn>; opener: unknown }
+    let windowOpen: ReturnType<typeof vi.fn>
 
-    it("opens the session once when a lab with web devices is ready", async () => {
+    async function readyDeploy() {
       mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
       mocked.deployStatus.mockResolvedValue(web)
-      mocked.openDeploySession.mockResolvedValue({ ExpiresAt: "2026-10-01T00:00:00Z" })
-
-      const { result } = renderHook(() => useDeployTest())
+      const hook = renderHook(() => useDeployTest())
       await act(async () => {
-        await result.current.start("ex", "ver", "var")
+        await hook.result.current.start("ex", "ver", "var")
       })
+      await waitFor(() => expect(hook.result.current.status?.Ready).toBe(true))
+      return hook
+    }
 
-      await waitFor(() => expect(result.current.session).toBe("open"))
-      expect(mocked.openDeploySession).toHaveBeenCalledTimes(1)
-      expect(mocked.openDeploySession).toHaveBeenCalledWith("g1")
+    beforeEach(() => {
+      tab = { location: { href: "about:blank" }, close: vi.fn(), opener: "self" }
+      windowOpen = vi.fn(() => tab)
+      vi.stubGlobal("open", windowOpen)
+    })
+    afterEach(() => vi.unstubAllGlobals())
+
+    it("asks for nothing when the lab becomes ready: links are fetched on click", async () => {
+      await readyDeploy()
+      expect(mocked.openDeployLink).not.toHaveBeenCalled()
     })
 
-    it("does not ask for a session when the lab has no web devices", async () => {
-      mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
-      mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, VPNConfig: "cfg" })
+    it("opens the tab in the click, then points it at the fresh link", async () => {
+      let resolveLink!: (v: deployApi.DeployLink) => void
+      mocked.openDeployLink.mockReturnValue(new Promise((r) => { resolveLink = r }))
+      const { result } = await readyDeploy()
 
-      const { result } = renderHook(() => useDeployTest())
-      await act(async () => {
-        await result.current.start("ex", "ver", "var")
-      })
+      act(() => result.current.openLink("web", 443))
+      expect(windowOpen).toHaveBeenCalledWith("about:blank", "_blank")
+      expect(tab.opener).toBeNull()
+      expect(result.current.link).toBe("opening")
+      expect(result.current.linkKey).toBe("web:443")
+      expect(mocked.openDeployLink).toHaveBeenCalledWith("g1", "web", 443)
 
-      await waitFor(() => expect(result.current.status?.Ready).toBe(true))
-      expect(result.current.session).toBe("none")
-      expect(mocked.openDeploySession).not.toHaveBeenCalled()
+      await act(async () => resolveLink({ URL: "https://web-1x.example.com/_auth?t=x", ExpiresAt: "2026-10-01T00:00:00Z" }))
+      expect(tab.location.href).toBe("https://web-1x.example.com/_auth?t=x")
+      expect(result.current.link).toBe("idle")
     })
 
-    it("keeps the error and retries the session on demand", async () => {
-      mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
-      mocked.deployStatus.mockResolvedValue(web)
-      mocked.openDeploySession.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ ExpiresAt: "2026-10-01T00:00:00Z" })
+    it("closes the blank tab, keeps the error and retries on demand", async () => {
+      mocked.openDeployLink.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ URL: "https://web-1x.example.com/_auth?t=y", ExpiresAt: "x" })
+      const { result } = await readyDeploy()
 
-      const { result } = renderHook(() => useDeployTest())
-      await act(async () => {
-        await result.current.start("ex", "ver", "var")
-      })
-      await waitFor(() => expect(result.current.session).toBe("error"))
-      expect(result.current.sessionError).toBeInstanceOf(Error)
+      act(() => result.current.openLink("web", 443))
+      await waitFor(() => expect(result.current.link).toBe("error"))
+      expect(tab.close).toHaveBeenCalled()
+      expect(result.current.linkError).toBeInstanceOf(Error)
 
-      act(() => result.current.retrySession())
-      await waitFor(() => expect(result.current.session).toBe("open"))
-      expect(mocked.openDeploySession).toHaveBeenCalledTimes(2)
+      act(() => result.current.retryLink())
+      await waitFor(() => expect(result.current.link).toBe("idle"))
+      expect(mocked.openDeployLink).toHaveBeenCalledTimes(2)
+      expect(tab.location.href).toBe("https://web-1x.example.com/_auth?t=y")
+    })
+
+    it("reports a blocked pop-up without asking the server", async () => {
+      windowOpen.mockReturnValue(null)
+      const { result } = await readyDeploy()
+      act(() => result.current.openLink("web", 443))
+      expect(result.current.link).toBe("error")
+      expect(result.current.linkError).toBeInstanceOf(PopupBlockedError)
+      expect(mocked.openDeployLink).not.toHaveBeenCalled()
     })
   })
 })

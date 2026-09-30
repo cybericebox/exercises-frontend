@@ -9,8 +9,10 @@
  * "Ready" (or "Failed"), then reads the CIDRs / access URLs / VPN config to
  * resolve the task placeholders inline and offer the tester their VPN.
  *
- * Web devices need the author's proxy cookie: POST /api/exercises/deploys/:id/session
- * (openDeploySession) sets it once the lab is ready and lasts until the deploy's lease ends.
+ * A web device opens through a link: POST /api/exercises/deploys/:id/link
+ * (openDeployLink) returns https://<device>-<labid>.<base>/_auth?t=... for a ready lab.
+ * The link is short-lived and single use, so it is fetched on every click; the lab proxy
+ * turns it into its own cookie on the lab domain, which lasts until the deploy's lease ends.
  */
 import { apiGet, apiPost, apiDelete } from "@/api/client"
 
@@ -56,11 +58,11 @@ export function deployStatus(group: string): Promise<DeployStatus> {
   return apiGet<DeployStatus>(`${BASE}/deploys/${encodeURIComponent(group)}`)
 }
 
-export type DeploySession = { ExpiresAt: string }
+export type DeployLink = { URL: string; ExpiresAt: string }
 
-/** Open the author's web session (sets the proxy cookie) for a ready test deploy. */
-export function openDeploySession(group: string): Promise<DeploySession> {
-  return apiPost<DeploySession>(`${BASE}/deploys/${encodeURIComponent(group)}/session`, {})
+/** Get the one-click link that opens a web device of a ready test deploy. */
+export function openDeployLink(group: string, device: string, port: number): Promise<DeployLink> {
+  return apiPost<DeployLink>(`${BASE}/deploys/${encodeURIComponent(group)}/link`, { Device: device, Port: port })
 }
 
 /** Tear a test deploy down. */
