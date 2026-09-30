@@ -441,13 +441,13 @@ describe("TestLabPage — answer card, solved state and VPN indicator", () => {
     expect(screen.getByText(/admin\.exDeploy\.correct/)).toBeInTheDocument()
   })
 
-  it("marks the VPN connected with the last exchange time, and not connected otherwise", async () => {
+  it("marks the VPN connected with a short tooltip, and not connected otherwise", async () => {
     const at = new Date(2026, 8, 30, 12, 0, 5)
     vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: true, VPNLastHandshake: at.toISOString() })
     const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })
     expect(vpn).toHaveAttribute("data-vpn", "connected")
-    expect(document.getElementById("lab-vpn-state")).toHaveTextContent("admin.exTest.vpnConnected 12:00:05")
+    expect(document.getElementById("lab-vpn-state")).toHaveTextContent(/^admin\.exTest\.vpnConnected$/)
     first.unmount()
 
     vi.mocked(deployStatus).mockResolvedValue(readyStatus)
@@ -555,5 +555,40 @@ describe("TestLabPage — sidebar tooltips", () => {
     expect(collapsedItem).not.toHaveTextContent("Escalate")
     fireEvent.pointerEnter(collapsedItem)
     expect(screen.getByRole("tooltip")).toHaveTextContent("Escalate")
+  })
+})
+
+describe("TestLabPage — hints, long text and sidebar tooltip placement", () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it("lists the hints below the answer as collapsed rows that expand on click", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const answer = await screen.findByRole("heading", { name: "admin.exTest.flagTitle" })
+    const hints = screen.getByRole("heading", { name: "exercises.hints.title" })
+    expect(answer.compareDocumentPosition(hints) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const row = screen.getByText(/exercises\.hints\.item 1/).closest("li")!
+    expect(row).toHaveTextContent("exercises.hints.item 1")
+    expect(screen.queryByText("Look at the robots file")).not.toBeInTheDocument()
+    fireEvent.click(within(row).getByRole("button", { name: "admin.exTest.hintShowNamed 1" }))
+    expect(within(row).getByText("Look at the robots file")).toBeInTheDocument()
+  })
+
+  it("lets a long link in the description wrap instead of being cut off", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const heading = await screen.findByRole("heading", { name: "Login" })
+    expect(heading.closest("article")?.querySelector("[class*='overflow-wrap:anywhere']")).not.toBeNull()
+  })
+
+  it("puts the collapsed sidebar tooltip to the right of the badge, closed again after a click", async () => {
+    window.localStorage.setItem("cib_lab_sidebar_collapsed", "true")
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const item = within(nav).getByRole("button", { name: "Escalate" })
+    fireEvent.pointerEnter(item)
+    expect(screen.getByRole("tooltip").style.transform).toBe("translate(0, -50%)")
+    fireEvent.pointerDown(item)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.focus(item)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 })

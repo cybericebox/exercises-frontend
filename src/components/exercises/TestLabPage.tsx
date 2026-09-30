@@ -192,7 +192,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       center={<LabTimer expiresAt={ready ? item?.ExpiresAt ?? null : null} fallback={deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
       onDownloadVpn={ready && vpnConfig ? () => downloadBlob(new Blob([vpnConfig], { type: "text/plain" }), "cybericebox.conf") : undefined}
-      vpn={{ connected: status?.VPNConnected ?? false, lastHandshake: status?.VPNLastHandshake }}
+      vpn={{ connected: status?.VPNConnected ?? false }}
       onEnd={deploy.deployId ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
       message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}

@@ -238,6 +238,16 @@ describe('TopologyDiagram', () => {
     expect(screen.getByRole('textbox', { name: 'admin.exTopo.deviceName' })).toHaveValue('web')
   })
 
+  it('keeps the default port captions clear of the node names', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const names = Array.from(container.querySelectorAll('[data-node-label]')).map((n) => ({ x: Number(n.getAttribute('x')), y: Number(n.getAttribute('y')) - 5 }))
+    const ports = Array.from(container.querySelectorAll('[data-port-label]')).map((n) => ({ x: Number(n.getAttribute('x')), y: Number(n.getAttribute('y')) }))
+    expect(ports.length).toBeGreaterThan(0)
+    for (const port of ports) for (const name of names) {
+      expect(Math.abs(port.x - name.x) < 20 && Math.abs(port.y - name.y) < 10).toBe(false)
+    }
+  })
+
   it('moves a port caption independently of its connection and keeps the offset in visual data', () => {
     const onPortLabelOffsetChange = vi.fn()
     const onEdgeSelect = vi.fn()

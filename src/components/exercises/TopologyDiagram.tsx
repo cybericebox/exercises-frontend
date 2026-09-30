@@ -154,13 +154,29 @@ function portLabelAxis(own: Point, other: Point): Point {
   return length ? { x: dx / length, y: dy / length } : { x: 1, y: 0 }
 }
 
-function portLabelPosition(own: Point, other: Point, offset: Point): Point {
+type LabelBox = { x: number; y: number; halfWidth: number; halfHeight: number }
+
+/** Where a node's name sits (centre and half size), so default port labels can keep clear of it. */
+function nodeNameBox(node: DiagramNode | undefined, point: Point, offset: Point): LabelBox {
+  return { x: point.x + offset.x, y: point.y + ICON_SIZE / 2 + LABEL_GAP + offset.y - 5,
+    halfWidth: Math.max(16, Math.min(node?.label.length ?? 0, 20) * 3.8 + 3), halfHeight: 11 }
+}
+
+function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: LabelBox): Point {
   const axis = portLabelAxis(own, other)
   const normal = { x: -axis.y, y: axis.x }
-  const along = PORT_LABEL_DISTANCE + offset.x
   const aside = PORT_LABEL_SIDE_GAP + offset.y
-  return { x: own.x + axis.x * along + normal.x * aside,
-    y: own.y + axis.y * along + normal.y * aside }
+  const at = (along: number) => ({ x: own.x + axis.x * along + normal.x * aside, y: own.y + axis.y * along + normal.y * aside })
+  let along = PORT_LABEL_DISTANCE + offset.x
+  let label = at(along)
+  // A label the author has not moved slides further along its link until it clears the node's name.
+  if (avoid && offset.x === 0 && offset.y === 0) {
+    for (let step = 0; step < 6 && Math.abs(label.x - avoid.x) < avoid.halfWidth + 14 && Math.abs(label.y - avoid.y) < avoid.halfHeight + 7; step += 1) {
+      along += 10
+      label = at(along)
+    }
+  }
+  return label
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
@@ -331,7 +347,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         const key = portLabelKey(nodeKey, port)
         const offset = storedPortLabelOffset(topology.VisualRender, key)
         const text = shortForwardingPort(port)
-        const label = portLabelPosition(own, other, offset)
+        const label = portLabelPosition(own, other, offset, nodeNameBox(nodeByKey.get(nodeKey), pos.get(nodeKey)!, storedLabelOffset(topology.VisualRender, nodeKey)))
         addBox(label.x, label.y, Math.max(12, text.length * 3.2 + 3), 10)
       }
     }
@@ -544,7 +560,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           const key = portLabelKey(nodeKey, port)
           const offset = drag?.kind === "port-label" && drag.key === key
             ? drag.offset : storedPortLabelOffset(topology.VisualRender, key)
-          const label = portLabelPosition(own, other, offset)
+          const label = portLabelPosition(own, other, offset, nodeNameBox(nodeByKey.get(nodeKey), pos.get(nodeKey)!, storedLabelOffset(topology.VisualRender, nodeKey)))
           return <text data-port-label data-port-label-key={key}
             x={label.x}
             y={label.y}

@@ -4,16 +4,18 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement,
 import { createPortal } from "react-dom"
 import { cn } from "@/utils/cn"
 
-type Position = { left: number; top: number; below: boolean }
+type Position = { left: number; top: number; below: boolean; right?: boolean }
 
 // A tooltip is not a popover: clicks and focus must not toggle its visibility.
 // describe links the open tooltip to the child via aria-describedby (the hint adds to its accessible name);
 // truncated opens it only while the child's text is actually cut off by an ellipsis.
-export function HoverTooltip({ text, content, children, className, describe = false, truncated = false }: { text: string; content?: ReactNode; children: ReactElement; className?: string; describe?: boolean; truncated?: boolean }) {
+export function HoverTooltip({ text, content, children, className, describe = false, truncated = false, side = "top" }: { side?: "top" | "right"; text: string; content?: ReactNode; children: ReactElement; className?: string; describe?: boolean; truncated?: boolean }) {
   const id = useId()
   const [position, setPosition] = useState<Position | null>(null)
   const trigger = useRef<HTMLSpanElement>(null)
   const tooltip = useRef<HTMLDivElement>(null)
+  // A click focuses the trigger; that focus must not reopen the tooltip it just closed (only keyboard focus opens it).
+  const clicked = useRef(false)
   const long = text.length > 180
   // A short label reads on one line; it is shifted to stay inside the window instead of wrapping at its edge.
   const short = text.length <= 48 && !text.includes("\n")
@@ -23,6 +25,11 @@ export function HoverTooltip({ text, content, children, className, describe = fa
     if (!rect) return
     const child = trigger.current?.firstElementChild
     if (truncated && child && child.scrollWidth <= child.clientWidth) return
+    if (side === "right") {
+      // Beside the trigger, centred on it: it never covers what the trigger stands for.
+      setPosition({ left: rect.right + 8, top: rect.top + rect.height / 2, below: false, right: true })
+      return
+    }
     const halfWidth = Math.min(long ? 220 : 152, window.innerWidth / 2)
     setPosition({
       left: Math.max(halfWidth, Math.min(window.innerWidth - halfWidth, rect.left + rect.width / 2)),
@@ -36,7 +43,7 @@ export function HoverTooltip({ text, content, children, className, describe = fa
     const anchor = trigger.current?.getBoundingClientRect()
     const height = tooltip.current?.getBoundingClientRect().height ?? 0
     const width = tooltip.current?.getBoundingClientRect().width ?? 0
-    if (!anchor || !height) return
+    if (!anchor || !height || position.right) return
     const margin = 8
     const left = width ? Math.max(width / 2 + margin, Math.min(window.innerWidth - width / 2 - margin, position.left)) : position.left
     if (Math.abs(left - position.left) > 0.5) {
@@ -88,11 +95,12 @@ export function HoverTooltip({ text, content, children, className, describe = fa
       ref={trigger}
       className={cn("inline-flex", className)}
       onPointerEnter={open}
-      onPointerLeave={() => setPosition(null)}
+      onPointerLeave={() => { clicked.current = false; setPosition(null) }}
       onMouseEnter={open}
       onMouseLeave={() => setPosition(null)}
-      onFocusCapture={open}
-      onBlurCapture={() => setPosition(null)}
+      onPointerDownCapture={() => { clicked.current = true; setPosition(null) }}
+      onFocusCapture={() => { if (!clicked.current) open() }}
+      onBlurCapture={() => { clicked.current = false; setPosition(null) }}
       onKeyDown={(event) => { if (event.key === "Escape") setPosition(null) }}
     >{children}</span>
     {position && createPortal(
@@ -102,7 +110,7 @@ export function HoverTooltip({ text, content, children, className, describe = fa
         role="tooltip"
         className={cn("pointer-events-none fixed z-[100] rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground", short ? "whitespace-nowrap" : "max-w-72 whitespace-pre-line")}
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
-          transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
+          transform: position.right ? "translate(0, -50%)" : `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{content ?? text}</div>,
       document.body,
     )}

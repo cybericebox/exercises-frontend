@@ -55,21 +55,13 @@ export type LabBarProps = {
   topologyShown?: boolean
   onToggleTopology?: () => void
   onDownloadVpn?: () => void
-  /** Whether the author's VPN is connected to this lab; `lastHandshake` is the ISO time of the last exchange. */
-  vpn?: { connected: boolean; lastHandshake?: string }
+  /** Whether the author's VPN is connected to this lab. */
+  vpn?: { connected: boolean }
   onEnd?: () => void
 }
 
-/** "12:03:07" in the viewer's own time. */
-function clockTime(iso: string): string {
-  const at = new Date(iso)
-  return [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":")
-}
-
 function vpnTooltip(vpn: LabBarProps["vpn"]): string {
-  return vpn?.connected
-    ? t("admin.exTest.vpnConnected", { time: vpn.lastHandshake ? clockTime(vpn.lastHandshake) : "" })
-    : t("admin.exTest.vpnDisconnected")
+  return t(vpn?.connected ? "admin.exTest.vpnConnected" : "admin.exTest.vpnDisconnected")
 }
 
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
@@ -142,7 +134,7 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
           const current = entry.ID === selectedId
           const done = solved.has(entry.ID)
           return (
-            <HoverTooltip key={entry.ID || index} text={entry.Name} className="w-full">
+            <HoverTooltip key={entry.ID || index} text={entry.Name} side="right" className="w-full">
             <button type="button" aria-current={current ? "true" : undefined} aria-label={entry.Name}
               onClick={() => onSelect(entry.ID)}
               className={cn("flex w-full items-start gap-3 rounded-md p-2 text-left text-sm transition-colors hover:bg-muted", collapsed && "justify-center", current ? "text-foreground" : "text-muted-foreground")}>
@@ -237,7 +229,7 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
       <Badge tone="muted">{t(`admin.ex.difficulty.${task.Difficulty}`)}</Badge>
     </header>
 
-    <div>{richTextHasBlocks(task.Description) ? view(task.Description) : <p className="text-sm text-muted-foreground">{t("admin.exTest.noDescription")}</p>}</div>
+    <div className="[overflow-wrap:anywhere]">{richTextHasBlocks(task.Description) ? view(task.Description) : <p className="text-sm text-muted-foreground">{t("admin.exTest.noDescription")}</p>}</div>
 
     {task.Attachments.length > 0 && <section>
       <h3 className={HEADING}>{t("admin.exTest.attachments")}</h3>
