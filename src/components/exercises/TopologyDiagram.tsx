@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react"
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Cable, ChevronDown, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
@@ -165,7 +165,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point): Point {
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
   onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
-  unavailableConnectionNodes = [], connectionMode = false }: {
+  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
   onLabelOffsetChange?: (key: string, offset: Point) => void
@@ -188,6 +188,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   selectedConnectionIndex?: number | null
   unavailableConnectionNodes?: string[]
   connectionMode?: boolean
+  /** More buttons at the end of the canvas toolbar. */
+  toolbarExtra?: ReactNode
 }) {
   const [drag, setDrag] = useState<
     | { kind: "node"; key: string; point: Point; start: Point; moved: boolean }
@@ -782,6 +784,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       <HoverTooltip text={t("admin.exTopo.fitCanvas")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
+      {toolbarExtra}
     </div>
     {context && <TopologyContextMenu x={context.x} y={context.y} entries={contextEntries(context)} onClose={closeContext}
       returnFocus={context.trigger}

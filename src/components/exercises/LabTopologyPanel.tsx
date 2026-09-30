@@ -1,13 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ExternalLink, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ExternalLink, RotateCcw, X } from "lucide-react"
 
 import type { DeployStatus } from "@/api/exercises/deploy"
 import type { NormalizedTopology } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
+import { readLayout, removeLayout, saveLayout, withLayout, EMPTY_LAYOUT, type LabLayout } from "@/lib/labLayout"
 import { labNodeInfo, labTopology } from "@/lib/labTopology"
 import { TopologyDiagram } from "./TopologyDiagram"
 
@@ -16,21 +17,41 @@ import { TopologyDiagram } from "./TopologyDiagram"
  * addresses in this lab, the services and, for a web device, «Відкрити». Nothing
  * private (image, environment, resources, flags) ever reaches it.
  */
-export function LabTopologyPanel({ topology, status, openingKey, onOpenWeb }: {
+export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpenWeb }: {
+  /** The running lab; the author's arrangement of the diagram is kept in this browser under it. */
+  deployId: string
   topology: NormalizedTopology
   status: DeployStatus | null
   /** "device:port" being opened. */
   openingKey: string | null
   onOpenWeb: (device: string, port: number) => void
 }) {
-  const shown = useMemo(() => labTopology(topology), [topology])
+  const [layout, setLayout] = useState<LabLayout>(() => readLayout(deployId))
+  const shown = useMemo(() => {
+    const base = labTopology(topology)
+    return { ...base, VisualRender: withLayout(base.VisualRender, layout) }
+  }, [topology, layout])
+  // Quick successive drags each build on the latest arrangement.
+  const move = (part: keyof LabLayout) => (key: string, point: { x: number; y: number }) =>
+    setLayout((current) => ({ ...current, [part]: { ...current[part], [key]: point } }))
+  useEffect(() => {
+    if (layout === EMPTY_LAYOUT) removeLayout(deployId)
+    else saveLayout(deployId, layout)
+  }, [deployId, layout])
   const [selected, setSelected] = useState<string | null>(null)
   const info = selected ? labNodeInfo(topology, selected, status) : null
 
   return (
     <section aria-label={t("admin.exTest.topology")} className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-auto">
-        <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={setSelected} onCanvasSelect={() => setSelected(null)} />
+        <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={setSelected} onCanvasSelect={() => setSelected(null)}
+          onPositionChange={move("nodes")} onLabelOffsetChange={move("labels")} onPortLabelOffsetChange={move("portLabels")}
+          toolbarExtra={<HoverTooltip text={t("admin.exTest.layoutReset")}>
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.exTest.layoutReset")}
+              onClick={() => setLayout(EMPTY_LAYOUT)}>
+              <RotateCcw aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          </HoverTooltip>} />
       </div>
       {info && (
         <div role="region" aria-label={t("admin.exTest.card.title")} className="shrink-0 space-y-3 border-t border-border bg-background p-4 text-sm">

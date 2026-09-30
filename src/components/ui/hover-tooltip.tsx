@@ -15,6 +15,8 @@ export function HoverTooltip({ text, content, children, className, describe = fa
   const trigger = useRef<HTMLSpanElement>(null)
   const tooltip = useRef<HTMLDivElement>(null)
   const long = text.length > 180
+  // A short label reads on one line; it is shifted to stay inside the window instead of wrapping at its edge.
+  const short = text.length <= 48 && !text.includes("\n")
 
   const open = () => {
     const rect = trigger.current?.getBoundingClientRect()
@@ -33,7 +35,14 @@ export function HoverTooltip({ text, content, children, className, describe = fa
     if (!position) return
     const anchor = trigger.current?.getBoundingClientRect()
     const height = tooltip.current?.getBoundingClientRect().height ?? 0
+    const width = tooltip.current?.getBoundingClientRect().width ?? 0
     if (!anchor || !height) return
+    const margin = 8
+    const left = width ? Math.max(width / 2 + margin, Math.min(window.innerWidth - width / 2 - margin, position.left)) : position.left
+    if (Math.abs(left - position.left) > 0.5) {
+      setPosition({ ...position, left })
+      return
+    }
     const above = anchor.top - 8
     const below = window.innerHeight - anchor.bottom - 8
     const placeBelow = above < height && below > above
@@ -91,7 +100,7 @@ export function HoverTooltip({ text, content, children, className, describe = fa
         ref={tooltip}
         id={id}
         role="tooltip"
-        className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
+        className={cn("pointer-events-none fixed z-[100] rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground", short ? "whitespace-nowrap" : "max-w-72 whitespace-pre-line")}
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
           transform: `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{content ?? text}</div>,

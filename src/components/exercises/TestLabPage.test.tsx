@@ -12,9 +12,9 @@ vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }))
 vi.mock("./TopologyDiagram", () => ({
-  TopologyDiagram: (p: { topology: { Devices: { ID: string; Name: string }[] }; onNodeSelect?: (key: string) => void }) => {
+  TopologyDiagram: (p: { topology: { Devices: { ID: string; Name: string }[] }; onNodeSelect?: (key: string) => void; toolbarExtra?: React.ReactNode }) => {
     h.diagram.last = p
-    return <div>{p.topology.Devices.map((d) => <button key={d.ID} type="button" onClick={() => p.onNodeSelect?.(d.ID)}>{`node ${d.Name}`}</button>)}</div>
+    return <div>{p.topology.Devices.map((d) => <button key={d.ID} type="button" onClick={() => p.onNodeSelect?.(d.ID)}>{`node ${d.Name}`}</button>)}{p.toolbarExtra}</div>
   },
 }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: h.download }))
@@ -164,7 +164,7 @@ describe("TestLabPage — bar", () => {
     fireEvent.click(toggle)
     expect(screen.queryByRole("region", { name: "admin.exTest.topology" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exTest.topologyShow" })).toHaveAttribute("aria-pressed", "false")
-    expect(window.localStorage.getItem("exercises.testLab.topologyShown")).toBe("false")
+    expect(window.localStorage.getItem("cib_lab_topology_shown")).toBe("false")
     window.localStorage.clear()
   })
 
@@ -311,7 +311,7 @@ describe("TestLabPage — sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
     expect(within(nav).queryByText("Escalate")).not.toBeInTheDocument()
     expect(within(nav).getByRole("button", { name: "Escalate" })).toHaveTextContent("2")
-    expect(window.localStorage.getItem("exercises.testLab.sidebarCollapsed")).toBe("true")
+    expect(window.localStorage.getItem("cib_lab_sidebar_collapsed")).toBe("true")
     first.unmount()
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByRole("button", { name: "admin.exTest.sidebarExpand" })).toHaveAttribute("aria-expanded", "false")
@@ -468,5 +468,75 @@ describe("TestLabPage — answer card, solved state and VPN indicator", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe("TestLabPage — task order", () => {
+  it("shows the text, the files, the answer card and then the hints, the stage links last", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const article = (await screen.findByRole("heading", { name: "Login" })).closest("article")!
+    const at = (node: Element | null) => node ? Array.from(article.querySelectorAll("*")).indexOf(node) : -1
+    const files = screen.getByText("admin.exTest.attachments")
+    const answer = screen.getByRole("heading", { name: "admin.exTest.flagTitle" })
+    const hints = screen.getByText("exercises.hints.title")
+    const stages = screen.getByRole("navigation", { name: "admin.exTest.stages" })
+    expect([at(files), at(answer), at(hints), at(stages)]).toEqual([...[at(files), at(answer), at(hints), at(stages)]].sort((a, b) => a - b))
+    expect(at(files)).toBeGreaterThan(0)
+    expect(screen.getByPlaceholderText("admin.exDeploy.flagPlaceholder")).toBeInTheDocument()
+  })
+})
+
+describe("TestLabPage — the author's arrangement of the topology", () => {
+  const moved = () => (h.diagram.last as { onPositionChange: (key: string, p: { x: number; y: number }) => void; onLabelOffsetChange: (key: string, p: { x: number; y: number }) => void;
+    onPortLabelOffsetChange: (key: string, p: { x: number; y: number }) => void; topology: { VisualRender: Record<string, Record<string, unknown>> | null } })
+  beforeEach(() => window.localStorage.clear())
+
+  it("keeps dragged devices and labels under the deploy id, applies them on reopen, never calls the backend", async () => {
+    const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    act(() => { moved().onPositionChange("dev-web", { x: 0.2, y: 0.3 }); moved().onLabelOffsetChange("dev-web", { x: 1, y: 2 }); moved().onPortLabelOffsetChange('["dev-web","eth0"]', { x: 3, y: 4 }) })
+    expect(JSON.parse(window.localStorage.getItem("cib_lab_layouts") ?? "null")).toEqual({
+      "run-1": { nodes: { "dev-web": { x: 0.2, y: 0.3 } }, labels: { "dev-web": { x: 1, y: 2 } }, portLabels: { '["dev-web","eth0"]': { x: 3, y: 4 } } } })
+    expect(moved().topology.VisualRender?.positions["dev-web"]).toEqual({ x: 0.2, y: 0.3 })
+    first.unmount()
+
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    expect(moved().topology.VisualRender?.positions["dev-web"]).toEqual({ x: 0.2, y: 0.3 })
+    expect(moved().topology.VisualRender?.labelOffsets["dev-web"]).toEqual({ x: 1, y: 2 })
+  })
+
+  it("resets the arrangement with the toolbar button and drops the key when nothing is left", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    act(() => moved().onPositionChange("dev-web", { x: 0.2, y: 0.3 }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.layoutReset" }))
+    expect(window.localStorage.getItem("cib_lab_layouts")).toBeNull()
+    expect(moved().topology.VisualRender).toBeNull()
+  })
+
+  it("forgets only the lab that ended, and removes the whole key when the map becomes empty", async () => {
+    window.localStorage.setItem("cib_lab_layouts", JSON.stringify({
+      "run-1": { nodes: { a: { x: 1, y: 1 } }, labels: {}, portLabels: {} }, "run-2": { nodes: { b: { x: 2, y: 2 } }, labels: {}, portLabels: {} } }))
+    vi.mocked(destroyDeploy).mockResolvedValue(undefined)
+    // run-2 is not among the active labs: pruned on open
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    await waitFor(() => expect(Object.keys(JSON.parse(window.localStorage.getItem("cib_lab_layouts") ?? "{}"))).toEqual(["run-1"]))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.end" }))
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(h.push).toHaveBeenCalled())
+    expect(window.localStorage.getItem("cib_lab_layouts")).toBeNull()
+  })
+
+  it("works when storage is blocked", async () => {
+    const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked") })
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    act(() => moved().onPositionChange("dev-web", { x: 0.2, y: 0.3 }))
+    expect(moved().topology.VisualRender?.positions["dev-web"]).toEqual({ x: 0.2, y: 0.3 })
+    getItem.mockRestore()
+    setItem.mockRestore()
   })
 })

@@ -18,6 +18,7 @@ import { deployPhaseLabel } from "@/lib/deployStatus"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref, testLabHref } from "@/lib/exerciseRoutes"
 import { downloadBlob } from "@/lib/downloadBlob"
+import { LAB_SIDEBAR_COLLAPSED_KEY, LAB_TOPOLOGY_SHOWN_KEY, LAB_TOPOLOGY_WIDTH_KEY, pruneLayouts, removeLayout } from "@/lib/labLayout"
 import { taskValues } from "@/lib/placeholderResolve"
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 
@@ -64,9 +65,9 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const [ended, setEnded] = useState(false)
   const [solved, setSolved] = useState<ReadonlySet<string>>(new Set())
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set())
-  const [collapsed, setCollapsed] = usePersisted("exercises.testLab.sidebarCollapsed", false, (raw) => raw === "true")
-  const [topologyShown, setTopologyShown] = usePersisted("exercises.testLab.topologyShown", true, (raw) => raw !== "false")
-  const [ratio, setRatio] = usePersisted("exercises.testLab.ratio", RATIO_DEFAULT, (raw) => Number.isFinite(Number(raw)) ? clampRatio(Number(raw)) : null)
+  const [collapsed, setCollapsed] = usePersisted(LAB_SIDEBAR_COLLAPSED_KEY, false, (raw) => raw === "true")
+  const [topologyShown, setTopologyShown] = usePersisted(LAB_TOPOLOGY_SHOWN_KEY, true, (raw) => raw !== "false")
+  const [ratio, setRatio] = usePersisted(LAB_TOPOLOGY_WIDTH_KEY, RATIO_DEFAULT, (raw) => Number.isFinite(Number(raw)) ? clampRatio(Number(raw)) : null)
   const split = useRef<HTMLDivElement>(null)
   // The hook's methods are stable; the whole object changes on every state change.
   const { start, attach } = deploy
@@ -118,6 +119,23 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     return () => { cancelled = true }
   }, [deployId, exerciseId, initial.deploy])
 
+  // The author's arrangement of a lab is dropped with the lab: every one that is no longer active goes now...
+  useEffect(() => {
+    let cancelled = false
+    listDeploys().then((items) => { if (!cancelled) pruneLayouts(items.map((entry) => entry.DeployID)) }, () => undefined)
+    return () => { cancelled = true }
+  }, [])
+  // ...and this one when its lease runs out.
+  const leaseEnd = item?.ExpiresAt
+  useEffect(() => {
+    if (!leaseEnd || !deploy.deployId) return
+    const id = deploy.deployId
+    const left = new Date(leaseEnd).getTime() - Date.now()
+    if (left > 2 ** 31 - 1) return
+    const timer = setTimeout(() => removeLayout(id), Math.max(0, left))
+    return () => clearTimeout(timer)
+  }, [leaseEnd, deploy.deployId])
+
   const status = deploy.status
   // What the server remembers plus what was just checked, so the tick shows before the next poll.
   const solvedIds = useMemo(() => new Set([...solved, ...(status?.SolvedTaskIDs ?? [])]), [solved, status?.SolvedTaskIDs])
@@ -135,6 +153,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     setEndError("")
     try {
       await destroyDeploy(deploy.deployId)
+      removeLayout(deploy.deployId)
       setEnded(true)
       router.push(exerciseHref(exerciseId))
     } catch (cause) {
@@ -214,7 +233,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
                 if (event.key === "ArrowRight") setRatio(clampRatio(ratio + 0.03))
               }} />
             <div className="min-h-0 min-w-0" style={{ flex: `${1 - ratio} 1 0` }}>
-              <LabTopologyPanel topology={meta.variant.Topology} status={status} openingKey={deploy.link === "opening" ? deploy.linkKey : null}
+              <LabTopologyPanel deployId={deploy.deployId ?? ""} topology={meta.variant.Topology} status={status} openingKey={deploy.link === "opening" ? deploy.linkKey : null}
                 onOpenWeb={(device, port) => deploy.openLink(device, port)} />
             </div>
           </>}

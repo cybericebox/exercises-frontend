@@ -250,13 +250,13 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
       </ul>
     </section>}
 
-    {hints.length > 0 && <HintList hints={hints} revealed={scopedRevealed} onReveal={(key) => onRevealHint(scoped(key))}
-      render={(text) => view(hintTextToState(text))} onUnlock={onUnlockHint} cost={hintCost} />}
-
     {flagLinked && deployId && <section className="rounded-lg border border-border bg-muted/30 p-4">
       <h3 className="mb-2 text-sm font-semibold text-foreground">{t("admin.exTest.flagTitle")}</h3>
       <TestFlagCheck deployId={deployId} taskId={task.ID} taskName={task.Name} solved={solved} onResult={(correct) => { if (correct) onSolved(task.ID) }} />
     </section>}
+
+    {hints.length > 0 && <HintList hints={hints} revealed={scopedRevealed} onReveal={(key) => onRevealHint(scoped(key))}
+      render={(text) => view(hintTextToState(text))} onUnlock={onUnlockHint} cost={hintCost} />}
 
     {(prev || next) && <nav aria-label={t("admin.exTest.stages")} className="flex items-center justify-between gap-3 border-t border-border pt-4">
       {prev ? <Button type="button" variant="outline" onClick={prev.select}>{t("admin.exTest.stagePrev", { n: prev.number })}</Button> : <span />}

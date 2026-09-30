@@ -81,3 +81,15 @@ describe("HoverTooltip", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("Повний текст")
   })
 })
+
+describe("HoverTooltip — short labels", () => {
+  it("keeps a short label on one line and a long one wrapping", () => {
+    const { unmount } = render(<HoverTooltip text="Завантажити VPN‑конфігурацію"><button type="button">a</button></HoverTooltip>)
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "a" }))
+    expect(screen.getByRole("tooltip").className).toContain("whitespace-nowrap")
+    unmount()
+    render(<HoverTooltip text={"дуже довге пояснення ".repeat(5)}><button type="button">b</button></HoverTooltip>)
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "b" }))
+    expect(screen.getByRole("tooltip").className).not.toContain("whitespace-nowrap")
+  })
+})
