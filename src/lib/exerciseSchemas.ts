@@ -415,7 +415,7 @@ const taskSchema = z.object({
   Description: z.custom<Record<string, unknown> | null>(
     (v) => v === null || (typeof v === "object" && v !== null && !Array.isArray(v)),
   ),
-  Difficulty: z.enum(["trivial", "easy", "medium", "hard", "insane"]),
+  Difficulty: z.enum(["elementary", "trivial", "easy", "medium", "hard", "insane"]),
   Flag: z.array(z.string().superRefine((value, ctx) => {
     try { parseFlagCandidate(value) } catch (error) {
       ctx.addIssue({ code: "custom", message: t(flagCandidateErrorKey(error)) })

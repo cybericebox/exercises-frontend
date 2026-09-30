@@ -349,6 +349,13 @@ describe('draftSchema', () => {
     expect(paths).toContain('Variants.1.Tasks')
   })
 
+  it('accepts the elementary difficulty level', () => {
+    const draft = validDraft()
+    draft.Variants[0].Tasks[0].Difficulty = 'elementary'
+    const result = draftSchema.safeParse(draft)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.'))).not.toContain('Variants.0.Tasks.0.Difficulty')
+  })
+
   it('rejects a difficulty that differs for the same task across variants', () => {
     const draft = validDraft()
     const second = emptyVariant(2)

@@ -550,6 +550,7 @@
   "admin.exTask.nameHelp": "Назва задачі в цьому варіанті. Позиції відповідних задач однакові в усіх варіантах.",
   "admin.exTask.difficulty": "Складність",
   "admin.exTask.difficultyHelp": "Складність задачі на цій позиції однакова в усіх варіантах.",
+  "admin.ex.difficulty.elementary": "Елементарна",
   "admin.ex.difficulty.trivial": "Тривіальна",
   "admin.ex.difficulty.easy": "Легка",
   "admin.ex.difficulty.medium": "Середня",

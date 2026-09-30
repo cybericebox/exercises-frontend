@@ -25,7 +25,7 @@ import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 const BASE = "/api/exercises"
 
 export type VersionStatus = "draft" | "published" | "unpublished" | "checkpoint"
-export type Difficulty = "trivial" | "easy" | "medium" | "hard" | "insane"
+export type Difficulty = "elementary" | "trivial" | "easy" | "medium" | "hard" | "insane"
 export type DeviceType = "container" | "unmanaged-switch" | "hub"
 export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
 export type SecurityPreset = "" | "basic" | "service" | "net" | "debug"

@@ -550,6 +550,7 @@
   "admin.exTask.nameHelp": "Task title within this variant. Corresponding task positions are shared across variants.",
   "admin.exTask.difficulty": "Difficulty",
   "admin.exTask.difficultyHelp": "Difficulty is the same for this task position in every variant.",
+  "admin.ex.difficulty.elementary": "Elementary",
   "admin.ex.difficulty.trivial": "Trivial",
   "admin.ex.difficulty.easy": "Easy",
   "admin.ex.difficulty.medium": "Medium",

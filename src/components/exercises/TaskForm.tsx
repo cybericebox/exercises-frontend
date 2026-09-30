@@ -18,7 +18,7 @@ import type { VariableDef } from "@/components/editor/variableUtils"
 import { getFlagPolicy, type FlagPolicy } from "@/api/exercises/flagPolicy"
 import type { TextFormatType } from "lexical"
 
-const DIFFICULTIES = ["trivial", "easy", "medium", "hard", "insane"] as const
+const DIFFICULTIES = ["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
 
 /** TaskForm — the fields of one selected task in a variant. */
 export function TaskForm({
