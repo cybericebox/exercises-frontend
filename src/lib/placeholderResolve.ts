@@ -7,6 +7,7 @@
  *  - vpn.subnet / internet.subnet → the lab's VPN / internet CIDR;
  *  - ip → a subnet-relative address: the CIDR's network with the placeholder's
  *    last octet (for vpn/internet references) or the fixed Octets1to3 (static);
+ *  - ip with AsLink → the full URL scheme://ip[:port][path] (no mask);
  *  - external.link → the web-access URL of the named device.
  *
  * ShowMask appends the CIDR mask. An address that cannot be resolved yet (the lab
@@ -14,6 +15,7 @@
  */
 import type { PlaceholderDTO } from "@/api/exercises/versions"
 import type { DeployStatus } from "@/api/exercises/deploy"
+import { buildLinkUrl } from "@/lib/placeholderLink"
 
 /** Split "10.128.1.0/24" into its first three octets and mask. */
 function parseCIDR(cidr: string): { network3: string; mask: string } | null {
@@ -40,6 +42,10 @@ function subnet(cidr: string, showMask: boolean): string {
 
 /** Resolve a single placeholder against a deployed lab's status. */
 export function resolvePlaceholder(p: PlaceholderDTO, status: DeployStatus): string {
+  if (p.Kind === "ip" && p.AsLink) {
+    const ip = resolvePlaceholder({ ...p, AsLink: false, ShowMask: false }, status)
+    return ip ? buildLinkUrl(p.Scheme || "http", ip, p.Port, p.Path) : ""
+  }
   const lastOctet = p.LastOctet ?? 0
   const showMask = p.ShowMask ?? false
 

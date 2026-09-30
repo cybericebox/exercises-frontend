@@ -9,6 +9,8 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import { emptyPlaceholder } from "@/lib/exerciseSchemas"
+import { FieldHelp } from "@/components/ui/field-help"
+import { LINK_SCHEMES, MAX_LINK_PATH, ipExample, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
 import type { PlaceholderKind } from "@/api/exercises/versions"
 
 export type PlaceholderTopology = {
@@ -46,7 +48,10 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
   ]
   const selectedAvailable = options.find((option) => option.kind === kind)?.enabled ?? false
   const ipSourceAvailable = draft?.IPReference === "vpn" ? canVPN : draft?.IPReference === "internet" ? canInternet : draft?.IPReference === "static" && Boolean(value)
-  const valid = Boolean(draft && (selectedAvailable || (Boolean(value) && draft.IPReference === "static")) &&
+  const asLink = kind === "ip" && Boolean(draft?.AsLink)
+  const portError = asLink && !isValidLinkPort(draft?.PortText ?? "") ? t("admin.ex.val.placeholderPort") : ""
+  const pathError = asLink && !isValidLinkPath(draft?.Path ?? "") ? t("admin.ex.val.placeholderPath") : ""
+  const valid = Boolean(draft && !portError && !pathError && (selectedAvailable || (Boolean(value) && draft.IPReference === "static")) &&
     (kind !== "ip" || (ipSourceAvailable && Number.isInteger(draft.LastOctet) && draft.LastOctet >= 0 && draft.LastOctet <= 255)) &&
     (kind !== "external.link" || topology.externalDeviceNames.includes(draft.DeviceName)))
 
@@ -95,10 +100,43 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
             <Input id="placeholder-static-octets" value={draft.Octets1to3} onChange={(event) => setDraft({ ...draft, Octets1to3: event.target.value })} />
           </div>}
         </div>}
-        <div className="flex items-center gap-2">
+        {kind === "ip" && <div className="flex items-center gap-2">
+          <Switch id="placeholder-as-link" checked={asLink}
+            onCheckedChange={(AsLink) => setDraft({ ...draft, AsLink, ShowMask: AsLink ? false : draft.ShowMask, Scheme: draft.Scheme || "http" })} />
+          <label htmlFor="placeholder-as-link" className="text-sm leading-snug cursor-pointer select-none">{t("admin.exPh.asLink")}</label>
+          <FieldHelp text={t("admin.exPh.asLinkHelp")} />
+        </div>}
+        {asLink && <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <span className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.scheme")}<FieldHelp text={t("admin.exPh.schemeHelp")} /></span>
+            <SelectMenu ariaLabel={t("admin.exPh.scheme")} value={draft.Scheme || "http"}
+              onChange={(Scheme) => setDraft({ ...draft, Scheme })}
+              options={LINK_SCHEMES.map((scheme) => ({ value: scheme, label: scheme }))} className="w-full" />
+          </div>
+          <div>
+            <label htmlFor="placeholder-port" className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.port")}<FieldHelp text={t("admin.exPh.portHelp")} /></label>
+            <Input id="placeholder-port" inputMode="numeric" maxLength={5} value={draft.PortText ?? ""} placeholder={t("admin.exPh.port.placeholder")}
+              aria-invalid={Boolean(portError)} aria-describedby={portError ? "placeholder-port-error" : undefined}
+              onChange={(event) => setDraft({ ...draft, PortText: event.target.value.trim() })} />
+            {portError && <p id="placeholder-port-error" className="mt-1 text-xs text-destructive">{portError}</p>}
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="placeholder-path" className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.path")}<FieldHelp text={t("admin.exPh.pathHelp")} /></label>
+            <Input id="placeholder-path" maxLength={MAX_LINK_PATH + 1} value={draft.Path ?? ""} placeholder={t("admin.exPh.path.placeholder")}
+              aria-invalid={Boolean(pathError)} aria-describedby={pathError ? "placeholder-path-error" : undefined}
+              onChange={(event) => setDraft({ ...draft, Path: event.target.value })} />
+            {pathError && <p id="placeholder-path-error" className="mt-1 text-xs text-destructive">{pathError}</p>}
+          </div>
+          <p className="sm:col-span-2 text-sm">
+            <span className="mr-2 text-muted-foreground">{t("admin.exPh.preview")}</span>
+            <a href={ipExample(draft)} target="_blank" rel="noopener noreferrer" data-placeholder-preview
+              className="break-all font-mono text-primary underline underline-offset-2" onClick={(event) => event.preventDefault()}>{ipExample(draft)}</a>
+          </p>
+        </div>}
+        {!asLink && <div className="flex items-center gap-2">
           <Switch id="placeholder-show-mask" checked={draft.ShowMask} onCheckedChange={(ShowMask) => setDraft({ ...draft, ShowMask })} />
           <label htmlFor="placeholder-show-mask" className="text-sm leading-snug cursor-pointer select-none">{t("admin.exPh.showMask")}</label>
-        </div>
+        </div>}
       </div>}
       {draft?.Kind === "external.link" && <div className="border-t border-border pt-4">
         <span className="mb-1 block text-sm font-medium">{t("admin.exPh.device")}</span>

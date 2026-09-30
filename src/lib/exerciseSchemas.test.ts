@@ -760,6 +760,31 @@ describe('draftSchema', () => {
     }]
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
+
+  it('ip link form validates scheme, port, path and mask', () => {
+    const draft = validDraft()
+    const ip = { Key: 'ph_link', Kind: 'ip' as const, IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '', AsLink: true, Scheme: 'https', PortText: '8443', Path: '/a?b=1' }
+    const ok = (p: Partial<typeof ip>) => { draft.Variants[0].Tasks[0].Placeholders = [{ ...ip, ...p }]; return draftSchema.safeParse(draft).success }
+    expect(ok({})).toBe(true)
+    expect(ok({ PortText: '', Path: '' })).toBe(true)
+    expect(ok({ Scheme: 'ftp' })).toBe(false)
+    expect(ok({ PortText: '0' })).toBe(false)
+    expect(ok({ PortText: '65536' })).toBe(false)
+    expect(ok({ Path: 'admin' })).toBe(false)
+    expect(ok({ Path: '/a b' })).toBe(false)
+    expect(ok({ ShowMask: true })).toBe(false)
+    expect(ok({ AsLink: false, Scheme: 'ftp', PortText: '0' })).toBe(true) // link fields are ignored without the switch
+  })
+
+  it('ip link form round-trips to the DTO and back', () => {
+    const draft = validDraft()
+    draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_link', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: true, DeviceName: '', AsLink: true, Scheme: 'https', PortText: '8443', Path: '/x' }]
+    const dto = toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders
+    expect(dto).toEqual([{ Key: 'ph_link', Kind: 'ip', IPReference: 'vpn', LastOctet: 5, ShowMask: false, AsLink: true, Scheme: 'https', Port: 8443, Path: '/x' }])
+    draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_plain', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '', AsLink: false, Scheme: 'http', PortText: '', Path: '' }]
+    const plain = toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders
+    expect(plain).toEqual([{ Key: 'ph_plain', Kind: 'ip', IPReference: 'vpn', LastOctet: 5, ShowMask: false }])
+  })
 })
 
 // ── Factories ──────────────────────────────────────────────────────────────────

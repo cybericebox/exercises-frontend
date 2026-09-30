@@ -45,6 +45,10 @@ export type PlaceholderDTO = {
   Octets1to3?: string // only when IPReference === "static"
   LastOctet?: number // 0..255
   ShowMask?: boolean
+  AsLink?: boolean // ip only: resolves to scheme://ip[:port][path]; never with ShowMask
+  Scheme?: string // "http" | "https"; required with AsLink
+  Port?: number // 1..65535; omitted = the scheme default
+  Path?: string // starts with "/"; no spaces or quotes
   DeviceName?: string // only when Kind === "external.link"
 }
 

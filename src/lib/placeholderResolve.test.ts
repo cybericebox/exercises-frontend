@@ -49,6 +49,23 @@ describe("resolvePlaceholder", () => {
   })
 })
 
+describe("resolvePlaceholder ip link form", () => {
+  it("builds scheme://ip[:port][path]", () => {
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "internet", LastOctet: 12, AsLink: true, Scheme: "https", Port: 8443, Path: "/admin" }, status)).toBe("https://10.9.4.12:8443/admin")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "static", Octets1to3: "10.0.0", LastOctet: 7, AsLink: true, Scheme: "http", Path: "/x" }, status)).toBe("http://10.0.0.7/x")
+  })
+
+  it("never carries the mask into the link", () => {
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, ShowMask: true, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
+  })
+
+  it("stays empty while the address cannot be resolved", () => {
+    const empty: DeployStatus = { Phase: "Provisioning", Ready: false }
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "http" }, empty)).toBe("")
+  })
+})
+
 describe("resolvePlaceholders", () => {
   it("resolves positionally so nodes can map by index", () => {
     const list: PlaceholderDTO[] = [

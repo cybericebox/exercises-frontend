@@ -86,7 +86,11 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
                   ) : (
                     <ul className="mt-1 space-y-0.5 font-mono text-sm">
                       {values.map((v, vi) => (
-                        <li key={vi}>{v || "—"}</li>
+                        <li key={vi} className="break-all">
+                          {v && /^https?:\/\//.test(v) && task.Placeholders?.[vi]?.AsLink
+                            ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">{v}</a>
+                            : v || "—"}
+                        </li>
                       ))}
                     </ul>
                   )}

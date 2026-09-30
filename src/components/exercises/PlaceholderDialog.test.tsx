@@ -87,4 +87,52 @@ describe('PlaceholderDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'vpn.subnet' }))
   })
+
+  describe('IP link form', () => {
+    function openIP(save = vi.fn()) {
+      render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
+        topology={{ ...unavailable, vpnEnabled: true }} onSave={save} />)
+      fireEvent.click(screen.getByRole('button', { name: /^IP-адреса/ }))
+      return save
+    }
+
+    it('has no link fields until the switch is on, then previews a working link', () => {
+      openIP()
+      expect(screen.queryByLabelText('Порт')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('switch', { name: 'Як посилання' }))
+      expect(screen.getByRole('button', { name: 'Схема' })).toHaveTextContent('http')
+      fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '8443' } })
+      fireEvent.change(screen.getByRole('textbox', { name: /^Шлях/ }), { target: { value: '/admin' } })
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '5' } })
+      const link = document.querySelector<HTMLAnchorElement>('a[data-placeholder-preview]')!
+      expect(link.getAttribute('href')).toBe('http://10.0.0.5:8443/admin')
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(link.textContent).toBe('http://10.0.0.5:8443/admin')
+    })
+
+    it('hides the mask switch for a link and saves the link fields', () => {
+      const save = openIP()
+      fireEvent.click(screen.getByRole('switch', { name: 'Показувати маску' }))
+      fireEvent.click(screen.getByRole('switch', { name: 'Як посилання' }))
+      expect(screen.queryByRole('switch', { name: 'Показувати маску' })).not.toBeInTheDocument()
+      fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '81' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
+      expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'ip', AsLink: true, Scheme: 'http', PortText: '81', Path: '', ShowMask: false }))
+    })
+
+    it('blocks saving an invalid port or path with an inline message', () => {
+      openIP()
+      fireEvent.click(screen.getByRole('switch', { name: 'Як посилання' }))
+      fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '70000' } })
+      expect(screen.getByText('Порт — від 1 до 65535 або порожній')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Вставити' })).toBeDisabled()
+      fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '' } })
+      fireEvent.change(screen.getByRole('textbox', { name: /^Шлях/ }), { target: { value: 'admin' } })
+      expect(screen.getByText(/Шлях починається з \//)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Вставити' })).toBeDisabled()
+      fireEvent.change(screen.getByRole('textbox', { name: /^Шлях/ }), { target: { value: '/ok' } })
+      expect(screen.getByRole('button', { name: 'Вставити' })).toBeEnabled()
+    })
+  })
 })

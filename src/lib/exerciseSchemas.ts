@@ -6,6 +6,7 @@
  * The schemas describe DraftFormValues (form is 1:1 with SaveDraftInput; one difference:
  * External in the form is {Enabled, Port, Protocol} instead of a nullable object).
  */
+import { LINK_SCHEMES, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
 import { z } from "zod"
 import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
@@ -105,6 +106,11 @@ export type PlaceholderFormValues = {
   LastOctet: number
   ShowMask: boolean
   DeviceName: string
+  /** IP link form. PortText is the typed port: "" = the scheme default. */
+  AsLink?: boolean
+  Scheme?: string
+  PortText?: string
+  Path?: string
 }
 export type TaskFormValues = Omit<NormalizedTask, "Placeholders"> & { Placeholders: PlaceholderFormValues[] }
 export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
@@ -238,7 +244,7 @@ const externalSchema = z
   })
   .superRefine((ext, ctx) => {
     if (ext.Enabled && (ext.Port < 1 || ext.Port > 65535)) {
-      ctx.addIssue({ code: "custom", path: ["Port"], message: t("admin.ex.val.port") })
+      ctx.addIssue({ code: "custom", path: ["PortText"], message: t("admin.ex.val.port") })
     }
   })
 
@@ -402,8 +408,26 @@ const placeholderSchema = z
     LastOctet: z.number().int().min(0, t("admin.ex.val.lastOctet")).max(255, t("admin.ex.val.lastOctet")),
     ShowMask: z.boolean(),
     DeviceName: z.string(),
+    AsLink: z.boolean().optional(),
+    Scheme: z.string().optional(),
+    PortText: z.string().optional(),
+    Path: z.string().optional(),
   })
   .superRefine((p, ctx) => {
+    if (p.Kind === "ip" && p.AsLink) {
+      if (!(LINK_SCHEMES as readonly string[]).includes(p.Scheme ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["Scheme"], message: t("admin.ex.val.placeholderScheme") })
+      }
+      if (!isValidLinkPort(p.PortText ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["PortText"], message: t("admin.ex.val.placeholderPort") })
+      }
+      if (!isValidLinkPath(p.Path ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["Path"], message: t("admin.ex.val.placeholderPath") })
+      }
+      if (p.ShowMask) {
+        ctx.addIssue({ code: "custom", path: ["ShowMask"], message: t("admin.ex.val.placeholderLinkMask") })
+      }
+    }
     if (p.Kind === "ip" && !["vpn", "internet", "static"].includes(p.IPReference)) {
       ctx.addIssue({ code: "custom", path: ["IPReference"], message: t("admin.ex.val.placeholderIPRef") })
     }
@@ -558,7 +582,7 @@ export function emptyDevice(): DeviceFormValues {
 }
 
 export function emptyPlaceholder(): PlaceholderFormValues {
-  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "" }
+  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "", AsLink: false, Scheme: "http", PortText: "", Path: "" }
 }
 
 export function emptyVariant(index: number): VariantFormValues {
@@ -602,6 +626,10 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
           LastOctet: p.LastOctet ?? 0,
           ShowMask: p.ShowMask ?? false,
           DeviceName: p.DeviceName ?? "",
+          AsLink: p.AsLink ?? false,
+          Scheme: p.Scheme ?? "http",
+          PortText: p.Port ? String(p.Port) : "",
+          Path: p.Path ?? "",
         })),
       })),
       Topology: {
@@ -630,8 +658,14 @@ function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
         Kind: p.Kind,
         IPReference: p.IPReference,
         LastOctet: p.LastOctet,
-        ShowMask: p.ShowMask,
+        ShowMask: p.AsLink ? false : p.ShowMask,
         ...(p.IPReference === "static" ? { Octets1to3: p.Octets1to3 } : {}),
+        ...(p.AsLink ? {
+          AsLink: true,
+          Scheme: p.Scheme || "http",
+          ...(p.PortText ? { Port: Number(p.PortText) } : {}),
+          ...(p.Path ? { Path: p.Path } : {}),
+        } : {}),
       }
     case "external.link":
       return { Key: p.Key, Kind: p.Kind, DeviceName: p.DeviceName }

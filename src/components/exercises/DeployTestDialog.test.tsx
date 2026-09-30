@@ -25,6 +25,22 @@ describe("DeployTestDialog", () => {
     expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
   })
 
+  it("renders a link-form IP placeholder as a real link", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d2", Lab: "lab" })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, VPNCIDR: "10.128.1.0/24" })
+    const tasks = [{ Name: "T", Placeholders: [
+      { Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "https", Port: 8443, Path: "/x" },
+      { Kind: "ip", IPReference: "vpn", LastOctet: 6 },
+    ] }] as never
+    render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={tasks} />)
+
+    const link = await screen.findByRole("link", { name: "https://10.128.1.5:8443/x" })
+    expect(link).toHaveAttribute("href", "https://10.128.1.5:8443/x")
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+    expect(screen.getByText("10.128.1.6")).not.toHaveAttribute("href")
+  })
+
   describe("web devices", () => {
     const ready = { Phase: "Ready", Ready: true, VPNConfig: "cfg", Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
     let tab: { location: { href: string }; close: ReturnType<typeof vi.fn>; opener: unknown }

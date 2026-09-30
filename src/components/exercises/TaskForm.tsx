@@ -1,6 +1,7 @@
 "use client"
 
 import { exampleLabLink } from "@/lib/labId"
+import { ipExample } from "@/lib/placeholderLink"
 import { useEffect, useRef, useState } from "react"
 import { Controller, useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
@@ -51,7 +52,7 @@ export function TaskForm({
       placeholder.Kind === "external.link" ? "admin.exPh.kind.externalLink" : "admin.exPh.kind.ip"
     const example = placeholder.Kind === "external.link" ? exampleLabLink(placeholder.DeviceName || "web") :
       placeholder.Kind === "vpn.subnet" || placeholder.Kind === "internet.subnet" ? `10.0.0.0${placeholder.ShowMask ? "/24" : ""}` :
-      placeholder.IPReference === "static" && placeholder.Octets1to3 ? `${placeholder.Octets1to3}.${placeholder.LastOctet}` : `10.0.0.${placeholder.LastOctet}${placeholder.ShowMask ? "/24" : ""}`
+      ipExample(placeholder)
     return { name: placeholder.Key, description: t(labelKey), example }
   })
   const unavailableLabels = Object.fromEntries(placeholders.flatMap((placeholder) => {
