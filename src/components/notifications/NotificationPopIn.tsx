@@ -7,6 +7,7 @@ import { NotificationMessageCard } from "./NotificationMessageCard"
 import { accentOf } from "./accent"
 import { popInDuration } from "./popInDuration"
 import { t } from "@/i18n/t"
+import { keepBrand } from "@/i18n/brand"
 
 export type PopInMessage = {
   ID: string
@@ -62,7 +63,7 @@ export function NotificationPopIn({ message, onClose, onAction }: {
         accentColor={message.AccentColor}
         title={message.Title}
         // eslint-disable-next-line @eslint-react/dom-no-dangerously-set-innerhtml -- body is sanitized with DOMPurify
-        body={message.Body && <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.Body) }} />}
+        body={message.Body && <div dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(message.Body)) }} />}
         actions={action && <button type="button" onClick={() => onAction(action.href)} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{action.label}</button>}
       />
     </div>

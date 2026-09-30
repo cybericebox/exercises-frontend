@@ -29,6 +29,7 @@ import {
   bellCount, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
   type InboxCounts, type InboxDefaultTab, type InboxMessage as Message, type InboxTab,
 } from "@/components/notifications/inboxModel"
+import { keepBrand } from "@/i18n/brand"
 
 // Dropdown height cap, the same in every app: tune it here.
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
@@ -400,7 +401,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className={`px-4 py-3 hover:bg-accent/50 ${resolved ? "opacity-60" : ""}`}>
               <NotificationMessageCard
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
-                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined}
+                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })) }} /> : undefined}
                 unread={unreadItem} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved

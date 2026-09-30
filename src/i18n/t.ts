@@ -8,6 +8,7 @@
 // procedure (see README).
 import en from "../../messages/en.json"
 import uk from "../../messages/uk.json"
+import { keepBrand } from "./brand"
 
 // `en` defines the canonical key set; `uk` is what users see.
 const active = uk
@@ -25,6 +26,6 @@ export type MessageVars = Record<string, string | number>
 export function t(key: MessageKey | string, vars?: MessageVars): string {
   const a = (active as Record<string, string>)[key]
   const text = a ?? (fallback as Record<string, string>)[key] ?? key
-  if (!vars) return text
-  return text.replace(/\{(\w+)\}/g, (match, name: string) => name in vars ? String(vars[name]) : match)
+  if (!vars) return keepBrand(text)
+  return keepBrand(text.replace(/\{(\w+)\}/g, (match, name: string) => name in vars ? String(vars[name]) : match))
 }
