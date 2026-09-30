@@ -26,7 +26,7 @@
   "theme.dark": "Темна",
   "theme.system": "Системна",
   "error.notFound": "Сторінку не знайдено",
-  "error.notFoundDescription": "Сторінка, яку ви шукаєте, не існує.",
+  "error.notFoundDescription": "Сторінка, яку ви шукаєте, не існує або її перенесли.",
   "error.goHome": "На головну",
   "admin.accountMenu": "Меню облікового запису",
   "admin.loading": "Завантаження…",

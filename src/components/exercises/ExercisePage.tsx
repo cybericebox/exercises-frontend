@@ -6,6 +6,7 @@ import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listVersions, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
 import { DraftVariants } from "@/components/exercises/DraftFields"
@@ -44,13 +45,6 @@ import { ProposeDialog } from "./ProposeDialog"
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
 type DialogName = "history" | "snapshot" | "revert" | "archive" | "delete" | "export" | "access" | "propose"
-
-export function ExerciseNotFound() {
-  return <div className="frost-panel frost-in rounded-lg p-8 text-center">
-    <p className="text-muted-foreground">{t("admin.exDetail.notFound")}</p>
-    <Link href="/" className="mt-3 inline-block text-sm text-primary hover:underline">{t("admin.exDetail.back")}</Link>
-  </div>
-}
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -216,7 +210,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     return <p role="alert" className="text-sm text-destructive">{t("admin.ex.create.forbidden")}</p>
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (editor.loadState === "notFound") return <ExerciseNotFound />
+  if (editor.loadState === "notFound") return <NotFoundScreen block title={t("admin.exDetail.notFound")} />
   if (editor.loadState === "error") return <ErrorScreen title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
