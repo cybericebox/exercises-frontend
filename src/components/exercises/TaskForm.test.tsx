@@ -145,6 +145,6 @@ describe('TaskForm inline placeholders', () => {
     }, { discrete: true })
     initial.Variants[0].Tasks[0].Description = editor.getEditorState().toJSON() as unknown as Record<string, unknown>
     render(<Harness initial={initial} />)
-    expect(await screen.findByText('https://web-01-7j6eora4bm1lw7i6anorqigxz.example-challenges.com')).toBeInTheDocument()
+    expect(await screen.findByText('https://web-01-k3x.example-challenges.com')).toBeInTheDocument()
   })
 })
