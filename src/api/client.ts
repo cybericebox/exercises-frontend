@@ -6,6 +6,7 @@
 
 import { apiOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
 
 export class ApiError extends Error {
@@ -26,7 +27,7 @@ export class ApiError extends Error {
 }
 
 // ApiOptions controls cross-cutting request behavior.
-//   required (default true) — a 401 writes the return_to cookie and redirects
+//   required (default true) — a 401 writes the cib_return_to cookie and redirects
 //       the browser to the backend-advertised sign-in page (X-Sign-In-URL).
 //       The promise never resolves (navigation is underway), so no catch/finally
 //       runs on the caller.
@@ -51,11 +52,11 @@ function portless(href: string): string {
 }
 
 // writeReturnToCookie writes the current page URL (portless, https) as the
-// return_to cookie the backend consumes at session creation. The backend rejects
+// cib_return_to cookie the backend consumes at session creation. The backend rejects
 // URLs with a port and requires https, so the value must be portless https.
 function writeReturnToCookie(): void {
   if (typeof window === "undefined") return
-  document.cookie = `return_to=${encodeURIComponent(portless(window.location.href))}; path=/; SameSite=Lax; Secure`
+  document.cookie = `${COOKIE_RETURN_TO}=${encodeURIComponent(portless(window.location.href))}; path=/; SameSite=Lax; Secure`
 }
 
 // redirectToSignInPage is inlined here (no import of lib/auth) to avoid a
@@ -81,7 +82,7 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
   if (isUnavailableStatus(res.status)) reportServiceUnavailable()
 
-  // Centralized auth handling: required (default true) → write return_to cookie
+  // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the
   // caller's success/catch paths from running while the browser navigates away.
   // required:false → fall through to throw ApiError so callers treat it as anon.

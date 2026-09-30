@@ -20,3 +20,4 @@ export function exercisePositionKey(userId: string, exerciseId: string): string 
 export function exercisePendingKey(userId: string, exerciseId: string): string {
   return `${EXERCISE_PENDING}_${userId}_${exerciseId}`
 }
+export const COOKIE_RETURN_TO = "cib_return_to"

@@ -9,13 +9,14 @@ import { signInURL } from "@/lib/origins"
  * Usage on id-frontend (the Authorization Server):
  *   - `fetchMe` / `Me` are used for auth-state checks.
  *   - `rememberReturnTo` is called on mount by each auth page to persist the
- *     return_to cookie, which the backend consumes at session creation.
+ *     cib_return_to cookie, which the backend consumes at session creation.
  *   - `safeReturnTo` / `redirectIfAuthed` guard guest-only pages.
  *
  * No JSX — plain TypeScript; safe to import without 'use client' propagation issues.
  */
 
 import { apiGet, ApiError } from "@/api/client"
+import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 
 // ---------------------------------------------------------------------------
 // /me — identity object returned by the RP's /api/me endpoint.
@@ -92,9 +93,9 @@ export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
 }
 
 /**
- * rememberReturnTo — persists the return_to cookie on auth-page mount.
+ * rememberReturnTo — persists the cib_return_to cookie on auth-page mount.
  *
- * Writes `document.cookie = return_to=<portless-https-url>; ...` ONLY when
+ * Writes `document.cookie = cib_return_to=<portless-https-url>; ...` ONLY when
  * `returnTo` is a genuine absolute https URL within the platform domain (same
  * trust logic as `safeReturnTo`). Relative paths and off-platform URLs are
  * silently ignored — the backend's ConsumeReturnTo trusts only absolute
@@ -116,7 +117,7 @@ export function rememberReturnTo(returnTo?: string): void {
     if (u.protocol === "https:" && (h === root || h.endsWith("." + root))) {
       // Force portless https — mirrors Task 7 writeReturnToCookie convention.
       const portless = `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
-      document.cookie = `return_to=${encodeURIComponent(portless)}; path=/; SameSite=Lax; Secure`
+      document.cookie = `${COOKIE_RETURN_TO}=${encodeURIComponent(portless)}; path=/; SameSite=Lax; Secure`
     }
   } catch {
     // Unparseable URL — do nothing.

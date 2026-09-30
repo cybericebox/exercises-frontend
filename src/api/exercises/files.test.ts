@@ -86,7 +86,7 @@ describe("exercise file upload", () => {
     request.getResponseHeader.mockReturnValue("https://id.cybericebox-dev.pp.ua/sign-in")
     request.onload?.()
     await Promise.resolve()
-    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("return_to="))
+    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("cib_return_to="))
     expect(replace).toHaveBeenCalledWith("https://id.cybericebox-dev.pp.ua/sign-in")
     expect(settled).not.toHaveBeenCalled()
   })

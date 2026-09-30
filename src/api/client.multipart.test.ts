@@ -71,7 +71,7 @@ describe("apiPostMultipart", () => {
     void apiPostMultipart("/api/x", new FormData()).then(settled, settled)
     await Promise.resolve()
     await Promise.resolve()
-    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("return_to="))
+    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("cib_return_to="))
     expect(replace).toHaveBeenCalledWith("https://id.example/sign-in")
     expect(settled).not.toHaveBeenCalled()
   })
