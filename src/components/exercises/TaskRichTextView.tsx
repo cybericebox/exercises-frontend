@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from "react"
 
-import { Button } from "@/components/ui/button"
 import type { ExternalTarget } from "@/lib/placeholderResolve"
 import { cn } from "@/utils/cn"
 
@@ -60,8 +59,8 @@ export function richTextHasBlocks(value: unknown): boolean {
 /**
  * TaskRichTextView — a task description as a participant reads it: the saved
  * rich-text document rendered read-only, every variable replaced by its value in
- * the lab. A link-form IP is an <a>; an external link is a button that opens the
- * web device through the platform proxy.
+ * the lab. A link-form IP is an <a>; an external link is an <a> that opens the
+ * web device through the platform proxy. Every value reads as plain inline text or a plain link.
  */
 export function TaskRichTextView({ value, variables = {}, links = {}, external = {}, onOpenExternal, openingKey, className }: {
   value: unknown
@@ -88,13 +87,15 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
         const text = variables[name] ?? name
         const target = external[name]
         if (target) {
-          return <Button key={key} type="button" variant="outline" size="sm" className="mx-0.5 align-baseline" data-task-variable={name}
-            busy={openingKey === name} disabled={!onOpenExternal || Boolean(openingKey)} onClick={() => onOpenExternal?.(target, name)}>{text}</Button>
+          // Looks like any link; the click opens the tab and mints the proxy link, so href is only a placeholder.
+          return <a key={key} className="break-all text-primary underline underline-offset-2" href="#" target="_blank" rel="noopener noreferrer" data-task-variable={name}
+            aria-busy={openingKey === name || undefined}
+            onClick={(event) => { event.preventDefault(); if (onOpenExternal && !openingKey) onOpenExternal(target, name) }}>{text}</a>
         }
         const href = variableHref(links[name])
         if (href) return <a key={key} className="break-all text-primary underline underline-offset-2" href={href} target="_blank" rel="noopener noreferrer" data-task-variable={name}>{text}</a>
         const formats = Array.isArray(node.formats) ? node.formats : []
-        return <span key={key} className="font-mono text-[0.95em]" data-task-variable={name}
+        return <span key={key} data-task-variable={name}
           style={{
             fontWeight: formats.includes("bold") ? 700 : undefined, fontStyle: formats.includes("italic") ? "italic" : undefined,
             textDecoration: [formats.includes("underline") ? "underline" : "", formats.includes("strikethrough") ? "line-through" : ""].filter(Boolean).join(" ") || undefined,

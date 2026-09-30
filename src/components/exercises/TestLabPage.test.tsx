@@ -203,17 +203,18 @@ describe("TestLabPage — task as a participant sees it", () => {
     const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
     expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["1Login", "2Escalate"])
     expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
-    // the subnet is a CIDR, the IP link is an <a>, the external link is a button
+    // the subnet is a CIDR, the IP link is an <a>, the external link is an <a> too
     expect(document.querySelector('[data-task-variable="net"]')).toHaveTextContent("10.128.1.0/24")
     const link = document.querySelector('[data-task-variable="site"]') as HTMLAnchorElement
     expect(link.tagName).toBe("A")
     expect(link.href).toBe("http://10.128.1.5:8080/")
     const button = document.querySelector('[data-task-variable="panel"]') as HTMLElement
-    expect(button.tagName).toBe("BUTTON")
+    expect(button.tagName).toBe("A")
+    expect(button.className).not.toMatch(/border|bg-|font-mono/)
     expect(button).toHaveTextContent("https://web-1.example.com")
   })
 
-  it("opens the external link button through the proxy", async () => {
+  it("opens the external link through the proxy", async () => {
     const tab = { location: { href: "" }, close: vi.fn(), opener: "self" }
     vi.stubGlobal("open", vi.fn(() => tab))
     vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=y", ExpiresAt: "" })
