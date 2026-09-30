@@ -164,7 +164,8 @@ function downloadConfig(cfg: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = "tester.conf"
+  // wg-quick takes the interface name from the file name (<=15 chars).
+  a.download = "cybericebox.conf"
   a.click()
   URL.revokeObjectURL(url)
 }
