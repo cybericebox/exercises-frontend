@@ -119,6 +119,8 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   }, [deployId, exerciseId, initial.deploy])
 
   const status = deploy.status
+  // What the server remembers plus what was just checked, so the tick shows before the next poll.
+  const solvedIds = useMemo(() => new Set([...solved, ...(status?.SolvedTaskIDs ?? [])]), [solved, status?.SolvedTaskIDs])
   const tasks = useMemo(() => load.state === "ready" ? load.meta.variant.Tasks : [], [load])
   const task = tasks.find((candidate) => candidate.ID === selected) ?? tasks[0] ?? null
 
@@ -167,10 +169,11 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const showTopology = topologyShown && ready
 
   return <div className="flex h-dvh flex-col bg-background">
-    <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solved.has(entry.ID)).length, total: tasks.length }}
+    <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
       center={<LabTimer expiresAt={ready ? item?.ExpiresAt ?? null : null} fallback={deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
       onDownloadVpn={ready && vpnConfig ? () => downloadBlob(new Blob([vpnConfig], { type: "text/plain" }), "cybericebox.conf") : undefined}
+      vpn={{ connected: status?.VPNConnected ?? false, lastHandshake: status?.VPNLastHandshake }}
       onEnd={deploy.deployId ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
       message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
@@ -186,11 +189,11 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       <EmptyState className="min-h-0 flex-1" message={t("admin.exTest.noTasks")} />
     ) : (
       <div className="flex min-h-0 flex-1">
-        <TaskSidebar tasks={tasks} selectedId={task?.ID ?? null} solved={solved} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onSelect={setSelected} />
+        <TaskSidebar tasks={tasks} selectedId={task?.ID ?? null} solved={solvedIds} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onSelect={setSelected} />
         <div ref={split} className="flex min-h-0 min-w-0 flex-1">
           <div className="min-w-0 overflow-y-auto p-6" style={{ flex: showTopology ? `${ratio} 1 0` : "1 1 0" }}>
             {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
-              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} openingKey={openingKey}
+              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} solved={solvedIds.has(task.ID)} openingKey={openingKey}
               onOpenExternal={(target) => deploy.openLink(target.device, target.port)}
               onSolved={(id) => setSolved((current) => new Set(current).add(id))}
               revealedHints={revealed} onRevealHint={(key) => setRevealed((current) => new Set(current).add(key))}

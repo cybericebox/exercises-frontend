@@ -421,3 +421,52 @@ describe("TestLabPage — start and end", () => {
     expect(destroyDeploy).not.toHaveBeenCalled()
   })
 })
+
+describe("TestLabPage — answer card, solved state and VPN indicator", () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it("titles the card «Answer» and gives no helper text", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("heading", { name: "admin.exTest.flagTitle" })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText("admin.exDeploy.flagPlaceholder")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.checkHelp")).not.toBeInTheDocument()
+  })
+
+  it("shows the tasks the server remembers as solved after a reload", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, SolvedTaskIDs: ["t1"] })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    expect(Array.from(nav.querySelectorAll("[data-task-number]")).map((n) => n.getAttribute("data-state"))).toEqual(["solved", "todo"])
+    expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
+    expect(screen.getByText(/admin\.exDeploy\.correct/)).toBeInTheDocument()
+  })
+
+  it("marks the VPN connected with the last exchange time, and not connected otherwise", async () => {
+    const at = new Date(2026, 8, 30, 12, 0, 5)
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: true, VPNLastHandshake: at.toISOString() })
+    const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })
+    expect(vpn).toHaveAttribute("data-vpn", "connected")
+    expect(document.getElementById("lab-vpn-state")).toHaveTextContent("admin.exTest.vpnConnected 12:00:05")
+    first.unmount()
+
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "disconnected")
+    expect(document.getElementById("lab-vpn-state")).toHaveTextContent("admin.exTest.vpnDisconnected")
+  })
+
+  it("keeps polling a ready lab, keeping the page while it does", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+      expect(await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "disconnected")
+      vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: true, VPNLastHandshake: new Date().toISOString() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(5100) })
+      expect(screen.getByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "connected")
+      expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

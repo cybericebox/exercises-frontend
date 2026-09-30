@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, ShieldCheck } from "lucide-react"
+import { Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
 
 import { exerciseFileURL } from "@/api/exercises/files"
 import type { NormalizedHint, NormalizedTask } from "@/api/exercises/versions"
@@ -55,11 +55,25 @@ export type LabBarProps = {
   topologyShown?: boolean
   onToggleTopology?: () => void
   onDownloadVpn?: () => void
+  /** Whether the author's VPN is connected to this lab; `lastHandshake` is the ISO time of the last exchange. */
+  vpn?: { connected: boolean; lastHandshake?: string }
   onEnd?: () => void
 }
 
+/** "12:03:07" in the viewer's own time. */
+function clockTime(iso: string): string {
+  const at = new Date(iso)
+  return [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":")
+}
+
+function vpnTooltip(vpn: LabBarProps["vpn"]): string {
+  return vpn?.connected
+    ? t("admin.exTest.vpnConnected", { time: vpn.lastHandshake ? clockTime(vpn.lastHandshake) : "" })
+    : t("admin.exTest.vpnDisconnected")
+}
+
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
-export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onDownloadVpn, onEnd }: LabBarProps) {
+export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onDownloadVpn, vpn, onEnd }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 bg-[var(--ib-brand)] px-4 py-3 text-white">
@@ -84,9 +98,13 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
             <Network aria-hidden="true" size={16} />
           </Button>
         </HoverTooltip>}
-        {onDownloadVpn && <HoverTooltip text={t("admin.exTest.vpnDownload")}>
-          <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnDownload")} onClick={onDownloadVpn}>
-            <ShieldCheck aria-hidden="true" size={16} className="mr-1.5" />{t("admin.exTest.vpnShort")}
+        {onDownloadVpn && <HoverTooltip text={vpnTooltip(vpn)}>
+          <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnDownload")} aria-describedby="lab-vpn-state" data-vpn={vpn?.connected ? "connected" : "disconnected"} onClick={onDownloadVpn}>
+            {vpn?.connected
+              ? <ShieldCheck aria-hidden="true" size={16} className="mr-1.5 fill-emerald-400/40 text-emerald-300" />
+              : <Shield aria-hidden="true" size={16} className="mr-1.5 text-white/60" />}
+            {t("admin.exTest.vpnShort")}
+            <span id="lab-vpn-state" hidden>{vpnTooltip(vpn)}</span>
           </Button>
         </HoverTooltip>}
         {onEnd && <HoverTooltip text={t("admin.exTest.end")}>
@@ -188,11 +206,13 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
 }
 
 /** The chosen task: title, difficulty, description with the lab's values, files, hints, the answer card and the stage links. */
-export function TaskView({ task, values, deployId, flagLinked, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
+export function TaskView({ task, values, deployId, flagLinked, solved = false, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
   task: NormalizedTask
   values: TaskValues
   deployId: string
   flagLinked: boolean
+  /** The answer was already checked correctly (kept with the deploy). */
+  solved?: boolean
   openingKey: string | null
   onOpenExternal: (target: ExternalTarget) => void
   onSolved: (taskId: string) => void
@@ -234,9 +254,8 @@ export function TaskView({ task, values, deployId, flagLinked, openingKey, onOpe
       render={(text) => view(hintTextToState(text))} onUnlock={onUnlockHint} cost={hintCost} />}
 
     {flagLinked && deployId && <section className="rounded-lg border border-border bg-muted/30 p-4">
-      <h3 className="text-sm font-semibold text-foreground">{t("admin.exTest.flagTitle")}</h3>
-      <p className="mb-2 mt-0.5 text-xs text-muted-foreground">{t("admin.exDeploy.checkHelp")}</p>
-      <TestFlagCheck deployId={deployId} taskId={task.ID} taskName={task.Name} onResult={(correct) => { if (correct) onSolved(task.ID) }} />
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{t("admin.exTest.flagTitle")}</h3>
+      <TestFlagCheck deployId={deployId} taskId={task.ID} taskName={task.Name} solved={solved} onResult={(correct) => { if (correct) onSolved(task.ID) }} />
     </section>}
 
     {(prev || next) && <nav aria-label={t("admin.exTest.stages")} className="flex items-center justify-between gap-3 border-t border-border pt-4">

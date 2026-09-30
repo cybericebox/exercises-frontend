@@ -10,9 +10,9 @@ import { t } from "@/i18n/t"
 type CheckState = "idle" | "checking" | "correct" | "wrong" | "error"
 
 /** The author types the flag they found and asks the server; the expected value is never shown. */
-export function TestFlagCheck({ deployId, taskId, taskName, onResult }: { deployId: string; taskId: string; taskName: string; onResult?: (correct: boolean) => void }) {
+export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onResult }: { deployId: string; taskId: string; taskName: string; solved?: boolean; onResult?: (correct: boolean) => void }) {
   const [flag, setFlag] = useState("")
-  const [state, setState] = useState<CheckState>("idle")
+  const [state, setState] = useState<CheckState>(solved ? "correct" : "idle")
 
   function check() {
     if (!flag || state === "checking") return

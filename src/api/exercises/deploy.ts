@@ -41,6 +41,8 @@ export type DeployListItem = {
   /** When the lease ends. */
   ExpiresAt: string
   Tasks: DeployTask[]
+  /** Tasks already checked correctly; kept with the deploy, so a reload keeps the progress. */
+  SolvedTaskIDs?: string[]
 }
 
 /** The caller's active test deploys: of one exercise, or (no argument) of all of them. */
@@ -65,6 +67,11 @@ export type DeployStatus = {
   VPNConfig?: string
   Devices?: DeployDeviceStatus[]
   Access?: DeployAccess[]
+  /** The author's VPN shook hands with this lab within the last three minutes. */
+  VPNConnected?: boolean
+  /** Time of that last handshake (ISO); absent when the VPN never connected. */
+  VPNLastHandshake?: string
+  SolvedTaskIDs?: string[]
 }
 
 /** Start a test deploy of one variant; resolves with the deploy id to poll. */

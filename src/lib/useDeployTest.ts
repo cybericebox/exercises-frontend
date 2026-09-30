@@ -15,6 +15,8 @@ import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
+/** A ready lab keeps being polled for the VPN state; a little slower, the lab itself no longer changes. */
+const READY_POLL_MS = 5000
 
 /** Opening a web device: the link is fetched on every click, nothing is kept. */
 export type DeployLinkState = "idle" | "opening" | "error"
@@ -45,6 +47,7 @@ export function useDeployTest() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeId = useRef<string | null>(null)
   const requestSequence = useRef(0)
+  const readySeen = useRef(false)
 
   const clearTimer = () => {
     if (timer.current) {
@@ -90,14 +93,20 @@ export function useDeployTest() {
       s = await deployStatus(id)
     } catch (e) {
       if (activeId.current !== id) return
+      if (readySeen.current) {
+        // A ready lab is only polled for the VPN state: a hiccup keeps the last status and tries again.
+        timer.current = setTimeout(() => void poll(id), READY_POLL_MS)
+        return
+      }
       setState((p) => ({ ...p, error: (e as Error).message, errorCause: e, busy: false }))
       return
     }
     if (activeId.current !== id) return // a newer deploy (or a close) superseded this one
-    const terminal = s.Ready || isTerminalPhase(s.Phase)
-    setState((p) => ({ ...p, status: s, busy: !terminal }))
-    if (!terminal) {
-      timer.current = setTimeout(() => void poll(id), POLL_MS)
+    const failed = !s.Ready && isTerminalPhase(s.Phase)
+    readySeen.current = s.Ready
+    setState((p) => ({ ...p, status: s, busy: !s.Ready && !failed }))
+    if (!failed) {
+      timer.current = setTimeout(() => void poll(id), s.Ready ? READY_POLL_MS : POLL_MS)
     }
   }, [])
 
@@ -105,6 +114,7 @@ export function useDeployTest() {
     async (exerciseId: string, versionId: string, variantId: string) => {
       const sequence = ++requestSequence.current
       clearTimer()
+      readySeen.current = false
       const previousId = activeId.current
       activeId.current = null
       if (previousId) void Promise.resolve(destroyDeploy(previousId)).catch(() => {})
@@ -133,6 +143,7 @@ export function useDeployTest() {
     (deployID: string, tasks: DeployTask[]) => {
       ++requestSequence.current
       clearTimer()
+      readySeen.current = false
       activeId.current = deployID
       setState({ ...IDLE, busy: true, deployId: deployID, tasks })
       void poll(deployID)
