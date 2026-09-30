@@ -20,14 +20,14 @@ const BASE = "/api/exercises"
 
 export type DeployPhase = "Pending" | "Provisioning" | "Ready" | "Failed"
 
-/** The test value injected into a task's linked device (a flag for the author to compare). */
-export type DeployFlag = { TaskID: string; Name: string; Flag: string }
+/** A task whose flag the author must find in the lab; the value never reaches the browser. */
+export type DeployTask = { TaskID: string; Name: string }
 
 export type DeployResponse = {
   DeployID: string
   Lab: string
   VPNClient?: string
-  Flags?: DeployFlag[]
+  Tasks?: DeployTask[]
 }
 
 /** One of the caller's own active test deploys, as GET /exercises/deploys lists it. */
@@ -39,7 +39,7 @@ export type DeployListItem = {
   CreatedAt: string
   /** When the lease ends. */
   ExpiresAt: string
-  Flags: DeployFlag[]
+  Tasks: DeployTask[]
 }
 
 /** The caller's active test deploys of one exercise. */
@@ -89,4 +89,9 @@ export function openDeployLink(group: string, device: string, port: number): Pro
 /** Tear a test deploy down. */
 export function destroyDeploy(group: string): Promise<void> {
   return apiDelete<void>(`${BASE}/deploys/${encodeURIComponent(group)}`)
+}
+
+/** Ask whether a flag the author found is the one injected for a task. */
+export function checkDeployFlag(group: string, taskId: string, flag: string): Promise<{ Correct: boolean }> {
+  return apiPost<{ Correct: boolean }>(`${BASE}/deploys/${encodeURIComponent(group)}/check`, { TaskID: taskId, Flag: flag })
 }

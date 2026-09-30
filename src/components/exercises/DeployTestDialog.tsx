@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 
-import type { DeployFlag } from "@/api/exercises/deploy"
+import { checkDeployFlag, type DeployTask } from "@/api/exercises/deploy"
 import type { TaskDTO } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
@@ -21,7 +22,7 @@ type Props = {
   variantId: string
   tasks: TaskDTO[]
   /** Reopen a deploy that is already running instead of starting a new one. */
-  attach?: { deployId: string; flags: DeployFlag[] }
+  attach?: { deployId: string; tasks: DeployTask[] }
 }
 
 /**
@@ -35,7 +36,7 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
 
   useEffect(() => {
     if (open && attach) {
-      deploy.attach(attach.deployId, attach.flags)
+      deploy.attach(attach.deployId, attach.tasks)
     } else if (open && variantId) {
       void deploy.start(exerciseId, versionId, variantId)
     }
@@ -46,15 +47,6 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
   function handleClose() {
     deploy.close()
     onClose()
-  }
-
-  const [copiedFlag, setCopiedFlag] = useState<string | null>(null)
-
-  function copyFlag(key: string, flag: string) {
-    void navigator.clipboard?.writeText(flag).then(() => {
-      setCopiedFlag(key)
-      setTimeout(() => setCopiedFlag((current) => (current === key ? null : current)), 1500)
-    })
   }
 
   const status = deploy.status
@@ -114,31 +106,14 @@ export function DeployTestDialog({ open, onClose, exerciseId, versionId, variant
               )
             })}
 
-            {deploy.flags.length > 0 && (
+            {deploy.tasks.length > 0 && deploy.deployId && (
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exDeploy.flags")}</div>
-                <p className="text-xs text-muted-foreground">{t("admin.exDeploy.flagsHelp")}</p>
-                <ul className="mt-1 space-y-1 text-sm">
-                  {deploy.flags.map((f, i) => {
-                    const key = f.TaskID || String(i)
-                    return (
-                      <li key={key} className="flex items-center justify-between gap-2">
-                        <span className="min-w-0">
-                          <span className="block truncate">{f.Name}</span>
-                          <code className="block break-all font-mono text-xs">{f.Flag}</code>
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          aria-label={t("admin.exDeploy.copyFlag", { name: f.Name })}
-                          onClick={() => copyFlag(key, f.Flag)}
-                        >
-                          {copiedFlag === key ? t("admin.exDeploy.copied") : t("admin.exDeploy.copy")}
-                        </Button>
-                      </li>
-                    )
-                  })}
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exDeploy.checkTitle")}</div>
+                <p className="text-xs text-muted-foreground">{t("admin.exDeploy.checkHelp")}</p>
+                <ul className="mt-1 space-y-2">
+                  {deploy.tasks.map((task, i) => (
+                    <FlagCheckRow key={task.TaskID || i} deployId={deploy.deployId!} task={task} />
+                  ))}
                 </ul>
               </div>
             )}
@@ -217,4 +192,53 @@ function downloadConfig(cfg: string) {
   a.download = "cybericebox.conf"
   a.click()
   URL.revokeObjectURL(url)
+}
+
+type CheckState = "idle" | "checking" | "correct" | "wrong" | "error"
+
+/** One task: the author types the flag they found and asks the server; the value is never shown. */
+function FlagCheckRow({ deployId, task }: { deployId: string; task: DeployTask }) {
+  const [flag, setFlag] = useState("")
+  const [state, setState] = useState<CheckState>("idle")
+
+  function check() {
+    if (!flag || state === "checking") return
+    setState("checking")
+    checkDeployFlag(deployId, task.TaskID, flag).then(
+      (r) => setState(r.Correct ? "correct" : "wrong"),
+      () => setState("error")
+    )
+  }
+
+  return (
+    <li>
+      <div className="text-sm">{task.Name}</div>
+      <div className="mt-1 flex items-center gap-2">
+        <Input
+          value={flag}
+          aria-label={t("admin.exDeploy.flagInput", { name: task.Name })}
+          placeholder={t("admin.exDeploy.flagPlaceholder")}
+          autoComplete="off"
+          spellCheck={false}
+          className="h-9 min-w-0 flex-1 font-mono"
+          onChange={(e) => { setFlag(e.target.value); setState("idle") }}
+          onKeyDown={(e) => { if (e.key === "Enter") check() }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          busy={state === "checking"}
+          disabled={!flag}
+          aria-label={t("admin.exDeploy.checkFlag", { name: task.Name })}
+          onClick={check}
+        >
+          {t("admin.exDeploy.check")}
+        </Button>
+      </div>
+      {state === "correct" && <p role="status" className="mt-1 text-xs text-[var(--ib-ok)]">✓ {t("admin.exDeploy.correct")}</p>}
+      {state === "wrong" && <p role="status" className="mt-1 text-xs text-destructive">✗ {t("admin.exDeploy.wrong")}</p>}
+      {state === "error" && <p role="status" className="mt-1 text-xs text-destructive">{t("admin.exDeploy.checkFailed")}</p>}
+    </li>
+  )
 }

@@ -36,32 +36,50 @@ describe("DeployTestDialog", () => {
     expect(alert).toHaveTextContent("70958")
   })
 
-  it("reopens a running deploy: polls it, shows its flags and starts nothing", async () => {
+  it("reopens a running deploy: polls it, lists its tasks and starts nothing", async () => {
     mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
     render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]}
-      attach={{ deployId: "running", flags: [{ TaskID: "t1", Name: "Login", Flag: "ICE{kept}" }] }} />)
+      attach={{ deployId: "running", tasks: [{ TaskID: "t1", Name: "Login" }] }} />)
 
-    expect(await screen.findByText("ICE{kept}")).toBeInTheDocument()
+    expect(await screen.findByText("Login")).toBeInTheDocument()
     expect(mocked.deployVariant).not.toHaveBeenCalled()
     expect(mocked.deployStatus).toHaveBeenCalledWith("running")
   })
 
-  it("lists each task's resolved test flag with a copy button", async () => {
-    mocked.deployVariant.mockResolvedValue({ DeployID: "d3", Lab: "lab", Flags: [
-      { TaskID: "t1", Name: "Login", Flag: "ICE{aaa}" },
-      { TaskID: "t2", Name: "Root", Flag: "ICE{bbb}" },
+  it("checks a found flag per task and shows correct or wrong without ever showing a value", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d3", Lab: "lab", Tasks: [
+      { TaskID: "t1", Name: "Login" },
+      { TaskID: "t2", Name: "Root" },
     ] })
     mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal("navigator", { clipboard: { writeText } })
+    mocked.checkDeployFlag.mockImplementation(async (_group, _task, flag) => ({ Correct: flag === "ICE{right}" }))
 
     render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]} />)
 
-    expect(await screen.findByText("ICE{aaa}")).toBeInTheDocument()
+    const input = await screen.findByLabelText('admin.exDeploy.flagInput {"name":"Login"}')
     expect(screen.getByText("Root")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: 'admin.exDeploy.copyFlag {"name":"Root"}' }))
-    expect(writeText).toHaveBeenCalledWith("ICE{bbb}")
-    vi.unstubAllGlobals()
+    expect(screen.getByRole("button", { name: 'admin.exDeploy.checkFlag {"name":"Login"}' })).toBeDisabled()
+
+    fireEvent.change(input, { target: { value: "ICE{nope}" } })
+    fireEvent.click(screen.getByRole("button", { name: 'admin.exDeploy.checkFlag {"name":"Login"}' }))
+    expect(await screen.findByText(/admin.exDeploy.wrong/)).toBeInTheDocument()
+    expect(mocked.checkDeployFlag).toHaveBeenCalledWith("d3", "t1", "ICE{nope}")
+
+    fireEvent.change(input, { target: { value: "ICE{right}" } })
+    expect(screen.queryByText(/admin.exDeploy.wrong/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: 'admin.exDeploy.checkFlag {"name":"Login"}' }))
+    expect(await screen.findByText(/admin.exDeploy.correct/)).toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.copy")).not.toBeInTheDocument()
+  })
+
+  it("says so when the check request fails", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d4", Lab: "lab", Tasks: [{ TaskID: "t1", Name: "Login" }] })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    mocked.checkDeployFlag.mockRejectedValue(new Error("down"))
+    render(<DeployTestDialog open onClose={vi.fn()} exerciseId="exercise" versionId="version" variantId="variant" tasks={[]} />)
+    fireEvent.change(await screen.findByLabelText('admin.exDeploy.flagInput {"name":"Login"}'), { target: { value: "x" } })
+    fireEvent.click(screen.getByRole("button", { name: 'admin.exDeploy.checkFlag {"name":"Login"}' }))
+    expect(await screen.findByText("admin.exDeploy.checkFailed")).toBeInTheDocument()
   })
 
   it("renders a link-form IP placeholder as a real link", async () => {

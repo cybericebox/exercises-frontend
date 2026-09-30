@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployFlag, type DeployStatus } from "@/api/exercises/deploy"
+import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
 
@@ -25,8 +25,8 @@ export type DeployTestState = {
   error: string | null
   /** The raw failure behind `error`, for mapping its backend code to a message. */
   errorCause: unknown
-  /** Test flags injected into the linked devices, known from the start of the deploy. */
-  flags: DeployFlag[]
+  /** Tasks whose flags the author finds in the lab, known from the start of the deploy. */
+  tasks: DeployTask[]
   /** true while starting or polling a not-yet-terminal deploy. */
   busy: boolean
   link: DeployLinkState
@@ -35,7 +35,7 @@ export type DeployTestState = {
   linkError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, flags: [], busy: false, link: "idle", linkKey: null, linkError: null }
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], busy: false, link: "idle", linkKey: null, linkError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -107,9 +107,9 @@ export function useDeployTest() {
       if (previousId) void Promise.resolve(destroyDeploy(previousId)).catch(() => {})
       setState({ ...IDLE, busy: true })
       let deployID: string
-      let flags: DeployFlag[]
+      let tasks: DeployTask[]
       try {
-        ;({ DeployID: deployID, Flags: flags = [] } = await deployVariant(exerciseId, versionId, variantId))
+        ;({ DeployID: deployID, Tasks: tasks = [] } = await deployVariant(exerciseId, versionId, variantId))
       } catch (e) {
         if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message, errorCause: e })
         return
@@ -119,7 +119,7 @@ export function useDeployTest() {
         return
       }
       activeId.current = deployID
-      setState((p) => ({ ...p, deployId: deployID, flags }))
+      setState((p) => ({ ...p, deployId: deployID, tasks }))
       void poll(deployID)
     },
     [poll]
@@ -127,11 +127,11 @@ export function useDeployTest() {
 
   /** Reopen a deploy that is already running: poll it instead of creating a new one. */
   const attach = useCallback(
-    (deployID: string, flags: DeployFlag[]) => {
+    (deployID: string, tasks: DeployTask[]) => {
       ++requestSequence.current
       clearTimer()
       activeId.current = deployID
-      setState({ ...IDLE, busy: true, deployId: deployID, flags })
+      setState({ ...IDLE, busy: true, deployId: deployID, tasks })
       void poll(deployID)
     },
     [poll]

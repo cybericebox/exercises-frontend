@@ -27,7 +27,7 @@ vi.mock("@/api/exercises/catalog", () => ({
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
-vi.mock("@/api/exercises/deploy", () => ({
+vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(),
   listDeploys: vi.fn().mockResolvedValue([]), deployVariant: vi.fn(), deployStatus: vi.fn().mockResolvedValue({ Phase: "Provisioning", Ready: false }),
   destroyDeploy: vi.fn().mockResolvedValue(undefined), openDeployLink: vi.fn(),
 }))
@@ -120,14 +120,14 @@ describe("exercise editor — W4 rights", () => {
     h.access = adminAccess
     vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
-      Flags: [{ TaskID: "t1", Name: "Find it", Flag: "ICE{kept}" }] }])
+      Tasks: [{ TaskID: "t1", Name: "Find it" }] }])
     vi.mocked(deployStatus).mockResolvedValue({ Phase: "Ready", Ready: true })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
 
     expect(await screen.findByText("admin.exPage.test.running")).toBeInTheDocument()
     expect(listDeploys).toHaveBeenCalledWith("ex-1")
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
-    expect(await screen.findByText("ICE{kept}")).toBeInTheDocument()
+    expect(await screen.findByLabelText("admin.exDeploy.flagInput")).toBeInTheDocument()
     expect(deployStatus).toHaveBeenCalledWith("run-1")
     expect(deployVariant).not.toHaveBeenCalled()
   })

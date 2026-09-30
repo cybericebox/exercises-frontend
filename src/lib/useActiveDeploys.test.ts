@@ -7,7 +7,7 @@ import * as deployApi from "@/api/exercises/deploy"
 vi.mock("@/api/exercises/deploy")
 
 const mocked = vi.mocked(deployApi)
-const item = (id: string): deployApi.DeployListItem => ({ DeployID: id, Lab: "lab", VersionID: "v", VariantID: "var", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z", Flags: [] })
+const item = (id: string): deployApi.DeployListItem => ({ DeployID: id, Lab: "lab", VersionID: "v", VariantID: "var", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z", Tasks: [] })
 
 describe("useActiveDeploys", () => {
   beforeEach(() => {

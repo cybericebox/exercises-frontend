@@ -32,13 +32,13 @@ describe("useDeployTest", () => {
   it("attaches to a running deploy without creating another", async () => {
     mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
     const { result } = renderHook(() => useDeployTest())
-    act(() => result.current.attach("g9", [{ TaskID: "t", Name: "Login", Flag: "ICE{a}" }]))
+    act(() => result.current.attach("g9", [{ TaskID: "t", Name: "Login" }]))
 
     await waitFor(() => expect(result.current.status?.Ready).toBe(true))
     expect(mocked.deployVariant).not.toHaveBeenCalled()
     expect(mocked.deployStatus).toHaveBeenCalledWith("g9")
     expect(result.current.deployId).toBe("g9")
-    expect(result.current.flags).toEqual([{ TaskID: "t", Name: "Login", Flag: "ICE{a}" }])
+    expect(result.current.tasks).toEqual([{ TaskID: "t", Name: "Login" }])
   })
 
   it("surfaces a deploy error without a deploy id", async () => {

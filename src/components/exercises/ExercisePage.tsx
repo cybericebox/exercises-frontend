@@ -216,7 +216,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     versionId: item.VersionID,
     variantId: item.VariantID,
     tasks: editor.draftForm.getValues("Variants").find((variant) => variant.ID === item.VariantID)?.Tasks ?? [],
-    attach: { deployId: item.DeployID, flags: item.Flags },
+    attach: { deployId: item.DeployID, tasks: item.Tasks },
   })
 
   // Test deploy needs a topology with devices and a connected platform infrastructure.
