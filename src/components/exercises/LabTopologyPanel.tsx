@@ -1,11 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { X } from "lucide-react"
+import { ExternalLink, X } from "lucide-react"
 
 import type { DeployStatus } from "@/api/exercises/deploy"
 import type { NormalizedTopology } from "@/api/exercises/versions"
 import { Button } from "@/components/ui/button"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { labNodeInfo, labTopology } from "@/lib/labTopology"
 import { TopologyDiagram } from "./TopologyDiagram"
@@ -37,9 +38,11 @@ export function LabTopologyPanel({ topology, status, openingKey, onOpenWeb }: {
             <h3 className="font-semibold text-foreground">
               {info.kind === "device" ? info.name : t(info.kind === "vpn" ? "admin.exTopo.vpn" : "admin.exTopo.internet")}
             </h3>
-            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label={t("admin.exTest.card.close")} onClick={() => setSelected(null)}>
-              <X aria-hidden="true" size={14} />
-            </Button>
+            <HoverTooltip text={t("admin.exTest.card.close")}>
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label={t("admin.exTest.card.close")} onClick={() => setSelected(null)}>
+                <X aria-hidden="true" size={14} />
+              </Button>
+            </HoverTooltip>
           </div>
           {info.kind === "device" ? <>
             <Row label={t("admin.exTest.card.address")}>
@@ -52,8 +55,12 @@ export function LabTopologyPanel({ topology, status, openingKey, onOpenWeb }: {
               {info.web.map((access) => (
                 <div key={`${access.Device}:${access.Port}`} className="flex items-center justify-between gap-2">
                   <span className="font-mono">{access.Port}/{access.Protocol}</span>
-                  <Button type="button" variant="outline" size="sm" busy={openingKey === `${access.Device}:${access.Port}`} disabled={openingKey !== null}
-                    aria-label={t("admin.exTest.openWeb", { device: access.Device })} onClick={() => onOpenWeb(access.Device, access.Port)}>{t("admin.exDeploy.open")}</Button>
+                  <HoverTooltip text={t("admin.exDeploy.open")}>
+                    <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" busy={openingKey === `${access.Device}:${access.Port}`} disabled={openingKey !== null}
+                      aria-label={t("admin.exTest.openWeb", { device: access.Device })} onClick={() => onOpenWeb(access.Device, access.Port)}>
+                      <ExternalLink aria-hidden="true" size={16} />
+                    </Button>
+                  </HoverTooltip>
                 </div>
               ))}
             </Row>}

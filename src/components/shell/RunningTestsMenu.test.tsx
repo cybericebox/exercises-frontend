@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { DeployListItem } from "@/api/exercises/deploy"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
-vi.mock("next/navigation", () => ({ usePathname: () => "/" }))
+const h = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: h.push }) }))
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
-vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn() }))
+vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn(), destroyDeploy: vi.fn() }))
+vi.mock("@/api/exercises/versions", () => ({ getVersion: vi.fn() }))
 vi.mock("@/api/exercises/catalog", () => ({ getExercise: vi.fn() }))
 
 import { getExercise } from "@/api/exercises/catalog"
-import { listDeploys } from "@/api/exercises/deploy"
+import { destroyDeploy, listDeploys } from "@/api/exercises/deploy"
+import { getVersion } from "@/api/exercises/versions"
 import { RunningTestsMenu, timeLeft } from "./RunningTestsMenu"
 
 const lab = (id: string, exercise: string, minutes: number): DeployListItem => ({
@@ -37,15 +40,34 @@ describe("RunningTestsMenu", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("shows the count of running labs and lists each with its exercise, time left and a link to its test page", async () => {
+  it("opens a modal listing each running lab with its exercise, variant and time left, and opens a lab's page", async () => {
     vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 102), lab("run-2", "ex-2", 30)])
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [{ ID: "x" }, { ID: "y" }] } as never)
     render(<RunningTestsMenu />)
-    const button = await screen.findByRole("button", { name: /admin\.exTest\.running 2/ })
-    fireEvent.pointerDown(button, { button: 0, ctrlKey: false })
-    const first = await screen.findByRole("menuitem", { name: /Exercise ex-1/ })
-    expect(first).toHaveAttribute("href", "/test?exercise=ex-1&deploy=run-1")
-    expect(first).toHaveTextContent("admin.exTest.left 1:42")
-    expect(screen.getByRole("menuitem", { name: /Exercise ex-2/ })).toHaveAttribute("href", "/test?exercise=ex-2&deploy=run-2")
+    fireEvent.click(await screen.findByRole("button", { name: /admin\.exTest\.running 2/ }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(2)
+    expect(await within(dialog).findByText("Exercise ex-1")).toBeInTheDocument()
+    expect(within(dialog).getAllByText(/admin\.exTest\.left/)[0]).toHaveTextContent("admin.exTest.left 1:42")
+    await waitFor(() => expect(within(dialog).getAllByText(/admin\.exDraft\.variant 1/).length).toBe(2))
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.openLabNamed Exercise ex-2" }))
+    expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-2&deploy=run-2")
+  })
+
+  it("ends a lab from the modal only after a danger confirmation and then drops it from the list", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 60), lab("run-2", "ex-2", 60)])
+    vi.mocked(destroyDeploy).mockResolvedValue(undefined)
+    render(<RunningTestsMenu />)
+    fireEvent.click(await screen.findByRole("button", { name: /admin\.exTest\.running 2/ }))
+    const dialog = await screen.findByRole("dialog")
+    await within(dialog).findByText("Exercise ex-1")
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endLabNamed Exercise ex-1" }))
+    expect(destroyDeploy).not.toHaveBeenCalled()
+    const confirm = (await screen.findAllByRole("dialog")).find((d) => within(d).queryByText("admin.exTest.endTitle"))!
+    fireEvent.click(within(confirm).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("run-1"))
+    await waitFor(() => expect(within(dialog).getAllByRole("listitem")).toHaveLength(1))
+    expect(within(dialog).queryByText("Exercise ex-1")).not.toBeInTheDocument()
   })
 
   it("keeps the previous list while a refresh fails, so the indicator does not flicker", async () => {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Check, ChevronsLeft, ChevronsRight, Network, Wifi } from "lucide-react"
+import { Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, ShieldCheck } from "lucide-react"
 
 import { exerciseFileURL } from "@/api/exercises/files"
 import type { NormalizedHint, NormalizedTask } from "@/api/exercises/versions"
@@ -86,10 +86,14 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
         </HoverTooltip>}
         {onDownloadVpn && <HoverTooltip text={t("admin.exTest.vpnDownload")}>
           <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnDownload")} onClick={onDownloadVpn}>
-            <Wifi aria-hidden="true" size={16} className="mr-1.5" />{t("admin.exTest.vpnShort")}
+            <ShieldCheck aria-hidden="true" size={16} className="mr-1.5" />{t("admin.exTest.vpnShort")}
           </Button>
         </HoverTooltip>}
-        {onEnd && <Button type="button" variant="destructive" size="sm" onClick={onEnd}>{t("admin.exTest.end")}</Button>}
+        {onEnd && <HoverTooltip text={t("admin.exTest.end")}>
+          <Button type="button" variant="destructive" size="sm" className="w-9 px-0" aria-label={t("admin.exTest.end")} onClick={onEnd}>
+            <LogOut aria-hidden="true" size={16} />
+          </Button>
+        </HoverTooltip>}
       </div>
     </header>
   )
@@ -169,8 +173,12 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
         return <li key={key} className="rounded-md border border-border p-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-foreground">{t("exercises.hints.item", { n: index + 1 })} · {t(`exercises.hints.level.${hint.Level}`)}{price ? ` · ${price}` : ""}</span>
-            {!open && <Button type="button" variant="outline" size="sm" busy={busy === key} disabled={busy !== null}
-              aria-label={t("admin.exTest.hintShowNamed", { n: index + 1 })} onClick={() => void show(key, hint)}>{t("admin.exTest.hintShow")}</Button>}
+            {!open && <HoverTooltip text={t("admin.exTest.hintShow")}>
+              <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" busy={busy === key} disabled={busy !== null}
+                aria-label={t("admin.exTest.hintShowNamed", { n: index + 1 })} onClick={() => void show(key, hint)}>
+                <Eye aria-hidden="true" size={16} />
+              </Button>
+            </HoverTooltip>}
           </div>
           {open && <div className="mt-2">{render(hint.Text)}</div>}
         </li>
@@ -214,7 +222,10 @@ export function TaskView({ task, values, deployId, flagLinked, openingKey, onOpe
       <ul className="mt-2 space-y-1.5">
         {task.Attachments.map((file) => <li key={file.FileID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
           <span className="min-w-0 truncate">{file.Name}</span>
-          <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={`${t("admin.exTest.download")} ${file.Name}`} className="shrink-0 text-primary underline underline-offset-2">{t("admin.exTest.download")}</a>
+          <HoverTooltip text={t("admin.exTest.download")}>
+            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={`${t("admin.exTest.download")} ${file.Name}`}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted"><Download aria-hidden="true" size={16} /></a>
+          </HoverTooltip>
         </li>)}
       </ul>
     </section>}

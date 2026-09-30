@@ -10,15 +10,14 @@ import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { listVersions, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
-import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
-import { useExerciseNames } from "@/lib/useExerciseNames"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
+import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
@@ -101,9 +100,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const router = useRouter()
   // The user's running test labs, offered instead of a start once the limit of running labs is reached.
-  const [limitReached, setLimitReached] = useState<DeployListItem[] | null>(null)
+  const [limitReached, setLimitReached] = useState<{ items: DeployListItem[]; at: number } | null>(null)
   const [maxTests, setMaxTests] = useState(1)
-  const limitNames = useExerciseNames((limitReached ?? []).map((item) => item.ExerciseID))
   const activeDeploys = useActiveDeploys(exerciseId)
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
@@ -285,7 +283,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             const running = await listDeploys().catch(() => [] as DeployListItem[])
             const here = running.find((item) => item.ExerciseID === target.exerciseId)
             if (here) { openTest(here.DeployID); return }
-            if (running.length >= maxTests) { setLimitReached(running); return }
+            if (running.length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
             leave.allowNavigation()
             router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
           })
@@ -367,19 +365,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    <ConfirmDialog open={limitReached !== null} title={t("admin.exTest.limitTitle")}
-      description={t("admin.exTest.limitDescription", { n: limitReached?.length ?? 0, max: maxTests })}
-      confirmLabel={limitReached?.length === 1 ? t("admin.exTest.activeOpen") : t("admin.exTest.limitOk")} cancelLabel={t("admin.exPage.dialog.cancel")}
-      onCancel={() => setLimitReached(null)}
-      onConfirm={() => { const only = limitReached?.length === 1 ? limitReached[0] : null; setLimitReached(null); if (only) openTest(only.DeployID, only.ExerciseID) }}>
-      <ul className="space-y-1.5">
-        {(limitReached ?? []).map((item) => <li key={item.DeployID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-          <span className="min-w-0 truncate">{limitNames[item.ExerciseID] ?? t("admin.exTest.unknownExercise")}</span>
-          <Button type="button" variant="outline" size="sm" aria-label={`${t("admin.exDeploy.open")} ${limitNames[item.ExerciseID] ?? ""}`.trim()}
-            onClick={() => { setLimitReached(null); openTest(item.DeployID, item.ExerciseID) }}>{t("admin.exDeploy.open")}</Button>
-        </li>)}
-      </ul>
-    </ConfirmDialog>
+    <RunningLabsDialog open={limitReached !== null && limitReached.items.length > 0} items={limitReached?.items ?? []} now={limitReached?.at ?? 0}
+      description={t("admin.exTest.limitDescription", { n: limitReached?.items.length ?? 0, max: maxTests })}
+      onClose={() => setLimitReached(null)}
+      onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}

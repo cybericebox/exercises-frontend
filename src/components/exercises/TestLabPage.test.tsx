@@ -177,6 +177,17 @@ describe("TestLabPage — bar", () => {
     expect(await blob.text()).toBe(readyStatus.VPNConfig)
   })
 
+  it("keeps VPN as a text button with a shield icon (not wifi), and icon-only end/hint/web buttons", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })
+    expect(vpn).toHaveTextContent("admin.exTest.vpnShort")
+    expect(vpn.querySelector("svg")?.getAttribute("class")).toMatch(/shield/)
+    expect(vpn.querySelector("svg")?.getAttribute("class")).not.toMatch(/wifi/)
+    for (const name of ["admin.exTest.end", "admin.exTest.hintShowNamed 1"]) {
+      expect(screen.getByRole("button", { name })).toHaveTextContent("")
+    }
+  })
+
   it("offers no VPN download when the lab has no config", async () => {
     vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConfig: undefined })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
