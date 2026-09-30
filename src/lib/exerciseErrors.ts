@@ -49,6 +49,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   20914: "admin.ex.err.difficultyInvalid",
   20915: "admin.ex.err.flagInvalid",
   20916: "admin.ex.err.deviceNameInvalid",
+  20961: "admin.ex.err.deviceNameTooLong",
   20946: "admin.ex.err.deviceDisplayNameInvalid",
   20917: "admin.ex.err.deviceTypeInvalid",
   20918: "admin.ex.err.interfaceInvalid",

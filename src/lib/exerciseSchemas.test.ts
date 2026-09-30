@@ -8,6 +8,7 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import {
   DNS_LABEL_RE,
+  containerNameError,
   MAC_RE,
   isValidCIDR,
   isValidIPv4,
@@ -30,15 +31,25 @@ describe('DNS_LABEL_RE', () => {
     ['web', true],
     ['a', true],
     ['web-01', true],
-    ['a'.repeat(63), true],
+    ['a'.repeat(37), true],
+    ['a-'.repeat(18) + 'a', true],
     ['', false],
     ['-web', false],
     ['web-', false],
     ['Web', false],
     ['web_01', false],
-    ['a'.repeat(64), false],
+    ['a'.repeat(38), false],
+    ['a'.repeat(63), false],
   ])('%s → %s', (input, ok) => {
     expect(DNS_LABEL_RE.test(input)).toBe(ok)
+  })
+})
+
+describe('containerNameError', () => {
+  it('is null for a valid name, distinguishes too long from bad charset', () => {
+    expect(containerNameError('web-01')).toBeNull()
+    expect(containerNameError('a'.repeat(38))).toBe('admin.ex.val.deviceNameTooLong')
+    expect(containerNameError('Web')).toBe('admin.ex.val.deviceName')
   })
 })
 

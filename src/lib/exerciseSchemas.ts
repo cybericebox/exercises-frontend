@@ -36,7 +36,19 @@ import { HINT_LEVELS } from "@/lib/hintLevels"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
-export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+/**
+ * A container's name becomes part of the lab's web address
+ * (<name>-<labid>.<domain>), which must be one 63-char DNS label with a fixed
+ * 26-char suffix. Keep in sync with the backend and laboratory (37).
+ */
+export const MAX_DEVICE_NAME_LEN = 37
+export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,35}[a-z0-9])?$/
+
+/** Inline error for a container name, or null when it is valid. */
+export function containerNameError(name: string): string | null {
+  if (name.length > MAX_DEVICE_NAME_LEN) return t("admin.ex.val.deviceNameTooLong", { max: MAX_DEVICE_NAME_LEN })
+  return DNS_LABEL_RE.test(name) ? null : t("admin.ex.val.deviceName")
+}
 // MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
 // net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
@@ -243,9 +255,8 @@ const deviceSchema = z
     External: externalSchema,
   })
   .superRefine((d, ctx) => {
-    if (d.Type === "container" ? !DNS_LABEL_RE.test(d.Name) : !d.Name.trim()) {
-      ctx.addIssue({ code: "custom", path: ["Name"], message: t(d.Type === "container" ? "admin.ex.val.deviceName" : "admin.ex.val.deviceDisplayName") })
-    }
+    const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
+    if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
     const hasResources = Object.values(d.Resources).some(Boolean)
     if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "" || hasResources)) {

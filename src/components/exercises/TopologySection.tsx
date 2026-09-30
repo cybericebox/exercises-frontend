@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { DNS_LABEL_RE, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { containerNameError, emptyDevice, MAX_DEVICE_NAME_LEN, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { TOPOLOGY_ICONS, topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
@@ -262,9 +262,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   function renameNode(key: string, draft: string): string | null {
     const name = draft.trim()
     const device = devices.find((candidate) => candidate.ID === key)
-    if (device?.Type === "container" ? !DNS_LABEL_RE.test(name) : !name) {
-      return t(device?.Type === "container" ? "admin.ex.val.deviceName" : "admin.ex.val.deviceDisplayName")
-    }
+    const nameError = device?.Type === "container" ? containerNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
+    if (nameError) return nameError
     if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)
       || (["vpn", "internet"] as const).some((kind) => kind !== key
         && topology?.[kind === "vpn" ? "VPN" : "Internet"].Enabled
@@ -465,13 +464,17 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">{t("admin.exTopo.deviceSettings")}</h3>
           {settingsName !== null && (renamingKey === settingsTarget ? <div className="mt-1 min-w-0">
+            <div className="flex items-center gap-1.5">
             <Input ref={nameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!nameError}
-              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? 63 : undefined}
+              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? MAX_DEVICE_NAME_LEN : undefined}
               onChange={(event) => { setNameDraft(event.target.value); setNameError("") }}
               onBlur={commitRename} onKeyDown={(event) => {
                 if (event.key === "Enter") { event.preventDefault(); commitRename() }
                 if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setRenamingKey(null); setNameError("") }
               }} />
+            {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container"
+              && <span onMouseDown={(event) => event.preventDefault()}><FieldHelp text={t("admin.exTopo.deviceNameHelp", { max: MAX_DEVICE_NAME_LEN })} /></span>}
+            </div>
             {nameError && <p role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
           </div> : <HoverTooltip text={t("admin.exTopo.renameDevice")} className="max-w-full">
             <button type="button" disabled={disabled} aria-label={`${t("admin.exTopo.renameDevice")}: ${settingsName}`}

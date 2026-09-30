@@ -8,7 +8,7 @@ import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import type { TopologyFormValues } from "@/lib/exerciseSchemas"
+import { MAX_DEVICE_NAME_LEN, type TopologyFormValues } from "@/lib/exerciseSchemas"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
@@ -683,7 +683,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               onDoubleClick={(event) => event.stopPropagation()}>
               <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
-                  value={editingLabel.draft} maxLength={node.kind === "device" ? 63 : undefined} className="h-8"
+                  value={editingLabel.draft} maxLength={node.kind === "device" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
                   onBlur={commitNodeRename}
                   onKeyDown={(event) => {
