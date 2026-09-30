@@ -57,7 +57,7 @@ const version: Version = {
   ],
 }
 const running: DeployListItem = {
-  DeployID: "run-1", Lab: "lab", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
+  DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
   Tasks: [{ TaskID: "t1", Name: "Login" }],
 }
 const readyStatus: DeployStatus = {

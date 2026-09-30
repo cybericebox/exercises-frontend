@@ -12,6 +12,8 @@ vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.f
 vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
+vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]) }))
+import { listDeploys } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
 vi.mock("@/api/exercises/catalog", () => ({
@@ -270,6 +272,31 @@ describe("exercise page — publishing and history", () => {
     fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
     fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
+  })
+})
+
+describe("exercise page — one test lab per user", () => {
+  async function pickVariant() {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    render(<Page />)
+    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
+  }
+
+  it("offers the user's running test of another exercise instead of starting a second", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
+    await pickVariant()
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exTest.activeTitle")).toBeInTheDocument()
+    expect(h.push).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.activeOpen" }))
+    expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-2&deploy=run-9")
+  })
+
+  it("opens the running test straight away when it belongs to this exercise", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "variant-1", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
+    await pickVariant()
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&deploy=run-1"))
   })
 })
 

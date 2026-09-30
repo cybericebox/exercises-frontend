@@ -5,7 +5,8 @@ import { useWatch } from "react-hook-form"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
-import type { Exercise } from "@/api/exercises/catalog"
+import { getExercise, type Exercise } from "@/api/exercises/catalog"
+import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { listVersions, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
@@ -97,6 +98,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const router = useRouter()
+  // The user's running test of another exercise (one test lab at a time), offered instead of a start.
+  const [otherTest, setOtherTest] = useState<{ item: DeployListItem; name: string } | null>(null)
   const activeDeploys = useActiveDeploys(exerciseId)
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
@@ -211,10 +214,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     })), [editor.draftForm])
 
   // The testing page: an active lab is reopened, otherwise the page starts one for the chosen variant.
-  const openTest = () => {
-    if (!exerciseId || !activeDeploy) return
+  const openTest = (deployId: string | undefined = activeDeploy?.DeployID, forExercise: string | null = exerciseId) => {
+    if (!forExercise || !deployId) return
     leave.allowNavigation()
-    router.push(testLabHref(exerciseId, activeDeploy.DeployID))
+    router.push(testLabHref(forExercise, deployId))
   }
 
   // Test deploy needs a topology with devices and a connected platform infrastructure.
@@ -269,12 +272,18 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onRetrySave={() => void editor.autosave.flush()}
         onCancelNew={() => void editor.autosave.discard()}
         activeTestUntil={activeDeploy?.ExpiresAt ?? null}
-        onOpenTest={activeDeploy ? openTest : undefined}
+        onOpenTest={activeDeploy ? () => openTest() : undefined}
         onTest={(index) => {
-          // One lab per author and exercise: a second start opens the running one.
-          if (activeDeploy) { openTest(); return }
-          void actions.test(index).then((target) => {
+          void actions.test(index).then(async (target) => {
             if (!target) return
+            // One active test lab per user, across all exercises: open it instead of failing.
+            const running = (await listDeploys().catch(() => []))[0]
+            if (running && running.ExerciseID === target.exerciseId) { openTest(running.DeployID); return }
+            if (running) {
+              const name = await getExercise(running.ExerciseID).then((other) => other.Name, () => "")
+              setOtherTest({ item: running, name })
+              return
+            }
             leave.allowNavigation()
             router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
           })
@@ -356,6 +365,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
+    <ConfirmDialog open={otherTest !== null} title={t("admin.exTest.activeTitle")} description={t("admin.exTest.activeDescription", { name: otherTest?.name ?? "" })}
+      confirmLabel={t("admin.exTest.activeOpen")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={() => setOtherTest(null)}
+      onConfirm={() => { const target = otherTest; setOtherTest(null); if (target) openTest(target.item.DeployID, target.item.ExerciseID) }} />
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}

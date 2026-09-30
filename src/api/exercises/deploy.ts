@@ -34,6 +34,7 @@ export type DeployResponse = {
 export type DeployListItem = {
   DeployID: string
   Lab: string
+  ExerciseID: string
   VersionID: string
   VariantID: string
   CreatedAt: string
@@ -42,9 +43,9 @@ export type DeployListItem = {
   Tasks: DeployTask[]
 }
 
-/** The caller's active test deploys of one exercise. */
-export function listDeploys(exerciseId: string): Promise<DeployListItem[]> {
-  return apiGet<DeployListItem[]>(`${BASE}/deploys?exerciseID=${encodeURIComponent(exerciseId)}`)
+/** The caller's active test deploys: of one exercise, or (no argument) of all of them. */
+export function listDeploys(exerciseId?: string): Promise<DeployListItem[]> {
+  return apiGet<DeployListItem[]>(exerciseId ? `${BASE}/deploys?exerciseID=${encodeURIComponent(exerciseId)}` : `${BASE}/deploys`)
 }
 
 export type DeployDeviceStatus = { Name: string; Ready: boolean }

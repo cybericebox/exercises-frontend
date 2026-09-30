@@ -120,7 +120,7 @@ describe("exercise editor — W4 rights", () => {
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
     h.access = adminAccess
     vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
-    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
       Tasks: [{ TaskID: "t1", Name: "Find it" }] }])
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
 
