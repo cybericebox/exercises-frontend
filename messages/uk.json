@@ -28,8 +28,6 @@
   "error.notFound": "Сторінку не знайдено",
   "error.notFoundDescription": "Сторінка, яку ви шукаєте, не існує.",
   "error.goHome": "На головну",
-  "admin.noAccess.title": "Немає доступу",
-  "admin.noAccess.backToMain": "Повернутися на сайт",
   "admin.accountMenu": "Меню облікового запису",
   "admin.loading": "Завантаження…",
   "admin.password.show": "Показати",
@@ -693,7 +691,6 @@
   "admin.exPh.device.placeholder": "Оберіть пристрій…",
   "exercises.app.title": "Каталог завдань",
   "exercises.returnToEvent": "Повернутися до заходу",
-  "exercises.noAccess.body": "У вас немає доступу до каталогу завдань.",
   "exercises.hints.val.max": "Не більше 10 підказок на завдання",
   "exercises.hints.val.text": "Текст підказки задовгий",
   "exercises.hints.val.textRequired": "Додайте текст підказки",
@@ -939,5 +936,11 @@
   "admin.exTopo.needFreePorts": "Потрібні щонайменше два пристрої з вільними портами",
   "siteBanner.label": "Оголошення",
   "siteBanner.dismiss": "Закрити оголошення",
-  "siteBanner.more": "Докладніше"
+  "siteBanner.more": "Докладніше",
+  "auth.redirecting": "Переходимо до входу…",
+  "auth.noAccess.title": "Немає доступу",
+  "auth.noAccess.body": "Ваш обліковий запис {email} не має доступу до цієї сторінки.",
+  "auth.noAccess.switch": "Увійти іншим обліковим записом",
+  "auth.noAccess.home": "На головну",
+  "auth.noAccess.failed": "Не вдалося вийти з облікового запису. Спробуйте ще раз."
 }

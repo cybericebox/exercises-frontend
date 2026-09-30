@@ -28,8 +28,6 @@
   "error.notFound": "Page not found",
   "error.notFoundDescription": "The page you are looking for does not exist.",
   "error.goHome": "Go home",
-  "admin.noAccess.title": "No access",
-  "admin.noAccess.backToMain": "Back to site",
   "admin.accountMenu": "Account menu",
   "admin.loading": "Loading…",
   "admin.password.show": "Show",
@@ -693,7 +691,6 @@
   "admin.exPh.device.placeholder": "Choose a device…",
   "exercises.app.title": "Exercise catalog",
   "exercises.returnToEvent": "Back to event",
-  "exercises.noAccess.body": "You do not have access to the exercise catalog.",
   "exercises.hints.val.max": "Up to 10 hints per task",
   "exercises.hints.val.text": "Hint text is too long",
   "exercises.hints.val.textRequired": "Add the hint text",
@@ -939,5 +936,11 @@
   "admin.exTopo.needFreePorts": "At least two devices need free ports",
   "siteBanner.label": "Announcements",
   "siteBanner.dismiss": "Dismiss announcement",
-  "siteBanner.more": "Learn more"
+  "siteBanner.more": "Learn more",
+  "auth.redirecting": "Taking you to sign in…",
+  "auth.noAccess.title": "No access",
+  "auth.noAccess.body": "Your account {email} does not have access to this page.",
+  "auth.noAccess.switch": "Sign in with another account",
+  "auth.noAccess.home": "Home",
+  "auth.noAccess.failed": "Could not sign out. Try again."
 }
