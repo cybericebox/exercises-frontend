@@ -83,7 +83,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   const [error, setError] = useState("")
   // A failed data load (list / poll): shown as the shared LoadError in the list area, never as a bar. `error` above is for actions only.
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null)
-  const [resolving, setResolving] = useState<string | null>(null)
+  const [resolving, setResolving] = useState<ReadonlySet<string>>(() => new Set())
   const cursorRef = useRef<InboxCursor | null>(null)
   const unreadCountRef = useRef(0)
   const countsRef = useRef<InboxCounts | null>(null)
@@ -313,8 +313,9 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   // «Вирішено» closes a «Лабораторія впала» request for every recipient (§8.2).
   async function resolve(item: Message) {
+    if (resolving.has(item.ID)) return
     setError("")
-    setResolving(item.ID)
+    setResolving((current) => new Set(current).add(item.ID))
     let failure = ""
     try {
       await apiPost(`/api/notifications/inbox/${encodeURIComponent(item.ID)}/resolve`, {})
@@ -328,7 +329,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       // 30217 not found, 20218 not resolvable by hand, 70219 already resolved: show why, then the current state.
       failure = localizedError(err)
     }
-    setResolving(null)
+    setResolving((current) => { const next = new Set(current); next.delete(item.ID); return next })
     await refresh()
     if (failure) setError(failure)
     else pollNowRef.current()
@@ -411,8 +412,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
                 </span>}
                 actions={href || unreadItem || canResolve(item) ? <>
                   {href ? <a href={href} onClick={(clickEvent) => { clickEvent.preventDefault(); void followLink(item, href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{t("inbox.open")}</a> : unreadItem ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">{t("inbox.markRead")}</button> : null}
-                  {canResolve(item) && <button type="button" disabled={resolving !== null} aria-busy={resolving === item.ID} onClick={() => void resolve(item)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
-                    {resolving === item.ID ? <Spinner size="sm" className="[&_.crest-loader]:text-base" /> : <Check aria-hidden="true" className="h-4 w-4" />}{t("inbox.resolve")}
+                  {canResolve(item) && <button type="button" disabled={resolving.has(item.ID)} aria-busy={resolving.has(item.ID)} onClick={() => void resolve(item)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
+                    {resolving.has(item.ID) ? <Spinner size="sm" className="[&_.crest-loader]:text-base" /> : <Check aria-hidden="true" className="h-4 w-4" />}{t("inbox.resolve")}
                   </button>}
                 </> : undefined}
               />
