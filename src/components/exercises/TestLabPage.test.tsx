@@ -4,12 +4,18 @@ import type { Exercise } from "@/api/exercises/catalog"
 import type { DeployListItem, DeployStatus } from "@/api/exercises/deploy"
 import type { Version } from "@/api/exercises/versions"
 
-const h = vi.hoisted(() => ({ push: vi.fn(), download: vi.fn() }))
+const h = vi.hoisted(() => ({ push: vi.fn(), download: vi.fn(), diagram: { last: null as unknown } }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
+}))
+vi.mock("./TopologyDiagram", () => ({
+  TopologyDiagram: (p: { topology: { Devices: { ID: string; Name: string }[] }; onNodeSelect?: (key: string) => void }) => {
+    h.diagram.last = p
+    return <div>{p.topology.Devices.map((d) => <button key={d.ID} type="button" onClick={() => p.onNodeSelect?.(d.ID)}>{`node ${d.Name}`}</button>)}</div>
+  },
 }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: h.download }))
 vi.mock("@/api/exercises/catalog", () => ({ getExercise: vi.fn() }))
@@ -53,11 +59,15 @@ const version: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
   Variants: [
     { ID: "v0", Index: 1, Note: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [], Connections: [], VisualRender: null } },
-    { ID: "v1", Index: 2, Note: "", Tasks: [login, second], Topology: { VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [], Connections: [], VisualRender: null } },
+    { ID: "v1", Index: 2, Note: "", Tasks: [login, second], Topology: { VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Connections: [], VisualRender: null,
+      Devices: [{ ID: "dev-web", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1", Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
+        Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
+        EnvVars: [{ Name: "K", Value: "topsecret", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" } }] } },
   ],
 }
+const inHours = (h: number) => new Date(Date.now() + h * 3600_000 + 5000).toISOString()
 const running: DeployListItem = {
-  DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
+  DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: inHours(1),
   Tasks: [{ TaskID: "t1", Name: "Login" }],
 }
 const readyStatus: DeployStatus = {
@@ -111,19 +121,51 @@ describe("TestLabPage — states", () => {
     vi.mocked(deployStatus).mockResolvedValue({ Phase: "Failed", Ready: false })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
-    expect(screen.getByText("admin.exDeploy.phase.failed", { selector: "[data-deploy-status]" })).toBeInTheDocument()
+    // the bar's middle reads the localized state, not the raw word
+    expect(screen.getByText("admin.exDeploy.phase.failed")).toBeInTheDocument()
     // the author can still end the failed lab
     expect(screen.getByRole("button", { name: "admin.exTest.end" })).toBeInTheDocument()
   })
 })
 
-describe("TestLabPage — header", () => {
-  it("shows the exercise, the variant, the localized status, the lease and the lab access", async () => {
+describe("TestLabPage — bar", () => {
+  it("shows the caption, the exercise, the progress and a countdown to the lease end", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
-    expect(screen.getByText("admin.exDraft.variant 2")).toBeInTheDocument()
-    expect(screen.getByText(/^admin\.exDeploy\.phase\.ready · admin\.exTest\.until \d\d:\d\d$/, { selector: "[data-deploy-status]" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exTest.openWeb web" })).toBeInTheDocument()
+    expect(screen.getByText("admin.exTest.caption")).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.progressLabel 0 2")).toBeInTheDocument()
+    const timer = screen.getByRole("timer")
+    expect(timer).toHaveTextContent(/^[01]:\d\d:\d\d · admin\.exTest\.timerAvailable$/)
+  })
+
+  it("counts down and says the time is up at the lease end", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] })
+    vi.mocked(listDeploys).mockResolvedValue([{ ...running, ExpiresAt: new Date(Date.now() + 3000).toISOString() }])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+    expect(screen.getByRole("timer")).toHaveTextContent("0:00:02")
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEnded")
+    vi.useRealTimers()
+  })
+
+  it("is full-screen on its own: no back link to the catalog in the ready page", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    expect(screen.queryByRole("link", { name: /admin\.exTest\.back/ })).not.toBeInTheDocument()
+  })
+
+  it("toggles the topology panel with an aria-pressed button and remembers it", async () => {
+    window.localStorage.clear()
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const toggle = await screen.findByRole("button", { name: "admin.exTest.topologyHide" })
+    expect(toggle).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("region", { name: "admin.exTest.topology" })).toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(screen.queryByRole("region", { name: "admin.exTest.topology" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exTest.topologyShow" })).toHaveAttribute("aria-pressed", "false")
+    expect(window.localStorage.getItem("exercises.testLab.topologyShown")).toBe("false")
+    window.localStorage.clear()
   })
 
   it("downloads the complete VPN config as cybericebox.conf", async () => {
@@ -142,16 +184,6 @@ describe("TestLabPage — header", () => {
     expect(screen.queryByRole("button", { name: "admin.exTest.vpnDownload" })).not.toBeInTheDocument()
   })
 
-  it("opens a web device through the proxy link", async () => {
-    const tab = { location: { href: "" }, close: vi.fn(), opener: "self" }
-    vi.stubGlobal("open", vi.fn(() => tab))
-    vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=x", ExpiresAt: "" })
-    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.openWeb web" }))
-    await waitFor(() => expect(tab.location.href).toBe("https://web-1.example.com/_auth?t=x"))
-    expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443)
-    vi.unstubAllGlobals()
-  })
 })
 
 describe("TestLabPage — task as a participant sees it", () => {
@@ -186,10 +218,10 @@ describe("TestLabPage — task as a participant sees it", () => {
     const file = await screen.findByRole("link", { name: "admin.exTest.download notes.pdf" })
     expect(file).toHaveAttribute("download", "notes.pdf")
     expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
-    expect(screen.getByText("Look at the robots file")).toBeInTheDocument()
+    // hints start collapsed; an empty hint is not listed
     expect(screen.getByText(/exercises\.hints\.level\.nudge/)).toBeInTheDocument()
-    // an empty hint is not listed
     expect(screen.queryByText(/exercises\.hints\.level\.steps/)).not.toBeInTheDocument()
+    expect(screen.queryByText("Look at the robots file")).not.toBeInTheDocument()
   })
 
   it("switches to another task", async () => {
@@ -216,22 +248,107 @@ describe("TestLabPage — task as a participant sees it", () => {
     expect(await screen.findByText(/admin\.exDeploy\.wrong/)).toBeInTheDocument()
   })
 
-  it("puts the web access under the task list and opens a device from there", async () => {
-    const tab = { location: { href: "" }, close: vi.fn(), opener: "self" }
-    vi.stubGlobal("open", vi.fn(() => tab))
-    vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=z", ExpiresAt: "" })
+  it("reveals a hint on click, free and local, and keeps it revealed after switching tasks", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const section = await screen.findByRole("region", { name: "admin.exTest.webAccess" })
-    expect(within(section).getByText("web")).toBeInTheDocument()
-    fireEvent.click(within(section).getByRole("button", { name: "admin.exTest.openWeb web" }))
-    await waitFor(() => expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443))
-    vi.unstubAllGlobals()
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.hintShowNamed 1" }))
+    expect(screen.getByText("Look at the robots file")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.exTest.hintShowNamed 1" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /Escalate/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Login/ }))
+    expect(screen.getByText("Look at the robots file")).toBeInTheDocument()
+  })
+
+  it("moves between stages with the links under the task", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.queryByRole("button", { name: /stagePrev/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stageNext 2" }))
+    expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /stageNext/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stagePrev 1" }))
+    expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
   })
 
   it("shows an empty state when the variant has no tasks", async () => {
     vi.mocked(listDeploys).mockResolvedValue([{ ...running, VariantID: "v0" }])
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByText("admin.exTest.noTasks")).toBeInTheDocument()
+  })
+})
+
+describe("TestLabPage — sidebar", () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it("marks solved, current and unsolved tasks with number badges", async () => {
+    vi.mocked(checkDeployFlag).mockResolvedValue({ Correct: true })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const states = () => Array.from(nav.querySelectorAll("[data-task-number]")).map((n) => n.getAttribute("data-state"))
+    expect(states()).toEqual(["current", "todo"])
+    fireEvent.change(screen.getByLabelText(/admin\.exDeploy\.flagInput/), { target: { value: "FLAG{a}" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    await screen.findByText(/admin\.exDeploy\.correct/)
+    expect(states()).toEqual(["solved", "todo"])
+    expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
+  })
+
+  it("collapses to number badges only and remembers the choice", async () => {
+    const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    expect(within(nav).getByText("Escalate")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
+    expect(within(nav).queryByText("Escalate")).not.toBeInTheDocument()
+    expect(within(nav).getByRole("button", { name: "Escalate" })).toHaveTextContent("2")
+    expect(window.localStorage.getItem("exercises.testLab.sidebarCollapsed")).toBe("true")
+    first.unmount()
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("button", { name: "admin.exTest.sidebarExpand" })).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("survives unavailable storage", async () => {
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    spy.mockRestore()
+  })
+})
+
+describe("TestLabPage — topology", () => {
+  it("never hands the panel an image, environment or resources", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("button", { name: "node web" })
+    const shown = JSON.stringify((h.diagram.last as { topology: unknown }).topology)
+    expect(shown).not.toMatch(/secret\/image|topsecret|2Gi/)
+  })
+
+  it("opens a device card with its lab address, service and web access, and opens the web link", async () => {
+    const tab = { location: { href: "" }, close: vi.fn(), opener: "self" }
+    vi.stubGlobal("open", vi.fn(() => tab))
+    vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=x", ExpiresAt: "" })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "node web" }))
+    const card = screen.getByRole("region", { name: "admin.exTest.card.title" })
+    expect(card).toHaveTextContent("eth0: 10.128.1.5")
+    expect(card).toHaveTextContent("443/https")
+    fireEvent.click(within(card).getByRole("button", { name: "admin.exTest.openWeb web" }))
+    await waitFor(() => expect(tab.location.href).toBe("https://web-1.example.com/_auth?t=x"))
+    expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443)
+    fireEvent.click(within(card).getByRole("button", { name: "admin.exTest.card.close" }))
+    expect(screen.queryByRole("region", { name: "admin.exTest.card.title" })).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it("resizes with the splitter keys, the panel starting at task 4 : topology 5", async () => {
+    window.localStorage.clear()
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const bar = await screen.findByRole("separator")
+    expect(bar).toHaveAttribute("aria-valuenow", "44")
+    fireEvent.keyDown(bar, { key: "ArrowRight" })
+    expect(bar).toHaveAttribute("aria-valuenow", "47")
+    fireEvent.keyDown(bar, { key: "ArrowLeft" })
+    fireEvent.keyDown(bar, { key: "ArrowLeft" })
+    expect(bar).toHaveAttribute("aria-valuenow", "41")
+    window.localStorage.clear()
   })
 })
 

@@ -1,4 +1,5 @@
 "use client"
+import { usePathname } from "next/navigation"
 import { TopBar } from "./TopBar"
 import { SiteBanners } from "./SiteBanners"
 import { ReturnContextProvider } from "./ReturnContext"
@@ -27,10 +28,14 @@ export function ExercisesShell({ children }: { children: React.ReactNode }) {
 
 function AccessGate({ children }: { children: React.ReactNode }) {
   const { access, loading } = useExerciseAccess()
+  const pathname = usePathname()
   if (loading || !access) return <PageLoader label={t("admin.loading")} />
 
   // Neither admin nor an event member (403) → the no-access screen (do NOT loop to sign-in).
   if (!hasCatalogAccess(access)) return <NoAccessScreen />
+
+  // The lab testing page is full-screen on its own: none of the catalog chrome.
+  if (pathname.startsWith("/test")) return <div className="h-dvh overflow-hidden bg-background">{children}</div>
 
   return (
     <ReturnContextProvider>

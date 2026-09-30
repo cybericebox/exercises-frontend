@@ -1,13 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { destroyDeploy, listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { getExercise, type Exercise } from "@/api/exercises/catalog"
 import { getVersion, type NormalizedVariant } from "@/api/exercises/versions"
-import { LabBar, TaskList, TaskView } from "@/components/exercises/LabWorkbench"
+import { LabBar, LabTimer, TaskSidebar, TaskView } from "@/components/exercises/LabWorkbench"
+import { LabTopologyPanel } from "@/components/exercises/LabTopologyPanel"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -29,16 +30,24 @@ type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state:
 /** A deploy the list no longer knows: ended, or its lease ran out. */
 class DeployGoneError extends Error {}
 
-function untilText(iso: string | null): string | null {
-  if (!iso) return null
-  return t("admin.exTest.until", { time: new Date(iso).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }) })
+const RATIO_DEFAULT = 4 / 9 // task 4 : topology 5
+const clampRatio = (value: number) => Math.min(0.75, Math.max(0.25, value))
+
+/** A value kept in localStorage; storage may be unavailable, then it just lives for the visit. */
+function usePersisted<T>(key: string, initial: T, parse: (raw: string) => T | null): [T, (value: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    try { const raw = window.localStorage.getItem(key); const parsed = raw === null ? null : parse(raw); return parsed ?? initial } catch { return initial }
+  })
+  return [value, (next) => {
+    setValue(next)
+    try { window.localStorage.setItem(key, String(next)) } catch { /* best effort */ }
+  }]
 }
 
 /**
- * TestLabPage — the author's testing interface for one variant's lab: the lab
- * state, its VPN config and web access on top, the variant's tasks on the left and
- * the chosen task on the right exactly as a participant sees it, with this lab's
- * values in the description and a check for the flag the author found.
+ * TestLabPage — the author's full-screen testing interface for one variant's lab: a bar
+ * with the lab clock and actions, the task sidebar, the chosen task exactly as a
+ * participant sees it (this lab's values, hints, a flag check) and a read-only topology.
  */
 export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: string; initial: TestLabInitial }) {
   const router = useRouter()
@@ -54,6 +63,11 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const [endError, setEndError] = useState("")
   const [ended, setEnded] = useState(false)
   const [solved, setSolved] = useState<ReadonlySet<string>>(new Set())
+  const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set())
+  const [collapsed, setCollapsed] = usePersisted("exercises.testLab.sidebarCollapsed", false, (raw) => raw === "true")
+  const [topologyShown, setTopologyShown] = usePersisted("exercises.testLab.topologyShown", true, (raw) => raw !== "false")
+  const [ratio, setRatio] = usePersisted("exercises.testLab.ratio", RATIO_DEFAULT, (raw) => Number.isFinite(Number(raw)) ? clampRatio(Number(raw)) : null)
+  const split = useRef<HTMLDivElement>(null)
   // The hook's methods are stable; the whole object changes on every state change.
   const { start, attach } = deploy
 
@@ -127,61 +141,81 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     }
   }
 
-  const back = <Link href={exerciseHref(exerciseId)} className="w-fit text-sm text-primary hover:underline">← {t("admin.exTest.back")}</Link>
+  const backLink = <Link href={exerciseHref(exerciseId)} className="w-fit text-sm text-primary hover:underline">← {t("admin.exTest.back")}</Link>
+  const screen = (children: React.ReactNode) => <div className="flex h-dvh flex-col gap-4 bg-background p-4">{backLink}{children}</div>
 
   if (load.state === "loading" || ended) {
-    return <div className="flex min-h-full flex-col gap-4">{back}<LoadingArea className="min-h-[24rem] flex-1" label={t("admin.loading")} /></div>
+    return screen(<LoadingArea className="min-h-0 flex-1" label={t("admin.loading")} />)
   }
   if (load.state === "error") {
     const gone = load.cause instanceof DeployGoneError
-    return <div className="flex min-h-full flex-col gap-4">{back}
-      <LoadError className="min-h-[24rem] flex-1" message={gone ? t("admin.exTest.gone") : t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(load.cause) })}
-        error={gone ? undefined : load.cause} onRetry={gone ? undefined : retry} />
-    </div>
+    return screen(<LoadError className="min-h-0 flex-1" message={gone ? t("admin.exTest.gone") : t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(load.cause) })}
+      error={gone ? undefined : load.cause} onRetry={gone ? undefined : retry} />)
   }
 
   const { meta } = load
   const failed = Boolean(deploy.error) || status?.Phase === "Failed" || status?.Phase === "Error"
   const ready = status?.Ready ?? false
-  const until = untilText(item?.ExpiresAt ?? null)
   const values = ready && status ? taskValues(task?.Placeholders, status) : null
   const openingKey = deploy.link === "opening" && deploy.linkKey && values
     ? Object.entries(values.external).find(([, target]) => `${target.device}:${target.port}` === deploy.linkKey)?.[0] ?? null
     : null
   const vpnConfig = status?.VPNConfig ?? ""
-
   const phase = deploy.error ? "Failed" : status?.Phase ?? "Pending"
-  const statusText = [deployPhaseLabel(phase), ready ? until : null].filter(Boolean).join(" · ")
-  const webAccess = ready ? (status?.Access ?? []).map((access) => ({
-    key: `${access.Device}:${access.Port}`, device: access.Device, busy: deploy.link === "opening" && deploy.linkKey === `${access.Device}:${access.Port}`,
-  })) : []
+  const index = task ? tasks.indexOf(task) : -1
+  const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
+  const showTopology = topologyShown && ready
 
-  return <div className="flex min-h-full flex-col gap-4">
-    {back}
-    <LabBar title={meta.exercise.Name} subtitle={`${t("admin.exDraft.variant")} ${meta.variantNumber}`} status={statusText}
-      statusTone={failed ? "warn" : ready ? "ok" : "muted"}
+  return <div className="flex h-dvh flex-col bg-background">
+    <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solved.has(entry.ID)).length, total: tasks.length }}
+      center={<LabTimer expiresAt={ready ? item?.ExpiresAt ?? null : null} fallback={deployPhaseLabel(phase)} />}
+      topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
       onDownloadVpn={ready && vpnConfig ? () => downloadBlob(new Blob([vpnConfig], { type: "text/plain" }), "cybericebox.conf") : undefined}
       onEnd={deploy.deployId ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
       message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
 
     {failed ? (
-      <LoadError className="min-h-[24rem] flex-1" error={deploy.errorCause}
+      <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
         message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
-      <LoadingArea className="min-h-[24rem] flex-1" label={t("admin.exDeploy.provisioning")}
+      <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
         message={status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning")} />
     ) : tasks.length === 0 ? (
-      <EmptyState className="min-h-[24rem] flex-1" message={t("admin.exTest.noTasks")} />
+      <EmptyState className="min-h-0 flex-1" message={t("admin.exTest.noTasks")} />
     ) : (
-      <div className="grid flex-1 gap-6 md:grid-cols-[320px_minmax(0,1fr)]">
-        <TaskList tasks={tasks} selectedId={task?.ID ?? null} solved={solved} onSelect={setSelected} webAccess={webAccess}
-          webBusy={deploy.link === "opening"} onOpenWeb={(key) => { const [device, port] = [key.slice(0, key.lastIndexOf(":")), Number(key.slice(key.lastIndexOf(":") + 1))]; deploy.openLink(device, port) }} />
-        {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
-          flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} openingKey={openingKey}
-          onOpenExternal={(target) => deploy.openLink(target.device, target.port)}
-          onSolved={(id) => setSolved((current) => new Set(current).add(id))} />}
+      <div className="flex min-h-0 flex-1">
+        <TaskSidebar tasks={tasks} selectedId={task?.ID ?? null} solved={solved} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onSelect={setSelected} />
+        <div ref={split} className="flex min-h-0 min-w-0 flex-1">
+          <div className="min-w-0 overflow-y-auto p-6" style={{ flex: showTopology ? `${ratio} 1 0` : "1 1 0" }}>
+            {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
+              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} openingKey={openingKey}
+              onOpenExternal={(target) => deploy.openLink(target.device, target.port)}
+              onSolved={(id) => setSolved((current) => new Set(current).add(id))}
+              revealedHints={revealed} onRevealHint={(key) => setRevealed((current) => new Set(current).add(key))}
+              prev={stage(index - 1)} next={stage(index + 1)} />}
+          </div>
+          {showTopology && <>
+            <div role="separator" aria-orientation="vertical" tabIndex={0} aria-label={t("admin.exTest.resize")}
+              aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(ratio * 100)}
+              className="w-1.5 shrink-0 cursor-col-resize touch-none bg-border hover:bg-primary/40 focus-visible:bg-primary/60 focus-visible:outline-none"
+              onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId) }}
+              onPointerMove={(event) => {
+                if (!event.currentTarget.hasPointerCapture(event.pointerId) || !split.current) return
+                const box = split.current.getBoundingClientRect()
+                setRatio(clampRatio((event.clientX - box.left) / box.width))
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") setRatio(clampRatio(ratio - 0.03))
+                if (event.key === "ArrowRight") setRatio(clampRatio(ratio + 0.03))
+              }} />
+            <div className="min-h-0 min-w-0" style={{ flex: `${1 - ratio} 1 0` }}>
+              <LabTopologyPanel topology={meta.variant.Topology} status={status} openingKey={deploy.link === "opening" ? deploy.linkKey : null}
+                onOpenWeb={(device, port) => deploy.openLink(device, port)} />
+            </div>
+          </>}
+        </div>
       </div>
     )}
 
