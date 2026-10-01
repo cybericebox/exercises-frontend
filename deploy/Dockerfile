@@ -5,7 +5,7 @@
 # names, and an entrypoint substitutes the real values at container start
 # (nginx:alpine runs /docker-entrypoint.d/*.sh before launching).
 # Run with: -e NEXT_PUBLIC_DOMAIN=… [-e NEXT_PUBLIC_{API,ID,ADMIN}_DOMAIN=…] [-e NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=…]
-FROM node:26-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
