@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { backHosts, backLabel, classifyBack, resolveBack } from "./backLink"
 
-const hosts = backHosts("cybericebox.local", "cybericebox.local", {
+const hosts = backHosts({ main: "cybericebox.local", eventDomain: "cybericebox.local" }, {
   admin: "https://admin.cybericebox.local",
   exercises: "https://exercises.cybericebox.local",
   id: "https://id.cybericebox.local",
@@ -27,7 +27,7 @@ describe("back link", () => {
       "javascript:alert(1)", "https://user:pw@admin.cybericebox.local/", "https://a.b.cybericebox.local/",
       "https://id.cybericebox.local/profile", "https://api.cybericebox.local/", "/relative", "", null,
     ]) expect(classifyBack(value, hosts), String(value)).toBeNull()
-    expect(classifyBack("https://admin.cybericebox.local/", backHosts("", "", { admin: "", exercises: "", id: "", api: "" }))).toBeNull()
+    expect(classifyBack("https://admin.cybericebox.local/", backHosts({ main: "", eventDomain: "" }, { admin: "", exercises: "", id: "", api: "" }))).toBeNull()
   })
 
   it("drops the port", () => {

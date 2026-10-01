@@ -10,7 +10,7 @@ vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
 vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
 vi.mock("./ThemeSwitch", () => ({ ThemeSwitch: () => null }))
 vi.mock("@/lib/origins", () => ({
-  publicDomain: "cybericebox.local",
+  mainHost: "cybericebox.local",
   apiOrigin: "https://api.cybericebox.local",
   idOrigin: "https://id.cybericebox.local",
   adminOrigin: "https://admin.cybericebox.local",

@@ -10,8 +10,8 @@ import { STORAGE_BACK } from "@/lib/storageKeys"
 
 export type BackKind = "landing" | "admin" | "catalog" | "event"
 export type BackLink = { kind: BackKind; href: string }
-/** Bare hostnames of the platform apps; `domain` is the landing host, `event` the event-site domain. */
-export type BackHosts = { domain: string; event: string; admin: string; exercises: string; id: string; api: string }
+/** Bare hostnames of the platform apps; `main` is the landing host, event sites are <tag>.<eventDomain>. */
+export type BackHosts = { main: string; eventDomain: string; admin: string; exercises: string; id: string; api: string }
 /** Only these sources get the destination tooltip; the others keep the app's plain back behaviour. */
 export type BackDestination = Exclude<BackKind, "landing">
 
@@ -31,10 +31,10 @@ const hostOf = (origin: string) => {
   }
 }
 
-export function backHosts(domain: string, event: string, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
+export function backHosts(domains: { main: string; eventDomain: string }, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
   return {
-    domain: domain.trim().toLowerCase(),
-    event: event.trim().toLowerCase(),
+    main: domains.main.trim().toLowerCase(),
+    eventDomain: domains.eventDomain.trim().toLowerCase(),
     admin: hostOf(origins.admin),
     exercises: hostOf(origins.exercises),
     id: hostOf(origins.id),
@@ -44,7 +44,7 @@ export function backHosts(domain: string, event: string, origins: { admin: strin
 
 /** A platform URL and the app it belongs to, or null (foreign, not https, id/api, unparseable). */
 export function classifyBack(value: string | null | undefined, hosts: BackHosts): BackLink | null {
-  if (!value || !hosts.domain) return null
+  if (!value || !hosts.main || !hosts.eventDomain) return null
   let url: URL
   try {
     url = new URL(value)
@@ -55,12 +55,12 @@ export function classifyBack(value: string | null | undefined, hosts: BackHosts)
   if (url.protocol !== "https:" || url.username || url.password) return null
   // The platform is reached on its fixed external port: never keep one (e.g. a dev :3001).
   const href = `https://${host}${url.pathname}${url.search}${url.hash}`
-  if (host === hosts.domain) return { kind: "landing", href }
+  if (host === hosts.main) return { kind: "landing", href }
   if (host === hosts.admin) return { kind: "admin", href }
   if (host === hosts.exercises) return { kind: "catalog", href }
   if (host === hosts.id || host === hosts.api) return null
-  // Event sites are <tag>.<event domain>.
-  const label = hosts.event && host.endsWith(`.${hosts.event}`) ? host.slice(0, -hosts.event.length - 1) : ""
+  // Event sites are <tag>.<eventDomain>.
+  const label = host.endsWith(`.${hosts.eventDomain}`) ? host.slice(0, -hosts.eventDomain.length - 1) : ""
   return label && !label.includes(".") ? { kind: "event", href } : null
 }
 

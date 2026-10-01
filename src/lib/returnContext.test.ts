@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/origins", () => ({
-  publicDomain: "cybericebox.local",
+  mainHost: "cybericebox.local",
   eventDomain: "cybericebox.local",
   adminOrigin: "https://admin.cybericebox.local",
   exercisesOrigin: "https://exercises.cybericebox.local",

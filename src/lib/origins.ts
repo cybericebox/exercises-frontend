@@ -1,8 +1,8 @@
 // Every browser-facing host comes from its own required NEXT_PUBLIC_*_HOST env (bare host,
 // no scheme); next.config.ts fails the build and the container entrypoint fails the start
 // when one is missing. There are no derivations and no fallbacks.
-export const publicDomain = process.env.NEXT_PUBLIC_MAIN_HOST ?? ""
-export const eventDomain = process.env.NEXT_PUBLIC_EVENT_DOMAIN ?? ""
+export const mainHost = process.env.NEXT_PUBLIC_MAIN_HOST?.trim() ?? ""
+export const eventDomain = process.env.NEXT_PUBLIC_EVENT_DOMAIN?.trim() ?? ""
 export const exercisesHost = process.env.NEXT_PUBLIC_EXERCISES_HOST ?? ""
 
 const origin = (host: string | undefined) => `https://${host ?? ""}`
