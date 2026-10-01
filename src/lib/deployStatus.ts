@@ -6,6 +6,7 @@ import { t } from "@/i18n/t"
 
 const PHASE_KEYS: Record<string, string> = {
   Pending: "admin.exDeploy.phase.pending",
+  Queued: "admin.exDeploy.phase.queued",
   Provisioning: "admin.exDeploy.phase.provisioning",
   Ready: "admin.exDeploy.phase.ready",
   Suspended: "admin.exDeploy.phase.suspended",

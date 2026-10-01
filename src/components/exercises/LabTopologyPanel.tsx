@@ -10,6 +10,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { readLayout, removeLayout, saveLayout, withLayout, EMPTY_LAYOUT, type LabLayout } from "@/lib/labLayout"
 import { labNodeInfo, labTopology } from "@/lib/labTopology"
+import { DeviceLiveInfo } from "./DeviceLiveInfo"
 import { TopologyDiagram } from "./TopologyDiagram"
 
 /**
@@ -72,6 +73,7 @@ export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpe
               ))}
             </Row>
             <Row label={t("admin.exTest.card.services")}>{info.services.length ? info.services.map((service) => <div key={service} className="font-mono">{service}</div>) : "—"}</Row>
+            <DeviceLiveInfo key={info.name} deployId={deployId} device={status?.Devices?.find((device) => device.Name === info.name)} />
             {info.web.length > 0 && <Row label={t("admin.exTest.card.web")}>
               {info.web.map((access) => (
                 <div key={`${access.Device}:${access.Port}`} className="flex items-center justify-between gap-2">

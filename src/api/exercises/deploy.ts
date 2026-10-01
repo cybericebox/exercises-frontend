@@ -18,7 +18,7 @@ import { apiGet, apiPost, apiDelete } from "@/api/client"
 
 const BASE = "/api/exercises"
 
-export type DeployPhase = "Pending" | "Provisioning" | "Ready" | "Failed"
+export type DeployPhase = "Pending" | "Queued" | "Provisioning" | "Ready" | "Failed"
 
 /** A task whose flag the author must find in the lab; the value never reaches the browser. */
 export type DeployTask = { TaskID: string; Name: string }
@@ -50,7 +50,36 @@ export function listDeploys(exerciseId?: string): Promise<DeployListItem[]> {
   return apiGet<DeployListItem[]>(exerciseId ? `${BASE}/deploys?exerciseID=${encodeURIComponent(exerciseId)}` : `${BASE}/deploys`)
 }
 
-export type DeployDeviceStatus = { Name: string; Ready: boolean }
+/** Why a lab waits in the launch queue. */
+export type QueueReason = "InFlightLimit" | "WaitingForGroup" | "WaitingForTurn" | "PreparingImages" | "InsufficientResources" | "NoSchedulableNodes"
+
+/** The lab's place in the launch queue; Position 0 means every device is already dispatched. */
+export type DeployQueue = { Position: number; Length: number; Reason: QueueReason | string; Message: string; Pods: number; Pending: number }
+
+export type SchedulingFailureReason = "ImagePull" | "CrashLoop" | "Unschedulable" | "StartupTimeout" | "DoesNotFit"
+
+export type SchedulingFailure = { Reason: SchedulingFailureReason | string; Message: string; RestartCount: number; At: string | null }
+
+/** A device pod on its way through the scheduler; Failure clears when the pod starts. */
+export type DeviceScheduling = {
+  State: "Queued" | "Starting" | "Started" | "Failed" | string
+  QueuedAt: string | null
+  DispatchedAt: string | null
+  StartedAt: string | null
+  Failure: SchedulingFailure | null
+}
+
+/** Writable-layer snapshot of a device with state persistence. */
+export type DeviceSnapshot = { LastSnapshotAt: string | null; RestoredAt: string | null; SizeBytes: number; Warning: string; Rescue: boolean }
+
+export type DeployDeviceStatus = {
+  Name: string
+  Ready: boolean
+  Reason?: string
+  Scheduling?: DeviceScheduling | null
+  /** null for a device without state persistence. */
+  Snapshot?: DeviceSnapshot | null
+}
 
 export type DeployAccess = {
   Device: string
@@ -72,6 +101,11 @@ export type DeployStatus = {
   /** Time of that last handshake (ISO); absent when the VPN never connected. */
   VPNLastHandshake?: string
   SolvedTaskIDs?: string[]
+  /** Set while the lab waits in the launch queue. */
+  Queue?: DeployQueue | null
+  /** Lab images pulled by tag, not pinned to a digest; empty when fine. */
+  ImageWarning?: string
+  GroupImageWarning?: string
 }
 
 /** Start a test deploy of one variant; resolves with the deploy id to poll. */
@@ -102,4 +136,14 @@ export function destroyDeploy(group: string): Promise<void> {
 /** Ask whether a flag the author found is the one injected for a task. */
 export function checkDeployFlag(group: string, taskId: string, flag: string): Promise<{ Correct: boolean }> {
   return apiPost<{ Correct: boolean }>(`${BASE}/deploys/${encodeURIComponent(group)}/check`, { TaskID: taskId, Flag: flag })
+}
+
+/** Throw the device back to its initial image (owner only); everything changed on it is lost. */
+export function resetDeployDevice(group: string, device: string): Promise<void> {
+  return apiPost<void>(`${BASE}/deploys/${encodeURIComponent(group)}/devices/${encodeURIComponent(device)}/reset`, {})
+}
+
+/** Switch rescue mode of a persistence device: a shell from its latest snapshot (owner only). */
+export function setDeployDeviceRescue(group: string, device: string, enable: boolean): Promise<void> {
+  return apiPost<void>(`${BASE}/deploys/${encodeURIComponent(group)}/devices/${encodeURIComponent(device)}/rescue`, { Enable: enable })
 }

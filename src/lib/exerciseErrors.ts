@@ -91,6 +91,9 @@ export const CODE_TO_KEY: Record<number, string> = {
   70963: "admin.ex.err.testDeployActive",
   30960: "admin.ex.err.noWebDevice",
   71401: "admin.ex.err.infrastructureUnavailable",
+  71405: "admin.ex.err.deployNoPersistence",
+  31406: "admin.ex.err.deployDeviceNotFound",
+  71407: "admin.ex.err.deployDeviceRestarting",
   // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",

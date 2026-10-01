@@ -15,6 +15,8 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { deployPhaseLabel } from "@/lib/deployStatus"
+import { DeviceFailure } from "@/components/exercises/DeviceLiveInfo"
+import { failedDevices, imageWarningText, queueLine } from "@/lib/deviceLive"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref, testLabHref } from "@/lib/exerciseRoutes"
 import { downloadBlob } from "@/lib/downloadBlob"
@@ -188,6 +190,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const index = task ? tasks.indexOf(task) : -1
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
   const showTopology = topologyShown && ready
+  const imageNote = imageWarningText(status)
 
   return <div className="flex h-dvh flex-col bg-background">
     <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
@@ -199,13 +202,23 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
       message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
 
+    {imageNote && <p className="shrink-0 px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
+
     {failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
         message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
-      <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
-        message={status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning")} />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
+          message={queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
+        {failedDevices(status?.Devices).length > 0 && <div className="mx-auto w-full max-w-xl shrink-0 space-y-2 p-4">
+          {failedDevices(status?.Devices).map((device) => <div key={device.Name} className="space-y-1">
+            <div className="font-mono text-xs text-muted-foreground">{device.Name}</div>
+            <DeviceFailure device={device} />
+          </div>)}
+        </div>}
+      </div>
     ) : tasks.length === 0 ? (
       <EmptyState className="min-h-0 flex-1" message={t("admin.exTest.noTasks")} />
     ) : (
