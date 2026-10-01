@@ -993,6 +993,24 @@ describe('toSaveDraftInput', () => {
     expect(input.Variants[1].Index).toBe(2)
   })
 
+  it('persistence goes out only when enabled and keeps a loaded debounce', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const off = emptyDevice()
+    off.Name = 'off'
+    const on = emptyDevice()
+    on.Name = 'on'
+    on.Persistence = { Enabled: true, Debounce: '5s' }
+    const plain = emptyDevice()
+    plain.Name = 'plain'
+    plain.Persistence = { Enabled: true, Debounce: '' }
+    draft.Variants[0].Topology.Devices = [off, on, plain]
+    const [offDTO, onDTO, plainDTO] = toSaveDraftInput(draft).Variants[0].Topology.Devices!
+    expect(offDTO.Persistence).toBeUndefined()
+    expect(onDTO.Persistence).toEqual({ Enabled: true, Debounce: '5s' })
+    expect(plainDTO.Persistence).toEqual({ Enabled: true })
+  })
+
   it('a bare switch goes out bare, disabled External is omitted, null Description is omitted', () => {
     const draft = emptyDraft()
     draft.Variants[0].Tasks[0].Name = 'New task'

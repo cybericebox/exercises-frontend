@@ -91,6 +91,9 @@ export type NormalizedDeviceResources = Required<DeviceResourcesDTO>
 
 export type InterfaceDTO = { Name: string; MAC?: string; IP: IPConfigDTO }
 
+/** State persistence of a container: its writable layer survives an unplanned restart. Debounce is a Go duration (1s-24h), empty = platform default. */
+export type PersistenceDTO = { Enabled: boolean; Debounce?: string }
+
 export type DeviceDTO = {
   ID?: string
   Name: string // DNS label for containers; display name for switches/hubs
@@ -101,6 +104,7 @@ export type DeviceDTO = {
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
   External?: ExternalDTO
+  Persistence?: PersistenceDTO
 }
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
@@ -202,6 +206,7 @@ export type NormalizedDevice = {
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
   External: ExternalDTO | null
+  Persistence?: PersistenceDTO | null
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
@@ -291,6 +296,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
       HasValue: ev.HasValue ?? false,
     })),
     External: raw.External ?? null,
+    Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,
   }
 }
 

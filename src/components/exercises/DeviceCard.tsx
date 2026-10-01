@@ -16,6 +16,8 @@ import { SecretInput } from "./SecretInput"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { RemoveAction } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
+import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
@@ -59,6 +61,8 @@ export function DeviceCard({
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const type = useWatch({ control, name: `${base}.Type` })
   const externalEnabled = useWatch({ control, name: `${base}.External.Enabled` })
+  const persistenceEnabled = useWatch({ control, name: `${base}.Persistence.Enabled` })
+  const persistenceAvailable = useDevicePersistenceAvailable()
   const forwarding = type === "unmanaged-switch" || type === "hub"
   type DevicePanel = "basic" | "interfaces" | "env"
   const [panel, setPanel] = useEditorPosition("devicePanel")
@@ -186,6 +190,18 @@ export function DeviceCard({
             </div>}
           </section>
         }
+        {visiblePanel === "basic" && type === "container" && (persistenceAvailable || persistenceEnabled) && <section className="space-y-2 border-t border-border pt-4">
+          <Controller
+            control={control}
+            name={`${base}.Persistence.Enabled`}
+            render={({ field }) => (
+              <div className="flex items-center gap-1.5">
+                <Checkbox label={t("admin.exTopo.persistence")} checked={field.value} onChange={(event) => field.onChange(event.target.checked)} disabled={disabled} />
+                <FieldHelp lines={[t("admin.exTopo.persistenceHelp.containers"), t("admin.exTopo.persistenceHelp.restart"), t("admin.exTopo.persistenceHelp.tmp")]} />
+              </div>
+            )}
+          />
+        </section>}
         </div>
       </div>
     </div>

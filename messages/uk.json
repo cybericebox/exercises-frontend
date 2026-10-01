@@ -1085,5 +1085,10 @@
   "admin.exLive.size.gb": "{n} ГБ",
   "admin.ex.err.deployNoPersistence": "Цей пристрій не зберігає стан",
   "admin.ex.err.deployDeviceNotFound": "Пристрій не знайдено в лабораторії",
-  "admin.ex.err.deployDeviceRestarting": "Пристрій ще перезапускається. Спробуйте за мить."
+  "admin.ex.err.deployDeviceRestarting": "Пристрій ще перезапускається. Спробуйте за мить.",
+  "admin.exTopo.persistence": "Зберігати стан після перезапуску",
+  "admin.exTopo.persistenceHelp.containers": "Лише для контейнерних пристроїв.",
+  "admin.exTopo.persistenceHelp.restart": "Файлова система зберігається після незапланованого перезапуску пристрою.",
+  "admin.exTopo.persistenceHelp.tmp": "Каталог /tmp не зберігається.",
+  "admin.ex.err.persistenceInvalid": "Збереження стану доступне лише для контейнерних пристроїв, а затримка знімка має бути від 1 с до 24 год."
 }

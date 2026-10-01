@@ -12,6 +12,7 @@ import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
+import { DevicePersistenceProvider } from './DevicePersistenceContext'
 
 function DeviceValues() {
   const { control } = useFormContext<DraftFormValues>()
@@ -447,5 +448,26 @@ describe('DeviceCard', () => {
     expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
     expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.imported')
     expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.duplicates')
+  })
+})
+
+describe('DeviceCard persistence option', () => {
+  it('is hidden when the platform cannot keep state', () => {
+    render(<Harness device={emptyDevice()} />)
+    expect(screen.queryByLabelText('admin.exTopo.persistence')).toBeNull()
+  })
+
+  it('writes Persistence.Enabled when the platform can', () => {
+    render(<DevicePersistenceProvider value><Harness device={emptyDevice()} /></DevicePersistenceProvider>)
+    fireEvent.click(screen.getByLabelText('admin.exTopo.persistence'))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).Persistence.Enabled).toBe(true)
+  })
+
+  it('is not offered for a switch', () => {
+    const device = emptyDevice()
+    device.Type = 'unmanaged-switch'
+    device.Interfaces = []
+    render(<DevicePersistenceProvider value><Harness device={device} /></DevicePersistenceProvider>)
+    expect(screen.queryByLabelText('admin.exTopo.persistence')).toBeNull()
   })
 })

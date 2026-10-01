@@ -13,6 +13,7 @@ import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
+import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
@@ -105,6 +106,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const activeDeploys = useActiveDeploys(exerciseId)
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
+  const [devicePersistence, setDevicePersistence] = useState(false)
   const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
@@ -166,7 +168,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)) } })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false) } })
       .catch(() => { if (!cancelled) setLaboratories(false) })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -246,7 +248,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : null
 
-  return <EditorPositionProvider position={position} onChange={updatePosition}>
+  return <DevicePersistenceProvider value={devicePersistence}><EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
       className="flex min-h-full w-full flex-col gap-4">
       <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
@@ -373,5 +375,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider>
+  </EditorPositionProvider></DevicePersistenceProvider>
 }

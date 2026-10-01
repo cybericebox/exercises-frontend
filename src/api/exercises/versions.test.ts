@@ -142,7 +142,7 @@ describe('normalizeVariant', () => {
       Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
       Interfaces: [],
       EnvVars: [],
-      External: null,
+      External: null, Persistence: null,
     })
     expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'vpn', DeviceID: '', Interface: 'eth0' })
     expect(v.Topology.Connections[0].Endpoints[1]).toEqual({ Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' })

@@ -19,6 +19,7 @@ export function labTopology(topology: NormalizedTopology): TopologyFormValues {
       Image: "",
       EnvVars: [],
       Resources: NO_RESOURCES,
+      Persistence: undefined,
       External: device.External ? { Enabled: true, ...device.External } : { Enabled: false, Port: 80, Protocol: "http" as const },
     })),
   }

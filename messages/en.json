@@ -1085,5 +1085,10 @@
   "admin.exLive.size.gb": "{n} GB",
   "admin.ex.err.deployNoPersistence": "This device does not keep its state",
   "admin.ex.err.deployDeviceNotFound": "The device was not found in the lab",
-  "admin.ex.err.deployDeviceRestarting": "The device is still restarting. Try again in a moment."
+  "admin.ex.err.deployDeviceRestarting": "The device is still restarting. Try again in a moment.",
+  "admin.exTopo.persistence": "Keep state after a restart",
+  "admin.exTopo.persistenceHelp.containers": "For container devices only.",
+  "admin.exTopo.persistenceHelp.restart": "The file system is kept after an unplanned restart of the device.",
+  "admin.exTopo.persistenceHelp.tmp": "The /tmp directory is not kept.",
+  "admin.ex.err.persistenceInvalid": "State persistence is only for container devices, and the snapshot delay must be 1 s to 24 h."
 }

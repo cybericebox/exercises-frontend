@@ -96,7 +96,9 @@ function quantityValue(value: string): number | null {
 // ── Form types ─────────────────────────────────────────────────────────────────
 
 export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Protocol }
-export type DeviceFormValues = Omit<NormalizedDevice, "External"> & { External: ExternalFormValues }
+/** Persistence in the form: Debounce is not edited here, it only travels back as loaded. */
+export type PersistenceFormValues = { Enabled: boolean; Debounce: string }
+export type DeviceFormValues = Omit<NormalizedDevice, "External" | "Persistence"> & { External: ExternalFormValues; Persistence?: PersistenceFormValues }
 export type TopologyFormValues = Omit<NormalizedTopology, "Devices"> & { Devices: DeviceFormValues[] }
 export type PlaceholderFormValues = {
   Key: string
@@ -259,13 +261,14 @@ const deviceSchema = z
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
     External: externalSchema,
+    Persistence: z.object({ Enabled: z.boolean(), Debounce: z.string() }).optional(),
   })
   .superRefine((d, ctx) => {
     const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
     const hasResources = Object.values(d.Resources).some(Boolean)
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "" || hasResources)) {
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || hasResources)) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
     if (!forwarding && d.Interfaces.length === 0) {
@@ -578,6 +581,7 @@ export function emptyDevice(): DeviceFormValues {
     Interfaces: [emptyInterface()],
     EnvVars: [],
     External: { Enabled: false, Port: 80, Protocol: "http" },
+    Persistence: { Enabled: false, Debounce: "" },
   }
 }
 
@@ -642,6 +646,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
           External: d.External
             ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
             : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
+          Persistence: { Enabled: d.Persistence?.Enabled ?? false, Debounce: d.Persistence?.Debounce ?? "" },
         })),
         Connections: v.Topology.Connections,
         VisualRender: v.Topology.VisualRender,
@@ -722,6 +727,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),
+    ...(d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } } : {}),
   }
 }
 
