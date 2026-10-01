@@ -9,13 +9,14 @@ const REQUIRED_HOSTS = [
   "NEXT_PUBLIC_ADMIN_HOST",
   "NEXT_PUBLIC_EXERCISES_HOST",
   "NEXT_PUBLIC_EVENT_DOMAIN",
+  "NEXT_PUBLIC_COOKIE_DOMAIN",
 ]
 const missing = REQUIRED_HOSTS.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
 
 // Dev-only: `next dev` accepts the configured hosts (and event sites) behind a local proxy/tunnel.
 const devHosts = [
-  ...REQUIRED_HOSTS.map((name) => process.env[name]!.trim()),
+  ...REQUIRED_HOSTS.filter((name) => name.endsWith("_HOST")).map((name) => process.env[name]!.trim()),
   `*.${process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim()}`,
   ...(process.env.DEV_ALLOWED_ORIGINS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
 ]

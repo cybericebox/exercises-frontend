@@ -93,7 +93,7 @@ describe("consent", () => {
       "cib_consent=analytics:granted; path=/; max-age=31536000; SameSite=Lax; domain=.cybericebox.com; Secure",
     )
     expect(consent.consentCookie({ analytics: false }, { secure: false })).toBe("cib_consent=analytics:denied; path=/; max-age=31536000; SameSite=Lax")
-    vi.stubEnv("NEXT_PUBLIC_MAIN_HOST", "cybericebox.com")
+    vi.stubEnv("NEXT_PUBLIC_COOKIE_DOMAIN", "cybericebox.com")
     const { writes } = fakeCookies()
     consent.saveConsent(consent.ACCEPT_ALL)
     expect(writes[0]).toMatch(/^cib_consent=analytics:granted; .*domain=\.cybericebox\.com/)

@@ -31,12 +31,13 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_MAIN_HOST` | yes | Landing host (bare host, no scheme); also the parent domain of the theme and consent cookies. |
+| `NEXT_PUBLIC_MAIN_HOST` | yes | Landing host (bare host, no scheme). |
 | `NEXT_PUBLIC_API_HOST` | yes | API host. |
 | `NEXT_PUBLIC_ID_HOST` | yes | ID app host. |
 | `NEXT_PUBLIC_ADMIN_HOST` | yes | Admin app host. |
 | `NEXT_PUBLIC_EXERCISES_HOST` | yes | Exercises app host. |
 | `NEXT_PUBLIC_EVENT_DOMAIN` | yes | Event sites are `<tag>.<domain>`. |
+| `NEXT_PUBLIC_COOKIE_DOMAIN` | yes | `Domain` attribute of the shared theme/consent cookies (e.g. `cybericebox.com`); no implicit parent. |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 
 ## i18n

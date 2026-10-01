@@ -33,6 +33,23 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Check required variables
+        # no fallbacks: every operator value must be set
+        run: |
+          missing=""
+          for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN NEXT_PUBLIC_COOKIE_DOMAIN; do
+            eval "value=\"\$$name\""
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then echo "Set the repository variables:$missing" && exit 1; fi
+        env:
+          NEXT_PUBLIC_MAIN_HOST: ${{ vars.NEXT_PUBLIC_MAIN_HOST }}
+          NEXT_PUBLIC_API_HOST: ${{ vars.NEXT_PUBLIC_API_HOST }}
+          NEXT_PUBLIC_ID_HOST: ${{ vars.NEXT_PUBLIC_ID_HOST }}
+          NEXT_PUBLIC_ADMIN_HOST: ${{ vars.NEXT_PUBLIC_ADMIN_HOST }}
+          NEXT_PUBLIC_EXERCISES_HOST: ${{ vars.NEXT_PUBLIC_EXERCISES_HOST }}
+          NEXT_PUBLIC_EVENT_DOMAIN: ${{ vars.NEXT_PUBLIC_EVENT_DOMAIN }}
+          NEXT_PUBLIC_COOKIE_DOMAIN: ${{ vars.NEXT_PUBLIC_COOKIE_DOMAIN }}
       - name: Build static export
         run: npm run build
         env:
@@ -43,6 +60,7 @@ jobs:
           NEXT_PUBLIC_ADMIN_HOST: ${{ vars.NEXT_PUBLIC_ADMIN_HOST }}
           NEXT_PUBLIC_EXERCISES_HOST: ${{ vars.NEXT_PUBLIC_EXERCISES_HOST }}
           NEXT_PUBLIC_EVENT_DOMAIN: ${{ vars.NEXT_PUBLIC_EVENT_DOMAIN }}
+          NEXT_PUBLIC_COOKIE_DOMAIN: ${{ vars.NEXT_PUBLIC_COOKIE_DOMAIN }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages
         uses: actions/configure-pages@v5
