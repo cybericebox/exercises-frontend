@@ -51,7 +51,7 @@ export function listDeploys(exerciseId?: string): Promise<DeployListItem[]> {
 }
 
 /** Why a lab waits in the launch queue. */
-export type QueueReason = "InFlightLimit" | "WaitingForGroup" | "WaitingForTurn" | "PreparingImages" | "InsufficientResources" | "NoSchedulableNodes"
+export type QueueReason = "InFlightLimit" | "WaitingForGroup" | "WaitingForTurn" | "PreparingImages" | "InsufficientResources" | "NoSchedulableNodes" | "TenantQuota"
 
 /** The lab's place in the launch queue; Position 0 means every device is already dispatched. */
 export type DeployQueue = { Position: number; Length: number; Reason: QueueReason | string; Message: string; Pods: number; Pending: number }

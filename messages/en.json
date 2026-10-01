@@ -1090,5 +1090,6 @@
   "admin.exTopo.persistenceHelp.containers": "For container devices only.",
   "admin.exTopo.persistenceHelp.restart": "The file system is kept after an unplanned restart of the device.",
   "admin.exTopo.persistenceHelp.tmp": "The /tmp directory is not kept.",
-  "admin.ex.err.persistenceInvalid": "State persistence is only for container devices, and the snapshot delay must be 1 s to 24 h."
+  "admin.ex.err.persistenceInvalid": "State persistence is only for container devices, and the snapshot delay must be 1 s to 24 h.",
+  "admin.exQueue.reason.TenantQuota": "The resource limit is reached; launch starts as soon as it frees up."
 }

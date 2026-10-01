@@ -6,7 +6,7 @@
 import type { DeployDeviceStatus, DeployQueue } from "@/api/exercises/deploy"
 import { t } from "@/i18n/t"
 
-const QUEUE_REASONS = new Set(["InFlightLimit", "WaitingForGroup", "WaitingForTurn", "PreparingImages", "InsufficientResources", "NoSchedulableNodes"])
+const QUEUE_REASONS = new Set(["InFlightLimit", "WaitingForGroup", "WaitingForTurn", "PreparingImages", "InsufficientResources", "NoSchedulableNodes", "TenantQuota"])
 const FAILURE_REASONS = new Set(["ImagePull", "CrashLoop", "Unschedulable", "StartupTimeout", "DoesNotFit"])
 
 /** The line shown while the lab waits; null when it is not queued (or every device is already dispatched). */

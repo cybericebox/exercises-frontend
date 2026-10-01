@@ -1090,5 +1090,6 @@
   "admin.exTopo.persistenceHelp.containers": "Лише для контейнерних пристроїв.",
   "admin.exTopo.persistenceHelp.restart": "Файлова система зберігається після незапланованого перезапуску пристрою.",
   "admin.exTopo.persistenceHelp.tmp": "Каталог /tmp не зберігається.",
-  "admin.ex.err.persistenceInvalid": "Збереження стану доступне лише для контейнерних пристроїв, а затримка знімка має бути від 1 с до 24 год."
+  "admin.ex.err.persistenceInvalid": "Збереження стану доступне лише для контейнерних пристроїв, а затримка знімка має бути від 1 с до 24 год.",
+  "admin.exQueue.reason.TenantQuota": "Досягнуто ліміт ресурсів, запуск почнеться, щойно вони звільняться."
 }
