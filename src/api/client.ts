@@ -4,7 +4,7 @@
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
-import { apiOrigin } from "@/lib/origins"
+import { apiOrigin, idOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
@@ -67,7 +67,7 @@ function writeReturnToCookie(): void {
 // a back-button re-triggering the 401 redirect loop.
 function redirectToSignInPage(signInUrl: string | null): void {
   if (typeof window === "undefined") return
-  window.location.replace(signInUrl || portless(window.location.origin) + "/sign-in")
+  window.location.replace(signInUrl || `${idOrigin}/sign-in`)
 }
 
 /** Shared by JSON requests and the progress-reporting multipart upload. */
