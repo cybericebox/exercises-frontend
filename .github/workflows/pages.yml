@@ -2,7 +2,7 @@ name: Deploy exercises to GitHub Pages
 
 # Static export (out/) → GitHub Pages. Runs on every published release (same as publish-image.yml) and on demand.
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
-# The app needs the API at runtime (api.<domain> or NEXT_PUBLIC_API_DOMAIN).
+# Hosts come from repository variables with the canonical names (no fallbacks); the build fails when one is empty.
 on:
   release:
     types: [ published ]
@@ -36,12 +36,13 @@ jobs:
       - name: Build static export
         run: npm run build
         env:
-          # repository variables; domain defaults to the production apex
-          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN || 'cybericebox.com' }}
-          # optional host overrides (bare host, no scheme); empty → <service>.<domain>
-          NEXT_PUBLIC_API_DOMAIN: ${{ vars.NEXT_PUBLIC_API_DOMAIN }}
-          NEXT_PUBLIC_ID_DOMAIN: ${{ vars.NEXT_PUBLIC_ID_DOMAIN }}
-          NEXT_PUBLIC_ADMIN_DOMAIN: ${{ vars.NEXT_PUBLIC_ADMIN_DOMAIN }}
+          # repository variables, all required
+          NEXT_PUBLIC_MAIN_HOST: ${{ vars.NEXT_PUBLIC_MAIN_HOST }}
+          NEXT_PUBLIC_API_HOST: ${{ vars.NEXT_PUBLIC_API_HOST }}
+          NEXT_PUBLIC_ID_HOST: ${{ vars.NEXT_PUBLIC_ID_HOST }}
+          NEXT_PUBLIC_ADMIN_HOST: ${{ vars.NEXT_PUBLIC_ADMIN_HOST }}
+          NEXT_PUBLIC_EXERCISES_HOST: ${{ vars.NEXT_PUBLIC_EXERCISES_HOST }}
+          NEXT_PUBLIC_EVENT_DOMAIN: ${{ vars.NEXT_PUBLIC_EVENT_DOMAIN }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages
         uses: actions/configure-pages@v5

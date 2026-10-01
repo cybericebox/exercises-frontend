@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
-import { adminOrigin, apiOrigin, idOrigin, publicDomain } from "@/lib/origins"
+import { adminOrigin, apiOrigin, eventDomain, exercisesOrigin, idOrigin, publicDomain } from "@/lib/origins"
 import { backHosts, resolveBack, type BackLink } from "@/lib/backLink"
 
-const exercisesDomain = process.env.NEXT_PUBLIC_EXERCISES_DOMAIN?.trim() || (publicDomain && `exercises.${publicDomain}`)
-const HOSTS = backHosts(publicDomain, {
+const HOSTS = backHosts(publicDomain, eventDomain, {
   admin: adminOrigin,
-  exercises: exercisesDomain ? `https://${exercisesDomain}` : "",
+  exercises: exercisesOrigin,
   id: idOrigin,
   api: apiOrigin,
 })

@@ -8,7 +8,7 @@ const rights = vi.hoisted(() => ({ value: { IsAdmin: true, CanCreateCatalog: tru
 const nav = vi.hoisted(() => ({ path: "/" }))
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => role.value }))
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox.local", idOrigin: "https://id.cybericebox.local", mainOrigin: "https://cybericebox.local", signInURL: (back: string) => back.includes("/sign-in") ? "" : `https://id.cybericebox.local/sign-in?return_to=${encodeURIComponent(back)}` }))
+vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox.local", eventDomain: "cybericebox.local", adminOrigin: "https://admin.cybericebox.local", exercisesOrigin: "https://exercises.cybericebox.local", idOrigin: "https://id.cybericebox.local", mainOrigin: "https://cybericebox.local", signInURL: (back: string) => back.includes("/sign-in") ? "" : `https://id.cybericebox.local/sign-in?return_to=${encodeURIComponent(back)}` }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("./TopBar", () => ({ TopBar: () => <header>top</header> }))

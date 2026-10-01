@@ -7,17 +7,17 @@ set -e
 
 ROOT=/usr/share/nginx/html
 
-if [ -z "${NEXT_PUBLIC_DOMAIN:-}" ]; then
-  echo "NEXT_PUBLIC_DOMAIN is required." >&2
-  exit 1
-fi
-# Optional values get their defaults here (the build folded the placeholder, so the
-# code-side fallback is gone): service hosts derive from the domain, analytics is empty.
-: "${NEXT_PUBLIC_API_DOMAIN:=api.$NEXT_PUBLIC_DOMAIN}"
-: "${NEXT_PUBLIC_ID_DOMAIN:=id.$NEXT_PUBLIC_DOMAIN}"
-: "${NEXT_PUBLIC_ADMIN_DOMAIN:=admin.$NEXT_PUBLIC_DOMAIN}"
+# Every host is required: no derivation, no fallback.
+for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN; do
+  eval "value=\${$name:-}"
+  if [ -z "$value" ]; then
+    echo "$name is required." >&2
+    exit 1
+  fi
+done
+# Analytics is optional; the build folded the placeholder, so empty is set here.
 : "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:=}"
-export NEXT_PUBLIC_API_DOMAIN NEXT_PUBLIC_ID_DOMAIN NEXT_PUBLIC_ADMIN_DOMAIN NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
+export NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
 
 printenv | grep '^NEXT_PUBLIC_' | while IFS='=' read -r key value; do
   # Escape sed-special chars in the replacement (| delimiter, & match-ref, \).

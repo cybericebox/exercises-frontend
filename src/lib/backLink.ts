@@ -10,8 +10,8 @@ import { STORAGE_BACK } from "@/lib/storageKeys"
 
 export type BackKind = "landing" | "admin" | "catalog" | "event"
 export type BackLink = { kind: BackKind; href: string }
-/** Bare hostnames of the platform apps; `domain` is the landing (apex) host. */
-export type BackHosts = { domain: string; admin: string; exercises: string; id: string; api: string }
+/** Bare hostnames of the platform apps; `domain` is the landing host, `event` the event-site domain. */
+export type BackHosts = { domain: string; event: string; admin: string; exercises: string; id: string; api: string }
 /** Only these sources get the destination tooltip; the others keep the app's plain back behaviour. */
 export type BackDestination = Exclude<BackKind, "landing">
 
@@ -31,9 +31,10 @@ const hostOf = (origin: string) => {
   }
 }
 
-export function backHosts(domain: string, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
+export function backHosts(domain: string, event: string, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
   return {
     domain: domain.trim().toLowerCase(),
+    event: event.trim().toLowerCase(),
     admin: hostOf(origins.admin),
     exercises: hostOf(origins.exercises),
     id: hostOf(origins.id),
@@ -58,8 +59,8 @@ export function classifyBack(value: string | null | undefined, hosts: BackHosts)
   if (host === hosts.admin) return { kind: "admin", href }
   if (host === hosts.exercises) return { kind: "catalog", href }
   if (host === hosts.id || host === hosts.api) return null
-  // Event sites are <tag>.<domain>.
-  const label = host.endsWith(`.${hosts.domain}`) ? host.slice(0, -hosts.domain.length - 1) : ""
+  // Event sites are <tag>.<event domain>.
+  const label = hosts.event && host.endsWith(`.${hosts.event}`) ? host.slice(0, -hosts.event.length - 1) : ""
   return label && !label.includes(".") ? { kind: "event", href } : null
 }
 

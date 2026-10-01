@@ -1,25 +1,29 @@
-import { publicDomain } from "@/lib/origins"
+import { adminOrigin, eventDomain, exercisesOrigin, publicDomain } from "@/lib/origins"
 import { STORAGE_EXERCISES_RETURN } from "@/lib/storageKeys"
 
 // Return context: an event page (or admin) opens the catalog with ?return_to=<absolute
 // https URL>[&event=<eventID>] (older links: ?return=). The URL is only accepted on
-// the platform domain (or a subdomain), and both values survive in-app
+// a platform host (landing, admin, catalog) or an event site, and both values survive in-app
 // navigation through sessionStorage.
 
 export type ReturnContext = { returnUrl: string | null; eventId: string | null }
 
 const EMPTY: ReturnContext = { returnUrl: null, eventId: null }
 
-/** Accepts only https URLs on `${domain}` or its subdomains; everything else → null. */
-export function safeReturnUrl(value: string | null | undefined, domain = publicDomain): string | null {
+const hostOf = (origin: string) => new URL(origin).hostname.toLowerCase()
+
+/** Accepts only https URLs on `${domain}` (the landing host), the admin/catalog hosts or `<tag>.${events}`; everything else → null. */
+export function safeReturnUrl(value: string | null | undefined, domain = publicDomain, events = eventDomain): string | null {
   const root = domain.trim().toLowerCase()
+  const eventRoot = events.trim().toLowerCase()
   if (!value || !root) return null
   try {
     const url = new URL(value)
     const host = url.hostname.toLowerCase()
     if (url.protocol !== "https:") return null
     if (url.username || url.password) return null
-    if (host !== root && !host.endsWith(`.${root}`)) return null
+    const known = host === root || host === hostOf(adminOrigin) || host === hostOf(exercisesOrigin)
+    if (!known && !(eventRoot && host.endsWith(`.${eventRoot}`))) return null
     return url.toString()
   } catch {
     return null

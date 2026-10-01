@@ -1,8 +1,24 @@
 import type { NextConfig } from "next"
 
-// Static export for the exercise catalog (exercises.<domain>).
-// Dev resources are served through the platform domain and its subdomains.
-const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
+// Static export for the exercise catalog. Every host is an explicit env value; a missing
+// one fails the build (no derivation, no fallback).
+const REQUIRED_HOSTS = [
+  "NEXT_PUBLIC_MAIN_HOST",
+  "NEXT_PUBLIC_API_HOST",
+  "NEXT_PUBLIC_ID_HOST",
+  "NEXT_PUBLIC_ADMIN_HOST",
+  "NEXT_PUBLIC_EXERCISES_HOST",
+  "NEXT_PUBLIC_EVENT_DOMAIN",
+]
+const missing = REQUIRED_HOSTS.filter((name) => !process.env[name]?.trim())
+if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
+
+// Dev-only: `next dev` accepts the configured hosts (and event sites) behind a local proxy/tunnel.
+const devHosts = [
+  ...REQUIRED_HOSTS.map((name) => process.env[name]!.trim()),
+  `*.${process.env.NEXT_PUBLIC_EVENT_DOMAIN!.trim()}`,
+  ...(process.env.DEV_ALLOWED_ORIGINS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+]
 
 const nextConfig: NextConfig = {
   output: process.env.NODE_ENV === "production" ? "export" : undefined,
@@ -11,9 +27,7 @@ const nextConfig: NextConfig = {
   },
   // Keep URLs slashless and avoid browser-cached 308 slash redirects.
   skipTrailingSlashRedirect: true,
-  // Dev-only: platform domains are always allowed, so `next dev` works behind the
-  // local proxy/tunnel even when NEXT_PUBLIC_DOMAIN is not set.
-  allowedDevOrigins: [...new Set([...(DOMAIN ? [DOMAIN] : []), "cybericebox.com", "cybericebox-dev.pp.ua", "cybericebox.pp.ua"])].flatMap((d) => [d, `*.${d}`]),
+  allowedDevOrigins: [...new Set(devHosts)],
 }
 
 export default nextConfig

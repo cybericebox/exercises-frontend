@@ -15,6 +15,8 @@ vi.mock("@/lib/origins", () => ({
   idOrigin: "https://id.cybericebox.local",
   adminOrigin: "https://admin.cybericebox.local",
   mainOrigin: "https://cybericebox.local",
+  exercisesOrigin: "https://exercises.cybericebox.local",
+  eventDomain: "cybericebox.local",
 }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 

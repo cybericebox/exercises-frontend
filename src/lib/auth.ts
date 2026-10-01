@@ -6,17 +6,12 @@ import { signInURL } from "@/lib/origins"
  * Copy it verbatim into any Relying-Party (RP) frontend (e.g. main-frontend)
  * as part of the DS sync procedure (see README).
  *
- * Usage on id-frontend (the Authorization Server):
- *   - `fetchMe` / `Me` are used for auth-state checks.
- *   - `rememberReturnTo` is called on mount by each auth page to persist the
- *     cib_return_to cookie, which the backend consumes at session creation.
- *   - `safeReturnTo` / `redirectIfAuthed` guard guest-only pages.
+ * `fetchMe` / `Me` are used for auth-state checks.
  *
  * No JSX — plain TypeScript; safe to import without 'use client' propagation issues.
  */
 
 import { apiGet, ApiError } from "@/api/client"
-import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 
 // ---------------------------------------------------------------------------
 // /me — identity object returned by the RP's /api/me endpoint.
@@ -67,72 +62,3 @@ export function redirectToSignIn(signInUrl?: string, returnTo?: string): void {
   if (url) window.location.href = url
 }
 
-/**
- * safeReturnTo — open-redirect guard. Accepts a return_to only within the
- * platform domain (any subdomain), mirroring the backend's buildCallbackURL
- * guard; everything else (off-domain, relative-but-not-/, unparseable) falls
- * back to /profile. This prevents an attacker-supplied ?return_to=https://evil.com
- * from bouncing an authed user off-platform.
- *
- * id is served from id.<domain>; the platform root domain is the current host
- * minus the leading "id." prefix.
- */
-export function safeReturnTo(returnTo?: string, fallback = "/profile"): string {
-  if (!returnTo) return fallback
-  const root = window.location.hostname.replace(/^id\./, "")
-  try {
-    const u = new URL(returnTo)
-    const h = u.hostname.toLowerCase()
-    if (u.protocol === "https:" && (h === root || h.endsWith("." + root))) {
-      // Strip any port: the platform is always reached on its fixed external
-      // port, so a redirect target must never carry one (e.g. a dev :3001).
-      return `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
-    }
-  } catch { /* Invalid return URL falls back to the default destination. */ }
-  return fallback
-}
-
-/**
- * rememberReturnTo — persists the cib_return_to cookie on auth-page mount.
- *
- * Writes `document.cookie = cib_return_to=<portless-https-url>; ...` ONLY when
- * `returnTo` is a genuine absolute https URL within the platform domain (same
- * trust logic as `safeReturnTo`). Relative paths and off-platform URLs are
- * silently ignored — the backend's ConsumeReturnTo trusts only absolute
- * same-platform https URLs with no port.
- *
- * NOTE: Minor duplication of `writeReturnToCookie` in src/api/client.ts is
- * intentional — client.ts cannot import auth.ts (circular dep risk) and the
- * two call sites have different inputs (current-href vs caller-supplied URL).
- *
- * SSR/static-export safe: no-ops when `typeof window === "undefined"`.
- */
-export function rememberReturnTo(returnTo?: string): void {
-  if (typeof window === "undefined") return
-  if (!returnTo) return
-  const root = window.location.hostname.replace(/^id\./, "")
-  try {
-    const u = new URL(returnTo)
-    const h = u.hostname.toLowerCase()
-    if (u.protocol === "https:" && (h === root || h.endsWith("." + root))) {
-      // Force portless https — mirrors Task 7 writeReturnToCookie convention.
-      const portless = `https://${u.hostname}${u.pathname}${u.search}${u.hash}`
-      document.cookie = `${COOKIE_RETURN_TO}=${encodeURIComponent(portless)}; path=/; SameSite=Lax; Secure`
-    }
-  } catch {
-    // Unparseable URL — do nothing.
-  }
-}
-
-/**
- * On a guest-only page (sign-in/up, password reset), bounce an already-authed
- * user away. id reads the master cookie directly, so fetchMe is authoritative.
- * Returns true while a redirect is in flight (render nothing/loader).
- */
-export async function redirectIfAuthed(returnTo?: string): Promise<boolean> {
-  const me = await fetchMe()
-  if (!me) return false
-  const dest = safeReturnTo(returnTo)
-  window.location.href = dest
-  return true
-}

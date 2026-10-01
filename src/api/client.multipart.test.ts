@@ -8,6 +8,7 @@
  * progress-reporting variant used where upload progress is needed).
  */
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { apiOrigin } from "@/lib/origins"
 import { apiPostMultipart, ApiError } from "./client"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
 
@@ -32,7 +33,7 @@ describe("apiPostMultipart", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe("/api/notifications/templates/email/images")
+    expect(url).toBe(`${apiOrigin}/api/notifications/templates/email/images`)
     expect(init.method).toBe("POST")
     expect(init.credentials).toBe("include")
     expect(init.body).toBe(form)

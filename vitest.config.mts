@@ -5,6 +5,13 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     globals: true,
+    env: {
+      NEXT_PUBLIC_API_HOST: "api.cybericebox.local",
+      NEXT_PUBLIC_ID_HOST: "id.cybericebox.local",
+      NEXT_PUBLIC_ADMIN_HOST: "admin.cybericebox.local",
+      NEXT_PUBLIC_EXERCISES_HOST: "exercises.cybericebox.local",
+      NEXT_PUBLIC_EVENT_DOMAIN: "cybericebox.local",
+    },
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],
   },

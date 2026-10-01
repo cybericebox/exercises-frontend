@@ -26,31 +26,41 @@ spec:
         - name: exercises-frontend
           image: cybericebox/exercises-frontend:latest
           env:
-            - name: NEXT_PUBLIC_DOMAIN
+            - name: NEXT_PUBLIC_MAIN_HOST
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
-                  key: DOMAIN
-            - name: NEXT_PUBLIC_API_DOMAIN
+                  key: MAIN_HOST
+            - name: NEXT_PUBLIC_API_HOST
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
-                  key: API_DOMAIN
+                  key: API_HOST
+            - name: NEXT_PUBLIC_ID_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: ID_HOST
+            - name: NEXT_PUBLIC_ADMIN_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: ADMIN_HOST
+            - name: NEXT_PUBLIC_EXERCISES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: EXERCISES_HOST
+            - name: NEXT_PUBLIC_EVENT_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: EVENT_DOMAIN
             - name: NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: GOOGLE_ANALYTICS_ID
-            - name: NEXT_PUBLIC_ID_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ID_DOMAIN
-            - name: NEXT_PUBLIC_ADMIN_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ADMIN_DOMAIN
           ports:
             - containerPort: 3000
               protocol: TCP

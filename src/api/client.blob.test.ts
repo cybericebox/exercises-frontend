@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { apiOrigin } from "@/lib/origins"
 import { ApiError, apiKeepalive, apiPostBlob, filenameFromContentDisposition } from "./client"
 
 afterEach(() => { vi.unstubAllGlobals() })
@@ -23,7 +24,7 @@ describe("apiPostBlob", () => {
     const result = await apiPostBlob("/api/exercises/export", { IDs: ["e1"] })
     expect(result.filename).toBe("x.cybericebox.zip")
     expect(result.blob.size).toBe(3)
-    expect(fetchMock).toHaveBeenCalledWith("/api/exercises/export", expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith(`${apiOrigin}/api/exercises/export`, expect.objectContaining({
       method: "POST", credentials: "include", body: JSON.stringify({ IDs: ["e1"] }),
     }))
   })
@@ -43,7 +44,7 @@ describe("apiKeepalive", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
     expect(apiKeepalive("PUT", "/api/exercises/e1/draft", { AdminNote: "" })).toBe(true)
-    expect(fetchMock).toHaveBeenCalledWith("/api/exercises/e1/draft", expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith(`${apiOrigin}/api/exercises/e1/draft`, expect.objectContaining({
       method: "PUT", keepalive: true, credentials: "include",
     }))
   })
