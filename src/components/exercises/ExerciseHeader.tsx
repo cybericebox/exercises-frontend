@@ -33,6 +33,8 @@ export type ExerciseHeaderProps = {
   permissions: HeaderPermissions
   archived: boolean
   publishable: boolean
+  /** Publishing is shown but disabled; the reason (resources without an approval) appears in a tooltip. */
+  publishBlockedReason?: string
   revertable: boolean
   busy: boolean
   testAvailable: boolean
@@ -301,9 +303,12 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
               <ProposeButton pending={props.proposalPending} disabled={busy || !!props.proposalPending} onClick={props.onPropose} />
             )}
             {permissions.publish && (
-              <Button type="button" disabled={!created || !publishable || busy} onClick={props.onPublish}>
-                {t("admin.exPage.action.publish")}
-              </Button>
+              (() => {
+                const publishButton = <Button type="button" disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>
+                  {t("admin.exPage.action.publish")}
+                </Button>
+                return props.publishBlockedReason ? <HoverTooltip text={props.publishBlockedReason} describe>{publishButton}</HoverTooltip> : publishButton
+              })()
             )}
             {created && <MoreMenu {...props} />}
           </>

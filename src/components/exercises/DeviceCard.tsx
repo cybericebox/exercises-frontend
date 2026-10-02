@@ -21,6 +21,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
+import {
+  FRAME, RESOURCE_PRESETS, customResources, deviceAmount, formatCPU, formatMemory, outsideFrame, presetOf, presetResources, type PresetId,
+} from "@/lib/deviceResources"
 
 const PROTOCOLS: Protocol[] = ["http", "https"]
 // The operator treats an omitted preset and explicit "basic" identically.
@@ -117,13 +120,7 @@ export function DeviceCard({
           <div className="flex items-center gap-1.5"><button type="button" aria-expanded={expanded.resources} onClick={() => toggleSection("resources")}
             className="flex items-center gap-2 rounded-sm text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">
             <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${expanded.resources ? "" : "-rotate-90"}`} />{t("admin.exTopo.resources")}</button><FieldHelp text={t("admin.exTopo.resourcesHelp")} /></div>
-          {expanded.resources && <div data-device-resource-grid className={`grid gap-3 ${compact ? "grid-cols-1 @min-[26rem]:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
-            {(["CPURequest", "CPULimit", "MemoryRequest", "MemoryLimit"] as const).map((resource) => {
-              const key = `admin.exTopo.${resource.replace(/^CPU/, "cpu").replace(/^Memory/, "memory")}`
-              return <ResourceQuantityField key={resource} variantIndex={variantIndex} deviceIndex={deviceIndex}
-                resource={resource} labelKey={key} disabled={disabled} compact={compact} />
-            })}
-          </div>}
+          {expanded.resources && <ResourcePicker variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
         </section>}
 
         {visiblePanel === "interfaces" &&
@@ -208,15 +205,75 @@ export function DeviceCard({
   )
 }
 
-function ResourceQuantityField({ variantIndex, deviceIndex, resource, labelKey, disabled, compact }: {
+/** A custom value is both the request and the limit: the field edits the limit and mirrors it into the request. */
+function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
   variantIndex: number
   deviceIndex: number
-  resource: "CPURequest" | "CPULimit" | "MemoryRequest" | "MemoryLimit"
-  labelKey: string
   disabled: boolean
   compact: boolean
 }) {
-  const { control } = useFormContext<DraftFormValues>()
+  const { control, setValue } = useFormContext<DraftFormValues>()
+  const path = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Resources` as const
+  const resources = useWatch({ control, name: path })
+  const detected = presetOf(resources)
+  const [customChosen, setCustomChosen] = useState(false)
+  const selected: PresetId | "custom" = customChosen ? "custom" : detected
+  const amount = deviceAmount(resources)
+  const outside = outsideFrame(amount)
+
+  function choose(next: PresetId | "custom") {
+    if (next === "custom") {
+      setCustomChosen(true)
+      // Start the custom values from what the device has now.
+      setValue(path, customResources(`${amount.cpu}m`, `${amount.memory}Mi`), { shouldDirty: true })
+      return
+    }
+    setCustomChosen(false)
+    const preset = RESOURCE_PRESETS.find((candidate) => candidate.id === next)
+    if (preset) setValue(path, presetResources(preset), { shouldDirty: true })
+  }
+
+  return <div data-device-resources className="min-w-0 space-y-3">
+    <div role="radiogroup" aria-label={t("admin.exTopo.resources")}
+      className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`}>
+      {[...RESOURCE_PRESETS.map((preset) => ({ id: preset.id as PresetId | "custom", hint: `${formatCPU(preset.cpu)} · ${formatMemory(preset.memory)}` })),
+        { id: "custom" as const, hint: t("exercises.res.customHint") }].map((option) => (
+        <button key={option.id} type="button" role="radio" aria-checked={selected === option.id} disabled={disabled}
+          onClick={() => choose(option.id)}
+          className={`flex min-w-0 flex-col rounded-md border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 ${selected === option.id ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}>
+          <span className="font-medium">{t(`exercises.res.preset.${option.id}`)}</span>
+          <span className="truncate text-xs text-muted-foreground">{option.hint}</span>
+        </button>
+      ))}
+    </div>
+    {selected === "custom" && <div data-device-resource-grid className={`grid gap-3 ${compact ? "grid-cols-1 @min-[26rem]:grid-cols-2" : "sm:grid-cols-2"}`}>
+      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="CPULimit" mirror="CPURequest"
+        labelKey="exercises.res.cpu" disabled={disabled} compact={compact} warn={amount.cpu > FRAME.cpu} />
+      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="MemoryLimit" mirror="MemoryRequest"
+        labelKey="exercises.res.memory" disabled={disabled} compact={compact} warn={amount.memory > FRAME.memory} />
+    </div>}
+    <p data-resource-summary className={`text-xs ${outside ? "text-[var(--ib-warn)]" : "text-muted-foreground"}`}>
+      {outside ? t("exercises.res.outsideFrame", { cpu: formatCPU(amount.cpu), memory: formatMemory(amount.memory) })
+        : t("exercises.res.insideFrame", { cpu: formatCPU(amount.cpu), memory: formatMemory(amount.memory) })}
+    </p>
+  </div>
+}
+
+function ResourceQuantityField({ variantIndex, deviceIndex, resource, mirror, labelKey, disabled, compact, warn = false }: {
+  variantIndex: number
+  deviceIndex: number
+  resource: "CPURequest" | "CPULimit" | "MemoryRequest" | "MemoryLimit"
+  mirror?: "CPURequest" | "MemoryRequest"
+  labelKey: string
+  disabled: boolean
+  compact: boolean
+  warn?: boolean
+}) {
+  const { control, setValue } = useFormContext<DraftFormValues>()
+  const update = (field: { onChange: (value: string) => void }, value: string) => {
+    field.onChange(value)
+    if (mirror) setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Resources.${mirror}`, value, { shouldDirty: true })
+  }
   const isCPU = resource.startsWith("CPU")
   const units = isCPU ? CPU_UNITS : MEMORY_UNITS
   const [chosenUnit, setChosenUnit] = useState(isCPU ? "m" : "Mi")
@@ -230,11 +287,12 @@ function ResourceQuantityField({ variantIndex, deviceIndex, resource, labelKey, 
         <ExerciseFieldLabel labelKey={labelKey} helpKey={`${labelKey}Help`} form />
         <div className="flex min-w-0 gap-2">
           <FormControl><Input {...field} value={amount} inputMode="decimal" disabled={disabled}
-            placeholder={isCPU ? "250" : "512"} className="min-w-0 flex-1"
-            onChange={(event) => field.onChange(event.target.value ? `${event.target.value}${displayUnit}` : "")} /></FormControl>
+            placeholder={isCPU ? "250" : "512"} aria-invalid={warn || undefined}
+            className={`min-w-0 flex-1 ${warn ? "border-[var(--ib-warn)]" : ""}`}
+            onChange={(event) => update(field, event.target.value ? `${event.target.value}${displayUnit}` : "")} /></FormControl>
           <SelectMenu value={displayUnit} onChange={(next) => {
             setChosenUnit(next)
-            if (amount) field.onChange(`${amount}${next}`)
+            if (amount) update(field, `${amount}${next}`)
           }} disabled={disabled} ariaLabel={`${t(labelKey)} ${t("admin.exTopo.resourceUnit")}`}
             options={options.map((option) => ({ value: option.value, label: option.labelKey ? t(option.labelKey) : option.value }))}
             className="h-10 w-28 shrink-0" />

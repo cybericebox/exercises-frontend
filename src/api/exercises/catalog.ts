@@ -43,6 +43,8 @@ export type ExerciseOwnership = {
   OriginEventID: string | null
   ForkedFrom: ForkedFrom | null
   Infrastructure: boolean
+  /** An approved resource elevation: the task is marked «ресурсоємне». */
+  ResourceHeavy: boolean
   PendingProposalID: string | null
   /** null when the server sent none (older API) — callers fall back to RBAC. */
   Permissions: ExercisePermissions | null
@@ -151,6 +153,7 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
     OriginEventID: raw.OriginEventID ?? null,
     ForkedFrom: raw.ForkedFrom ?? null,
     Infrastructure: raw.Infrastructure ?? false,
+    ResourceHeavy: raw.ResourceHeavy ?? false,
     PendingProposalID: raw.PendingProposalID ?? null,
     Permissions: raw.Permissions ?? null,
   }

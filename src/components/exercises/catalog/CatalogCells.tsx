@@ -28,9 +28,17 @@ export function StatusBadges({ status }: { status: CatalogStatus }) {
   </span>
 }
 
+/** Tasks with an approved resource elevation are marked in lists. */
+export function ResourceHeavyBadge({ show }: { show: boolean }) {
+  return show ? <Badge tone="info" data-badge="resource-heavy">{t("exercises.res.heavy")}</Badge> : null
+}
+
 /** One status per row. */
 export function StatusCell({ item }: { item: ExerciseListItem }) {
-  return <StatusBadges status={catalogStatus(item)} />
+  return <span className="inline-flex flex-wrap items-center gap-1">
+    <StatusBadges status={catalogStatus(item)} />
+    <ResourceHeavyBadge show={item.ResourceHeavy} />
+  </span>
 }
 
 /**

@@ -31,6 +31,15 @@ function openMenu(name: string) {
 }
 
 describe("ExerciseHeader", () => {
+  it("disables publishing while resources wait for an approval", () => {
+    const onPublish = vi.fn()
+    render(<ExerciseHeader {...makeProps({ onPublish, publishBlockedReason: "Needs approval" })} />)
+    const publish = screen.getByRole("button", { name: "admin.exPage.action.publish" })
+    expect(publish).toBeDisabled()
+    fireEvent.click(publish)
+    expect(onPublish).not.toHaveBeenCalled()
+  })
+
   it("shows the viewing actions without the save indicator", () => {
     render(<ExerciseHeader {...makeProps()} />)
     expect(screen.getByRole("heading", { name: "Web 101" })).toBeInTheDocument()

@@ -71,38 +71,63 @@ describe('DeviceCard', () => {
     expect(screen.getByTestId('editor-position')).toHaveTextContent('"section":"tasks"')
     expect(screen.getByTestId('editor-position')).toHaveTextContent('"task":0')
   })
-  it('edits container resource request and limit values', () => {
+  const values = () => JSON.parse(screen.getByTestId('device-values').textContent || '{}')
+
+  it('shows the default preset and applies a chosen preset as request and limit', () => {
     const device = emptyDevice()
     device.Name = 'web'
     render(<Harness device={device} />)
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' }), { target: { value: '250' } })
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toHaveValue('250')
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250m')
-    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.cpuRequest admin.exTopo.resourceUnit' }), { key: 'ArrowDown' })
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.micro/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('textbox', { name: 'exercises.res.cpu' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: /exercises.res.preset.medium/ }))
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.medium/ })).toHaveAttribute('aria-checked', 'true')
+    expect(values().Resources).toEqual({ CPURequest: '125m', CPULimit: '125m', MemoryRequest: '512Mi', MemoryLimit: '512Mi' })
+  })
+
+  it('edits custom CPU and memory as one value for request and limit', () => {
+    const device = emptyDevice()
+    render(<Harness device={device} />)
+    fireEvent.click(screen.getByRole('radio', { name: /exercises.res.preset.custom/ }))
+    expect(screen.getByRole('textbox', { name: 'exercises.res.cpu' })).toHaveValue('25')
+    fireEvent.change(screen.getByRole('textbox', { name: 'exercises.res.cpu' }), { target: { value: '300' } })
+    expect(values().Resources.CPULimit).toBe('300m')
+    expect(values().Resources.CPURequest).toBe('300m')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'exercises.res.cpu admin.exTopo.resourceUnit' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: /admin.exTopo.cpuUnit.core/ }))
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250')
+    expect(values().Resources.CPULimit).toBe('300')
+    expect(values().Resources.CPURequest).toBe('300')
+  })
+
+  it('highlights values outside the frame and keeps them', () => {
+    const device = emptyDevice()
+    device.Resources = { CPURequest: '500m', CPULimit: '500m', MemoryRequest: '2Gi', MemoryLimit: '2Gi' }
+    const { container } = render(<Harness device={device} />)
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.custom/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: 'exercises.res.cpu' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('textbox', { name: 'exercises.res.memory' })).toHaveAttribute('aria-invalid', 'true')
+    expect(container.querySelector('[data-resource-summary]')).toHaveTextContent('exercises.res.outsideFrame')
+    expect(values().Resources.CPULimit).toBe('500m')
   })
 
   it('splits a stored memory quantity into amount and unit without changing its value', () => {
     const device = emptyDevice()
     device.Resources.MemoryLimit = '512Mi'
     render(<Harness device={device} />)
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('512')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('admin.exTopo.memoryUnit.Mi')
-    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' }), { target: { value: '768' } })
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('768Mi')
+    expect(screen.getByRole('textbox', { name: 'exercises.res.memory' })).toHaveValue('512')
+    expect(screen.getByRole('button', { name: 'exercises.res.memory admin.exTopo.resourceUnit' })).toHaveTextContent('admin.exTopo.memoryUnit.Mi')
+    fireEvent.change(screen.getByRole('textbox', { name: 'exercises.res.memory' }), { target: { value: '768' } })
+    expect(values().Resources.MemoryLimit).toBe('768Mi')
+    expect(values().Resources.MemoryRequest).toBe('768Mi')
   })
 
   it('preserves an uncommon stored quantity suffix while exposing it in the unit control', () => {
     const device = emptyDevice()
     device.Resources.MemoryLimit = '2G'
     render(<Harness device={device} />)
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('2')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('G')
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('2G')
+    expect(screen.getByRole('textbox', { name: 'exercises.res.memory' })).toHaveValue('2')
+    expect(screen.getByRole('button', { name: 'exercises.res.memory admin.exTopo.resourceUnit' })).toHaveTextContent('G')
+    expect(values().Resources.MemoryLimit).toBe('2G')
   })
 
   it('shows one static address field and editable route rows', () => {
@@ -250,10 +275,10 @@ describe('DeviceCard', () => {
     expect(image).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(image)
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'admin.exTopo.resources' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'admin.exTopo.external' })).toBeInTheDocument()
     fireEvent.click(resources)
-    expect(screen.queryByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'admin.exTopo.resources' })).not.toBeInTheDocument()
     fireEvent.click(external)
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
     fireEvent.click(image)
@@ -401,6 +426,7 @@ describe('DeviceCard', () => {
 
   it('reflows inspector fields when the panel is widened', () => {
     const device = emptyDevice()
+    device.Resources.CPULimit = '300m'
     const compact = render(<Harness device={device} compact />)
     expect(compact.container.querySelector('[data-device-basic-grid]')).toHaveClass('grid-cols-1')
     expect(compact.container.querySelector('[data-device-basic-grid]')).not.toHaveClass('@min-[26rem]:grid-cols-2')

@@ -86,7 +86,7 @@ function cidrFamily(v: string): "ipv4" | "ipv6" | null {
 const QUANTITY_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:(e[+-]?\d+|E[+-]?\d+)|(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E))?$/
 const QUANTITY_SCALE: Record<string, number> = { n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3, Ti: 1024 ** 4, Pi: 1024 ** 5, Ei: 1024 ** 6 }
 
-function quantityValue(value: string): number | null {
+export function quantityValue(value: string): number | null {
   const match = QUANTITY_RE.exec(value)
   if (!match) return null
   const result = Number(match[1]) * (match[2] ? 10 ** Number(match[2].slice(1)) : (QUANTITY_SCALE[match[3]] ?? 1))

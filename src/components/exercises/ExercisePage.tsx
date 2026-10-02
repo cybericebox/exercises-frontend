@@ -18,6 +18,8 @@ import { EditorPositionProvider, useEditorValidationFocus } from "@/components/e
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
+import { ResourcesPanel } from "@/components/exercises/ResourcesPanel"
+import { useResourceGate } from "@/components/exercises/useResourceGate"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
@@ -37,12 +39,13 @@ import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { useReturnContext } from "@/components/shell/ReturnContext"
+import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
 import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
-import { AccessCell, StatusBadges } from "./catalog/CatalogCells"
+import { AccessCell, ResourceHeavyBadge, StatusBadges } from "./catalog/CatalogCells"
 import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 
@@ -208,6 +211,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }, [leave.destination])
 
   const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
+  const resourceGate = useResourceGate(exercise?.ID ?? null, watchedVariants as DraftFormValues["Variants"])
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
@@ -256,6 +260,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         badge={badge}
         meta={exercise && !isVersion ? <>
           <StatusBadges status={headerStatus(exercise)} />
+          <ResourceHeavyBadge show={exercise.ResourceHeavy} />
           <InfrastructureIcon show={exercise.Infrastructure} />
           <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
           <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />
@@ -264,6 +269,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         permissions={permissions}
         archived={archived}
         publishable={exercise ? canPublishExercise(exercise) : false}
+        publishBlockedReason={resourceGate.blocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
         testAvailable={permissions.write}
@@ -338,6 +344,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
+                {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} gate={resourceGate} canRequest={editing} canPublish={permissions.publish}
+                  flush={() => editor.autosave.flush()} />}
                 <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
