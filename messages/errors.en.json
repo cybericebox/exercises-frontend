@@ -82,5 +82,11 @@
   "71201": "Participation type is already set and cannot be changed",
   "71301": "Registration is closed for this event",
   "71302": "Registration after the event has started is not allowed",
-  "71305": "Participant is not pending"
+  "71305": "Participant is not pending",
+  "20304": "The name contains characters that are not allowed.",
+  "21937": "The answer is too long.",
+  "21004": "The image has too many pixels. Use a smaller one.",
+  "21005": "The image cannot be read. Choose another file.",
+  "20226": "A block preset cannot contain another preset.",
+  "41316": "This pseudonym is already taken."
 }
