@@ -94,7 +94,7 @@ describe('DeviceCard', () => {
     render(<Harness device={emptyDevice()} />)
     expect(screen.getAllByRole('radio')).toHaveLength(RESOURCES_CONFIG.Presets.length)
     expect(screen.queryByRole('radio', { name: /exercises.res.preset.custom/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /exercises.res.preset.huge/ })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.max/ })).toBeInTheDocument()
   })
 
   it('highlights a block above the frame and keeps it', () => {

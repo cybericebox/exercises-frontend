@@ -204,7 +204,7 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
 
   return <div data-device-resources className="min-w-0 space-y-3">
     <div role="radiogroup" aria-label={t("admin.exTopo.resources")}
-      className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"}`}>
+      className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
       {config.Presets.map((item) => (
         <button key={item.ID} type="button" role="radio" aria-checked={selected === item.ID} disabled={disabled}
           onClick={() => setValue(`${base}.ResourcePreset`, item.ID, { shouldDirty: true })}

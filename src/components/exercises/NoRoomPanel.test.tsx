@@ -38,7 +38,7 @@ describe("NoRoomPanel (72509)", () => {
     await waitFor(() => expect(createBooking).toHaveBeenCalledTimes(1))
     expect(createBooking).toHaveBeenCalledWith({
       Start: start, DurationMinutes: 90,
-      Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB }, LargestDevice: { CPUMillicores: 16, MemoryBytes: 64 * MIB },
+      Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB }, LargestDevice: { CPUMillicores: 15, MemoryBytes: 64 * MIB },
     })
     expect(await screen.findByText(/exercises\.book\.bookedFrom/)).toBeTruthy()
   })
@@ -47,7 +47,7 @@ describe("NoRoomPanel (72509)", () => {
     vi.mocked(getRoom).mockResolvedValue({ Available: false, Via: "", NearestFrom: "2099-01-01T13:00:00Z" })
     render(<NoRoomPanel error={noRoom()} variant={variant} resources={null} onRetry={vi.fn()} />)
     expect(await screen.findByRole("button", { name: "exercises.book.action" })).toBeTruthy()
-    expect(getRoom).toHaveBeenCalledWith({ CPUMillicores: 16, MemoryBytes: 64 * MIB }, { CPUMillicores: 16, MemoryBytes: 64 * MIB })
+    expect(getRoom).toHaveBeenCalledWith({ CPUMillicores: 15, MemoryBytes: 64 * MIB }, { CPUMillicores: 15, MemoryBytes: 64 * MIB })
   })
 
   it("does not send a booking that breaks the limits", async () => {

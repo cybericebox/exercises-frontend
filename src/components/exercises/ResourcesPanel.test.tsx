@@ -11,14 +11,14 @@ import type { DeviceOutside, ResourceTotals, VersionResources } from "@/api/exer
 import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
 
 const MIB = 1024 ** 2
-const totals = (cpu: number, mib: number, devices: number, blocks = mib / 64): ResourceTotals => ({ CPUMillicores: cpu, MemoryBytes: mib * MIB, Devices: devices, Blocks: blocks })
-const outside = (over: Partial<DeviceOutside> = {}): DeviceOutside => ({ VariantID: "v1", DeviceID: "big", Name: "big", Blocks: 32, CPUMillicores: 500, MemoryBytes: 2048 * MIB, Covered: false, AboveCeiling: false, ...over })
+const totals = (cpu: number, mib: number, devices: number, blocks = mib / 32): ResourceTotals => ({ CPUMillicores: cpu, MemoryBytes: mib * MIB, Devices: devices, Blocks: blocks })
+const outside = (over: Partial<DeviceOutside> = {}): DeviceOutside => ({ VariantID: "v1", DeviceID: "big", Name: "big", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2048 * MIB, Covered: false, AboveCeiling: false, ...over })
 const resources = (over: Partial<VersionResources> = {}): VersionResources => ({
   Min: totals(500, 2048, 2), Max: totals(500, 2048, 2), Variants: [{ VariantID: "v1", ...totals(500, 2048, 2) }],
   SpreadPercent: 0, VariantsDiffer: false, Outside: [], ResourceHeavy: false, ...over,
 })
 const elevation = (over: Partial<Elevation> = {}): Elevation => ({
-  ID: "r1", ExerciseID: "ex1", ExerciseName: "Web", VersionID: "v", Status: "pending", Reason: "why", Requested: [{ DeviceID: "big", Name: "big", Blocks: 32, CPUMillicores: 500, MemoryBytes: 2048 * MIB }],
+  ID: "r1", ExerciseID: "ex1", ExerciseName: "Web", VersionID: "v", Status: "pending", Reason: "why", Requested: [{ DeviceID: "big", Name: "big", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2048 * MIB }],
   Approved: [], DecisionNote: "", RequestedByName: "", RequestedAt: "2026-10-02T10:00:00Z", DecidedByName: "", DecidedAt: null, ...over,
 })
 
@@ -34,10 +34,10 @@ describe("ResourcesPanel", () => {
   })
 
   it("shows the totals of the task", () => {
-    const { container } = view(resources({ Min: totals(375, 1536, 2, 24), Max: totals(375, 1536, 2, 24) }))
+    const { container } = view(resources({ Min: totals(375, 1536, 2, 48), Max: totals(375, 1536, 2, 48) }))
     expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("375m")
     expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("1.5Gi")
-    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("24")
+    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("48")
     expect(container.querySelector("[data-frame-issues]")).toBeNull()
   })
 
@@ -75,17 +75,17 @@ describe("ResourcesPanel", () => {
   })
 
   it("shows approved values, the raise note and no block", () => {
-    const approved = elevation({ Status: "approved", Approved: [{ DeviceID: "big", Name: "big", Blocks: 32, CPUMillicores: 500, MemoryBytes: 2048 * MIB }] })
+    const approved = elevation({ Status: "approved", Approved: [{ DeviceID: "big", Name: "big", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2048 * MIB }] })
     const { container } = view(resources({ Outside: [outside({ Covered: true })] }), approved)
     expect(container.querySelector("[data-issue-state='approved']")).toBeInTheDocument()
-    expect(container.querySelector("[data-approved]")).toHaveTextContent('"count":32,"cpu":"500m","memory":"2Gi"')
+    expect(container.querySelector("[data-approved]")).toHaveTextContent('"count":64,"cpu":"500m","memory":"2Gi"')
     expect(container.querySelector("[data-approved]")).toHaveTextContent("exercises.res.raiseNote")
     expect(container.querySelector("[data-publish-blocked]")).toBeNull()
     expect(screen.queryByRole("button", { name: "exercises.res.request" })).toBeNull()
   })
 
   it("needs a new approval for a raise the server no longer covers", () => {
-    const approved = elevation({ Status: "approved", Approved: [{ DeviceID: "big", Name: "big", Blocks: 16, CPUMillicores: 250, MemoryBytes: 2048 * MIB }] })
+    const approved = elevation({ Status: "approved", Approved: [{ DeviceID: "big", Name: "big", Blocks: 32, CPUMillicores: 250, MemoryBytes: 2048 * MIB }] })
     const { container } = view(resources({ Outside: [outside({ Covered: false })] }), approved)
     expect(container.querySelector("[data-issue-state='needed']")).toBeInTheDocument()
     expect(container.querySelector("[data-publish-blocked]")).toBeInTheDocument()
@@ -123,8 +123,8 @@ describe("ResourcesPanel", () => {
     const select = screen.getByRole("button", { name: /exercises.res.dialog.block/ })
     fireEvent.keyDown(select, { key: "ArrowDown" })
     expect(screen.queryByRole("menuitemradio", { name: /exercises.res.preset.large/ })).toBeNull()
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: /exercises.res.preset.huge/ }))
-    expect(onPickBlock).toHaveBeenCalledWith(expect.objectContaining({ DeviceID: "big" }), "huge")
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /exercises.res.preset.max/ }))
+    expect(onPickBlock).toHaveBeenCalledWith(expect.objectContaining({ DeviceID: "big" }), "max")
   })
 
   it("shows a failed request inside the dialog", async () => {

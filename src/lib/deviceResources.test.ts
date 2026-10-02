@@ -17,21 +17,21 @@ describe("quantities", () => {
 describe("device amount", () => {
   it("is the default preset when none is set", () => {
     expect(selectedPreset(device(""), config)).toBe("micro")
-    expect(deviceAmount(device(""), config)).toEqual({ CPUMillicores: 16, MemoryBytes: 64 * MIB })
+    expect(deviceAmount(device(""), config)).toEqual({ CPUMillicores: 15, MemoryBytes: 64 * MIB })
   })
   it("uses the preset the platform lists", () => {
     expect(deviceAmount(device("medium"), config)).toEqual({ CPUMillicores: 125, MemoryBytes: 512 * MIB })
-    expect(devicePreset(device("medium"), config)?.Blocks).toBe(8)
+    expect(devicePreset(device("medium"), config)?.Blocks).toBe(16)
   })
   it("falls back to the default preset for an id the platform does not list", () => {
     expect(devicePreset(device("gigantic"), config)?.ID).toBe("micro")
   })
   it("is outside the frame above its blocks", () => {
-    expect(outsideFrame(16, config)).toBe(false)
-    expect(outsideFrame(17, config)).toBe(true)
-    expect(outsideFrame(32, config)).toBe(true)
+    expect(outsideFrame(32, config)).toBe(false)
+    expect(outsideFrame(33, config)).toBe(true)
+    expect(outsideFrame(64, config)).toBe(true)
   })
   it("offers the blocks above the frame to an elevation", () => {
-    expect(elevationPresets(config).map((preset) => preset.ID)).toEqual(["xlarge", "huge"])
+    expect(elevationPresets(config).map((preset) => preset.ID)).toEqual(["xlarge", "max"])
   })
 })
