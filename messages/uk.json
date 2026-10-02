@@ -7,6 +7,8 @@
   "role.event.moderator": "Модератор",
   "role.event.observer": "Спостерігач",
   "confirm.cancel": "Скасувати",
+  "error.tooManyRequests": "Забагато запитів. Спробуйте ще раз за мить.",
+  "error.tooManyRequests.wait": "Забагато запитів. Спробуйте ще раз за {seconds} с.",
   "error.generic": "Щось пішло не так",
   "error.page.title": "Не вдалося завантажити сторінку",
   "error.page.body": "Сталася непередбачена помилка. Оновіть сторінку або поверніться назад.",

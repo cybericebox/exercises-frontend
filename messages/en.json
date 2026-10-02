@@ -7,6 +7,8 @@
   "role.event.moderator": "Moderator",
   "role.event.observer": "Observer",
   "confirm.cancel": "Cancel",
+  "error.tooManyRequests": "Too many requests. Try again in a moment.",
+  "error.tooManyRequests.wait": "Too many requests. Try again in {seconds} s.",
   "error.generic": "Something went wrong",
   "error.page.title": "The page couldn’t load",
   "error.page.body": "Something unexpected went wrong. Reload the page or go back.",

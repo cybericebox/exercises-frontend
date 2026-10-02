@@ -19,11 +19,20 @@ export class ApiError extends Error {
     public readonly signInUrl?: string,
     // Stable numeric FullCode from the envelope (Status.Code). This — not the
     // English message — is the i18n key callers localize against (see i18n/apiError).
-    public readonly code?: number
+    public readonly code?: number,
+    // Seconds from the Retry-After header of a 429 (rate limit / lockout), when sent.
+    public readonly retryAfterSeconds?: number
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
   }
+}
+
+// Retry-After of a 429, in whole seconds (the backend sends delta-seconds, >= 1).
+export function parseRetryAfter(header: string | null): number | undefined {
+  if (!header) return undefined
+  const seconds = Number(header)
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined
 }
 
 // ApiOptions controls cross-cutting request behavior.
@@ -117,7 +126,8 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       parsed,
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
-      envelope?.Status?.Code
+      envelope?.Status?.Code,
+      parseRetryAfter(res.headers.get("Retry-After"))
     )
   }
 

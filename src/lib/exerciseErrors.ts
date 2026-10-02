@@ -9,6 +9,7 @@
  * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
+import { catalogError, localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 
 export const ERR_EXERCISE_EXISTS = 40903
@@ -25,7 +26,6 @@ export const ERR_PROPOSAL_NOT_FOUND = 30954
 export const ERR_PROPOSAL_INVALID = 70955
 export const ERR_PROPOSAL_DECIDED = 70956
 export const ERR_EXERCISE_FORBIDDEN = 60957
-export const ERR_NAME_EXISTS_ON_APPROVE = 70903
 
 export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
@@ -71,7 +71,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   20944: "admin.ex.err.addressRefInvalid",
   20945: "admin.ex.err.addressRefUnreachable",
   20947: "admin.ex.err.networkDhcpInvalid",
-  20937: "admin.ex.err.taskDescriptionRequired",
+  20938: "admin.ex.err.taskDescriptionRequired",
   // exercise: placeholders
   20925: "admin.ex.err.placeholderInvalid",
   20926: "admin.ex.err.placeholderNode",
@@ -84,7 +84,6 @@ export const CODE_TO_KEY: Record<number, string> = {
   70955: "exercises.err.proposalInvalid",
   70956: "exercises.err.proposalDecided",
   60957: "exercises.err.forbidden",
-  70903: "exercises.err.nameExists",
   // test deploy
   30937: "admin.ex.err.deployNotFound",
   70958: "admin.ex.err.testDeployNoLab",
@@ -113,10 +112,14 @@ export function exerciseErrorCode(e: unknown): number | null {
 
 /** Human-readable (Ukrainian) message for any exercises API error. */
 export function exerciseErrorMessage(e: unknown): string {
+  // 429 (request limiter or auth lockout): a wait message from Retry-After, whatever the code.
+  if (e instanceof ApiError && e.status === 429) return localizedError(e)
   const code = exerciseErrorCode(e)
   if (code !== null) {
     const key = CODE_TO_KEY[code]
     if (key) return t(key)
+    const cataloged = catalogError(e)
+    if (cataloged) return cataloged
     const message = ((e as ApiError).body as EnvelopeBody | null | undefined)?.Status?.Message
     if (message) return `${t("admin.ex.err.generic")}: ${message}`
   }

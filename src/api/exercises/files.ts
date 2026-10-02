@@ -5,7 +5,7 @@
  * application/json, which breaks the multipart boundary. XHR exposes upload
  * progress while preserving the cookie-authenticated multipart contract.
  */
-import { ApiError, redirectRequiredAuth } from "@/api/client"
+import { ApiError, parseRetryAfter, redirectRequiredAuth } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
 
@@ -52,7 +52,7 @@ export function uploadExerciseFile(file: File, onProgress?: (percent: number) =>
         ? parsed as { Status?: { Code?: number; Message?: string }; Data?: unknown }
         : undefined
       if (request.status < 200 || request.status >= 300) {
-        reject(new ApiError(request.status, parsed, envelope?.Status?.Message, request.getResponseHeader("X-Sign-In-URL") ?? undefined, envelope?.Status?.Code))
+        reject(new ApiError(request.status, parsed, envelope?.Status?.Message, request.getResponseHeader("X-Sign-In-URL") ?? undefined, envelope?.Status?.Code, parseRetryAfter(request.getResponseHeader("Retry-After"))))
         return
       }
       onProgress?.(100)
