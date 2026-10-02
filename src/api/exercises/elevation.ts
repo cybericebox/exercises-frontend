@@ -1,7 +1,7 @@
 /**
  * elevation.ts — resource elevation requests of an exercise (devices above the platform frame).
  *
- * Routes: POST /api/exercises/:id/resource-elevations {Reason} covers the working copy's outside-frame
+ * Routes: GET/POST /api/exercises/:id/elevation {Reason}; POST covers the working copy's outside-frame
  * devices that no approval covers yet. The latest request travels with every version response
  * (Version.Elevation); a platform admin decides in admin.
  */
@@ -39,5 +39,5 @@ export function normalizeElevation(raw: RawElevation): Elevation {
 }
 
 export async function requestElevation(exerciseId: string, reason: string): Promise<Elevation> {
-  return normalizeElevation(await apiPost<RawElevation>(`/api/exercises/${exerciseId}/resource-elevations`, { Reason: reason }))
+  return normalizeElevation(await apiPost<RawElevation>(`/api/exercises/${exerciseId}/elevation`, { Reason: reason }))
 }
