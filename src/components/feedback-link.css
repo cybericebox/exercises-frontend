@@ -1,0 +1,6 @@
+/* «Надіслати відгук»: a small fixed pill in the bottom-right corner of every page.
+   Hairline border instead of a shadow; below the consent panel and dialogs; tokens only. */
+.feedback-link{position:fixed;right:var(--ib-3,12px);bottom:var(--ib-2,8px);z-index:40;padding:2px var(--ib-3,12px);border:1px solid var(--ib-line);border-radius:var(--ib-r-pill,999px);background:var(--ib-raised);color:var(--ib-dim);font-size:var(--ib-fs-13,13px);line-height:1.5;text-decoration:none;white-space:nowrap}
+.feedback-link:hover{color:var(--ib-ink)}
+.feedback-link:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
+@media print{.feedback-link{display:none}}

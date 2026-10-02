@@ -13,6 +13,7 @@ export default defineConfig({
       NEXT_PUBLIC_EVENT_DOMAIN: "cybericebox.local",
       // jsdom runs on localhost and drops cookies set for another domain
       NEXT_PUBLIC_COOKIE_DOMAIN: "localhost",
+      NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],

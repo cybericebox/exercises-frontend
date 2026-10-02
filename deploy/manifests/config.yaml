@@ -14,5 +14,7 @@ data:
   EVENT_DOMAIN: ""
   # Domain attribute of the shared theme/consent cookies (e.g. cybericebox.com); no implicit parent.
   COOKIE_DOMAIN: ""
+  # REQUIRED: support mailbox of the «Надіслати відгук» (send feedback) link on every page.
+  SUPPORT_EMAIL: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""

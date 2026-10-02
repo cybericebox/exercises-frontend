@@ -6,6 +6,7 @@ import { ExercisesShell } from "@/components/shell/ExercisesShell"
 import { ServiceStatusGate } from "@/components/ServiceStatusGate"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
+import { FeedbackLink } from "@/components/FeedbackLink"
 import { t } from "@/i18n/t"
 import { Analytics } from "@/components/consent/Analytics"
 
@@ -21,6 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RoleProvider>
           <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
         </RoleProvider>
+        {/* plain mailto link in the static HTML of every page, outside the role-gated shell */}
+        <FeedbackLink />
         <ServiceStatusGate />
         {/* the consent panel is always mounted («Налаштування файлів cookie»); GA loads only when configured */}
         <Analytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />

@@ -61,6 +61,11 @@ spec:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: COOKIE_DOMAIN
+            - name: NEXT_PUBLIC_SUPPORT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: exercises-frontend-config
+                  key: SUPPORT_EMAIL
             - name: NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
               valueFrom:
                 configMapKeyRef:
