@@ -56,11 +56,11 @@ const login = {
 }
 const second = { ...login, ID: "t2", Name: "Escalate", Description: doc(text("Second task body")), Attachments: [], Placeholders: [], Hints: [] }
 const version: Version = {
-  ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
+  ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [
     { ID: "v0", Index: 1, Note: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [], Connections: [], VisualRender: null } },
     { ID: "v1", Index: 2, Note: "", Tasks: [login, second], Topology: { VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Connections: [], VisualRender: null,
-      Devices: [{ ID: "dev-web", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1", Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
+      Devices: [{ ID: "dev-web", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1", ResourcePreset: "", Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
         Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
         EnvVars: [{ Name: "K", Value: "topsecret", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" } }] } },
   ],

@@ -4,7 +4,7 @@ import { labNodeInfo, labTopology } from "./labTopology"
 
 const device = (over: Partial<NormalizedDevice>): NormalizedDevice => ({
   ID: "d1", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1",
-  Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
+  ResourcePreset: "", Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
   Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
   EnvVars: [{ Name: "FLAG", Value: "ICE{x}", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" }, ...over,
 })

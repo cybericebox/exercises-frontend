@@ -15,13 +15,13 @@ const topology: TopologyFormValues = {
   Devices: [
     {
       ID: 'd1', Name: 'web', Type: 'container', SecurityPreset: '', Image: 'nginx',
-      Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+      ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
       Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] } }],
       EnvVars: [], External: { Enabled: false, Port: 80, Protocol: 'http' },
     },
     {
       ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '',
-      Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+      ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
       Interfaces: [], EnvVars: [], External: { Enabled: false, Port: 80, Protocol: 'http' },
     },
   ],

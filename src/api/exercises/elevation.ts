@@ -1,45 +1,43 @@
 /**
- * elevation.ts — resource elevation requests for the working copy of an exercise.
+ * elevation.ts — resource elevation requests of an exercise (devices above the platform frame).
  *
- * Routes: GET/POST /api/exercises/:id/elevation. An author asks per task version, with a
- * reason; a platform admin approves or rejects in admin. The approval stores the approved
- * values per device; a later version keeps it while every value stays at or below them.
+ * Routes: POST /api/exercises/:id/resource-elevations {Reason} covers the working copy's outside-frame
+ * devices that no approval covers yet. The latest request travels with every version response
+ * (Version.Elevation); a platform admin decides in admin.
  */
-import { apiGet, apiPost } from "@/api/client"
-import type { ElevationStatus, ElevationValue } from "@/lib/deviceResources"
+import { apiPost } from "@/api/client"
+import type { ResourceAmount } from "./capabilities"
 
-export type { ElevationStatus, ElevationValue }
+export type ElevationStatus = "pending" | "approved" | "rejected"
+export type ElevationDevice = { DeviceID: string; Name: string } & ResourceAmount
 
 export type Elevation = {
+  ID: string
+  ExerciseID: string
+  ExerciseName: string
+  VersionID: string
   Status: ElevationStatus
   Reason: string
-  /** What the author asked for (pending, rejected) or the last request. */
-  Requested: ElevationValue[]
-  /** The approved values per device; kept while a later request is pending or rejected. */
-  Approved: ElevationValue[]
-  ReviewNote: string
-  RequestedAt: string | null
-  ReviewedAt: string | null
+  Requested: ElevationDevice[]
+  Approved: ElevationDevice[]
+  DecisionNote: string
+  RequestedByName: string
+  RequestedAt: string
+  DecidedByName: string
+  DecidedAt: string | null
 }
 
-type RawElevation = Partial<Elevation> | null
+type RawElevation = Partial<Elevation> & Pick<Elevation, "ID" | "Status">
 
-function normalize(raw: RawElevation): Elevation {
+export function normalizeElevation(raw: RawElevation): Elevation {
   return {
-    Status: raw?.Status ?? "none",
-    Reason: raw?.Reason ?? "",
-    Requested: raw?.Requested ?? [],
-    Approved: raw?.Approved ?? [],
-    ReviewNote: raw?.ReviewNote ?? "",
-    RequestedAt: raw?.RequestedAt ?? null,
-    ReviewedAt: raw?.ReviewedAt ?? null,
+    ID: raw.ID, ExerciseID: raw.ExerciseID ?? "", ExerciseName: raw.ExerciseName ?? "", VersionID: raw.VersionID ?? "",
+    Status: raw.Status, Reason: raw.Reason ?? "", Requested: raw.Requested ?? [], Approved: raw.Approved ?? [],
+    DecisionNote: raw.DecisionNote ?? "", RequestedByName: raw.RequestedByName ?? "", RequestedAt: raw.RequestedAt ?? "",
+    DecidedByName: raw.DecidedByName ?? "", DecidedAt: raw.DecidedAt ?? null,
   }
 }
 
-export async function getElevation(exerciseId: string): Promise<Elevation> {
-  return normalize(await apiGet<RawElevation>(`/api/exercises/${exerciseId}/elevation`))
-}
-
-export async function requestElevation(exerciseId: string, input: { Reason: string; Devices: ElevationValue[] }): Promise<Elevation> {
-  return normalize(await apiPost<RawElevation>(`/api/exercises/${exerciseId}/elevation`, input))
+export async function requestElevation(exerciseId: string, reason: string): Promise<Elevation> {
+  return normalizeElevation(await apiPost<RawElevation>(`/api/exercises/${exerciseId}/resource-elevations`, { Reason: reason }))
 }

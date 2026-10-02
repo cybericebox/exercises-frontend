@@ -19,7 +19,8 @@ import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBa
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
 import { ResourcesPanel } from "@/components/exercises/ResourcesPanel"
-import { useResourceGate } from "@/components/exercises/useResourceGate"
+import { ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
+import type { ResourcesConfig } from "@/api/exercises/capabilities"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
@@ -39,7 +40,6 @@ import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { useReturnContext } from "@/components/shell/ReturnContext"
-import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
@@ -108,6 +108,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const activeDeploy = activeDeploys.items[0] ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [devicePersistence, setDevicePersistence] = useState(false)
+  const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
   const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
@@ -169,7 +170,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false) } })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null) } })
       .catch(() => { if (!cancelled) setLaboratories(false) })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -211,7 +212,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }, [leave.destination])
 
   const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
-  const resourceGate = useResourceGate(exercise?.ID ?? null, watchedVariants as DraftFormValues["Variants"])
+  const resourceBlocked = Boolean(editor.version?.Resources?.Outside.some((issue) => !issue.Covered))
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
@@ -250,7 +251,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : null
 
-  return <DevicePersistenceProvider value={devicePersistence}><EditorPositionProvider position={position} onChange={updatePosition}>
+  return <DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
       className="flex min-h-full w-full flex-col gap-4">
       <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
@@ -269,7 +270,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         permissions={permissions}
         archived={archived}
         publishable={exercise ? canPublishExercise(exercise) : false}
-        publishBlockedReason={resourceGate.blocked ? t("exercises.res.publishBlockedShort") : undefined}
+        publishBlockedReason={resourceBlocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
         testAvailable={permissions.write}
@@ -344,8 +345,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} gate={resourceGate} canRequest={editing} canPublish={permissions.publish}
-                  flush={() => editor.autosave.flush()} />}
+                {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+                  config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
+                  flush={() => editor.autosave.flush()} onRequested={editor.setElevation} />}
                 <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
@@ -381,5 +383,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider></DevicePersistenceProvider>
+  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider>
 }

@@ -1,67 +1,44 @@
 import { describe, expect, it } from "vitest"
-import {
-  coveredBy, deviceAmount, frameIssues, presetOf, publishBlocked, taskTotals, variantsDiffer, type ElevationValue,
-} from "./deviceResources"
+import { RESOURCES_CONFIG as config } from "@/test/resourcesConfig"
+import { cpuMillis, deviceAmount, formatCPU, formatMemory, memoryBytes, outsideFrame, selectedPreset } from "./deviceResources"
 
-type Res = { CPURequest?: string; CPULimit?: string; MemoryRequest?: string; MemoryLimit?: string }
-const device = (id: string, resources: Res, type = "container") => ({ ID: id, Name: id, Type: type, Resources: resources })
-const same = (cpu: string, memory: string): Res => ({ CPURequest: cpu, CPULimit: cpu, MemoryRequest: memory, MemoryLimit: memory })
-const variant = (...devices: ReturnType<typeof device>[]) => ({ Topology: { Devices: devices } })
+const MIB = 1024 ** 2
+const device = (ResourcePreset: string, CPULimit = "", MemoryLimit = "") => ({ ResourcePreset, Resources: { CPULimit, MemoryLimit } })
 
-describe("presetOf", () => {
-  it("treats empty resources as the default preset", () => {
-    expect(presetOf({})).toBe("micro")
-    expect(presetOf(undefined)).toBe("micro")
+describe("quantities", () => {
+  it("parses CPU to millicores and memory to bytes", () => {
+    expect(cpuMillis("250m")).toBe(250)
+    expect(cpuMillis("0.5")).toBe(500)
+    expect(cpuMillis("")).toBeNull()
+    expect(memoryBytes("512Mi")).toBe(512 * MIB)
+    expect(memoryBytes("1Gi")).toBe(1024 * MIB)
   })
-  it("recognises each preset and custom values", () => {
-    expect(presetOf(same("50m", "128Mi"))).toBe("small")
-    expect(presetOf(same("0.125", "512Mi"))).toBe("medium")
-    expect(presetOf(same("250m", "1Gi"))).toBe("large")
-    expect(presetOf(same("300m", "1Gi"))).toBe("custom")
-    expect(presetOf({ CPURequest: "25m", CPULimit: "50m", MemoryRequest: "64Mi", MemoryLimit: "64Mi" })).toBe("custom")
+  it("formats them", () => {
+    expect(formatCPU(250)).toBe("250m")
+    expect(formatCPU(1000)).toBe("1")
+    expect(formatMemory(64 * MIB)).toBe("64Mi")
+    expect(formatMemory(1536 * MIB)).toBe("1.5Gi")
   })
 })
 
-describe("totals", () => {
-  it("sums containers and counts every device; empty resources are micro", () => {
-    const totals = taskTotals([variant(device("a", same("125m", "512Mi")), device("b", {}), device("sw", {}, "unmanaged-switch"))])
-    expect(totals.max).toEqual({ cpu: 150, memory: 576, devices: 3 })
-    expect(totals.min).toEqual(totals.max)
+describe("device amount", () => {
+  it("is the default preset when neither a preset nor limits are set", () => {
+    expect(selectedPreset(device(""), config)).toBe("micro")
+    expect(deviceAmount(device(""), config)).toEqual({ CPUMillicores: 25, MemoryBytes: 64 * MIB })
   })
-  it("gives the min–max over variants", () => {
-    const totals = taskTotals([variant(device("a", same("250m", "1Gi"))), variant(device("a", same("50m", "128Mi")))])
-    expect(totals.min.cpu).toBe(50)
-    expect(totals.max.memory).toBe(1024)
+  it("uses the preset the platform lists, and the preset wins over limits", () => {
+    expect(deviceAmount(device("medium"), config)).toEqual({ CPUMillicores: 125, MemoryBytes: 512 * MIB })
+    expect(selectedPreset(device("medium", "900m", "2Gi"), config)).toBe("medium")
+    expect(deviceAmount(device("medium", "900m", "2Gi"), config).CPUMillicores).toBe(125)
   })
-  it("warns only when variants differ by more than 25%", () => {
-    expect(variantsDiffer(taskTotals([variant(device("a", same("250m", "1Gi"))), variant(device("a", same("250m", "1Gi")))]))).toBe(false)
-    expect(variantsDiffer(taskTotals([variant(device("a", same("250m", "1Gi"))), variant(device("a", same("200m", "1Gi")))]))).toBe(false)
-    expect(variantsDiffer(taskTotals([variant(device("a", same("250m", "1Gi"))), variant(device("a", same("50m", "128Mi")))]))).toBe(true)
-    expect(variantsDiffer(taskTotals([variant(device("a", same("250m", "1Gi")))]))).toBe(false)
+  it("uses custom limits, a missing one falls back to the default preset", () => {
+    expect(selectedPreset(device("", "300m"), config)).toBe("custom")
+    expect(deviceAmount(device("", "300m", "2Gi"), config)).toEqual({ CPUMillicores: 300, MemoryBytes: 2048 * MIB })
+    expect(deviceAmount(device("", "300m"), config).MemoryBytes).toBe(64 * MIB)
   })
-})
-
-describe("elevation gate", () => {
-  const big = variant(device("big", same("500m", "2Gi")))
-  const approval = (cpu: string, memory: string): ElevationValue[] => [{ DeviceID: "big", CPU: cpu, Memory: memory }]
-
-  it("ignores devices inside the frame", () => {
-    expect(frameIssues([variant(device("a", same("250m", "1Gi")))], [])).toEqual([])
-  })
-  it("blocks publishing until the device is covered", () => {
-    expect(publishBlocked(frameIssues([big], []))).toBe(true)
-    expect(publishBlocked(frameIssues([big], approval("500m", "2Gi")))).toBe(false)
-  })
-  it("keeps an approval when values go down and drops it when any value goes up", () => {
-    expect(frameIssues([variant(device("big", same("400m", "1536Mi")))], approval("500m", "2Gi"))[0].covered).toBe(true)
-    expect(frameIssues([variant(device("big", same("600m", "2Gi")))], approval("500m", "2Gi"))[0].covered).toBe(false)
-    expect(frameIssues([variant(device("big", same("500m", "3Gi")))], approval("500m", "2Gi"))[0].covered).toBe(false)
-  })
-  it("flags values above the platform ceiling", () => {
-    expect(frameIssues([variant(device("big", same("2", "2Gi")))], [])[0].tooLarge).toBe(true)
-    expect(frameIssues([variant(device("big", same("1", "4Gi")))], [])[0].tooLarge).toBe(false)
-  })
-  it("coveredBy needs an approval", () => {
-    expect(coveredBy(deviceAmount(same("500m", "2Gi")), undefined)).toBe(false)
+  it("is outside the frame above either value", () => {
+    expect(outsideFrame({ CPUMillicores: 250, MemoryBytes: 1024 * MIB }, config)).toBe(false)
+    expect(outsideFrame({ CPUMillicores: 251, MemoryBytes: 64 * MIB }, config)).toBe(true)
+    expect(outsideFrame({ CPUMillicores: 25, MemoryBytes: 1025 * MIB }, config)).toBe(true)
   })
 })

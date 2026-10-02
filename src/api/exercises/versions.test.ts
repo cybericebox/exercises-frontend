@@ -138,7 +138,7 @@ describe('normalizeVariant', () => {
       Name: 'web',
       Type: 'container',
       SecurityPreset: '',
-      Image: '',
+      Image: '', ResourcePreset: '',
       Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
       Interfaces: [],
       EnvVars: [],
@@ -164,5 +164,20 @@ describe('normalizeVariant', () => {
     }
     const v = normalizeVariant(raw)
     expect(v.Topology.Devices[0].EnvVars[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
+  })
+})
+
+describe('version resources', () => {
+  it('reads the server-counted resources and the latest elevation of a version response', async () => {
+    mockApiGet.mockResolvedValueOnce({
+      ID: 'v', ExerciseID: 'e', Status: 'draft', AdminNote: '', CreatedAt: '', CreatedBy: null, PublishedAt: null, Variants: [],
+      Resources: { Min: { Devices: 1, CPUMillicores: 25, MemoryBytes: 1 }, Max: { Devices: 1, CPUMillicores: 25, MemoryBytes: 1 }, Variants: null, SpreadPercent: 0, VariantsDiffer: false, Outside: null, ResourceHeavy: true },
+      Elevation: { ID: 'r', Status: 'pending', Requested: null },
+    })
+    const version = await getDraft('e')
+    expect(version.Resources?.Outside).toEqual([])
+    expect(version.Resources?.ResourceHeavy).toBe(true)
+    expect(version.Elevation?.Status).toBe('pending')
+    expect(version.Elevation?.Requested).toEqual([])
   })
 })

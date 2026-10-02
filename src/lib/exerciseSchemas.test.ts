@@ -178,9 +178,23 @@ describe('topology operator parity', () => {
     expect(saved?.Interfaces?.[0].IP).not.toHaveProperty('Routes')
   })
 
+  it('sends a preset id alone, and only the limits for custom values', () => {
+    const draft = validDraft()
+    const preset = Object.assign(emptyDevice(), { ResourcePreset: 'medium', Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '900m', MemoryLimit: '' } })
+    preset.Name = 'a'
+    const custom = Object.assign(emptyDevice(), { ResourcePreset: '', Resources: { CPURequest: '100m', MemoryRequest: '', CPULimit: '200m', MemoryLimit: '' } })
+    custom.Name = 'b'
+    draft.Variants[0].Topology.Devices.push(preset, custom)
+    const [first, second] = toSaveDraftInput(draft).Variants[0].Topology.Devices ?? []
+    expect(first.ResourcePreset).toBe('medium')
+    expect(first.Resources).toBeUndefined()
+    expect(second.ResourcePreset).toBeUndefined()
+    expect(second.Resources).toEqual({ CPULimit: '200m' })
+  })
+
   it('serializes only set resource fields and all static routes', () => {
     const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: '250m', MemoryRequest: '', CPULimit: '', MemoryLimit: '512Mi' } })
+    const device = Object.assign(emptyDevice(), { ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '250m', MemoryLimit: '512Mi' } })
     device.Name = 'web'
     Object.assign(device.Interfaces[0].IP, {
       Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '',
@@ -188,7 +202,7 @@ describe('topology operator parity', () => {
     })
     draft.Variants[0].Topology.Devices.push(device)
     const output = toSaveDraftInput(draft).Variants[0].Topology.Devices?.[0]
-    expect(output?.Resources).toEqual({ CPURequest: '250m', MemoryLimit: '512Mi' })
+    expect(output?.Resources).toEqual({ CPULimit: '250m', MemoryLimit: '512Mi' })
     expect(output?.Interfaces?.[0].IP.Routes).toEqual([
       { Dst: '10.1.0.0/16', Via: '10.0.0.1' },
       { Dst: '10.2.0.0/16', Via: '10.0.0.1' },
@@ -197,7 +211,7 @@ describe('topology operator parity', () => {
 
   it.each(['0', '-1Mi', 'pizza', '500m'])("rejects invalid or excessive CPU request %s", (value) => {
     const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: value, MemoryRequest: '', CPULimit: '250m', MemoryLimit: '' } })
+    const device = Object.assign(emptyDevice(), { ResourcePreset: "", Resources: { CPURequest: value, MemoryRequest: '', CPULimit: '250m', MemoryLimit: '' } })
     device.Name = 'web'
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
@@ -212,7 +226,7 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
     device.Type = 'unmanaged-switch'
     device.Interfaces = []
-    Object.assign(device, { Resources: { CPURequest: '250m' } })
+    Object.assign(device, { ResourcePreset: "", Resources: { CPURequest: '250m' } })
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
@@ -830,6 +844,8 @@ const DEV_ID = '99999999-8888-7777-6666-555555555555'
 
 function loadedVersion(): Version {
   return {
+    Resources: null,
+    Elevation: null,
     ID: 'v1',
     ExerciseID: 'e1',
     Status: 'draft',
@@ -863,7 +879,7 @@ function loadedVersion(): Version {
           Type: 'container',
           SecurityPreset: '',
           Image: 'nginx:1.27',
-          Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+          ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
           Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [] } }],
           EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
           External: { Port: 8080, Protocol: 'https' },

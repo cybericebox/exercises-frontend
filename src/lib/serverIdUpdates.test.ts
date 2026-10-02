@@ -8,7 +8,7 @@ function savedFrom(form: ReturnType<typeof emptyDraft>, ids: { variant: string; 
   values.Variants[0].ID = ids.variant
   values.Variants[0].Tasks.forEach((task, i) => { task.ID = ids.tasks[i] })
   return {
-    ID: "draft-1", ExerciseID: "e1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
+    ID: "draft-1", ExerciseID: "e1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
     Variants: values.Variants.map((variant) => ({ ...variant, Topology: { ...variant.Topology, Devices: [] } })),
   }
 }

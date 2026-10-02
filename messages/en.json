@@ -537,7 +537,7 @@
   "exercises.res.total.memory": "Memory",
   "exercises.res.total.devices": "Devices",
   "exercises.res.rangeNote": "Range over {count} variants. An event reserves the largest.",
-  "exercises.res.variantsDiffer": "The task variants differ a lot in resources. Check that this is intended.",
+  "exercises.res.variantsDiffer": "The task variants differ in resources by {percent}%. Check that this is intended.",
   "exercises.res.unnamed": "Unnamed",
   "exercises.res.state.approved": "Approved",
   "exercises.res.state.pending": "Pending approval",

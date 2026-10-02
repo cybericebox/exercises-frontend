@@ -20,6 +20,8 @@
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
 import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
+import { normalizeElevation, type Elevation } from "./elevation"
+import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 
 const BASE = "/api/exercises"
@@ -100,6 +102,8 @@ export type DeviceDTO = {
   Type: DeviceType
   SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
+  /** A preset id of the platform; wins over Resources. Neither set means the default preset. */
+  ResourcePreset?: string
   Resources?: DeviceResourcesDTO
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
@@ -203,6 +207,7 @@ export type NormalizedDevice = {
   Type: DeviceType
   SecurityPreset: SecurityPreset
   Image: string
+  ResourcePreset: string
   Resources: NormalizedDeviceResources
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
@@ -229,6 +234,23 @@ export type NormalizedVariant = {
   Topology: NormalizedTopology
 }
 
+/** Containers only; a variant is one entry of Variants. */
+export type ResourceTotals = ResourceAmount & { Devices: number }
+export type DeviceOutside = { VariantID: string; DeviceID: string; Name: string; Covered: boolean; AboveCeiling: boolean } & ResourceAmount
+
+/** The task's resources, computed by the server on every version response. */
+export type VersionResources = {
+  Min: ResourceTotals
+  Max: ResourceTotals
+  Variants: ({ VariantID: string } & ResourceTotals)[]
+  SpreadPercent: number
+  /** true: show the «variants differ a lot» warning. */
+  VariantsDiffer: boolean
+  /** Devices above the frame; Covered says an approved elevation holds them. */
+  Outside: DeviceOutside[]
+  ResourceHeavy: boolean
+}
+
 export type Version = {
   ID: string
   ExerciseID: string
@@ -236,6 +258,10 @@ export type Version = {
   AdminNote: string
   Label: string // snapshot caption; "" when none
   Variants: NormalizedVariant[]
+  /** null while the server has not computed it (an empty working copy). */
+  Resources: VersionResources | null
+  /** The latest elevation request of the exercise, if any. */
+  Elevation: Elevation | null
   CreatedAt: string
   CreatedBy: string | null
   AuthorName?: string // first and last name of CreatedBy; "" when unknown
@@ -284,6 +310,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     Type: raw.Type,
     SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",
+    ResourcePreset: raw.ResourcePreset ?? "",
     Resources: {
       CPURequest: raw.Resources?.CPURequest ?? "",
       MemoryRequest: raw.Resources?.MemoryRequest ?? "",
@@ -328,10 +355,22 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
   }
 }
 
-type RawVersion = Omit<Version, "Variants" | "Label"> & { Variants: VariantDTO[] | null; Label?: string }
+type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation"> & {
+  Variants: VariantDTO[] | null
+  Label?: string
+  Resources?: (Omit<VersionResources, "Outside" | "Variants"> & { Outside: DeviceOutside[] | null; Variants: VersionResources["Variants"] | null }) | null
+  Elevation?: Parameters<typeof normalizeElevation>[0] | null
+}
+
+export function normalizeResources(raw: RawVersion["Resources"]): VersionResources | null {
+  return raw ? { ...raw, Outside: raw.Outside ?? [], Variants: raw.Variants ?? [] } : null
+}
 
 function normalizeVersion(raw: RawVersion): Version {
-  return { ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant) }
+  return {
+    ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
+    Resources: normalizeResources(raw.Resources), Elevation: raw.Elevation ? normalizeElevation(raw.Elevation) : null,
+  }
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────

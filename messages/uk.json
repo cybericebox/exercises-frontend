@@ -537,7 +537,7 @@
   "exercises.res.total.memory": "Памʼять",
   "exercises.res.total.devices": "Пристроїв",
   "exercises.res.rangeNote": "Діапазон за {count} варіантами. Для заходу резервується найбільший.",
-  "exercises.res.variantsDiffer": "Варіанти завдання сильно відрізняються за ресурсами. Перевірте, чи це навмисно.",
+  "exercises.res.variantsDiffer": "Варіанти завдання відрізняються за ресурсами на {percent}%. Перевірте, чи це навмисно.",
   "exercises.res.unnamed": "Без назви",
   "exercises.res.state.approved": "Погоджено",
   "exercises.res.state.pending": "Очікує погодження",

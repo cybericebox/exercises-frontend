@@ -257,6 +257,7 @@ const deviceSchema = z
     Type: z.enum(["container", "unmanaged-switch", "hub"]),
     SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
+    ResourcePreset: z.string(),
     Resources: z.object({ CPURequest: z.string(), MemoryRequest: z.string(), CPULimit: z.string(), MemoryLimit: z.string() }),
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
@@ -267,7 +268,7 @@ const deviceSchema = z
     const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    const hasResources = Object.values(d.Resources).some(Boolean)
+    const hasResources = d.ResourcePreset !== "" || Object.values(d.Resources).some(Boolean)
     if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || hasResources)) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
@@ -577,6 +578,7 @@ export function emptyDevice(): DeviceFormValues {
     Type: "container",
     SecurityPreset: "",
     Image: "",
+    ResourcePreset: "",
     Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" },
     Interfaces: [emptyInterface()],
     EnvVars: [],
@@ -641,6 +643,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
         Internet: v.Topology.Internet,
         Devices: v.Topology.Devices.map((d) => ({
           ...d,
+          ResourcePreset: d.ResourcePreset ?? "",
           Resources: { CPURequest: d.Resources?.CPURequest ?? "", MemoryRequest: d.Resources?.MemoryRequest ?? "", CPULimit: d.Resources?.CPULimit ?? "", MemoryLimit: d.Resources?.MemoryLimit ?? "" },
           Interfaces: d.Interfaces.map((iface) => ({ ...iface, IP: { ...iface.IP, Routes: iface.IP.Routes ?? [] } })),
           External: d.External
@@ -723,7 +726,9 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...base,
     ...(d.SecurityPreset ? { SecurityPreset: d.SecurityPreset } : {}),
     ...(d.Image ? { Image: d.Image } : {}),
-    ...(Object.values(d.Resources).some(Boolean) ? { Resources: Object.fromEntries(Object.entries(d.Resources).filter(([, value]) => value)) } : {}),
+    // A preset wins over custom limits; requests mirror the limits on the server, so only limits go out.
+    ...(d.ResourcePreset ? { ResourcePreset: d.ResourcePreset }
+      : d.Resources.CPULimit || d.Resources.MemoryLimit ? { Resources: { ...(d.Resources.CPULimit ? { CPULimit: d.Resources.CPULimit } : {}), ...(d.Resources.MemoryLimit ? { MemoryLimit: d.Resources.MemoryLimit } : {}) } } : {}),
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),

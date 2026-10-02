@@ -21,9 +21,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
-import {
-  FRAME, RESOURCE_PRESETS, customResources, deviceAmount, formatCPU, formatMemory, outsideFrame, presetOf, presetResources, type PresetId,
-} from "@/lib/deviceResources"
+import { cpuQuantity, deviceAmount, formatCPU, formatMemory, memoryQuantity, outsideFrame, selectedPreset } from "@/lib/deviceResources"
+import { useResourcesConfig } from "./ResourcesConfigContext"
+import { LoadingArea } from "@/components/ui/spinner"
 
 const PROTOCOLS: Protocol[] = ["http", "https"]
 // The operator treats an omitted preset and explicit "basic" identically.
@@ -205,7 +205,7 @@ export function DeviceCard({
   )
 }
 
-/** A custom value is both the request and the limit: the field edits the limit and mirrors it into the request. */
+/** The preset (or custom limits) of one device; presets, the frame and the amounts come from the platform. */
 function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
   variantIndex: number
   deviceIndex: number
@@ -213,31 +213,35 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
   compact: boolean
 }) {
   const { control, setValue } = useFormContext<DraftFormValues>()
-  const path = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Resources` as const
-  const resources = useWatch({ control, name: path })
-  const detected = presetOf(resources)
-  const [customChosen, setCustomChosen] = useState(false)
-  const selected: PresetId | "custom" = customChosen ? "custom" : detected
-  const amount = deviceAmount(resources)
-  const outside = outsideFrame(amount)
+  const config = useResourcesConfig()
+  const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
+  const preset = useWatch({ control, name: `${base}.ResourcePreset` })
+  const resources = useWatch({ control, name: `${base}.Resources` })
+  if (!config) return <LoadingArea compact className="h-24" label={t("admin.loading")} />
+  const device = { ResourcePreset: preset, Resources: resources }
+  const selected = selectedPreset(device, config)
+  const amount = deviceAmount(device, config)
+  const outside = outsideFrame(amount, config)
 
-  function choose(next: PresetId | "custom") {
+  function choose(next: string) {
+    if (!config) return
+    const noLimits = { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }
     if (next === "custom") {
-      setCustomChosen(true)
-      // Start the custom values from what the device has now.
-      setValue(path, customResources(`${amount.cpu}m`, `${amount.memory}Mi`), { shouldDirty: true })
+      // Start the custom limits from what the device has now; the preset must not win over them.
+      setValue(`${base}.ResourcePreset`, "", { shouldDirty: true })
+      setValue(`${base}.Resources`, { ...noLimits, CPULimit: cpuQuantity(amount.CPUMillicores), MemoryLimit: memoryQuantity(amount.MemoryBytes) }, { shouldDirty: true })
       return
     }
-    setCustomChosen(false)
-    const preset = RESOURCE_PRESETS.find((candidate) => candidate.id === next)
-    if (preset) setValue(path, presetResources(preset), { shouldDirty: true })
+    setValue(`${base}.ResourcePreset`, next, { shouldDirty: true })
+    setValue(`${base}.Resources`, noLimits, { shouldDirty: true })
   }
 
+  const options = [...config.Presets.map((item) => ({ id: item.ID, hint: `${formatCPU(item.CPUMillicores)} · ${formatMemory(item.MemoryBytes)}` })),
+    { id: "custom", hint: t("exercises.res.customHint") }]
   return <div data-device-resources className="min-w-0 space-y-3">
     <div role="radiogroup" aria-label={t("admin.exTopo.resources")}
       className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`}>
-      {[...RESOURCE_PRESETS.map((preset) => ({ id: preset.id as PresetId | "custom", hint: `${formatCPU(preset.cpu)} · ${formatMemory(preset.memory)}` })),
-        { id: "custom" as const, hint: t("exercises.res.customHint") }].map((option) => (
+      {options.map((option) => (
         <button key={option.id} type="button" role="radio" aria-checked={selected === option.id} disabled={disabled}
           onClick={() => choose(option.id)}
           className={`flex min-w-0 flex-col rounded-md border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 ${selected === option.id ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}>
@@ -247,33 +251,28 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
       ))}
     </div>
     {selected === "custom" && <div data-device-resource-grid className={`grid gap-3 ${compact ? "grid-cols-1 @min-[26rem]:grid-cols-2" : "sm:grid-cols-2"}`}>
-      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="CPULimit" mirror="CPURequest"
-        labelKey="exercises.res.cpu" disabled={disabled} compact={compact} warn={amount.cpu > FRAME.cpu} />
-      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="MemoryLimit" mirror="MemoryRequest"
-        labelKey="exercises.res.memory" disabled={disabled} compact={compact} warn={amount.memory > FRAME.memory} />
+      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="CPULimit"
+        labelKey="exercises.res.cpu" disabled={disabled} compact={compact} warn={amount.CPUMillicores > config.Frame.CPUMillicores} />
+      <ResourceQuantityField variantIndex={variantIndex} deviceIndex={deviceIndex} resource="MemoryLimit"
+        labelKey="exercises.res.memory" disabled={disabled} compact={compact} warn={amount.MemoryBytes > config.Frame.MemoryBytes} />
     </div>}
     <p data-resource-summary className={`text-xs ${outside ? "text-[var(--ib-warn)]" : "text-muted-foreground"}`}>
-      {outside ? t("exercises.res.outsideFrame", { cpu: formatCPU(amount.cpu), memory: formatMemory(amount.memory) })
-        : t("exercises.res.insideFrame", { cpu: formatCPU(amount.cpu), memory: formatMemory(amount.memory) })}
+      {t(outside ? "exercises.res.outsideFrame" : "exercises.res.insideFrame", { cpu: formatCPU(amount.CPUMillicores), memory: formatMemory(amount.MemoryBytes) })}
     </p>
   </div>
 }
 
-function ResourceQuantityField({ variantIndex, deviceIndex, resource, mirror, labelKey, disabled, compact, warn = false }: {
+function ResourceQuantityField({ variantIndex, deviceIndex, resource, labelKey, disabled, compact, warn = false }: {
   variantIndex: number
   deviceIndex: number
-  resource: "CPURequest" | "CPULimit" | "MemoryRequest" | "MemoryLimit"
-  mirror?: "CPURequest" | "MemoryRequest"
+  resource: "CPULimit" | "MemoryLimit"
   labelKey: string
   disabled: boolean
   compact: boolean
   warn?: boolean
 }) {
-  const { control, setValue } = useFormContext<DraftFormValues>()
-  const update = (field: { onChange: (value: string) => void }, value: string) => {
-    field.onChange(value)
-    if (mirror) setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Resources.${mirror}`, value, { shouldDirty: true })
-  }
+  const { control } = useFormContext<DraftFormValues>()
+  const update = (field: { onChange: (value: string) => void }, value: string) => field.onChange(value)
   const isCPU = resource.startsWith("CPU")
   const units = isCPU ? CPU_UNITS : MEMORY_UNITS
   const [chosenUnit, setChosenUnit] = useState(isCPU ? "m" : "Mi")

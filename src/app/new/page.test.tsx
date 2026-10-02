@@ -41,7 +41,7 @@ const created: Exercise = {
   ArchivedAt: null, HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "2026-09-26T10:00:00Z", UpdatedBy: null,
 }
 const savedVersion: Version = {
-  ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
+  ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
     LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],

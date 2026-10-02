@@ -13,6 +13,8 @@ import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } 
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
 import { DevicePersistenceProvider } from './DevicePersistenceContext'
+import { ResourcesConfigProvider } from './ResourcesConfigContext'
+import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
 
 function DeviceValues() {
   const { control } = useFormContext<DraftFormValues>()
@@ -20,7 +22,7 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device, compact = false, networks = false, vpnDhcp = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean }) {
+function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   if (networks) {
@@ -30,7 +32,9 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false }:
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
-      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
+      <ResourcesConfigProvider value={config}>
+        <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
+      </ResourcesConfigProvider>
       <DeviceValues />
     </FormProvider>
   )
@@ -73,7 +77,7 @@ describe('DeviceCard', () => {
   })
   const values = () => JSON.parse(screen.getByTestId('device-values').textContent || '{}')
 
-  it('shows the default preset and applies a chosen preset as request and limit', () => {
+  it('shows the default preset and applies a chosen preset by id', () => {
     const device = emptyDevice()
     device.Name = 'web'
     render(<Harness device={device} />)
@@ -82,32 +86,46 @@ describe('DeviceCard', () => {
     expect(screen.queryByRole('textbox', { name: 'exercises.res.cpu' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: /exercises.res.preset.medium/ }))
     expect(screen.getByRole('radio', { name: /exercises.res.preset.medium/ })).toHaveAttribute('aria-checked', 'true')
-    expect(values().Resources).toEqual({ CPURequest: '125m', CPULimit: '125m', MemoryRequest: '512Mi', MemoryLimit: '512Mi' })
+    expect(values().ResourcePreset).toBe('medium')
+    expect(values().Resources).toEqual({ CPURequest: '', CPULimit: '', MemoryRequest: '', MemoryLimit: '' })
   })
 
-  it('edits custom CPU and memory as one value for request and limit', () => {
+  it('offers the presets the platform reports, with their amounts', () => {
+    render(<Harness device={emptyDevice()} />)
+    expect(screen.getAllByRole('radio')).toHaveLength(RESOURCES_CONFIG.Presets.length + 1)
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.large/ })).toHaveTextContent('250m · 1Gi')
+  })
+
+  it('edits custom CPU and memory as limits and drops the preset', () => {
     const device = emptyDevice()
+    device.ResourcePreset = 'small'
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('radio', { name: /exercises.res.preset.custom/ }))
-    expect(screen.getByRole('textbox', { name: 'exercises.res.cpu' })).toHaveValue('25')
+    expect(values().ResourcePreset).toBe('')
+    expect(screen.getByRole('textbox', { name: 'exercises.res.cpu' })).toHaveValue('50')
     fireEvent.change(screen.getByRole('textbox', { name: 'exercises.res.cpu' }), { target: { value: '300' } })
     expect(values().Resources.CPULimit).toBe('300m')
-    expect(values().Resources.CPURequest).toBe('300m')
+    expect(values().Resources.CPURequest).toBe('')
     fireEvent.keyDown(screen.getByRole('button', { name: 'exercises.res.cpu admin.exTopo.resourceUnit' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: /admin.exTopo.cpuUnit.core/ }))
     expect(values().Resources.CPULimit).toBe('300')
-    expect(values().Resources.CPURequest).toBe('300')
   })
 
   it('highlights values outside the frame and keeps them', () => {
     const device = emptyDevice()
-    device.Resources = { CPURequest: '500m', CPULimit: '500m', MemoryRequest: '2Gi', MemoryLimit: '2Gi' }
+    device.Resources = { CPURequest: '', CPULimit: '500m', MemoryRequest: '', MemoryLimit: '2Gi' }
     const { container } = render(<Harness device={device} />)
     expect(screen.getByRole('radio', { name: /exercises.res.preset.custom/ })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('textbox', { name: 'exercises.res.cpu' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'exercises.res.memory' })).toHaveAttribute('aria-invalid', 'true')
     expect(container.querySelector('[data-resource-summary]')).toHaveTextContent('exercises.res.outsideFrame')
     expect(values().Resources.CPULimit).toBe('500m')
+  })
+
+  it('shows a centered loader until the platform settings arrive', () => {
+    const { container } = render(<Harness device={emptyDevice()} config={null} />)
+    expect(container.querySelector('.loading-area')).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 
   it('splits a stored memory quantity into amount and unit without changing its value', () => {
@@ -118,8 +136,7 @@ describe('DeviceCard', () => {
     expect(screen.getByRole('button', { name: 'exercises.res.memory admin.exTopo.resourceUnit' })).toHaveTextContent('admin.exTopo.memoryUnit.Mi')
     fireEvent.change(screen.getByRole('textbox', { name: 'exercises.res.memory' }), { target: { value: '768' } })
     expect(values().Resources.MemoryLimit).toBe('768Mi')
-    expect(values().Resources.MemoryRequest).toBe('768Mi')
-  })
+      })
 
   it('preserves an uncommon stored quantity suffix while exposing it in the unit control', () => {
     const device = emptyDevice()
