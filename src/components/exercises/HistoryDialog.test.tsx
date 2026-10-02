@@ -3,7 +3,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import type { VersionListItem } from "@/api/exercises/versions"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
-vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({ u1: { id: "u1", name: "O. Koval", href: "" } }) }))
 vi.mock("@/api/exercises/versions", () => ({ listVersions: vi.fn() }))
 
 import { listVersions } from "@/api/exercises/versions"
@@ -16,7 +15,7 @@ const item = (patch: Partial<VersionListItem>): VersionListItem => ({
 
 const versions = [
   item({ ID: "old", Status: "unpublished", CreatedAt: "2026-09-01T10:00:00Z", PublishedAt: "2026-09-12T14:05:00Z" }),
-  item({ ID: "snap", Status: "checkpoint", Label: "Before topology rework", AdminNote: "working notes", CreatedAt: "2026-09-22T16:10:00Z", CreatedBy: "u1" }),
+  item({ ID: "snap", Status: "checkpoint", Label: "Before topology rework", AdminNote: "working notes", CreatedAt: "2026-09-22T16:10:00Z", CreatedBy: "u1", AuthorName: "O. Koval" }),
   item({ ID: "draft", Status: "draft", CreatedAt: "2026-09-20T10:00:00Z" }),
   item({ ID: "pub", Status: "published", CreatedAt: "2026-09-15T10:00:00Z", PublishedAt: "2026-09-20T09:30:00Z" }),
 ]

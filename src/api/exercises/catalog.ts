@@ -74,8 +74,10 @@ export type Exercise = ExerciseOwnership & {
   HasChanges: boolean
   CreatedAt: string
   CreatedBy: string | null
+  AuthorName?: string // first and last name of CreatedBy; "" when unknown
   UpdatedAt: string
   UpdatedBy: string | null
+  UpdatedByName?: string
 }
 
 export type ArchivedFilter = "exclude" | "only"

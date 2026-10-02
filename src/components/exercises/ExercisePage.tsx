@@ -35,7 +35,6 @@ import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoute
 import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
-import { useUserNames } from "@/lib/userNames"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { useReturnContext } from "@/components/shell/ReturnContext"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
@@ -63,12 +62,11 @@ function ExerciseMeta({ exercise, version, isVersion, publishedAt }: {
   isVersion: boolean
   publishedAt: string | null
 }) {
-  const names = useUserNames([version?.CreatedBy])
   let text: string | null
   if (!exercise) {
     text = null
   } else if (isVersion && version) {
-    const author = version.CreatedBy ? names[version.CreatedBy]?.name : undefined
+    const author = version.AuthorName
     text = [t(`admin.exHistory.kind.${version.Status}`), formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt), author]
       .filter(Boolean).join(" · ")
   } else {

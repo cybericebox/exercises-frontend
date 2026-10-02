@@ -19,7 +19,6 @@ vi.mock("next/link", () => ({
 vi.mock("@/components/shell/AccessContext", () => ({ useExerciseAccess: () => ({ access: h.access, loading: false }) }))
 vi.mock("@/components/shell/ReturnContext", () => ({ useReturnContext: () => ({ returnUrl: h.returnUrl, eventId: null }) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
-vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))

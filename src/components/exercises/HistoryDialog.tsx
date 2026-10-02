@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
-import { useUserNames } from "@/lib/userNames"
 import { cn } from "@/utils/cn"
 
 const KIND_CLASS: Record<VersionListItem["Status"], string> = {
@@ -51,7 +50,6 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
     return () => { cancelled = true }
   }, [exerciseId, attempt])
 
-  const names = useUserNames((versions ?? []).map((version) => version.CreatedBy))
   const currentId = versions?.find((version) => version.Status === "draft")?.ID
     ?? versions?.find((version) => version.Status === "published")?.ID
     ?? null
@@ -70,7 +68,7 @@ export function HistoryDialog({ exerciseId, viewingVersionId, onClose, onView }:
                 {versions.map((version) => {
                   const isCurrent = version.ID === currentId
                   const opened = viewingVersionId === null ? isCurrent : version.ID === viewingVersionId
-                  const author = version.CreatedBy ? names[version.CreatedBy]?.name : undefined
+                  const author = version.AuthorName
                   const date = entryDate(version)
                   return <li key={version.ID}
                     className="grid gap-x-4 gap-y-1 border-b border-border px-2 py-2.5 last:border-b-0 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center">

@@ -163,6 +163,7 @@ export type VersionListItem = {
   VariantCount: number
   CreatedAt: string
   CreatedBy: string | null
+  AuthorName?: string // first and last name of CreatedBy; "" when unknown
   PublishedAt: string | null
 }
 
@@ -237,6 +238,7 @@ export type Version = {
   Variants: NormalizedVariant[]
   CreatedAt: string
   CreatedBy: string | null
+  AuthorName?: string // first and last name of CreatedBy; "" when unknown
   PublishedAt: string | null
 }
 
