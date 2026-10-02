@@ -8,8 +8,6 @@ import type { DeployAccess, DeployStatus } from "@/api/exercises/deploy"
 import type { NormalizedDevice, NormalizedTopology } from "@/api/exercises/versions"
 import type { TopologyFormValues } from "@/lib/exerciseSchemas"
 
-const NO_RESOURCES = { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }
-
 /** The diagram's model of the variant's topology, without anything private. */
 export function labTopology(topology: NormalizedTopology): TopologyFormValues {
   return {
@@ -19,7 +17,6 @@ export function labTopology(topology: NormalizedTopology): TopologyFormValues {
       Image: "",
       EnvVars: [],
       ResourcePreset: "",
-      Resources: NO_RESOURCES,
       Persistence: undefined,
       External: device.External ? { Enabled: true, ...device.External } : { Enabled: false, Port: 80, Protocol: "http" as const },
     })),

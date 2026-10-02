@@ -10,12 +10,13 @@ import { ApiError } from "@/api/client"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import { createBooking, getRoom, listBookings } from "@/api/exercises/testLabs"
 import { NoRoomPanel } from "./NoRoomPanel"
+import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
 
 const MIB = 1024 ** 2
-const config = { Presets: [{ ID: "micro", CPUMillicores: 25, MemoryBytes: 64 * MIB }], DefaultPreset: "micro", Frame: { CPUMillicores: 250, MemoryBytes: 1024 * MIB }, Ceiling: { CPUMillicores: 1000, MemoryBytes: 4096 * MIB }, MaxDevicesPerLab: 32, MaxInterfacesPerDevice: 16, MaxPortsPerSwitch: 48, VariantSpreadWarnPercent: 25 }
-const variant = { ID: "v1", Index: 0, Note: "", Tasks: [], Topology: { Devices: [{ ID: "d1", Name: "web", ResourcePreset: "micro", Resources: { CPULimit: "", MemoryLimit: "" } }] } } as unknown as NormalizedVariant
+const config = RESOURCES_CONFIG
+const variant = { ID: "v1", Index: 0, Note: "", Tasks: [], Topology: { Devices: [{ ID: "d1", Name: "web", ResourcePreset: "micro" }] } } as unknown as NormalizedVariant
 const noRoom = (context?: Record<string, string>) => new ApiError(409, { Status: { Code: 72509, Message: "x", ...(context ? { Context: context } : {}) } }, "x", undefined, 72509)
-const resources = { Min: { CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1 }, Max: { CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1 }, Variants: [{ VariantID: "v1", CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1 }], SpreadPercent: 0, VariantsDiffer: false, Outside: [], ResourceHeavy: false }
+const resources = { Min: { CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1, Blocks: 2 }, Max: { CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1, Blocks: 2 }, Variants: [{ VariantID: "v1", CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 1, Blocks: 2 }], SpreadPercent: 0, VariantsDiffer: false, Outside: [], ResourceHeavy: false }
 
 describe("NoRoomPanel (72509)", () => {
   beforeEach(() => {
@@ -37,7 +38,7 @@ describe("NoRoomPanel (72509)", () => {
     await waitFor(() => expect(createBooking).toHaveBeenCalledTimes(1))
     expect(createBooking).toHaveBeenCalledWith({
       Start: start, DurationMinutes: 90,
-      Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB }, LargestDevice: { CPUMillicores: 25, MemoryBytes: 64 * MIB },
+      Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB }, LargestDevice: { CPUMillicores: 16, MemoryBytes: 64 * MIB },
     })
     expect(await screen.findByText(/exercises\.book\.bookedFrom/)).toBeTruthy()
   })
@@ -46,7 +47,7 @@ describe("NoRoomPanel (72509)", () => {
     vi.mocked(getRoom).mockResolvedValue({ Available: false, Via: "", NearestFrom: "2099-01-01T13:00:00Z" })
     render(<NoRoomPanel error={noRoom()} variant={variant} resources={null} onRetry={vi.fn()} />)
     expect(await screen.findByRole("button", { name: "exercises.book.action" })).toBeTruthy()
-    expect(getRoom).toHaveBeenCalledWith({ CPUMillicores: 25, MemoryBytes: 64 * MIB }, { CPUMillicores: 25, MemoryBytes: 64 * MIB })
+    expect(getRoom).toHaveBeenCalledWith({ CPUMillicores: 16, MemoryBytes: 64 * MIB }, { CPUMillicores: 16, MemoryBytes: 64 * MIB })
   })
 
   it("does not send a booking that breaks the limits", async () => {

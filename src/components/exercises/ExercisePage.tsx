@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
-import { listVersions, type Version } from "@/api/exercises/versions"
+import { listVersions, type DeviceOutside, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -213,6 +213,13 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
 
   const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
   const resourceBlocked = Boolean(editor.version?.Resources?.Outside.some((issue) => !issue.Covered))
+  // The elevation dialog picks a larger block per device: it is written to that device of the working copy.
+  const pickDeviceBlock = useCallback((issue: DeviceOutside, presetId: string) => {
+    const variants = editor.draftForm.getValues("Variants")
+    const variantIndex = variants.findIndex((variant) => variant.ID === issue.VariantID)
+    const deviceIndex = variantIndex < 0 ? -1 : variants[variantIndex].Topology.Devices.findIndex((device) => device.ID === issue.DeviceID)
+    if (deviceIndex >= 0) editor.draftForm.setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ResourcePreset`, presetId, { shouldDirty: true })
+  }, [editor.draftForm])
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
@@ -347,7 +354,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
                   config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
-                  flush={() => editor.autosave.flush()} onRequested={editor.setElevation} />}
+                  flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
                 <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>

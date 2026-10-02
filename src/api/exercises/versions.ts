@@ -88,8 +88,6 @@ export type NormalizedRoute = {
   Via: string
   ViaRef?: NetworkIPRefDTO | null
 }
-export type DeviceResourcesDTO = { CPURequest?: string; MemoryRequest?: string; CPULimit?: string; MemoryLimit?: string }
-export type NormalizedDeviceResources = Required<DeviceResourcesDTO>
 
 export type InterfaceDTO = { Name: string; MAC?: string; IP: IPConfigDTO }
 
@@ -102,9 +100,8 @@ export type DeviceDTO = {
   Type: DeviceType
   SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
-  /** A preset id of the platform; wins over Resources. Neither set means the default preset. */
+  /** A preset id of the platform (a whole number of blocks). Unset means the default preset. */
   ResourcePreset?: string
-  Resources?: DeviceResourcesDTO
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
   External?: ExternalDTO
@@ -208,7 +205,6 @@ export type NormalizedDevice = {
   SecurityPreset: SecurityPreset
   Image: string
   ResourcePreset: string
-  Resources: NormalizedDeviceResources
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
   External: ExternalDTO | null
@@ -235,8 +231,8 @@ export type NormalizedVariant = {
 }
 
 /** Containers only; a variant is one entry of Variants. */
-export type ResourceTotals = ResourceAmount & { Devices: number }
-export type DeviceOutside = { VariantID: string; DeviceID: string; Name: string; Covered: boolean; AboveCeiling: boolean } & ResourceAmount
+export type ResourceTotals = ResourceAmount & { Devices: number; Blocks: number }
+export type DeviceOutside = { VariantID: string; DeviceID: string; Name: string; Blocks: number; Covered: boolean; AboveCeiling: boolean } & ResourceAmount
 
 /** The task's resources, computed by the server on every version response. */
 export type VersionResources = {
@@ -311,12 +307,6 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",
     ResourcePreset: raw.ResourcePreset ?? "",
-    Resources: {
-      CPURequest: raw.Resources?.CPURequest ?? "",
-      MemoryRequest: raw.Resources?.MemoryRequest ?? "",
-      CPULimit: raw.Resources?.CPULimit ?? "",
-      MemoryLimit: raw.Resources?.MemoryLimit ?? "",
-    },
     Interfaces: (raw.Interfaces ?? []).map(normalizeInterface),
     EnvVars: (raw.EnvVars ?? []).map((ev) => ({
       Name: ev.Name,

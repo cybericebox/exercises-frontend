@@ -139,7 +139,6 @@ describe('normalizeVariant', () => {
       Type: 'container',
       SecurityPreset: '',
       Image: '', ResourcePreset: '',
-      Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
       Interfaces: [],
       EnvVars: [],
       External: null, Persistence: null,

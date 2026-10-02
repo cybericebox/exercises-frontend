@@ -4,7 +4,7 @@ import { labNodeInfo, labTopology } from "./labTopology"
 
 const device = (over: Partial<NormalizedDevice>): NormalizedDevice => ({
   ID: "d1", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1",
-  ResourcePreset: "", Resources: { CPURequest: "1", MemoryRequest: "1Gi", CPULimit: "2", MemoryLimit: "2Gi" },
+  ResourcePreset: "huge",
   Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
   EnvVars: [{ Name: "FLAG", Value: "ICE{x}", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" }, ...over,
 })
@@ -20,9 +20,9 @@ describe("labTopology", () => {
     for (const d of shown.Devices) {
       expect(d.Image).toBe("")
       expect(d.EnvVars).toEqual([])
-      expect(d.Resources).toEqual({ CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" })
+      expect(d.ResourcePreset).toBe("")
     }
-    expect(JSON.stringify(shown)).not.toMatch(/secret\/image|ICE\{x\}|2Gi/)
+    expect(JSON.stringify(shown)).not.toMatch(/secret\/image|ICE\{x\}|huge/)
   })
 
   it("reads the external port into the form shape", () => {

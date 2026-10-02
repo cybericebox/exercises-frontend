@@ -165,36 +165,36 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
-  it('defaults missing resources and routes when reopening an old draft', () => {
+  it('defaults a missing preset and routes when reopening an old draft', () => {
     const legacy = loadedVersion()
-    delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).Resources
+    delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).ResourcePreset
     delete (legacy.Variants[0].Topology.Devices[0].Interfaces[0].IP as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]['Interfaces'][0]['IP']>).Routes
     const values = toDraftFormValues(legacy)
     const device = values.Variants[0].Topology.Devices[0]
-    expect(device).toHaveProperty('Resources', { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' })
+    expect(device).toHaveProperty('ResourcePreset', '')
     expect(device.Interfaces[0].IP).toHaveProperty('Routes', [])
     const saved = toSaveDraftInput(values).Variants[0].Topology.Devices?.[0]
-    expect(saved).not.toHaveProperty('Resources')
+    expect(saved).not.toHaveProperty('ResourcePreset')
     expect(saved?.Interfaces?.[0].IP).not.toHaveProperty('Routes')
   })
 
-  it('sends a preset id alone, and only the limits for custom values', () => {
+  it('sends the preset id of a device, and nothing for the default', () => {
     const draft = validDraft()
-    const preset = Object.assign(emptyDevice(), { ResourcePreset: 'medium', Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '900m', MemoryLimit: '' } })
+    const preset = Object.assign(emptyDevice(), { ResourcePreset: 'medium' })
     preset.Name = 'a'
-    const custom = Object.assign(emptyDevice(), { ResourcePreset: '', Resources: { CPURequest: '100m', MemoryRequest: '', CPULimit: '200m', MemoryLimit: '' } })
-    custom.Name = 'b'
-    draft.Variants[0].Topology.Devices.push(preset, custom)
+    const plain = emptyDevice()
+    plain.Name = 'b'
+    draft.Variants[0].Topology.Devices.push(preset, plain)
     const [first, second] = toSaveDraftInput(draft).Variants[0].Topology.Devices ?? []
     expect(first.ResourcePreset).toBe('medium')
-    expect(first.Resources).toBeUndefined()
+    expect(first).not.toHaveProperty('Resources')
     expect(second.ResourcePreset).toBeUndefined()
-    expect(second.Resources).toEqual({ CPULimit: '200m' })
+    expect(second).not.toHaveProperty('Resources')
   })
 
-  it('serializes only set resource fields and all static routes', () => {
+  it('serializes all static routes', () => {
     const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '250m', MemoryLimit: '512Mi' } })
+    const device = emptyDevice()
     device.Name = 'web'
     Object.assign(device.Interfaces[0].IP, {
       Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '',
@@ -202,19 +202,10 @@ describe('topology operator parity', () => {
     })
     draft.Variants[0].Topology.Devices.push(device)
     const output = toSaveDraftInput(draft).Variants[0].Topology.Devices?.[0]
-    expect(output?.Resources).toEqual({ CPULimit: '250m', MemoryLimit: '512Mi' })
     expect(output?.Interfaces?.[0].IP.Routes).toEqual([
       { Dst: '10.1.0.0/16', Via: '10.0.0.1' },
       { Dst: '10.2.0.0/16', Via: '10.0.0.1' },
     ])
-  })
-
-  it.each(['0', '-1Mi', 'pizza', '500m'])("rejects invalid or excessive CPU request %s", (value) => {
-    const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { ResourcePreset: "", Resources: { CPURequest: value, MemoryRequest: '', CPULimit: '250m', MemoryLimit: '' } })
-    device.Name = 'web'
-    draft.Variants[0].Topology.Devices.push(device)
-    expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
   it('rejects a second static address and resources on a switch', () => {
@@ -226,7 +217,7 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
     device.Type = 'unmanaged-switch'
     device.Interfaces = []
-    Object.assign(device, { ResourcePreset: "", Resources: { CPURequest: '250m' } })
+    Object.assign(device, { ResourcePreset: 'medium' })
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
@@ -280,18 +271,6 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
     other.LinkedDeviceID = second.ID
     expect(draftSchema.safeParse(draft).success).toBe(true)
-  })
-
-  it('accepts common positive Kubernetes resource suffixes', () => {
-    const draft = validDraft()
-    const device = emptyDevice()
-    device.Name = 'web'
-    draft.Variants[0].Topology.Devices.push(device)
-    for (const quantity of ['1', '250m', '512Mi', '2Gi', '1e3', '1.5G']) {
-      device.Resources.CPURequest = quantity
-      device.Resources.CPULimit = ''
-      expect(draftSchema.safeParse(draft).success).toBe(true)
-    }
   })
 })
 
@@ -879,7 +858,7 @@ function loadedVersion(): Version {
           Type: 'container',
           SecurityPreset: '',
           Image: 'nginx:1.27',
-          ResourcePreset: "", Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+          ResourcePreset: "",
           Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [] } }],
           EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
           External: { Port: 8080, Protocol: 'https' },

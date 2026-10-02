@@ -34,7 +34,7 @@ export function positionForDraftIssue(
     next.env = typeof path[6] === "number" ? path[6] : 0
   } else if (path[5] === "External") {
     next.devicePanel = "external"
-  } else if (path[5] === "Resources") {
+  } else if (path[5] === "ResourcePreset") {
     next.devicePanel = "resources"
   } else {
     next.devicePanel = "basic"

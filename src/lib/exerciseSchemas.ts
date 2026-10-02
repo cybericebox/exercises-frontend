@@ -81,18 +81,6 @@ function cidrFamily(v: string): "ipv4" | "ipv6" | null {
   return v.includes(":") ? "ipv6" : "ipv4"
 }
 
-// Kubernetes quantity suffixes. This mirrors the common resource quantities;
-// the server's resource.ParseQuantity remains the authority for unusual forms.
-const QUANTITY_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:(e[+-]?\d+|E[+-]?\d+)|(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E))?$/
-const QUANTITY_SCALE: Record<string, number> = { n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3, Ti: 1024 ** 4, Pi: 1024 ** 5, Ei: 1024 ** 6 }
-
-export function quantityValue(value: string): number | null {
-  const match = QUANTITY_RE.exec(value)
-  if (!match) return null
-  const result = Number(match[1]) * (match[2] ? 10 ** Number(match[2].slice(1)) : (QUANTITY_SCALE[match[3]] ?? 1))
-  return Number.isFinite(result) && result > 0 ? result : null
-}
-
 // ── Form types ─────────────────────────────────────────────────────────────────
 
 export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Protocol }
@@ -258,7 +246,6 @@ const deviceSchema = z
     SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
     ResourcePreset: z.string(),
-    Resources: z.object({ CPURequest: z.string(), MemoryRequest: z.string(), CPULimit: z.string(), MemoryLimit: z.string() }),
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
     External: externalSchema,
@@ -268,23 +255,11 @@ const deviceSchema = z
     const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    const hasResources = d.ResourcePreset !== "" || Object.values(d.Resources).some(Boolean)
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || hasResources)) {
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
     if (!forwarding && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
-    }
-    for (const field of ["CPURequest", "MemoryRequest", "CPULimit", "MemoryLimit"] as const) {
-      const value = d.Resources[field]
-      if (value !== "" && quantityValue(value) === null) ctx.addIssue({ code: "custom", path: ["Resources", field], message: t("admin.ex.val.resourceQuantity") })
-    }
-    for (const [request, limit] of [["CPURequest", "CPULimit"], ["MemoryRequest", "MemoryLimit"]] as const) {
-      const requestValue = quantityValue(d.Resources[request])
-      const limitValue = quantityValue(d.Resources[limit])
-      if (requestValue !== null && limitValue !== null && requestValue > limitValue) {
-        ctx.addIssue({ code: "custom", path: ["Resources", request], message: t("admin.ex.val.resourceRequestLimit") })
-      }
     }
   })
 
@@ -579,7 +554,6 @@ export function emptyDevice(): DeviceFormValues {
     SecurityPreset: "",
     Image: "",
     ResourcePreset: "",
-    Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" },
     Interfaces: [emptyInterface()],
     EnvVars: [],
     External: { Enabled: false, Port: 80, Protocol: "http" },
@@ -644,7 +618,6 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
         Devices: v.Topology.Devices.map((d) => ({
           ...d,
           ResourcePreset: d.ResourcePreset ?? "",
-          Resources: { CPURequest: d.Resources?.CPURequest ?? "", MemoryRequest: d.Resources?.MemoryRequest ?? "", CPULimit: d.Resources?.CPULimit ?? "", MemoryLimit: d.Resources?.MemoryLimit ?? "" },
           Interfaces: d.Interfaces.map((iface) => ({ ...iface, IP: { ...iface.IP, Routes: iface.IP.Routes ?? [] } })),
           External: d.External
             ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
@@ -726,9 +699,8 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...base,
     ...(d.SecurityPreset ? { SecurityPreset: d.SecurityPreset } : {}),
     ...(d.Image ? { Image: d.Image } : {}),
-    // A preset wins over custom limits; requests mirror the limits on the server, so only limits go out.
-    ...(d.ResourcePreset ? { ResourcePreset: d.ResourcePreset }
-      : d.Resources.CPULimit || d.Resources.MemoryLimit ? { Resources: { ...(d.Resources.CPULimit ? { CPULimit: d.Resources.CPULimit } : {}), ...(d.Resources.MemoryLimit ? { MemoryLimit: d.Resources.MemoryLimit } : {}) } } : {}),
+    // A device size is a preset (a whole number of blocks); unset is the platform default.
+    ...(d.ResourcePreset ? { ResourcePreset: d.ResourcePreset } : {}),
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),

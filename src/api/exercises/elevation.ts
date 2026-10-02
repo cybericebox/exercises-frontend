@@ -9,7 +9,8 @@ import { apiPost } from "@/api/client"
 import type { ResourceAmount } from "./capabilities"
 
 export type ElevationStatus = "pending" | "approved" | "rejected"
-export type ElevationDevice = { DeviceID: string; Name: string } & ResourceAmount
+/** What a device asks for or was approved: a block count and its size. */
+export type ElevationDevice = { DeviceID: string; Name: string; Blocks: number } & ResourceAmount
 
 export type Elevation = {
   ID: string

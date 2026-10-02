@@ -8,9 +8,10 @@ import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { t } from "@/i18n/t"
-import { formatCPU, formatMemory } from "@/lib/deviceResources"
+import { elevationPresets, formatCPU, formatMemory, type Preset } from "@/lib/deviceResources"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 
@@ -39,6 +40,7 @@ function TotalsLine({ resources }: { resources: VersionResources }) {
   const { Min: min, Max: max } = resources
   const pair = (key: string, value: string) => <span key={key} className="whitespace-nowrap"><span className="text-muted-foreground">{t(`exercises.res.total.${key}`)}</span> <span className="font-medium">{value}</span></span>
   return <p data-resource-totals className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+    {pair("blocks", range(min.Blocks, max.Blocks, String))}
     {pair("cpu", range(min.CPUMillicores, max.CPUMillicores, formatCPU))}
     {pair("memory", range(min.MemoryBytes, max.MemoryBytes, formatMemory))}
     {pair("devices", range(min.Devices, max.Devices, String))}
@@ -49,7 +51,7 @@ function TotalsLine({ resources }: { resources: VersionResources }) {
  * The resources of the task as the server counts them (totals, a range over variants, the spread
  * warning), the devices outside the frame with the elevation state, and the publish block.
  */
-export function ResourcesPanel({ exerciseId, resources, elevation, config, canRequest, canPublish, flush, onRequested }: {
+export function ResourcesPanel({ exerciseId, resources, elevation, config, canRequest, canPublish, flush, onRequested, onPickBlock }: {
   exerciseId: string | null
   resources: VersionResources | null
   elevation: Elevation | null
@@ -60,6 +62,8 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
   /** Saves the working copy first, so the request refers to what is on screen. */
   flush: () => Promise<boolean>
   onRequested: (elevation: Elevation) => void
+  /** Sets the block of a device in the working copy (the elevation dialog picks a larger block per device). */
+  onPickBlock?: (issue: DeviceOutside, presetId: string) => void
 }) {
   const [dialog, setDialog] = useState(false)
   if (!resources) return null
@@ -85,7 +89,7 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
         return <li key={`${issue.VariantID}:${issue.DeviceID}`} data-issue-state={state} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
           <span className="min-w-0 truncate">
             <span className="font-medium">{issue.Name || t("exercises.res.unnamed")}</span>{" "}
-            <span className="text-muted-foreground">{formatCPU(issue.CPUMillicores)} · {formatMemory(issue.MemoryBytes)}</span>
+            <span className="text-muted-foreground">{t("exercises.res.blockHint", { count: issue.Blocks, cpu: formatCPU(issue.CPUMillicores), memory: formatMemory(issue.MemoryBytes) })}</span>
           </span>
           <Badge tone={STATE_TONE[state]}>{t(`exercises.res.state.${state}`)}</Badge>
         </li>
@@ -93,19 +97,19 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
     </ul>}
     {issues.length > 0 && <ElevationState elevation={elevation} config={config} />}
     {ceilingIssues.length > 0 && config && <p role="alert" data-ceiling className="text-xs text-[var(--ib-warn)]">
-      {t("exercises.res.ceiling", { cpu: formatCPU(config.Ceiling.CPUMillicores), memory: formatMemory(config.Ceiling.MemoryBytes) })}
+      {t("exercises.res.ceiling", { blocks: config.CeilingBlocks, cpu: formatCPU(config.Ceiling.CPUMillicores), memory: formatMemory(config.Ceiling.MemoryBytes) })}
     </p>}
     {open.length > 0 && canPublish && <p role="alert" data-publish-blocked className="text-xs text-[var(--ib-warn)]">
       {t("exercises.res.publishBlocked", { count: open.length })}
     </p>}
 
-    {dialog && exerciseId && <ElevationDialog exerciseId={exerciseId} issues={requestable} flush={flush}
+    {dialog && exerciseId && <ElevationDialog exerciseId={exerciseId} issues={requestable} config={config} onPickBlock={onPickBlock} flush={flush}
       onClose={() => setDialog(false)} onSent={(next) => { onRequested(next); setDialog(false) }} />}
   </section>
 }
 
 function ElevationState({ elevation, config }: { elevation: Elevation | null; config: ResourcesConfig | null }) {
-  if (!elevation) return config ? <p className="text-xs text-muted-foreground">{t("exercises.res.frameHint", { cpu: formatCPU(config.Frame.CPUMillicores), memory: formatMemory(config.Frame.MemoryBytes) })}</p> : null
+  if (!elevation) return config ? <p className="text-xs text-muted-foreground">{t("exercises.res.frameHint", { blocks: config.FrameBlocks, cpu: formatCPU(config.Frame.CPUMillicores), memory: formatMemory(config.Frame.MemoryBytes) })}</p> : null
   const when = (iso: string | null) => iso ? formatExerciseDateTime(iso) : ""
   return <div data-elevation-status={elevation.Status} className="space-y-1 text-xs">
     {elevation.Status === "pending" && <p>{t("exercises.res.pending", { date: when(elevation.RequestedAt) })}</p>}
@@ -113,21 +117,31 @@ function ElevationState({ elevation, config }: { elevation: Elevation | null; co
     {elevation.Status === "approved" && elevation.Approved.length > 0 && <div data-approved>
       <p>{t("exercises.res.approved")}</p>
       <ul className="text-muted-foreground">
-        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{entry.Name || entry.DeviceID}: {formatCPU(entry.CPUMillicores)} · {formatMemory(entry.MemoryBytes)}</li>)}
+        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{entry.Name || entry.DeviceID}: {t("exercises.res.blockHint", { count: entry.Blocks, cpu: formatCPU(entry.CPUMillicores), memory: formatMemory(entry.MemoryBytes) })}</li>)}
       </ul>
       <p className="text-muted-foreground">{t("exercises.res.raiseNote")}</p>
     </div>}
   </div>
 }
 
-function ElevationDialog({ exerciseId, issues, flush, onClose, onSent }: {
+function presetOfBlocks(config: ResourcesConfig | null, blocks: number): Preset | null {
+  return config?.Presets.find((preset) => preset.Blocks === blocks) ?? null
+}
+
+function ElevationDialog({ exerciseId, issues, config, onPickBlock, flush, onClose, onSent }: {
   exerciseId: string
   issues: DeviceOutside[]
+  config: ResourcesConfig | null
+  onPickBlock?: (issue: DeviceOutside, presetId: string) => void
   flush: () => Promise<boolean>
   onClose: () => void
   onSent: (elevation: Elevation) => void
 }) {
   const [reason, setReason] = useState("")
+  // The block each device asks for; it starts at the device's own and is written to the working copy on change.
+  const [picked, setPicked] = useState<Record<string, string>>({})
+  const blockOf = (issue: DeviceOutside) => picked[`${issue.VariantID}:${issue.DeviceID}`] ?? presetOfBlocks(config, issue.Blocks)?.ID ?? ""
+  const options = config ? elevationPresets(config) : []
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const trimmed = reason.trim()
@@ -155,7 +169,12 @@ function ElevationDialog({ exerciseId, issues, flush, onClose, onSent }: {
       <ul data-requested-values className="divide-y divide-border text-sm">
         {issues.map((issue) => <li key={`${issue.VariantID}:${issue.DeviceID}`} className="flex items-center justify-between gap-3 py-1.5">
           <span className="min-w-0 truncate font-medium">{issue.Name || t("exercises.res.unnamed")}</span>
-          <span className="shrink-0 text-muted-foreground">{formatCPU(issue.CPUMillicores)} · {formatMemory(issue.MemoryBytes)}</span>
+          {config && onPickBlock && options.length > 0
+            ? <SelectMenu value={blockOf(issue)} disabled={busy} ariaLabel={t("exercises.res.dialog.block", { name: issue.Name || t("exercises.res.unnamed") })}
+              onChange={(next) => { setPicked((current) => ({ ...current, [`${issue.VariantID}:${issue.DeviceID}`]: next })); onPickBlock(issue, next) }}
+              options={options.map((preset) => ({ value: preset.ID, label: `${t(`exercises.res.preset.${preset.ID}`)} · ${t("exercises.res.blockHint", { count: preset.Blocks, cpu: formatCPU(preset.CPUMillicores), memory: formatMemory(preset.MemoryBytes) })}` }))}
+              className="h-9 w-64 shrink-0" />
+            : <span className="shrink-0 text-muted-foreground">{t("exercises.res.blockHint", { count: issue.Blocks, cpu: formatCPU(issue.CPUMillicores), memory: formatMemory(issue.MemoryBytes) })}</span>}
         </li>)}
       </ul>
       <div className="space-y-1.5">

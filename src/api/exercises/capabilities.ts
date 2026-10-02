@@ -2,10 +2,17 @@ import { apiGet } from "@/api/client"
 
 export type ResourceAmount = { CPUMillicores: number; MemoryBytes: number }
 
-/** The platform's device resources settings: presets, the frame an author may use freely, the elevation ceiling. */
+/**
+ * The platform's device resources settings. A device is a whole number of blocks (Block is one block);
+ * there is no custom size. Presets are ascending by Blocks; a device above FrameBlocks needs an approved
+ * elevation, up to CeilingBlocks.
+ */
 export type ResourcesConfig = {
-  Presets: ({ ID: string } & ResourceAmount)[]
+  Block: ResourceAmount
+  Presets: ({ ID: string; Blocks: number } & ResourceAmount)[]
   DefaultPreset: string
+  FrameBlocks: number
+  CeilingBlocks: number
   Frame: ResourceAmount
   Ceiling: ResourceAmount
   MaxDevicesPerLab: number
