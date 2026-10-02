@@ -110,5 +110,8 @@
   "71403": "The laboratory access is being reset, try again in a minute",
   "71410": "The platform secrets key is not configured",
   "71417": "The laboratory does not offer device state persistence",
-  "71419": "No laboratory can run this task within its resource limits"
+  "71419": "No laboratory can run this task within its resource limits",
+  "22512": "The booking is invalid: 15 to 480 minutes, at most 14 days ahead, at most 3 at once",
+  "32510": "Booking not found",
+  "72509": "No free resources for a test laboratory now"
 }

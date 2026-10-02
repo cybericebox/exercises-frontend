@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 
 import { destroyDeploy, listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { getExercise, type Exercise } from "@/api/exercises/catalog"
-import { getVersion, type NormalizedVariant } from "@/api/exercises/versions"
+import { getVersion, type NormalizedVariant, type VersionResources } from "@/api/exercises/versions"
 import { LabBar, LabTimer, TaskSidebar, TaskView } from "@/components/exercises/LabWorkbench"
 import { LabTopologyPanel } from "@/components/exercises/LabTopologyPanel"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -23,12 +23,14 @@ import { downloadBlob } from "@/lib/downloadBlob"
 import { LAB_SIDEBAR_COLLAPSED_KEY, LAB_TOPOLOGY_SHOWN_KEY, LAB_TOPOLOGY_WIDTH_KEY, pruneLayouts, removeLayout } from "@/lib/labLayout"
 import { taskValues } from "@/lib/placeholderResolve"
 import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
+import { NoRoomPanel } from "@/components/exercises/NoRoomPanel"
+import { isNoTestLabRoom } from "@/lib/noTestLabRoom"
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 
 /** What the page was opened with: a running deploy, or a variant to start one for. */
 export type TestLabInitial = { deploy: string | null; version: string | null; variant: string | null }
 
-type Meta = { exercise: Exercise; variant: NormalizedVariant; variantNumber: number; versionId: string }
+type Meta = { exercise: Exercise; variant: NormalizedVariant; variantNumber: number; versionId: string; resources: VersionResources | null }
 type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; meta: Meta }
 
 /** A deploy the list no longer knows: ended, or its lease ran out. */
@@ -97,7 +99,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         const variant = version.Variants[index]
         setSelected(variant.Tasks[0]?.ID ?? null)
         setItem(running)
-        setLoad({ state: "ready", meta: { exercise, variant, variantNumber: index + 1, versionId } })
+        setLoad({ state: "ready", meta: { exercise, variant, variantNumber: index + 1, versionId, resources: version.Resources } })
         if (running) attach(running.DeployID, running.Tasks)
         else void start(exerciseId, versionId, variantId)
       } catch (cause) {
@@ -204,7 +206,9 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
 
     {imageNote && <p className="shrink-0 px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
 
-    {failed ? (
+    {failed && isNoTestLabRoom(deploy.errorCause) ? (
+      <NoRoomPanel className="min-h-0 flex-1" error={deploy.errorCause} variant={meta.variant} resources={meta.resources} onRetry={retry} />
+    ) : failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
         message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
