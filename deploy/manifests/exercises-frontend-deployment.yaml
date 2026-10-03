@@ -72,26 +72,6 @@ spec:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: GOOGLE_ANALYTICS_ID
-            - name: NEXT_PUBLIC_CAPTCHA_PROVIDER
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: CAPTCHA_PROVIDER
-            - name: NEXT_PUBLIC_CAPTCHA_SITE_KEY
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: CAPTCHA_SITE_KEY
-            - name: NEXT_PUBLIC_RECAPTCHA_ENTERPRISE
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: RECAPTCHA_ENTERPRISE
-            - name: NEXT_PUBLIC_DOS_PROTECTION
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: DOS_PROTECTION
           ports:
             - containerPort: 3000
               protocol: TCP

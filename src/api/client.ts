@@ -5,7 +5,6 @@
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
 import { apiOrigin, idOrigin } from "@/lib/origins"
-import { fetchWithClientToken } from "@/lib/clientToken"
 import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
@@ -145,16 +144,14 @@ async function request<T>(
 
   let res: Response
   try {
-    res = await fetchWithClientToken(() =>
-      fetch(url, {
-        ...init,
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(init.headers ?? {}),
-        },
-      })
-    )
+    res = await fetch(url, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    })
   } catch (error) {
     // A caller-initiated abort or timeout is not an outage.
     if (isNetworkOutage(error, init.signal)) reportServiceUnavailable()
@@ -181,7 +178,7 @@ export async function apiPostMultipart<T>(
 
   let res: Response
   try {
-    res = await fetchWithClientToken(() => fetch(url, { method: "POST", credentials: "include", body: form }))
+    res = await fetch(url, { method: "POST", credentials: "include", body: form })
   } catch (error) {
     if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error
@@ -213,14 +210,12 @@ export async function apiPostBlob(path: string, body: unknown, opts: ApiOptions 
   const url = `${BASE_URL}${path}`
   let res: Response
   try {
-    res = await fetchWithClientToken(() =>
-      fetch(url, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-    )
+    res = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
   } catch (error) {
     if (isNetworkOutage(error)) reportServiceUnavailable()
     throw error

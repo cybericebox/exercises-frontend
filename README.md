@@ -40,10 +40,6 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 | `NEXT_PUBLIC_COOKIE_DOMAIN` | yes | `Domain` attribute of the shared theme/consent cookies (e.g. `cybericebox.com`); no implicit parent. |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
-| `NEXT_PUBLIC_CAPTCHA_PROVIDER` | no | Bot-check provider of the whole platform: `turnstile`, `recaptcha` or `none` (default; local development). |
-| `NEXT_PUBLIC_CAPTCHA_SITE_KEY` | when the provider is not `none` | Site key of the provider. The build (when the provider is set) and the container start fail without it. |
-| `NEXT_PUBLIC_RECAPTCHA_ENTERPRISE` | no | `true` uses reCAPTCHA Enterprise instead of v3; only read when the provider is `recaptcha`. Default `false`. |
-| `NEXT_PUBLIC_DOS_PROTECTION` | no | `on` or `off` (default). On: the first visit passes an invisible bot check and gets the API's client cookie (`POST /api/client-token`); an API answer `429` with `X-Client-Token: required` refreshes it and retries the request once. Must match the backend `DOS_PROTECTION`. |
 
 ## i18n
 
@@ -51,7 +47,7 @@ All user-facing text lives in `messages/uk.json` and `messages/en.json` and is r
 
 ## Content Security Policy
 
-The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`NEXT_PUBLIC_API_HOST`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set, the chosen bot-check provider (`NEXT_PUBLIC_CAPTCHA_PROVIDER`: Cloudflare Turnstile or reCAPTCHA hosts) only when `NEXT_PUBLIC_DOS_PROTECTION=on`, since this app has no form of its own. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
+The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`NEXT_PUBLIC_API_HOST`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
 
 The export is static, so a per-request nonce is not possible. Instead, at container start `deploy/csp.sh` (runs after the env substitution) hashes every inline `<script>` in the exported pages, plus the scripts the client creates at runtime (the Google Analytics boot; `scripts/csp-inline.mjs` writes its text at build time), and writes the header to `/etc/nginx/snippets/csp.conf`. `deploy/nginx.conf` includes that file in the server block and in every location that sets its own `add_header` (nginx does not inherit `add_header` into a location that defines one). A new inline script needs no manual step; a new runtime-created inline script must be added to `scripts/csp-inline.mjs`.
 

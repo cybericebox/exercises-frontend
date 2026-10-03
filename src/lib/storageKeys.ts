@@ -1,7 +1,6 @@
 // Every browser-storage key (localStorage, sessionStorage, cookies) of this app lives here and starts with `cib_`.
 // Keys with a scope are built by a function; the scope goes in after an underscore.
 
-export const STORAGE_CLIENT_TOKEN_EXPIRES = "cib_client_token_expires"
 export const STORAGE_INBOX_READ = "cib_inbox_read"
 export const STORAGE_BACK = "cib_back"
 export const STORAGE_EXERCISES_RETURN = "cib_exercises_return"
