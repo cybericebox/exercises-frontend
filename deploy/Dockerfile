@@ -5,7 +5,7 @@
 # names, and an entrypoint substitutes the real values at container start
 # (nginx:alpine runs /docker-entrypoint.d/*.sh before launching).
 # Run with: -e NEXT_PUBLIC_{MAIN,API,ID,ADMIN,EXERCISES}_HOST=… -e NEXT_PUBLIC_EVENT_DOMAIN=… -e NEXT_PUBLIC_COOKIE_DOMAIN=… -e NEXT_PUBLIC_SUPPORT_EMAIL=… [-e NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=…]
-FROM --platform=$BUILDPLATFORM node:26-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26.10.0-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -22,7 +22,7 @@ ENV NEXT_PUBLIC_SUPPORT_EMAIL="NEXT_PUBLIC_SUPPORT_EMAIL"
 ENV NEXT_PUBLIC_GOOGLE_ANALYTICS_ID="NEXT_PUBLIC_GOOGLE_ANALYTICS_ID"
 RUN npm run build && node scripts/csp-inline.mjs
 
-FROM nginx:1.30.5-alpine AS runner
+FROM nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS runner
 COPY --from=build /app/out /usr/share/nginx/html
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.d/40-next-public-env.sh

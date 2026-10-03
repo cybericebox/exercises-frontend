@@ -24,7 +24,8 @@ spec:
     spec:
       containers:
         - name: exercises-frontend
-          image: cybericebox/exercises-frontend:latest
+          image: cybericebox/exercises-frontend:v0.1.0 # the release tag: an exact version, never latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: NEXT_PUBLIC_MAIN_HOST
               valueFrom:
