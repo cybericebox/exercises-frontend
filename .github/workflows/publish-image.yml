@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Image tag (a version, vX.Y.Z)
+        description: Image tag (in addition to latest)
         required: true
 jobs:
   push_to_registry:
@@ -33,4 +33,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
+            ${{ github.repository }}:latest
             ${{ github.repository }}:${{ github.event.release.tag_name || inputs.tag }}
