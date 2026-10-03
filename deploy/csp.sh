@@ -16,7 +16,8 @@
 #
 # Operator values come from env: NEXT_PUBLIC_API_HOST (connect-src). Vendor sources are added only
 # when the app is configured to use them: Google Analytics (NEXT_PUBLIC_GOOGLE_ANALYTICS_ID) and
-# reCAPTCHA (NEXT_PUBLIC_RECAPTCHA_SITE_KEY). Google sign-in is a top-level navigation through the
+# the bot check (NEXT_PUBLIC_CAPTCHA_PROVIDER: turnstile or recaptcha), only when the invisible client
+# token runs (NEXT_PUBLIC_DOS_PROTECTION=on; this app has no form of its own). Google sign-in is a top-level navigation through the
 # API, so it needs no source here.
 set -e
 
@@ -108,10 +109,19 @@ if [ -n "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}" ]; then
   script_src="$script_src https://www.googletagmanager.com"
   connect_src="$connect_src https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com/ccm/ https://*.doubleclick.net"
 fi
-if [ -n "${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-}" ]; then
-  script_src="$script_src https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/"
-  connect_src="$connect_src https://www.google.com/recaptcha/"
-  frame_src="https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/"
+if [ "${NEXT_PUBLIC_DOS_PROTECTION:-off}" = "on" ]; then
+  case "${NEXT_PUBLIC_CAPTCHA_PROVIDER:-none}" in
+    turnstile)
+      script_src="$script_src https://challenges.cloudflare.com"
+      connect_src="$connect_src https://challenges.cloudflare.com"
+      frame_src="https://challenges.cloudflare.com"
+      ;;
+    recaptcha)
+      script_src="$script_src https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/"
+      connect_src="$connect_src https://www.google.com/recaptcha/"
+      frame_src="https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/"
+      ;;
+  esac
 fi
 
 # style-src keeps 'unsafe-inline': React inline style attributes and Next's <style> tags cannot be
