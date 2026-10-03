@@ -19,6 +19,25 @@ done
 : "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:=}"
 export NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
 
+# Bot check and client token (anti-abuse). Defaults are the local-development values.
+: "${NEXT_PUBLIC_CAPTCHA_PROVIDER:=none}"
+: "${NEXT_PUBLIC_CAPTCHA_SITE_KEY:=}"
+: "${NEXT_PUBLIC_RECAPTCHA_ENTERPRISE:=false}"
+: "${NEXT_PUBLIC_DOS_PROTECTION:=off}"
+case "$NEXT_PUBLIC_CAPTCHA_PROVIDER" in
+  turnstile | recaptcha | none) ;;
+  *) echo "NEXT_PUBLIC_CAPTCHA_PROVIDER must be turnstile, recaptcha or none." >&2; exit 1 ;;
+esac
+case "$NEXT_PUBLIC_DOS_PROTECTION" in
+  on | off) ;;
+  *) echo "NEXT_PUBLIC_DOS_PROTECTION must be on or off." >&2; exit 1 ;;
+esac
+if [ "$NEXT_PUBLIC_CAPTCHA_PROVIDER" != "none" ] && [ -z "$NEXT_PUBLIC_CAPTCHA_SITE_KEY" ]; then
+  echo "NEXT_PUBLIC_CAPTCHA_SITE_KEY is required when NEXT_PUBLIC_CAPTCHA_PROVIDER is $NEXT_PUBLIC_CAPTCHA_PROVIDER." >&2
+  exit 1
+fi
+export NEXT_PUBLIC_CAPTCHA_PROVIDER NEXT_PUBLIC_CAPTCHA_SITE_KEY NEXT_PUBLIC_RECAPTCHA_ENTERPRISE NEXT_PUBLIC_DOS_PROTECTION
+
 printenv | grep '^NEXT_PUBLIC_' | while IFS='=' read -r key value; do
   # Escape sed-special chars in the replacement (| delimiter, & match-ref, \).
   esc=$(printf '%s' "$value" | sed -e 's/[\\&|]/\\&/g')

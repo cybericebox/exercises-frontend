@@ -15,6 +15,14 @@ const REQUIRED_HOSTS = [
 const missing = REQUIRED_HOSTS.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
 
+// Bot check: one provider for the platform (turnstile | recaptcha | none, default none). A real provider needs
+// its site key. (The image build passes placeholders, which are neither value, so they skip this check; the
+// container entrypoint validates the real values at start.)
+const captchaProvider = process.env.NEXT_PUBLIC_CAPTCHA_PROVIDER?.trim()
+if ((captchaProvider === "turnstile" || captchaProvider === "recaptcha") && !process.env.NEXT_PUBLIC_CAPTCHA_SITE_KEY?.trim()) {
+  throw new Error("NEXT_PUBLIC_CAPTCHA_SITE_KEY is required when NEXT_PUBLIC_CAPTCHA_PROVIDER is " + captchaProvider)
+}
+
 // Dev-only: `next dev` accepts the configured hosts (and event sites) behind a local proxy/tunnel.
 const devHosts = [
   ...REQUIRED_HOSTS.filter((name) => name.endsWith("_HOST")).map((name) => process.env[name]!.trim()),
@@ -36,10 +44,17 @@ function devContentSecurityPolicy(): string {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")
   }
-  if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim()) {
-    script.push("https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/")
-    connect.push("https://www.google.com/recaptcha/")
-    frame = "https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/"
+  if (process.env.NEXT_PUBLIC_DOS_PROTECTION?.trim() === "on") {
+    const provider = process.env.NEXT_PUBLIC_CAPTCHA_PROVIDER?.trim()
+    if (provider === "turnstile") {
+      script.push("https://challenges.cloudflare.com")
+      connect.push("https://challenges.cloudflare.com")
+      frame = "https://challenges.cloudflare.com"
+    } else if (provider === "recaptcha") {
+      script.push("https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/")
+      connect.push("https://www.google.com/recaptcha/")
+      frame = "https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/"
+    }
   }
   return [
     "default-src 'self'",
