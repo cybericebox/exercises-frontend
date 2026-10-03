@@ -24,10 +24,12 @@ RUN npm run build && node scripts/csp-inline.mjs
 
 FROM nginx:1.30.5-alpine-slim@sha256:32463212baf0e7d91aded2e9b843a4f2b9e017804b8c9d5bae7b51dcef64389c AS runner
 COPY --from=build /app/out /usr/share/nginx/html
+COPY deploy/nginx-main.conf /etc/nginx/nginx.conf
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.d/40-next-public-env.sh
 # 50-csp.sh runs after the env substitution: it hashes the inline scripts and writes the CSP header
 # snippet that nginx.conf includes (see the header comment in deploy/csp.sh).
 COPY deploy/csp.sh /docker-entrypoint.d/50-csp.sh
-RUN chmod +x /docker-entrypoint.d/40-next-public-env.sh /docker-entrypoint.d/50-csp.sh
-EXPOSE 3000
+COPY deploy/origin-tls.sh /docker-entrypoint.d/60-origin-tls.sh
+RUN chmod +x /docker-entrypoint.d/40-next-public-env.sh /docker-entrypoint.d/50-csp.sh /docker-entrypoint.d/60-origin-tls.sh
+EXPOSE 3000 8443 8081
