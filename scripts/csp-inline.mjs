@@ -25,5 +25,5 @@ const { gtagBootScript } = await import(pathToFileURL(join(ROOT, "src/lib/consen
 const dir = join(ROOT, "out/_csp")
 mkdirSync(dir, { recursive: true })
 // Must be the exact text of <Script id="ga-init">{gtagBootScript(gaId)}</Script>.
-writeFileSync(join(dir, "gtag-boot.txt"), gtagBootScript("NEXT_PUBLIC_GOOGLE_ANALYTICS_ID"))
+writeFileSync(join(dir, "gtag-boot.txt"), gtagBootScript("__NEXT_PUBLIC_GOOGLE_ANALYTICS_ID__"))
 console.log("[csp] wrote out/_csp/gtag-boot.txt")
