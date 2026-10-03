@@ -11,7 +11,7 @@
 #      substitution step has filled them in by now, so the hash matches what the browser executes.
 # nginx limits one config string to 4096 bytes, and a site-wide list of hashes is longer than that, so
 # each page gets its own hash list through an nginx map keyed by the request URI (conf.d/csp-map.conf),
-# and the header snippet interpolates it. frame-ancestors is only honoured as an HTTP header. nginx.conf includes it in the server block and in every location that sets
+# and the header snippet interpolates it. frame-ancestors is only honoured as an HTTP header. server.conf includes it in the server block and in every location that sets
 # its own add_header (add_header is not inherited once a location defines one).
 #
 # Operator values come from env: NEXT_PUBLIC_API_HOST (connect-src). Vendor sources are added only
