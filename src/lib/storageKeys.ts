@@ -8,6 +8,7 @@ export const STORAGE_TOPOLOGY_INSPECTOR_WIDTH = "cib_topology_inspector_width"
 const SITE_BANNER_DISMISSED = "cib_site_banner_dismissed"
 const EXERCISE_POSITION = "cib_exercise_position"
 const EXERCISE_PENDING = "cib_exercise_pending"
+const CHUNKED_UPLOAD = "cib_chunked_upload"
 
 export function siteBannerDismissedKey(id: string | number, version: string | number = ""): string {
   return `${SITE_BANNER_DISMISSED}_${id}_${version}`
@@ -20,4 +21,9 @@ export function exercisePositionKey(userId: string, exerciseId: string): string 
 export function exercisePendingKey(userId: string, exerciseId: string): string {
   return `${EXERCISE_PENDING}_${userId}_${exerciseId}`
 }
+/** The id of an unfinished chunked upload of one file (name, size, modified time): where a resumed upload starts. */
+export function chunkedUploadKey(file: string): string {
+  return `${CHUNKED_UPLOAD}_${file}`
+}
+
 export const COOKIE_RETURN_TO = "cib_return_to"

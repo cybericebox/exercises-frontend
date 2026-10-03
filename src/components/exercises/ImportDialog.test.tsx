@@ -44,7 +44,7 @@ describe("ImportDialog", () => {
     fireEvent.change(screen.getByLabelText("admin.exImport.password"), { target: { value: "pw" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
-    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw")
+    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined)
     expect(onImported).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })

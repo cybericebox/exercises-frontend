@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/api/client")
+vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn() }))
 
 import * as client from "@/api/client"
+import { uploadInChunks } from "@/api/exercises/chunkedUpload"
+import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import { EXPORT_LIMIT, exportExercises, importExercises } from "./archive"
 
 const mockBlob = vi.mocked(client.apiPostBlob)
 const mockMultipart = vi.mocked(client.apiPostMultipart)
+const mockPost = vi.mocked(client.apiPost)
+const mockChunks = vi.mocked(uploadInChunks)
 
 describe("exercise archive client", () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -51,5 +56,17 @@ describe("exercise archive client", () => {
     mockMultipart.mockResolvedValueOnce([])
     await importExercises(new File(["zip"], "a.zip"), "")
     expect((mockMultipart.mock.calls[0][1] as FormData).has("password")).toBe(false)
+  })
+
+  it("sends a big archive in chunks and imports from the stored file", async () => {
+    mockChunks.mockResolvedValueOnce({ FileID: "f1", Name: "big.zip", Size: SINGLE_REQUEST_MAX + 1 })
+    mockPost.mockResolvedValueOnce([])
+    const big = new File(["zip"], "big.zip")
+    Object.defineProperty(big, "size", { value: SINGLE_REQUEST_MAX + 1 })
+    const progress = vi.fn()
+    await importExercises(big, "pw", progress)
+    expect(mockChunks).toHaveBeenCalledWith(big, progress)
+    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/uploaded", { FileID: "f1", Password: "pw" })
+    expect(mockMultipart).not.toHaveBeenCalled()
   })
 })
