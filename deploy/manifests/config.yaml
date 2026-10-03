@@ -18,11 +18,3 @@ data:
   SUPPORT_EMAIL: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""
-  # Bot check (anti-abuse): one provider for the whole platform, the same value in every app: turnstile | recaptcha | none.
-  CAPTCHA_PROVIDER: "none"
-  # Site key of the provider; REQUIRED when CAPTCHA_PROVIDER is not none.
-  CAPTCHA_SITE_KEY: ""
-  # reCAPTCHA Enterprise instead of v3 (true | false); only read when CAPTCHA_PROVIDER is recaptcha.
-  RECAPTCHA_ENTERPRISE: "false"
-  # Client token (anti-DoS): on | off, must match the backend DOS_PROTECTION.
-  DOS_PROTECTION: "off"
