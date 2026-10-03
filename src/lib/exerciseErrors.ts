@@ -97,6 +97,13 @@ export const CODE_TO_KEY: Record<number, string> = {
   // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",
+  // media: resumable chunked upload
+  31006: "admin.ex.err.uploadNotFound",
+  71007: "admin.ex.err.uploadOutOfOrder",
+  21008: "admin.ex.err.uploadChunkSize",
+  71009: "admin.ex.err.uploadIncomplete",
+  21010: "admin.ex.err.uploadHashMismatch",
+  21011: "admin.ex.err.uploadInvalid",
   71003: "admin.ex.err.storageNotConfigured",
 }
 

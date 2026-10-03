@@ -2,10 +2,13 @@
  * archive.ts — portable exercise archives (.cybericebox.zip).
  *
  * Routes: POST /api/exercises/export (JSON → application/zip),
- *         POST /api/exercises/import (multipart: archive, password?).
+ *         POST /api/exercises/import (multipart: archive, password?),
+ *         POST /api/exercises/import/uploaded (JSON: FileID, Password) for an archive that went up in chunks.
  * Import never overwrites: every archive creates new exercises.
  */
-import { apiPostBlob, apiPostMultipart } from "@/api/client"
+import { apiPost, apiPostBlob, apiPostMultipart } from "@/api/client"
+import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
+import { uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
 
 const BASE = "/api/exercises"
@@ -26,7 +29,13 @@ export async function exportExercises(input: ExportInput): Promise<ExportedArchi
   return { blob, filename: filename ?? fallback }
 }
 
-export async function importExercises(file: File, password: string): Promise<Exercise[]> {
+export async function importExercises(file: File, password: string, onProgress?: (percent: number) => void): Promise<Exercise[]> {
+  // A request body is limited at the edge: a big archive goes up in chunks and is imported from the stored file.
+  if (file.size > SINGLE_REQUEST_MAX) {
+    const uploaded = await uploadInChunks(file, onProgress)
+    const raw = await apiPost<RawExercise[] | null>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password })
+    return (raw ?? []).map(normalizeExercise)
+  }
   const form = new FormData()
   form.append("archive", file)
   if (password) form.append("password", password)
