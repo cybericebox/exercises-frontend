@@ -20,8 +20,8 @@
 set -e
 
 ROOT=/usr/share/nginx/html
-OUT=/etc/nginx/snippets/csp.conf
-MAP=/etc/nginx/conf.d/csp-map.conf
+OUT=/tmp/nginx-gen/csp.conf
+MAP=/tmp/nginx-gen/http.d/csp-map.conf
 
 host=${NEXT_PUBLIC_API_HOST:-}
 # A bare host (optionally with a port). Anything else could break the header or the nginx config.
@@ -113,7 +113,7 @@ fi
 # event logos) come from the API/media hosts and Google profile photos.
 policy="default-src 'self'; script-src $script_src; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src $connect_src; frame-src $frame_src; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-mkdir -p "$(dirname "$OUT")"
+mkdir -p "$(dirname "$OUT")" "$(dirname "$MAP")"
 cp "$tmp/map" "$MAP"
 printf 'add_header Content-Security-Policy "%s" always;\n' "$policy" > "$OUT"
 echo "[csp] wrote $MAP and $OUT ($pages pages)."
