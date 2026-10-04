@@ -5,7 +5,7 @@ metadata:
   namespace: cybericebox
 spec:
   ports:
-    - port: 3000
-      targetPort: 3000
+    - port: 8080
+      targetPort: 8080
   selector:
     app: exercises-frontend

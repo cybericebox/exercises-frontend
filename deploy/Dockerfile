@@ -30,4 +30,4 @@ COPY deploy/csp.sh /docker-entrypoint.d/50-csp.sh
 # and /tls/tls.key, client CA /aop/ca.crt, HTTPS 8443, health 8081); the TLS_* / HTTP_PORT / HEALTH_PORT env only overrides them.
 COPY deploy/nginx-entrypoint.sh /docker-entrypoint.d/60-nginx-config.sh
 RUN chmod +x /docker-entrypoint.d/40-next-public-env.sh /docker-entrypoint.d/50-csp.sh /docker-entrypoint.d/60-nginx-config.sh
-EXPOSE 3000 8443 8081
+EXPOSE 8080 8443 8081
