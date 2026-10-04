@@ -2,7 +2,7 @@ name: Deploy exercises to GitHub Pages
 
 # Static export (out/) → GitHub Pages. Runs only from promote.yml, after the pre-release checks, for the release commit.
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
-# Hosts come from repository variables with the canonical names (no fallbacks); the build fails when one is empty.
+# The hosts are baked at build: NEXT_PUBLIC_DOMAIN derives every host that is not set, a host variable (vars.*) that is set wins.
 on:
   workflow_call:
     inputs:
@@ -38,16 +38,24 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Check required variables
-        # no fallbacks: every operator value must be set
+      - name: Resolve the hosts and check the variables
+        # NEXT_PUBLIC_DOMAIN derives every host that is not set (deploy/base-domain.sh, the same file the image runs); a host variable that is
+        # set wins. The resolved hosts go to the build through GITHUB_ENV. The other values are per site and have no fallbacks.
         run: |
+          . ./deploy/base-domain.sh
+          base_domain_derive || { echo "::error::Set the repository variable NEXT_PUBLIC_DOMAIN (or every host variable)"; exit 1; }
+          for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN NEXT_PUBLIC_COOKIE_DOMAIN; do
+            eval "value=\"\${$name}\""
+            printf '%s=%s\n' "$name" "$value"
+          done >> "$GITHUB_ENV"
           missing=""
-          for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN NEXT_PUBLIC_COOKIE_DOMAIN NEXT_PUBLIC_SUPPORT_EMAIL; do
-            eval "value=\"\$$name\""
+          for name in NEXT_PUBLIC_SUPPORT_EMAIL; do
+            eval "value=\"\${$name:-}\""
             [ -n "$value" ] || missing="$missing $name"
           done
-          if [ -n "$missing" ]; then echo "Set the repository variables:$missing" && exit 1; fi
+          if [ -n "$missing" ]; then echo "::error::Set the repository variables:$missing"; exit 1; fi
         env:
+          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_MAIN_HOST: ${{ vars.NEXT_PUBLIC_MAIN_HOST }}
           NEXT_PUBLIC_API_HOST: ${{ vars.NEXT_PUBLIC_API_HOST }}
           NEXT_PUBLIC_ID_HOST: ${{ vars.NEXT_PUBLIC_ID_HOST }}
@@ -59,14 +67,7 @@ jobs:
       - name: Build static export
         run: npm run build
         env:
-          # repository variables, all required
-          NEXT_PUBLIC_MAIN_HOST: ${{ vars.NEXT_PUBLIC_MAIN_HOST }}
-          NEXT_PUBLIC_API_HOST: ${{ vars.NEXT_PUBLIC_API_HOST }}
-          NEXT_PUBLIC_ID_HOST: ${{ vars.NEXT_PUBLIC_ID_HOST }}
-          NEXT_PUBLIC_ADMIN_HOST: ${{ vars.NEXT_PUBLIC_ADMIN_HOST }}
-          NEXT_PUBLIC_EXERCISES_HOST: ${{ vars.NEXT_PUBLIC_EXERCISES_HOST }}
-          NEXT_PUBLIC_EVENT_DOMAIN: ${{ vars.NEXT_PUBLIC_EVENT_DOMAIN }}
-          NEXT_PUBLIC_COOKIE_DOMAIN: ${{ vars.NEXT_PUBLIC_COOKIE_DOMAIN }}
+          # the hosts are in GITHUB_ENV (resolved above); the per-site values are repository / environment variables
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages
