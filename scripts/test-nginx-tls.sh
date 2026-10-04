@@ -65,13 +65,11 @@ chmod -R a+rX tls ca
 # a mismatched pair: the certificate of server with the key of server2
 mkdir bad; cp server.crt bad/tls.crt; cp server2.key bad/tls.key; chmod -R a+rX bad
 
-# The runtime values the entrypoint requires: the NEXT_PUBLIC_* names in its "for ... in" list.
-ENVS=()
+# The runtime values the entrypoint requires: the base domain and the NEXT_PUBLIC_* names in its "for ... in" list.
+ENVS=(-e "NEXT_PUBLIC_DOMAIN=example.test")
 for name in $(grep -E '^for [a-z]+ in NEXT_PUBLIC_' "$SRC/deploy/docker-entrypoint.sh" | grep -Eo 'NEXT_PUBLIC_[A-Z0-9_]+'); do
   ENVS+=(-e "$name=test.example.com")
 done
-ENVS+=(-e "NEXT_PUBLIC_CAPTCHA_PROVIDER=none") # id-frontend validates it; ignored elsewhere
-ENVS+=(-e "WARMUP_FLAG=ICE{test}")
 cd "$SRC"
 
 HARDEN=(--read-only --cap-drop=ALL --security-opt no-new-privileges --user 101:101
@@ -124,7 +122,7 @@ check "A1 /healthz on 3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 300
 hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 3000)/")
 grep -qi '^content-security-policy:' <<<"$hdr" && ok "A2 CSP header present" || bad "A2 CSP header missing"
 refused "A3 nothing on 8443" -k "https://localhost:$(port "$C" 8443)/"
-refused "A4 nothing on 8081" "http://127.0.0.1:$(port "$C" 8081)/healthz"
+check "A4 default health port 8081 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 stop "$C"
 C=$(start plain-port -e HTTP_PORT=3000) || bad "A5 explicit HTTP_PORT=3000 did not start"
 check "A5 HTTP_PORT=3000 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
@@ -189,6 +187,21 @@ C=$(start health-plain -e HEALTH_PORT=8081) || { bad "container did not start"; 
 check "G6 plain mode: health port /healthz -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 check "G7 plain mode: health port / -> 404" 404 "$(code "http://127.0.0.1:$(port "$C" 8081)/")"
 check "G8 plain mode: 3000 serves the site" 200 "$(code "http://127.0.0.1:$(port "$C" 3000)/healthz")"
+stop "$C"
+
+echo "== K baked defaults (no TLS_*, HEALTH_* env)"
+C=$(start dflt-tls -v "$WORK/tls:/tls:ro" -e HTTP_PORT=) || { bad "K1 container did not start"; exit 1; }
+check "K1 /tls files give TLS on 8443, no client auth" 200 "$(code "${SERVER[@]}" "https://localhost:$(port "$C" 8443)/healthz")"
+check "K2 health 8081 on" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
+stop "$C"
+C=$(start dflt-aop -v "$WORK/tls:/tls:ro" -v "$WORK/ca:/aop:ro" -e HTTP_PORT=) || { bad "K3 container did not start"; exit 1; }
+P=$(port "$C" 8443)
+refused "K3 /aop/ca.crt present: client cert required" "${SERVER[@]}" "https://localhost:$P/healthz"
+check "K4 valid client cert -> 200" 200 "$(code "${SERVER[@]}" "${CLIENT[@]}" "https://localhost:$P/healthz")"
+check "K5 health 8081 needs no cert" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
+stop "$C"
+C=$(start dflt-off -e HEALTH_PORT=) || bad "K6 container did not start"
+refused "K6 HEALTH_PORT empty turns the health listener off" "http://127.0.0.1:$(port "$C" 8081)/healthz"
 stop "$C"
 
 echo "== H start errors"
