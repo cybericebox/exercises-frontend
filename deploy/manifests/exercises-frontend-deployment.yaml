@@ -27,41 +27,11 @@ spec:
           image: cybericebox/exercises-frontend:v0.1.0 # the release tag: an exact version, never latest
           imagePullPolicy: IfNotPresent
           env:
-            - name: NEXT_PUBLIC_MAIN_HOST
+            - name: NEXT_PUBLIC_DOMAIN
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
-                  key: MAIN_HOST
-            - name: NEXT_PUBLIC_API_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: API_HOST
-            - name: NEXT_PUBLIC_ID_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ID_HOST
-            - name: NEXT_PUBLIC_ADMIN_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ADMIN_HOST
-            - name: NEXT_PUBLIC_EXERCISES_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: EXERCISES_HOST
-            - name: NEXT_PUBLIC_EVENT_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: EVENT_DOMAIN
-            - name: NEXT_PUBLIC_COOKIE_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: COOKIE_DOMAIN
+                  key: DOMAIN
             - name: NEXT_PUBLIC_SUPPORT_EMAIL
               valueFrom:
                 configMapKeyRef:

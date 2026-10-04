@@ -14,7 +14,7 @@
 # and the header snippet interpolates it. frame-ancestors is only honoured as an HTTP header. server.conf includes it in the server block and in every location that sets
 # its own add_header (add_header is not inherited once a location defines one).
 #
-# Operator values come from env: NEXT_PUBLIC_API_HOST (connect-src). Vendor sources are added only
+# Operator values come from env: NEXT_PUBLIC_DOMAIN (connect-src is api.<domain>). Vendor sources are added only
 # when the app is configured to use them: Google Analytics (NEXT_PUBLIC_GOOGLE_ANALYTICS_ID). Google sign-in is a top-level navigation through the
 # API, so it needs no source here.
 set -e
@@ -23,14 +23,13 @@ ROOT=/usr/share/nginx/html
 OUT=/tmp/nginx-gen/csp.conf
 MAP=/tmp/nginx-gen/http.d/csp-map.conf
 
-# The API host is derived from NEXT_PUBLIC_DOMAIN when it is not set (the same derivation as 40-next-public-env.sh).
+# The API host derives from NEXT_PUBLIC_DOMAIN (the same rule as the code).
 . /usr/local/lib/base-domain.sh
-base_domain_derive || exit 1
-
-host=${NEXT_PUBLIC_API_HOST:-}
+base_domain_check || exit 1
+host=$(base_domain_host api)
 # A bare host (optionally with a port). Anything else could break the header or the nginx config.
 if ! printf '%s' "$host" | grep -Eq '^[A-Za-z0-9.-]+(:[0-9]+)?$'; then
-  echo "[csp] NEXT_PUBLIC_API_HOST must be a bare host (got an empty or invalid value)." >&2
+  echo "[csp] the API host must be a bare host (got an empty or invalid value)." >&2
   exit 1
 fi
 

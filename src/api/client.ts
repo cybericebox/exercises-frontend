@@ -1,5 +1,5 @@
 // Minimal fetch-based API client.
-// The API origin is NEXT_PUBLIC_API_HOST: every
+// The API origin is https://api.<NEXT_PUBLIC_DOMAIN>: every
 // frontend calls the single api host cross-origin with credentials included,
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
