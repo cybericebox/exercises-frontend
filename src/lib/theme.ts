@@ -1,10 +1,12 @@
+import { hosts } from "@/lib/hosts"
+
 /** Shared light/dark/system choice used by the platform, ID and admin apps. */
 export type ThemeChoice = "light" | "dark" | "system"
 
 const COOKIE = "cib_theme"
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 const MAX_AGE = 60 * 60 * 24 * 365
-const DOMAIN_ATTR = `; domain=.${process.env.NEXT_PUBLIC_COOKIE_DOMAIN}`
+const DOMAIN_ATTR = `; domain=.${hosts().cookieDomain}`
 
 // Resolved before first paint, so navigating between subdomains has no theme flash.
 export const THEME_BOOT_SCRIPT = `(function(){try{var m=document.cookie.match(/(?:^|; )${COOKIE}=(light|dark|system)/);var c=m?m[1]:"system";var d=c==="dark"||(c==="system"&&window.matchMedia("${DARK_QUERY}").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()`

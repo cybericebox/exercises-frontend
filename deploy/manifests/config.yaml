@@ -6,14 +6,10 @@ metadata:
 data:
   # Hosts (bare host, no scheme). All required: set them from the platform env (see docs/specs/configuration.md).
   # Left empty here on purpose; the container refuses to start while one is empty.
-  MAIN_HOST: ""
-  API_HOST: ""
-  ID_HOST: ""
-  ADMIN_HOST: ""
-  EXERCISES_HOST: ""
-  EVENT_DOMAIN: ""
+  # REQUIRED: the one base domain, a bare lowercase host name. Every host derives from it: DOMAIN, api./id./admin./exercises.DOMAIN,
+  # event sites <tag>.DOMAIN, the cookie domain DOMAIN. There are no per-host settings.
+  DOMAIN: ""
   # Domain attribute of the shared theme/consent cookies (e.g. cybericebox.com); no implicit parent.
-  COOKIE_DOMAIN: ""
   # REQUIRED: support mailbox of the «Надіслати відгук» (send feedback) link on every page.
   SUPPORT_EMAIL: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.

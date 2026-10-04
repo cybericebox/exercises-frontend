@@ -2,7 +2,7 @@ name: Deploy exercises to GitHub Pages
 
 # Static export (out/) → GitHub Pages. Runs only from promote.yml, after the pre-release checks, for the release commit.
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
-# The hosts are baked at build: NEXT_PUBLIC_DOMAIN derives every host that is not set, a host variable (vars.*) that is set wins.
+# The hosts are baked at build: every host derives from the one repository variable NEXT_PUBLIC_DOMAIN.
 on:
   workflow_call:
     inputs:
@@ -38,16 +38,12 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Resolve the hosts and check the variables
-        # NEXT_PUBLIC_DOMAIN derives every host that is not set (deploy/base-domain.sh, the same file the image runs); a host variable that is
-        # set wins. The resolved hosts go to the build through GITHUB_ENV. The other values are per site and have no fallbacks.
+      - name: Check the variables
+        # NEXT_PUBLIC_DOMAIN is the only host input: every host derives from it (deploy/base-domain.sh, the same file the image runs). The other
+        # values are per site and have no fallbacks.
         run: |
           . ./deploy/base-domain.sh
-          base_domain_derive || { echo "::error::Set the repository variable NEXT_PUBLIC_DOMAIN (or every host variable)"; exit 1; }
-          for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN NEXT_PUBLIC_COOKIE_DOMAIN; do
-            eval "value=\"\${$name}\""
-            printf '%s=%s\n' "$name" "$value"
-          done >> "$GITHUB_ENV"
+          base_domain_check || { echo "::error::Set the repository variable NEXT_PUBLIC_DOMAIN"; exit 1; }
           missing=""
           for name in NEXT_PUBLIC_SUPPORT_EMAIL; do
             eval "value=\"\${$name:-}\""
@@ -56,18 +52,12 @@ jobs:
           if [ -n "$missing" ]; then echo "::error::Set the repository variables:$missing"; exit 1; fi
         env:
           NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
-          NEXT_PUBLIC_MAIN_HOST: ${{ vars.NEXT_PUBLIC_MAIN_HOST }}
-          NEXT_PUBLIC_API_HOST: ${{ vars.NEXT_PUBLIC_API_HOST }}
-          NEXT_PUBLIC_ID_HOST: ${{ vars.NEXT_PUBLIC_ID_HOST }}
-          NEXT_PUBLIC_ADMIN_HOST: ${{ vars.NEXT_PUBLIC_ADMIN_HOST }}
-          NEXT_PUBLIC_EXERCISES_HOST: ${{ vars.NEXT_PUBLIC_EXERCISES_HOST }}
-          NEXT_PUBLIC_EVENT_DOMAIN: ${{ vars.NEXT_PUBLIC_EVENT_DOMAIN }}
-          NEXT_PUBLIC_COOKIE_DOMAIN: ${{ vars.NEXT_PUBLIC_COOKIE_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
       - name: Build static export
         run: npm run build
         env:
-          # the hosts are in GITHUB_ENV (resolved above); the per-site values are repository / environment variables
+          # repository / environment variables: the base domain and the per-site values
+          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages

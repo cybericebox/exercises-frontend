@@ -6,13 +6,8 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     globals: true,
     env: {
-      NEXT_PUBLIC_API_HOST: "api.cybericebox.local",
-      NEXT_PUBLIC_ID_HOST: "id.cybericebox.local",
-      NEXT_PUBLIC_ADMIN_HOST: "admin.cybericebox.local",
-      NEXT_PUBLIC_EXERCISES_HOST: "exercises.cybericebox.local",
-      NEXT_PUBLIC_EVENT_DOMAIN: "cybericebox.local",
-      // jsdom runs on localhost and drops cookies set for another domain
-      NEXT_PUBLIC_COOKIE_DOMAIN: "localhost",
+      // The one base domain; every host derives from it. ("localhost" where jsdom must accept the shared-domain cookies.)
+      NEXT_PUBLIC_DOMAIN: "localhost",
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
     passWithNoTests: true,

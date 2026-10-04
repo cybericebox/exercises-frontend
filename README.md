@@ -31,14 +31,7 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_DOMAIN` | yes, unless every host below is set | Base domain: a bare lower case host name (no scheme, port or path). Every host below that is not set is derived from it (`deploy/base-domain.sh` at container start, `next.config` in dev and local builds, the Pages workflow). |
-| `NEXT_PUBLIC_MAIN_HOST` | no | Landing host (bare host, no scheme). Default: `<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_API_HOST` | no | API host. Default: `api.<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_ID_HOST` | no | ID app host. Default: `id.<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_ADMIN_HOST` | no | Admin app host. Default: `admin.<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_EXERCISES_HOST` | no | Exercises app host. Default: `exercises.<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_EVENT_DOMAIN` | no | Event sites are `<tag>.<domain>`. Default: `<DOMAIN>`; a value that is set wins. |
-| `NEXT_PUBLIC_COOKIE_DOMAIN` | no | `Domain` attribute of the shared theme/consent cookies (e.g. `cybericebox.com`). Default: `<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_DOMAIN` | yes | The one base domain, a bare lowercase host name (no scheme, port or path). Every host derives from it: `<DOMAIN>` (landing), `api.`, `id.`, `admin.`, `exercises.<DOMAIN>`, event sites `<tag>.<DOMAIN>`, the shared theme and consent cookies on `.<DOMAIN>`. There are no per-host settings. |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 
@@ -65,7 +58,7 @@ The nginx image serves plain HTTP by default, exactly as before (`HTTP_PORT` 300
 
 ## Content Security Policy
 
-The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`NEXT_PUBLIC_API_HOST`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
+The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `connect-src` allows the API host (`api.<NEXT_PUBLIC_DOMAIN>`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
 
 The export is static, so a per-request nonce is not possible. Instead, at container start `deploy/csp.sh` (runs after the env substitution) hashes every inline `<script>` in the exported pages, plus the scripts the client creates at runtime (the Google Analytics boot; `scripts/csp-inline.mjs` writes its text at build time), and writes the header to `/tmp/nginx-gen/csp.conf`. `deploy/nginx/server.conf` includes that file in the server block and in every location that sets its own `add_header` (nginx does not inherit `add_header` into a location that defines one). A new inline script needs no manual step; a new runtime-created inline script must be added to `scripts/csp-inline.mjs`.
 
@@ -83,4 +76,4 @@ Copyright 2026 CyberICEBox
 
 ### One base domain
 
-`deploy/base-domain.sh` (sourced by the container entrypoint and by the Pages workflow) and the host block of `next.config` implement one rule: `NEXT_PUBLIC_DOMAIN` is a bare lower case host name and every host that is empty or unset becomes `MAIN_HOST=DOMAIN`, `API_HOST=api.DOMAIN`, `ID_HOST=id.DOMAIN`, `ADMIN_HOST=admin.DOMAIN`, `EXERCISES_HOST=exercises.DOMAIN`, `EVENT_DOMAIN=DOMAIN`, `COOKIE_DOMAIN=DOMAIN`; a value that is set always wins; neither `DOMAIN` nor an explicit host is a start error. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against both; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).
+`NEXT_PUBLIC_DOMAIN` is the only host input and every host derives from it: main = `DOMAIN`, `api.DOMAIN`, `id.DOMAIN`, `admin.DOMAIN`, `exercises.DOMAIN`, event sites `<tag>.DOMAIN`, the cookie domain = `DOMAIN`. The code reads the derived hosts through one helper (`src/**/hosts.ts`); `deploy/base-domain.sh` (sourced by the container entrypoint and the Pages workflow) and the domain check in `next.config` reject an unset or malformed domain. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against all three; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).

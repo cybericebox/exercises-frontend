@@ -7,10 +7,10 @@ set -e
 
 ROOT=/usr/share/nginx/html
 
-# The hosts are derived from NEXT_PUBLIC_DOMAIN when they are not set (deploy/base-domain.sh, the same file in every frontend);
-# the derived values are exported, so the substitution below treats them like the others. The other operator values are required.
+# NEXT_PUBLIC_DOMAIN is the only host input (deploy/base-domain.sh, the same file in every frontend): every host derives from it in the code.
+# The other operator values are required.
 . /usr/local/lib/base-domain.sh
-base_domain_derive || exit 1
+base_domain_check || exit 1
 for name in NEXT_PUBLIC_SUPPORT_EMAIL; do
   eval "value=\${$name:-}"
   if [ -z "$value" ]; then
