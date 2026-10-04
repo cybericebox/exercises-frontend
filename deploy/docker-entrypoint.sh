@@ -34,13 +34,13 @@ printenv | grep '^NEXT_PUBLIC_' | while IFS='=' read -r key value; do
   printf 's|__%s__|%s|g\n' "$key" "$esc"
 done > "$script"
 
-grep -rlIE '__NEXT_PUBLIC_[A-Z0-9_]+__' "$ROOT" | xargs -r -n 1 -P "$(nproc)" sed -i -f "$script"
+grep -rlIiE '__NEXT_PUBLIC_[A-Z0-9_]+__' "$ROOT" | xargs -r -n 1 -P "$(nproc)" sed -i -f "$script"
 
 # A placeholder that is still there means its variable is missing: fail the start, not the page.
 left=
 # The cheap fixed-string scan first; the token names are only collected when something is left.
-if grep -rqIF '__NEXT_PUBLIC_' "$ROOT"; then
-  left=$(grep -rhoIE '__NEXT_PUBLIC_[A-Z0-9_]+__' "$ROOT" | sort -u | tr '\n' ' ')
+if grep -rqIiF '__NEXT_PUBLIC_' "$ROOT"; then
+  left=$(grep -rhoIiE '__NEXT_PUBLIC_[A-Z0-9_]+__' "$ROOT" | sort -u | tr '\n' ' ')
 fi
 if [ -n "$left" ]; then
   echo "No value for: $left(set the variable, an empty one is fine for an optional value)." >&2
