@@ -29,6 +29,8 @@ import {
   bellCount, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
   type InboxCounts, type InboxDefaultTab, type InboxMessage as Message, type InboxTab,
 } from "@/components/notifications/inboxModel"
+import { keepBrand } from "@/i18n/brand"
+import { STORAGE_INBOX_READ } from "@/lib/storageKeys"
 
 // Dropdown height cap, the same in every app: tune it here.
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
@@ -36,7 +38,6 @@ const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
 type InboxCursor = { ID: string; CreatedAt: string }
 type InboxPoll = { Cursor: InboxCursor | null; NewInbox: Message[]; UnreadCount: number; Counts?: unknown; OtherEventsCount?: unknown }
 type InboxPage = { Items: Message[]; NextCursor: InboxCursor | null }
-const READ_SYNC_KEY = "cybericebox:inbox-read"
 // A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
 const OPEN_PARAM = "inbox"
 
@@ -82,7 +83,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   const [error, setError] = useState("")
   // A failed data load (list / poll): shown as the shared LoadError in the list area, never as a bar. `error` above is for actions only.
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null)
-  const [resolving, setResolving] = useState<string | null>(null)
+  const [resolving, setResolving] = useState<ReadonlySet<string>>(() => new Set())
   const cursorRef = useRef<InboxCursor | null>(null)
   const unreadCountRef = useRef(0)
   const countsRef = useRef<InboxCounts | null>(null)
@@ -224,7 +225,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
     document.addEventListener("visibilitychange", pollWhenVisible)
     window.addEventListener("focus", pollWhenVisible)
     window.addEventListener("cybericebox:inbox-updated", pollWhenVisible)
-    const onStorage = (event: StorageEvent) => { if (event.key === READ_SYNC_KEY) { void pollWhenVisible(); if (openRef.current) void refresh() } }
+    const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { void pollWhenVisible(); if (openRef.current) void refresh() } }
     window.addEventListener("storage", onStorage)
     return () => {
       active = false
@@ -281,8 +282,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   function announceRead() {
     try {
-      const previous = window.localStorage.getItem(READ_SYNC_KEY)
-      window.localStorage.setItem(READ_SYNC_KEY, previous === "1" ? "0" : "1")
+      const previous = window.localStorage.getItem(STORAGE_INBOX_READ)
+      window.localStorage.setItem(STORAGE_INBOX_READ, previous === "1" ? "0" : "1")
     } catch { /* Polling still synchronizes read state. */ }
   }
 
@@ -312,8 +313,9 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   // «Вирішено» closes a «Лабораторія впала» request for every recipient (§8.2).
   async function resolve(item: Message) {
+    if (resolving.has(item.ID)) return
     setError("")
-    setResolving(item.ID)
+    setResolving((current) => new Set(current).add(item.ID))
     let failure = ""
     try {
       await apiPost(`/api/notifications/inbox/${encodeURIComponent(item.ID)}/resolve`, {})
@@ -327,7 +329,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       // 30217 not found, 20218 not resolvable by hand, 70219 already resolved: show why, then the current state.
       failure = localizedError(err)
     }
-    setResolving(null)
+    setResolving((current) => { const next = new Set(current); next.delete(item.ID); return next })
     await refresh()
     if (failure) setError(failure)
     else pollNowRef.current()
@@ -400,7 +402,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             return <li key={item.ID} ref={index === items.length - 1 ? lastItemRef : undefined} className={`px-4 py-3 hover:bg-accent/50 ${resolved ? "opacity-60" : ""}`}>
               <NotificationMessageCard
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
-                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) }} /> : undefined}
+                body={item.Body ? <span dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })) }} /> : undefined}
                 unread={unreadItem} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved
@@ -410,8 +412,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
                 </span>}
                 actions={href || unreadItem || canResolve(item) ? <>
                   {href ? <a href={href} onClick={(clickEvent) => { clickEvent.preventDefault(); void followLink(item, href) }} className="text-sm font-medium text-primary underline-offset-2 hover:underline">{t("inbox.open")}</a> : unreadItem ? <button type="button" onClick={() => void markRead(item)} className="text-xs font-medium text-primary hover:underline">{t("inbox.markRead")}</button> : null}
-                  {canResolve(item) && <button type="button" disabled={resolving !== null} aria-busy={resolving === item.ID} onClick={() => void resolve(item)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
-                    {resolving === item.ID ? <Spinner size="sm" className="[&_.crest-loader]:text-base" /> : <Check aria-hidden="true" className="h-4 w-4" />}{t("inbox.resolve")}
+                  {canResolve(item) && <button type="button" disabled={resolving.has(item.ID)} aria-busy={resolving.has(item.ID)} onClick={() => void resolve(item)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60">
+                    {resolving.has(item.ID) ? <Spinner size="sm" className="[&_.crest-loader]:text-base" /> : <Check aria-hidden="true" className="h-4 w-4" />}{t("inbox.resolve")}
                   </button>}
                 </> : undefined}
               />

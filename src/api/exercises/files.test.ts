@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "@/api/client"
+import { apiOrigin } from "@/lib/origins"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
 import { uploadExerciseFile, exerciseFileURL } from "./files"
 
@@ -30,7 +31,7 @@ describe("exercise file upload", () => {
     const progress = vi.fn()
     const promise = uploadExerciseFile(file, progress)
     const request = UploadRequest.instances[0]
-    expect(request.open).toHaveBeenCalledWith("POST", "/api/exercises/files")
+    expect(request.open).toHaveBeenCalledWith("POST", `${apiOrigin}/api/exercises/files`)
     expect(request.withCredentials).toBe(true)
     expect((request.send.mock.calls[0][0] as FormData).get("file")).toBe(file)
     request.upload.onprogress?.({ lengthComputable: true, loaded: 42, total: 100 } as ProgressEvent)
@@ -86,7 +87,7 @@ describe("exercise file upload", () => {
     request.getResponseHeader.mockReturnValue("https://id.cybericebox-dev.pp.ua/sign-in")
     request.onload?.()
     await Promise.resolve()
-    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("return_to="))
+    expect(setCookie).toHaveBeenCalledWith(expect.stringContaining("cib_return_to="))
     expect(replace).toHaveBeenCalledWith("https://id.cybericebox-dev.pp.ua/sign-in")
     expect(settled).not.toHaveBeenCalled()
   })
@@ -94,6 +95,6 @@ describe("exercise file upload", () => {
 
 describe("exerciseFileURL", () => {
   it("builds the cookie-authenticated download URL", () => {
-    expect(exerciseFileURL(FILE_ID)).toBe(`/api/exercises/files/${FILE_ID}`)
+    expect(exerciseFileURL(FILE_ID)).toBe(`${apiOrigin}/api/exercises/files/${FILE_ID}`)
   })
 })

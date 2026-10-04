@@ -9,6 +9,7 @@
  * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
+import { catalogError, localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 
 export const ERR_EXERCISE_EXISTS = 40903
@@ -25,7 +26,6 @@ export const ERR_PROPOSAL_NOT_FOUND = 30954
 export const ERR_PROPOSAL_INVALID = 70955
 export const ERR_PROPOSAL_DECIDED = 70956
 export const ERR_EXERCISE_FORBIDDEN = 60957
-export const ERR_NAME_EXISTS_ON_APPROVE = 70903
 
 export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
@@ -49,6 +49,8 @@ export const CODE_TO_KEY: Record<number, string> = {
   20914: "admin.ex.err.difficultyInvalid",
   20915: "admin.ex.err.flagInvalid",
   20916: "admin.ex.err.deviceNameInvalid",
+  20961: "admin.ex.err.deviceNameTooLong",
+  20964: "admin.ex.err.persistenceInvalid",
   20946: "admin.ex.err.deviceDisplayNameInvalid",
   20917: "admin.ex.err.deviceTypeInvalid",
   20918: "admin.ex.err.interfaceInvalid",
@@ -59,6 +61,8 @@ export const CODE_TO_KEY: Record<number, string> = {
   20920: "admin.ex.err.endpointUnresolved",
   20921: "admin.ex.err.portInUse",
   20924: "admin.ex.err.flagDeviceUnresolved",
+  20942: "admin.ex.err.flagEnvConflict",
+  20943: "admin.ex.err.forwardingPortInvalid",
   20929: "admin.ex.err.vpnDisabled",
   20930: "admin.ex.err.internetDisabled",
   20931: "admin.ex.err.vpnGatewayInUse",
@@ -67,7 +71,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   20944: "admin.ex.err.addressRefInvalid",
   20945: "admin.ex.err.addressRefUnreachable",
   20947: "admin.ex.err.networkDhcpInvalid",
-  20937: "admin.ex.err.taskDescriptionRequired",
+  20938: "admin.ex.err.taskDescriptionRequired",
   // exercise: placeholders
   20925: "admin.ex.err.placeholderInvalid",
   20926: "admin.ex.err.placeholderNode",
@@ -80,10 +84,26 @@ export const CODE_TO_KEY: Record<number, string> = {
   70955: "exercises.err.proposalInvalid",
   70956: "exercises.err.proposalDecided",
   60957: "exercises.err.forbidden",
-  70903: "exercises.err.nameExists",
+  // test deploy
+  30937: "admin.ex.err.deployNotFound",
+  70958: "admin.ex.err.testDeployNoLab",
+  70959: "admin.ex.err.testDeployNotReady",
+  70963: "admin.ex.err.testDeployActive",
+  30960: "admin.ex.err.noWebDevice",
+  71401: "admin.ex.err.infrastructureUnavailable",
+  71405: "admin.ex.err.deployNoPersistence",
+  31406: "admin.ex.err.deployDeviceNotFound",
+  71407: "admin.ex.err.deployDeviceRestarting",
   // media (attachments)
   31001: "admin.ex.err.fileNotFound",
   21002: "admin.ex.err.fileTooLarge",
+  // media: resumable chunked upload
+  31006: "admin.ex.err.uploadNotFound",
+  71007: "admin.ex.err.uploadOutOfOrder",
+  21008: "admin.ex.err.uploadChunkSize",
+  71009: "admin.ex.err.uploadIncomplete",
+  21010: "admin.ex.err.uploadHashMismatch",
+  21011: "admin.ex.err.uploadInvalid",
   71003: "admin.ex.err.storageNotConfigured",
 }
 
@@ -99,10 +119,14 @@ export function exerciseErrorCode(e: unknown): number | null {
 
 /** Human-readable (Ukrainian) message for any exercises API error. */
 export function exerciseErrorMessage(e: unknown): string {
+  // 429 (request limiter or auth lockout): a wait message from Retry-After, whatever the code.
+  if (e instanceof ApiError && e.status === 429) return localizedError(e)
   const code = exerciseErrorCode(e)
   if (code !== null) {
     const key = CODE_TO_KEY[code]
     if (key) return t(key)
+    const cataloged = catalogError(e)
+    if (cataloged) return cataloged
     const message = ((e as ApiError).body as EnvelopeBody | null | undefined)?.Status?.Message
     if (message) return `${t("admin.ex.err.generic")}: ${message}`
   }

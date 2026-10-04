@@ -4,11 +4,13 @@ metadata:
   name: exercises-frontend-config
   namespace: cybericebox
 data:
-  # Platform apex; this app is served on exercises.<DOMAIN>.
-  DOMAIN: "cybericebox.com"
-  # Optional host overrides (bare host, no scheme). Empty → <service>.<DOMAIN>.
-  API_DOMAIN: ""
-  ID_DOMAIN: ""
-  ADMIN_DOMAIN: ""
+  # Hosts (bare host, no scheme). All required: set them from the platform env (see docs/specs/configuration.md).
+  # Left empty here on purpose; the container refuses to start while one is empty.
+  # REQUIRED: the one base domain, a bare lowercase host name. Every host derives from it: DOMAIN, api./id./admin./exercises.DOMAIN,
+  # event sites <tag>.DOMAIN, the cookie domain DOMAIN. There are no per-host settings.
+  DOMAIN: ""
+  # Domain attribute of the shared theme/consent cookies (e.g. cybericebox.com); no implicit parent.
+  # REQUIRED: support mailbox of the «Надіслати відгук» (send feedback) link on every page.
+  SUPPORT_EMAIL: ""
   # Optional Google Analytics 4 measurement id (G-…). Empty → analytics off.
   GOOGLE_ANALYTICS_ID: ""

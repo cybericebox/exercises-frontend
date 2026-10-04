@@ -1,3 +1,4 @@
+import { STORAGE_BACK } from "@/lib/storageKeys"
 /**
  * backLink.ts — where the "back" arrow leads, one copy per app (id, exercises; keep them identical).
  *
@@ -9,8 +10,8 @@
 
 export type BackKind = "landing" | "admin" | "catalog" | "event"
 export type BackLink = { kind: BackKind; href: string }
-/** Bare hostnames of the platform apps; `domain` is the landing (apex) host. */
-export type BackHosts = { domain: string; admin: string; exercises: string; id: string; api: string }
+/** Bare hostnames of the platform apps; `main` is the landing host, event sites are <tag>.<eventDomain>. */
+export type BackHosts = { main: string; eventDomain: string; admin: string; exercises: string; id: string; api: string }
 /** Only these sources get the destination tooltip; the others keep the app's plain back behaviour. */
 export type BackDestination = Exclude<BackKind, "landing">
 
@@ -21,7 +22,6 @@ export const BACK_LABELS: Record<BackDestination, string> = {
   event: "back.toEvent",
 }
 
-const STORAGE_KEY = "cybericebox.back"
 
 const hostOf = (origin: string) => {
   try {
@@ -31,9 +31,10 @@ const hostOf = (origin: string) => {
   }
 }
 
-export function backHosts(domain: string, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
+export function backHosts(domains: { main: string; eventDomain: string }, origins: { admin: string; exercises: string; id: string; api: string }): BackHosts {
   return {
-    domain: domain.trim().toLowerCase(),
+    main: domains.main.trim().toLowerCase(),
+    eventDomain: domains.eventDomain.trim().toLowerCase(),
     admin: hostOf(origins.admin),
     exercises: hostOf(origins.exercises),
     id: hostOf(origins.id),
@@ -43,7 +44,7 @@ export function backHosts(domain: string, origins: { admin: string; exercises: s
 
 /** A platform URL and the app it belongs to, or null (foreign, not https, id/api, unparseable). */
 export function classifyBack(value: string | null | undefined, hosts: BackHosts): BackLink | null {
-  if (!value || !hosts.domain) return null
+  if (!value || !hosts.main || !hosts.eventDomain) return null
   let url: URL
   try {
     url = new URL(value)
@@ -54,12 +55,12 @@ export function classifyBack(value: string | null | undefined, hosts: BackHosts)
   if (url.protocol !== "https:" || url.username || url.password) return null
   // The platform is reached on its fixed external port: never keep one (e.g. a dev :3001).
   const href = `https://${host}${url.pathname}${url.search}${url.hash}`
-  if (host === hosts.domain) return { kind: "landing", href }
+  if (host === hosts.main) return { kind: "landing", href }
   if (host === hosts.admin) return { kind: "admin", href }
   if (host === hosts.exercises) return { kind: "catalog", href }
   if (host === hosts.id || host === hosts.api) return null
-  // Event sites are <tag>.<domain>.
-  const label = host.endsWith(`.${hosts.domain}`) ? host.slice(0, -hosts.domain.length - 1) : ""
+  // Event sites are <tag>.<eventDomain>.
+  const label = host.endsWith(`.${hosts.eventDomain}`) ? host.slice(0, -hosts.eventDomain.length - 1) : ""
   return label && !label.includes(".") ? { kind: "event", href } : null
 }
 
@@ -79,10 +80,10 @@ export function resolveBack(
   const fresh = fromReturnTo ?? (fromReferrer && new URL(fromReferrer.href).hostname !== currentHost.toLowerCase() ? fromReferrer : null)
   try {
     if (fresh) {
-      storage?.setItem(STORAGE_KEY, fresh.href)
+      storage?.setItem(STORAGE_BACK, fresh.href)
       return fresh
     }
-    return classifyBack(storage?.getItem(STORAGE_KEY), hosts)
+    return classifyBack(storage?.getItem(STORAGE_BACK), hosts)
   } catch {
     // Storage may be disabled: the link then lives for this page only.
     return fresh

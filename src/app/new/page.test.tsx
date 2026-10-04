@@ -14,7 +14,6 @@ vi.mock("next/link", () => ({
     <a href={href} {...rest} onClick={(event) => { onClick?.(event); event.preventDefault() }}>{children}</a>,
 }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
-vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
@@ -42,7 +41,7 @@ const created: Exercise = {
   ArchivedAt: null, HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "2026-09-26T10:00:00Z", UpdatedBy: null,
 }
 const savedVersion: Version = {
-  ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null,
+  ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
     LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
@@ -117,9 +116,9 @@ describe("new exercise page", () => {
     fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(createExercise).not.toHaveBeenCalled()
-    expect(storage.get("cybericebox.admin.exercise-pending.v1:editor-1:new")).toContain("Qz")
+    expect(storage.get("cib_exercise_pending_editor-1_new")).toContain("Qz")
     fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
-    expect(storage.has("cybericebox.admin.exercise-pending.v1:editor-1:new")).toBe(false)
+    expect(storage.has("cib_exercise_pending_editor-1_new")).toBe(false)
   })
 
   it("refuses without exercises.write", () => {

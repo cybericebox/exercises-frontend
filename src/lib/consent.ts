@@ -1,3 +1,5 @@
+import { hosts } from "@/lib/hosts"
+
 /**
  * src/lib/consent.ts — cookie consent shared by all CyberICEBox frontends.
  *
@@ -10,7 +12,7 @@
  * platform runs no ads). Without consent GA runs cookieless (consent pings).
  *
  * The choice lives in the `cib_consent` cookie on the parent domain
- * (.NEXT_PUBLIC_DOMAIN, 12 months) as `analytics:granted|denied`, so a choice
+ * (.<NEXT_PUBLIC_DOMAIN>, 12 months) as `analytics:granted|denied`, so a choice
  * made on any app applies to all.
  */
 
@@ -98,7 +100,7 @@ function clearAnalyticsCookies(domain: string | undefined): void {
 
 /** Persist the choice on the parent domain and apply it to a running gtag. */
 export function saveConsent(prefs: ConsentPrefs): void {
-  const domain = process.env.NEXT_PUBLIC_DOMAIN || undefined
+  const domain = hosts().cookieDomain
   document.cookie = consentCookie(prefs, { domain, secure: location.protocol === "https:" })
   ;(window as GtagWindow).gtag?.("consent", "update", consentUpdate(prefs))
   if (!prefs.analytics) clearAnalyticsCookies(domain)

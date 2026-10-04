@@ -10,13 +10,13 @@ import { metadata } from "./layout"
 
 describe("app metadata", () => {
   it("renders the Ukrainian title and description from i18n", () => {
-    expect(metadata.title).toBe("Каталог завдань · Cyber ICE Box")
-    expect(metadata.description).toBe("Каталог завдань Cyber ICE Box: створення, версії та доступ до завдань для заходів")
+    expect(metadata.title).toBe("Каталог завдань · Cyber\u00A0ICE\u00A0Box")
+    expect(metadata.description).toBe("Каталог завдань Cyber\u00A0ICE\u00A0Box: створення, версії та доступ до завдань для заходів")
   })
 
   it("keeps English counterparts", () => {
     expect(en["exercises.meta.title"]).toBeTruthy()
     expect(en["exercises.meta.description"]).toBeTruthy()
-    expect(uk["exercises.meta.title"]).toBe(metadata.title)
+    expect(uk["exercises.meta.title"].replace(/Cyber ICE Box/, "Cyber\u00A0ICE\u00A0Box")).toBe(metadata.title)
   })
 })

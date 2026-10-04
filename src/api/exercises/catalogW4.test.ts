@@ -16,7 +16,7 @@ describe('normalizeOwnership', () => {
   it('defaults an old payload to a plain catalog exercise without server permissions', () => {
     expect(normalizeOwnership({})).toEqual({
       Scope: 'catalog', OwnerEventID: null, OwnerEventName: '', OwnerEvent: null, AccessLevel: '', AccessEventIDs: [], AccessEvents: [],
-      OriginEventID: null, ForkedFrom: null, Infrastructure: false, PendingProposalID: null, Permissions: null,
+      OriginEventID: null, ForkedFrom: null, Infrastructure: false, ResourceHeavy: false, PendingProposalID: null, Permissions: null,
     })
   })
 

@@ -16,7 +16,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { ERR_EXERCISE_EXISTS, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 
@@ -35,7 +35,8 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
       const approved = await approveProposal(proposal.ID, { Name: name, AccessLevel: access.level, EventIDs: access.eventIds, Note: note })
       onDone(approved)
     } catch (error) {
-      toast.error(exerciseErrorMessage(error))
+      // The name is taken in the catalog (a unique-name violation answers 40903).
+      toast.error(exerciseErrorCode(error) === ERR_EXERCISE_EXISTS ? t("exercises.err.nameExists") : exerciseErrorMessage(error))
     } finally {
       setBusy(false)
     }

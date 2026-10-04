@@ -7,13 +7,16 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { FirstName: "Ada", LastName: "L", Email: "a@example.org" } }) }))
 vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmin: true } }) }))
 vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
+vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
 vi.mock("./ThemeSwitch", () => ({ ThemeSwitch: () => null }))
 vi.mock("@/lib/origins", () => ({
-  publicDomain: "cybericebox.local",
+  mainHost: "cybericebox.local",
   apiOrigin: "https://api.cybericebox.local",
   idOrigin: "https://id.cybericebox.local",
   adminOrigin: "https://admin.cybericebox.local",
   mainOrigin: "https://cybericebox.local",
+  exercisesOrigin: "https://exercises.cybericebox.local",
+  eventDomain: "cybericebox.local",
 }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 

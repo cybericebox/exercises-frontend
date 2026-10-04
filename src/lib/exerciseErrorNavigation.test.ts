@@ -21,7 +21,7 @@ describe("positionForDraftIssue", () => {
     [["Variants", 0, "Topology", "Devices", 0, "Interfaces", 1, "IP", "Addresses"], { topologySection: "device:device-1", devicePanel: "interfaces", interface: 1 }],
     [["Variants", 0, "Topology", "Devices", 0, "EnvVars", 2, "Name"], { topologySection: "device:device-1", devicePanel: "env", env: 2 }],
     [["Variants", 0, "Topology", "Devices", 0, "External", "Port"], { topologySection: "device:device-1", devicePanel: "external" }],
-    [["Variants", 0, "Topology", "Devices", 0, "Resources", "CPURequest"], { topologySection: "device:device-1", devicePanel: "resources" }],
+    [["Variants", 0, "Topology", "Devices", 0, "ResourcePreset"], { topologySection: "device:device-1", devicePanel: "resources" }],
     [["Variants", 0, "Topology", "Connections", 0], { topologySection: "connections" }],
     [["Variants", 0, "Topology", "VPN"], { topologySection: "device:vpn" }],
   ] as const)("opens the owning topology section for %j", (path, expected) => {

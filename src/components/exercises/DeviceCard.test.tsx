@@ -12,6 +12,9 @@ import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
+import { DevicePersistenceProvider } from './DevicePersistenceContext'
+import { ResourcesConfigProvider } from './ResourcesConfigContext'
+import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
 
 function DeviceValues() {
   const { control } = useFormContext<DraftFormValues>()
@@ -19,7 +22,7 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device, compact = false, networks = false, vpnDhcp = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean }) {
+function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   if (networks) {
@@ -29,7 +32,9 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false }:
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
-      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
+      <ResourcesConfigProvider value={config}>
+        <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
+      </ResourcesConfigProvider>
       <DeviceValues />
     </FormProvider>
   )
@@ -70,38 +75,48 @@ describe('DeviceCard', () => {
     expect(screen.getByTestId('editor-position')).toHaveTextContent('"section":"tasks"')
     expect(screen.getByTestId('editor-position')).toHaveTextContent('"task":0')
   })
-  it('edits container resource request and limit values', () => {
+  const values = () => JSON.parse(screen.getByTestId('device-values').textContent || '{}')
+
+  it('shows the default preset and applies a chosen preset by id', () => {
     const device = emptyDevice()
     device.Name = 'web'
     render(<Harness device={device} />)
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' }), { target: { value: '250' } })
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toHaveValue('250')
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250m')
-    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.cpuRequest admin.exTopo.resourceUnit' }), { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /admin.exTopo.cpuUnit.core/ }))
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250')
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.micro/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('textbox', { name: /exercises.res/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: /exercises.res.preset.medium/ }))
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.medium/ })).toHaveAttribute('aria-checked', 'true')
+    expect(values().ResourcePreset).toBe('medium')
+    expect(values().Resources).toBeUndefined()
   })
 
-  it('splits a stored memory quantity into amount and unit without changing its value', () => {
-    const device = emptyDevice()
-    device.Resources.MemoryLimit = '512Mi'
-    render(<Harness device={device} />)
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('512')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('admin.exTopo.memoryUnit.Mi')
-    fireEvent.change(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' }), { target: { value: '768' } })
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('768Mi')
+  it('offers only the blocks the platform reports and no custom size', () => {
+    render(<Harness device={emptyDevice()} />)
+    expect(screen.getAllByRole('radio')).toHaveLength(RESOURCES_CONFIG.Presets.length)
+    expect(screen.queryByRole('radio', { name: /exercises.res.preset.custom/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.max/ })).toBeInTheDocument()
   })
 
-  it('preserves an uncommon stored quantity suffix while exposing it in the unit control', () => {
+  it('highlights a block above the frame and keeps it', () => {
     const device = emptyDevice()
-    device.Resources.MemoryLimit = '2G'
-    render(<Harness device={device} />)
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.memoryLimit' })).toHaveValue('2')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.memoryLimit admin.exTopo.resourceUnit' })).toHaveTextContent('G')
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.MemoryLimit).toBe('2G')
+    device.ResourcePreset = 'xlarge'
+    const { container } = render(<Harness device={device} />)
+    expect(screen.getByRole('radio', { name: /exercises.res.preset.xlarge/ })).toHaveAttribute('aria-checked', 'true')
+    expect(container.querySelector('[data-resource-summary]')).toHaveTextContent('exercises.res.outsideFrame')
+    expect(values().ResourcePreset).toBe('xlarge')
+  })
+
+  it('stays inside the frame for the frame block itself', () => {
+    const device = emptyDevice()
+    device.ResourcePreset = 'large'
+    const { container } = render(<Harness device={device} />)
+    expect(container.querySelector('[data-resource-summary]')).toHaveTextContent('exercises.res.insideFrame')
+  })
+
+  it('shows a centered loader until the platform settings arrive', () => {
+    const { container } = render(<Harness device={emptyDevice()} config={null} />)
+    expect(container.querySelector('.loading-area')).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 
   it('shows one static address field and editable route rows', () => {
@@ -197,10 +212,10 @@ describe('DeviceCard', () => {
   it('does not offer changing the type inside device configuration', () => {
     const device = emptyDevice()
     device.Name = 'web'
-    device.Resources.CPURequest = '250m'
+    device.ResourcePreset = 'medium'
     render(<Harness device={device} />)
     expect(screen.queryByRole('button', { name: 'admin.exTopo.deviceType' })).not.toBeInTheDocument()
-    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Resources.CPURequest).toBe('250m')
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').ResourcePreset).toBe('medium')
   })
   it('container: shows one selected settings section at a time', () => {
     const device = emptyDevice()
@@ -249,10 +264,10 @@ describe('DeviceCard', () => {
     expect(image).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(image)
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'admin.exTopo.resources' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'admin.exTopo.external' })).toBeInTheDocument()
     fireEvent.click(resources)
-    expect(screen.queryByRole('textbox', { name: 'admin.exTopo.cpuRequest' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'admin.exTopo.resources' })).not.toBeInTheDocument()
     fireEvent.click(external)
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
     fireEvent.click(image)
@@ -405,8 +420,6 @@ describe('DeviceCard', () => {
     expect(compact.container.querySelector('[data-device-basic-grid]')).not.toHaveClass('@min-[26rem]:grid-cols-2')
     expect(compact.container.querySelector('[data-device-basic-grid]')).toHaveClass('gap-2')
     expect(compact.container.querySelector('[data-device-basic-grid] p:empty')).not.toBeInTheDocument()
-    expect(compact.container.querySelector('[data-device-resource-grid]')).toHaveClass('grid-cols-1')
-    expect(compact.container.querySelector('[data-device-resource-grid]')).toHaveClass('@min-[26rem]:grid-cols-2')
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     expect(compact.container.querySelector('[data-interface-grid]')).toHaveClass('grid-cols-1')
     expect(compact.container.querySelector('[data-interface-grid]')).toHaveClass('@min-[26rem]:grid-cols-2')
@@ -447,5 +460,26 @@ describe('DeviceCard', () => {
     expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
     expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.imported')
     expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.duplicates')
+  })
+})
+
+describe('DeviceCard persistence option', () => {
+  it('is hidden when the platform cannot keep state', () => {
+    render(<Harness device={emptyDevice()} />)
+    expect(screen.queryByLabelText('admin.exTopo.persistence')).toBeNull()
+  })
+
+  it('writes Persistence.Enabled when the platform can', () => {
+    render(<DevicePersistenceProvider value><Harness device={emptyDevice()} /></DevicePersistenceProvider>)
+    fireEvent.click(screen.getByLabelText('admin.exTopo.persistence'))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).Persistence.Enabled).toBe(true)
+  })
+
+  it('is not offered for a switch', () => {
+    const device = emptyDevice()
+    device.Type = 'unmanaged-switch'
+    device.Interfaces = []
+    render(<DevicePersistenceProvider value><Harness device={device} /></DevicePersistenceProvider>)
+    expect(screen.queryByLabelText('admin.exTopo.persistence')).toBeNull()
   })
 })

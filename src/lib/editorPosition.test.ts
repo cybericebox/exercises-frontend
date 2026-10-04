@@ -3,7 +3,7 @@ import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition 
 
 describe("editorPosition", () => {
   it("builds a per-user, per-exercise storage key", () => {
-    expect(editorPositionStorageKey("u1", "e1")).toBe("cybericebox.admin.exercise-position.v1:u1:e1")
+    expect(editorPositionStorageKey("u1", "e1")).toBe("cib_exercise_position_u1_e1")
   })
 
   it("normalizes a stored position and rejects garbage", () => {

@@ -5,20 +5,20 @@ import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
 
 const h = vi.hoisted(() => ({
+  push: vi.fn(),
   access: null as ExerciseAccess | null,
   returnUrl: null as string | null,
 }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "user-1" }, isLoading: false, can: () => false }) }))
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }))
 vi.mock("@/components/shell/AccessContext", () => ({ useExerciseAccess: () => ({ access: h.access, loading: false }) }))
 vi.mock("@/components/shell/ReturnContext", () => ({ useReturnContext: () => ({ returnUrl: h.returnUrl, eventId: null }) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
-vi.mock("@/lib/userNames", () => ({ useUserNames: () => ({}) }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
@@ -26,6 +26,10 @@ vi.mock("@/api/exercises/catalog", () => ({
   getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
+}))
+vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(),
+  listDeploys: vi.fn().mockResolvedValue([]), deployVariant: vi.fn(), deployStatus: vi.fn().mockResolvedValue({ Phase: "Provisioning", Ready: false }),
+  destroyDeploy: vi.fn().mockResolvedValue(undefined), openDeployLink: vi.fn(),
 }))
 vi.mock("@/api/exercises/proposals", () => ({ proposeExercise: vi.fn() }))
 vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), listNearestEvents: vi.fn().mockResolvedValue([{ ID: "ev9", Name: "Spring Cup", Tag: "spring" }]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
@@ -37,6 +41,7 @@ vi.mock("@/api/exercises/versions", () => ({
 }))
 
 import { createExercise, getExercise, setExerciseAccess } from "@/api/exercises/catalog"
+import { deployVariant, listDeploys } from "@/api/exercises/deploy"
 import { proposeExercise } from "@/api/exercises/proposals"
 import { getDraft, getVersion, listVersions, saveDraft } from "@/api/exercises/versions"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
@@ -50,7 +55,7 @@ const base: Exercise = {
   ArchivedAt: null, HasChanges: false, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null,
 }
 const version: Version = {
-  ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z",
+  ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z", Resources: null, Elevation: null,
   Variants: [{ ID: "v1", Index: 1, Note: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Flag: [], LinkedDeviceID: "",
     DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
   Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
@@ -108,7 +113,21 @@ describe("exercise editor — W4 rights", () => {
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     expect((await screen.findAllByText("exercises.infra.blocked")).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
-    expect(screen.queryByRole("button", { name: "admin.exPage.action.test" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+  })
+
+  it("shows the author's running test lab and opens its page instead of starting a second", async () => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
+    vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-1", Lab: "lab", ExerciseID: "ex-1", VersionID: "draft-1", VariantID: "v1", CreatedAt: "2026-09-30T10:00:00Z", ExpiresAt: "2026-09-30T12:00:00Z",
+      Tasks: [{ TaskID: "t1", Name: "Find it" }] }])
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+
+    expect(await screen.findByText("admin.exPage.test.running")).toBeInTheDocument()
+    expect(listDeploys).toHaveBeenCalledWith("ex-1")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
+    expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&deploy=run-1")
+    expect(deployVariant).not.toHaveBeenCalled()
   })
 
   it("lets admins set the access level of a catalog exercise", async () => {

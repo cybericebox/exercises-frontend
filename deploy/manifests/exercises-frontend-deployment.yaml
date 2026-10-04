@@ -24,35 +24,26 @@ spec:
     spec:
       containers:
         - name: exercises-frontend
-          image: cybericebox/exercises-frontend:latest
+          image: cybericebox/exercises-frontend:v0.1.0 # the release tag: an exact version, never latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: NEXT_PUBLIC_DOMAIN
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: DOMAIN
-            - name: NEXT_PUBLIC_API_DOMAIN
+            - name: NEXT_PUBLIC_SUPPORT_EMAIL
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
-                  key: API_DOMAIN
+                  key: SUPPORT_EMAIL
             - name: NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
               valueFrom:
                 configMapKeyRef:
                   name: exercises-frontend-config
                   key: GOOGLE_ANALYTICS_ID
-            - name: NEXT_PUBLIC_ID_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ID_DOMAIN
-            - name: NEXT_PUBLIC_ADMIN_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: exercises-frontend-config
-                  key: ADMIN_DOMAIN
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
               protocol: TCP
           resources:
             requests:
@@ -63,12 +54,12 @@ spec:
               cpu: "200m"
           readinessProbe:
             httpGet:
-              port: 3000
+              port: 8080
               path: /healthz
             initialDelaySeconds: 20
           livenessProbe:
             httpGet:
-              port: 3000
+              port: 8080
               path: /healthz
             initialDelaySeconds: 20
             periodSeconds: 30

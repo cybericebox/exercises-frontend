@@ -31,6 +31,15 @@ function openMenu(name: string) {
 }
 
 describe("ExerciseHeader", () => {
+  it("disables publishing while resources wait for an approval", () => {
+    const onPublish = vi.fn()
+    render(<ExerciseHeader {...makeProps({ onPublish, publishBlockedReason: "Needs approval" })} />)
+    const publish = screen.getByRole("button", { name: "admin.exPage.action.publish" })
+    expect(publish).toBeDisabled()
+    fireEvent.click(publish)
+    expect(onPublish).not.toHaveBeenCalled()
+  })
+
   it("shows the viewing actions without the save indicator", () => {
     render(<ExerciseHeader {...makeProps()} />)
     expect(screen.getByRole("heading", { name: "Web 101" })).toBeInTheDocument()
@@ -39,6 +48,19 @@ describe("ExerciseHeader", () => {
       expect(screen.getByRole("button", { name })).toBeEnabled()
     }
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
+  })
+
+  it("shows the running test lab next to Test and reopens it", () => {
+    const props = makeProps({ activeTestUntil: "2026-09-30T12:00:00Z", onOpenTest: vi.fn() })
+    render(<ExerciseHeader {...props} />)
+    expect(screen.getByText("admin.exPage.test.running")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.test.open" }))
+    expect(props.onOpenTest).toHaveBeenCalled()
+  })
+
+  it("shows no running-test chip without an active deploy", () => {
+    render(<ExerciseHeader {...makeProps()} />)
+    expect(screen.queryByText("admin.exPage.test.running")).not.toBeInTheDocument()
   })
 
   it("shows Done and the save indicator while editing", () => {
@@ -56,6 +78,11 @@ describe("ExerciseHeader", () => {
     expect(screen.getByText("admin.exPage.save.error")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.save.retry" }))
     expect(props.onRetrySave).toHaveBeenCalled()
+  })
+
+  it("disables the test action when blocked, keeping the reason", () => {
+    render(<ExerciseHeader {...makeProps({ testBlocked: true, testBlockedReason: "admin.exPage.action.testNoDevices" })} />)
+    expect(screen.getByRole("button", { name: /admin.exPage.action.test/ })).toBeDisabled()
   })
 
   it("keeps only History in version view", () => {

@@ -1,22 +1,16 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
+import { signInURL } from "./origins"
 
 describe("signInURL", () => {
-  it("points at the ID app and never nests a sign-in return_to", async () => {
-    vi.stubEnv("NEXT_PUBLIC_DOMAIN", "cybericebox-dev.pp.ua")
-    vi.resetModules()
-    const { signInURL } = await import("./origins")
-    const url = new URL(signInURL("https://exercises.cybericebox-dev.pp.ua/sign-in?return_to=x"))
-    expect(url.origin).toBe("https://id.cybericebox-dev.pp.ua")
+  it("points at the ID app and never nests a sign-in return_to", () => {
+    const url = new URL(signInURL("https://exercises.localhost/sign-in?return_to=x"))
+    expect(url.origin).toBe("https://id.localhost")
     expect(url.pathname).toBe("/sign-in")
-    expect(url.searchParams.get("return_to")).toBe("https://exercises.cybericebox-dev.pp.ua/")
-    vi.unstubAllEnvs()
+    expect(url.searchParams.get("return_to")).toBe("https://exercises.localhost/")
   })
 
-  it("returns empty instead of a same-origin /sign-in when the domain is unknown", async () => {
-    vi.stubEnv("NEXT_PUBLIC_DOMAIN", "")
-    vi.resetModules()
-    const { signInURL } = await import("./origins")
-    expect(signInURL("https://exercises.example/")).toBe("")
-    vi.unstubAllEnvs()
+  it("uses the backend-advertised sign-in URL when given", () => {
+    const url = new URL(signInURL("https://exercises.localhost/a", "https://sso.example/sign-in"))
+    expect(url.origin).toBe("https://sso.example")
   })
 })

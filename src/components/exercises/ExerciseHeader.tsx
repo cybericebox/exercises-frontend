@@ -33,14 +33,22 @@ export type ExerciseHeaderProps = {
   permissions: HeaderPermissions
   archived: boolean
   publishable: boolean
+  /** Publishing is shown but disabled; the reason (resources without an approval) appears in a tooltip. */
+  publishBlockedReason?: string
   revertable: boolean
   busy: boolean
   testAvailable: boolean
+  /** The test action is shown but disabled; the reason (when known) appears in a tooltip. */
+  testBlocked?: boolean
+  testBlockedReason?: string
   getTestVariants: () => TestVariantOption[]
   usageEvents: string[]
   onRetrySave: () => void
   onCancelNew: () => void
   onTest: (variantIndex: number) => void
+  /** The caller already has a test lab running for this exercise: its lease end (ISO). */
+  activeTestUntil?: string | null
+  onOpenTest?: () => void
   onHistory: () => void
   onEdit: () => void
   onDone: () => void
@@ -113,27 +121,32 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
 
 function TestMenu({
   disabled,
+  blockedReason,
   getVariants,
   onTest,
 }: {
   disabled: boolean
+  blockedReason?: string
   getVariants: () => TestVariantOption[]
   onTest: (index: number) => void
 }) {
   const [variants, setVariants] = useState<TestVariantOption[]>([])
+  const trigger = (
+    <DropdownMenuTrigger asChild>
+      <Button type="button" variant="outline" disabled={disabled}>
+        <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+        {t("admin.exPage.action.test")}
+        <ChevronDown aria-hidden="true" className={cn(ICON, "ml-1")} />
+      </Button>
+    </DropdownMenuTrigger>
+  )
   return (
     <DropdownMenu
       onOpenChange={(open) => {
         if (open) setVariants(getVariants())
       }}
     >
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" disabled={disabled}>
-          <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-          {t("admin.exPage.action.test")}
-          <ChevronDown aria-hidden="true" className={cn(ICON, "ml-1")} />
-        </Button>
-      </DropdownMenuTrigger>
+      {blockedReason ? <HoverTooltip text={blockedReason} describe>{trigger}</HoverTooltip> : trigger}
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t("admin.exPage.action.testMenu")}
@@ -248,7 +261,15 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
           </Button>
         ) : (
           <>
-            {testAvailable && <TestMenu disabled={!created || busy} getVariants={props.getTestVariants} onTest={props.onTest} />}
+            {testAvailable && props.activeTestUntil && props.onOpenTest && (
+              <span className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-sm">
+                <span className="text-foreground">
+                  {t("admin.exPage.test.running", { time: new Date(props.activeTestUntil).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }) })}
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={props.onOpenTest}>{t("admin.exPage.test.open")}</Button>
+              </span>
+            )}
+            {testAvailable && <TestMenu disabled={!created || busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
             <Button type="button" variant="outline" disabled={!created} onClick={props.onHistory}>
               <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
               {t("admin.exPage.action.history")}
@@ -282,9 +303,12 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
               <ProposeButton pending={props.proposalPending} disabled={busy || !!props.proposalPending} onClick={props.onPropose} />
             )}
             {permissions.publish && (
-              <Button type="button" disabled={!created || !publishable || busy} onClick={props.onPublish}>
-                {t("admin.exPage.action.publish")}
-              </Button>
+              (() => {
+                const publishButton = <Button type="button" disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>
+                  {t("admin.exPage.action.publish")}
+                </Button>
+                return props.publishBlockedReason ? <HoverTooltip text={props.publishBlockedReason} describe>{publishButton}</HoverTooltip> : publishButton
+              })()
             )}
             {created && <MoreMenu {...props} />}
           </>

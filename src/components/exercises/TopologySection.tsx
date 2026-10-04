@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { DNS_LABEL_RE, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { containerNameError, emptyDevice, MAX_DEVICE_NAME_LEN, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { TOPOLOGY_ICONS, topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
@@ -23,9 +23,9 @@ import { TopologyDeviceOverview } from "./TopologyDeviceOverview"
 import { TopologyDiagram } from "./TopologyDiagram"
 import { TopologyGlyph } from "./TopologyGlyph"
 import { useEditorPosition } from "./EditorPosition"
+import { STORAGE_TOPOLOGY_INSPECTOR_WIDTH } from "@/lib/storageKeys"
 
 type Gateway = "vpn" | "internet"
-const INSPECTOR_WIDTH_KEY = "cybericebox:topology-inspector-width"
 const INSPECTOR_DEFAULT_WIDTH = 480
 const INSPECTOR_MIN_WIDTH = 448
 const INSPECTOR_MAX_WIDTH = 720
@@ -34,7 +34,7 @@ const INSPECTOR_GAP = 8
 function initialInspectorWidth() {
   if (typeof window === "undefined") return INSPECTOR_DEFAULT_WIDTH
   try {
-    const raw = window.localStorage?.getItem(INSPECTOR_WIDTH_KEY)
+    const raw = window.localStorage?.getItem(STORAGE_TOPOLOGY_INSPECTOR_WIDTH)
     if (raw !== null && raw !== undefined) {
       const stored = Number(raw)
       if (Number.isInteger(stored) && stored > 0) return Math.max(INSPECTOR_MIN_WIDTH, Math.min(INSPECTOR_MAX_WIDTH, stored))
@@ -157,7 +157,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   }
 
   function saveInspectorWidth() {
-    try { window.localStorage?.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidthRef.current)) }
+    try { window.localStorage?.setItem(STORAGE_TOPOLOGY_INSPECTOR_WIDTH, String(inspectorWidthRef.current)) }
     catch { /* Resizing still works for this session if storage is blocked. */ }
   }
 
@@ -262,9 +262,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   function renameNode(key: string, draft: string): string | null {
     const name = draft.trim()
     const device = devices.find((candidate) => candidate.ID === key)
-    if (device?.Type === "container" ? !DNS_LABEL_RE.test(name) : !name) {
-      return t(device?.Type === "container" ? "admin.ex.val.deviceName" : "admin.ex.val.deviceDisplayName")
-    }
+    const nameError = device?.Type === "container" ? containerNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
+    if (nameError) return nameError
     if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)
       || (["vpn", "internet"] as const).some((kind) => kind !== key
         && topology?.[kind === "vpn" ? "VPN" : "Internet"].Enabled
@@ -465,13 +464,17 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">{t("admin.exTopo.deviceSettings")}</h3>
           {settingsName !== null && (renamingKey === settingsTarget ? <div className="mt-1 min-w-0">
+            <div className="flex items-center gap-1.5">
             <Input ref={nameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!nameError}
-              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? 63 : undefined}
+              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? MAX_DEVICE_NAME_LEN : undefined}
               onChange={(event) => { setNameDraft(event.target.value); setNameError("") }}
               onBlur={commitRename} onKeyDown={(event) => {
                 if (event.key === "Enter") { event.preventDefault(); commitRename() }
                 if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setRenamingKey(null); setNameError("") }
               }} />
+            {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container"
+              && <span onMouseDown={(event) => event.preventDefault()}><FieldHelp text={t("admin.exTopo.deviceNameHelp", { max: MAX_DEVICE_NAME_LEN })} /></span>}
+            </div>
             {nameError && <p role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
           </div> : <HoverTooltip text={t("admin.exTopo.renameDevice")} className="max-w-full">
             <button type="button" disabled={disabled} aria-label={`${t("admin.exTopo.renameDevice")}: ${settingsName}`}

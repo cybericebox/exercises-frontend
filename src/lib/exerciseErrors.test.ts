@@ -68,8 +68,22 @@ describe('W4 error codes', () => {
     [70955, 'exercises.err.proposalInvalid'],
     [70956, 'exercises.err.proposalDecided'],
     [60957, 'exercises.err.forbidden'],
-    [70903, 'exercises.err.nameExists'],
   ])('maps %i', (code, key) => {
     expect(exerciseErrorMessage(new ApiError(409, { Status: { Code: code, Message: 'x' } }))).toBe(key)
+  })
+})
+
+describe('task description and catalog fallback', () => {
+  it('maps the publish-time task description code', () => {
+    expect(exerciseErrorMessage(new ApiError(400, { Status: { Code: 20938, Message: 'x' } }, 'x', undefined, 20938))).toBe('admin.ex.err.taskDescriptionRequired')
+  })
+
+  it('uses the catalog text for a code without a key', () => {
+    expect(exerciseErrorMessage(new ApiError(400, { Status: { Code: 20934, Message: 'x' } }, 'x', undefined, 20934))).toContain('пресет')
+  })
+
+  it('answers a 429 with the wait message, whatever the body', () => {
+    expect(exerciseErrorMessage(new ApiError(429, '', undefined, undefined, undefined, 7))).toBe('error.tooManyRequests.wait')
+    expect(exerciseErrorMessage(new ApiError(429, { Status: { Code: 70428, Message: 'x' } }, 'x', undefined, 70428))).toBe('error.tooManyRequests')
   })
 })

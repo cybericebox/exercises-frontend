@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/origins", () => ({ publicDomain: "cybericebox.local" }))
+vi.mock("@/lib/origins", () => ({
+  mainHost: "cybericebox.local",
+  eventDomain: "cybericebox.local",
+  adminOrigin: "https://admin.cybericebox.local",
+  exercisesOrigin: "https://exercises.cybericebox.local",
+}))
 
 import { readStoredReturnContext, resolveEventId, resolveReturnContext, safeReturnUrl } from "./returnContext"
 
@@ -56,7 +61,7 @@ describe("resolveReturnContext", () => {
   })
 
   it("drops a malformed stored value", () => {
-    window.sessionStorage.setItem("cybericebox.exercises.return", "{not json")
+    window.sessionStorage.setItem("cib_exercises_return", "{not json")
     expect(readStoredReturnContext()).toEqual({ returnUrl: null, eventId: null })
   })
 })

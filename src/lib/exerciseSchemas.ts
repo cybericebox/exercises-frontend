@@ -6,6 +6,7 @@
  * The schemas describe DraftFormValues (form is 1:1 with SaveDraftInput; one difference:
  * External in the form is {Enabled, Port, Protocol} instead of a nullable object).
  */
+import { LINK_SCHEMES, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
 import { z } from "zod"
 import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
@@ -36,7 +37,19 @@ import { HINT_LEVELS } from "@/lib/hintLevels"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
-export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+/**
+ * A container's name becomes part of the lab's web address
+ * (<name>-<code>.<domain>, code is 3-4 random chars), which must be one 63-char
+ * DNS label; we use 35 for a round limit. Keep in sync with the backend and laboratory.
+ */
+export const MAX_DEVICE_NAME_LEN = 35
+export const DNS_LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,33}[a-z0-9])?$/
+
+/** Inline error for a container name, or null when it is valid. */
+export function containerNameError(name: string): string | null {
+  if (name.length > MAX_DEVICE_NAME_LEN) return t("admin.ex.val.deviceNameTooLong", { max: MAX_DEVICE_NAME_LEN })
+  return DNS_LABEL_RE.test(name) ? null : t("admin.ex.val.deviceName")
+}
 // MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
 // net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
@@ -68,22 +81,12 @@ function cidrFamily(v: string): "ipv4" | "ipv6" | null {
   return v.includes(":") ? "ipv6" : "ipv4"
 }
 
-// Kubernetes quantity suffixes. This mirrors the common resource quantities;
-// the server's resource.ParseQuantity remains the authority for unusual forms.
-const QUANTITY_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:(e[+-]?\d+|E[+-]?\d+)|(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E))?$/
-const QUANTITY_SCALE: Record<string, number> = { n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3, Ti: 1024 ** 4, Pi: 1024 ** 5, Ei: 1024 ** 6 }
-
-function quantityValue(value: string): number | null {
-  const match = QUANTITY_RE.exec(value)
-  if (!match) return null
-  const result = Number(match[1]) * (match[2] ? 10 ** Number(match[2].slice(1)) : (QUANTITY_SCALE[match[3]] ?? 1))
-  return Number.isFinite(result) && result > 0 ? result : null
-}
-
 // ── Form types ─────────────────────────────────────────────────────────────────
 
 export type ExternalFormValues = { Enabled: boolean; Port: number; Protocol: Protocol }
-export type DeviceFormValues = Omit<NormalizedDevice, "External"> & { External: ExternalFormValues }
+/** Persistence in the form: Debounce is not edited here, it only travels back as loaded. */
+export type PersistenceFormValues = { Enabled: boolean; Debounce: string }
+export type DeviceFormValues = Omit<NormalizedDevice, "External" | "Persistence"> & { External: ExternalFormValues; Persistence?: PersistenceFormValues }
 export type TopologyFormValues = Omit<NormalizedTopology, "Devices"> & { Devices: DeviceFormValues[] }
 export type PlaceholderFormValues = {
   Key: string
@@ -93,6 +96,11 @@ export type PlaceholderFormValues = {
   LastOctet: number
   ShowMask: boolean
   DeviceName: string
+  /** IP link form. PortText is the typed port: "" = the scheme default. */
+  AsLink?: boolean
+  Scheme?: string
+  PortText?: string
+  Path?: string
 }
 export type TaskFormValues = Omit<NormalizedTask, "Placeholders"> & { Placeholders: PlaceholderFormValues[] }
 export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
@@ -226,7 +234,7 @@ const externalSchema = z
   })
   .superRefine((ext, ctx) => {
     if (ext.Enabled && (ext.Port < 1 || ext.Port > 65535)) {
-      ctx.addIssue({ code: "custom", path: ["Port"], message: t("admin.ex.val.port") })
+      ctx.addIssue({ code: "custom", path: ["PortText"], message: t("admin.ex.val.port") })
     }
   })
 
@@ -237,33 +245,21 @@ const deviceSchema = z
     Type: z.enum(["container", "unmanaged-switch", "hub"]),
     SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
     Image: z.string(),
-    Resources: z.object({ CPURequest: z.string(), MemoryRequest: z.string(), CPULimit: z.string(), MemoryLimit: z.string() }),
+    ResourcePreset: z.string(),
     Interfaces: z.array(interfaceSchema),
     EnvVars: z.array(envVarSchema),
     External: externalSchema,
+    Persistence: z.object({ Enabled: z.boolean(), Debounce: z.string() }).optional(),
   })
   .superRefine((d, ctx) => {
-    if (d.Type === "container" ? !DNS_LABEL_RE.test(d.Name) : !d.Name.trim()) {
-      ctx.addIssue({ code: "custom", path: ["Name"], message: t(d.Type === "container" ? "admin.ex.val.deviceName" : "admin.ex.val.deviceDisplayName") })
-    }
+    const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
+    if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    const hasResources = Object.values(d.Resources).some(Boolean)
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.SecurityPreset !== "" || hasResources)) {
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
     if (!forwarding && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
-    }
-    for (const field of ["CPURequest", "MemoryRequest", "CPULimit", "MemoryLimit"] as const) {
-      const value = d.Resources[field]
-      if (value !== "" && quantityValue(value) === null) ctx.addIssue({ code: "custom", path: ["Resources", field], message: t("admin.ex.val.resourceQuantity") })
-    }
-    for (const [request, limit] of [["CPURequest", "CPULimit"], ["MemoryRequest", "MemoryLimit"]] as const) {
-      const requestValue = quantityValue(d.Resources[request])
-      const limitValue = quantityValue(d.Resources[limit])
-      if (requestValue !== null && limitValue !== null && requestValue > limitValue) {
-        ctx.addIssue({ code: "custom", path: ["Resources", request], message: t("admin.ex.val.resourceRequestLimit") })
-      }
     }
   })
 
@@ -391,8 +387,26 @@ const placeholderSchema = z
     LastOctet: z.number().int().min(0, t("admin.ex.val.lastOctet")).max(255, t("admin.ex.val.lastOctet")),
     ShowMask: z.boolean(),
     DeviceName: z.string(),
+    AsLink: z.boolean().optional(),
+    Scheme: z.string().optional(),
+    PortText: z.string().optional(),
+    Path: z.string().optional(),
   })
   .superRefine((p, ctx) => {
+    if (p.Kind === "ip" && p.AsLink) {
+      if (!(LINK_SCHEMES as readonly string[]).includes(p.Scheme ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["Scheme"], message: t("admin.ex.val.placeholderScheme") })
+      }
+      if (!isValidLinkPort(p.PortText ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["PortText"], message: t("admin.ex.val.placeholderPort") })
+      }
+      if (!isValidLinkPath(p.Path ?? "")) {
+        ctx.addIssue({ code: "custom", path: ["Path"], message: t("admin.ex.val.placeholderPath") })
+      }
+      if (p.ShowMask) {
+        ctx.addIssue({ code: "custom", path: ["ShowMask"], message: t("admin.ex.val.placeholderLinkMask") })
+      }
+    }
     if (p.Kind === "ip" && !["vpn", "internet", "static"].includes(p.IPReference)) {
       ctx.addIssue({ code: "custom", path: ["IPReference"], message: t("admin.ex.val.placeholderIPRef") })
     }
@@ -415,7 +429,7 @@ const taskSchema = z.object({
   Description: z.custom<Record<string, unknown> | null>(
     (v) => v === null || (typeof v === "object" && v !== null && !Array.isArray(v)),
   ),
-  Difficulty: z.enum(["trivial", "easy", "medium", "hard", "insane"]),
+  Difficulty: z.enum(["elementary", "trivial", "easy", "medium", "hard", "insane"]),
   Flag: z.array(z.string().superRefine((value, ctx) => {
     try { parseFlagCandidate(value) } catch (error) {
       ctx.addIssue({ code: "custom", message: t(flagCandidateErrorKey(error)) })
@@ -539,15 +553,16 @@ export function emptyDevice(): DeviceFormValues {
     Type: "container",
     SecurityPreset: "",
     Image: "",
-    Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" },
+    ResourcePreset: "",
     Interfaces: [emptyInterface()],
     EnvVars: [],
     External: { Enabled: false, Port: 80, Protocol: "http" },
+    Persistence: { Enabled: false, Debounce: "" },
   }
 }
 
 export function emptyPlaceholder(): PlaceholderFormValues {
-  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "" }
+  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "", AsLink: false, Scheme: "http", PortText: "", Path: "" }
 }
 
 export function emptyVariant(index: number): VariantFormValues {
@@ -591,6 +606,10 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
           LastOctet: p.LastOctet ?? 0,
           ShowMask: p.ShowMask ?? false,
           DeviceName: p.DeviceName ?? "",
+          AsLink: p.AsLink ?? false,
+          Scheme: p.Scheme ?? "http",
+          PortText: p.Port ? String(p.Port) : "",
+          Path: p.Path ?? "",
         })),
       })),
       Topology: {
@@ -598,11 +617,12 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
         Internet: v.Topology.Internet,
         Devices: v.Topology.Devices.map((d) => ({
           ...d,
-          Resources: { CPURequest: d.Resources?.CPURequest ?? "", MemoryRequest: d.Resources?.MemoryRequest ?? "", CPULimit: d.Resources?.CPULimit ?? "", MemoryLimit: d.Resources?.MemoryLimit ?? "" },
+          ResourcePreset: d.ResourcePreset ?? "",
           Interfaces: d.Interfaces.map((iface) => ({ ...iface, IP: { ...iface.IP, Routes: iface.IP.Routes ?? [] } })),
           External: d.External
             ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
             : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
+          Persistence: { Enabled: d.Persistence?.Enabled ?? false, Debounce: d.Persistence?.Debounce ?? "" },
         })),
         Connections: v.Topology.Connections,
         VisualRender: v.Topology.VisualRender,
@@ -619,8 +639,14 @@ function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
         Kind: p.Kind,
         IPReference: p.IPReference,
         LastOctet: p.LastOctet,
-        ShowMask: p.ShowMask,
+        ShowMask: p.AsLink ? false : p.ShowMask,
         ...(p.IPReference === "static" ? { Octets1to3: p.Octets1to3 } : {}),
+        ...(p.AsLink ? {
+          AsLink: true,
+          Scheme: p.Scheme || "http",
+          ...(p.PortText ? { Port: Number(p.PortText) } : {}),
+          ...(p.Path ? { Path: p.Path } : {}),
+        } : {}),
       }
     case "external.link":
       return { Key: p.Key, Kind: p.Kind, DeviceName: p.DeviceName }
@@ -673,10 +699,12 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...base,
     ...(d.SecurityPreset ? { SecurityPreset: d.SecurityPreset } : {}),
     ...(d.Image ? { Image: d.Image } : {}),
-    ...(Object.values(d.Resources).some(Boolean) ? { Resources: Object.fromEntries(Object.entries(d.Resources).filter(([, value]) => value)) } : {}),
+    // A device size is a preset (a whole number of blocks); unset is the platform default.
+    ...(d.ResourcePreset ? { ResourcePreset: d.ResourcePreset } : {}),
     Interfaces: d.Interfaces.map(interfaceToDTO),
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),
+    ...(d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } } : {}),
   }
 }
 

@@ -1,14 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
-import { adminOrigin, apiOrigin, idOrigin, publicDomain } from "@/lib/origins"
+import { adminOrigin, apiOrigin, eventDomain, exercisesOrigin, idOrigin, mainHost } from "@/lib/origins"
 import { backHosts, resolveBack, type BackLink } from "@/lib/backLink"
 
-const exercisesDomain = process.env.NEXT_PUBLIC_EXERCISES_DOMAIN?.trim() || (publicDomain && `exercises.${publicDomain}`)
-const HOSTS = backHosts(publicDomain, {
+const HOSTS = backHosts({ main: mainHost, eventDomain }, {
   admin: adminOrigin,
-  exercises: exercisesDomain ? `https://${exercisesDomain}` : "",
+  exercises: exercisesOrigin,
   id: idOrigin,
   api: apiOrigin,
 })
@@ -21,21 +19,17 @@ function tabStorage(): Storage | null {
   }
 }
 
-/**
- * Where the top bar's back arrow leads (lib/backLink), re-resolved on every in-app navigation.
- * Event pages opened the catalog with ?return=; newer callers send ?return_to=.
- */
-export function useBackLink(): BackLink | null {
-  const pathname = usePathname()
+/** The back link for id pages: lib/backLink with this platform's hosts. */
+export function resolveIdBack(returnTo: string | null, referrer: string, currentHost: string, storage: Storage | null): BackLink | null {
+  return resolveBack({ returnTo, referrer, currentHost }, HOSTS, storage)
+}
+
+/** Where this page's back arrow leads, resolved in the browser. */
+export function useBackLink(returnTo: string | null): BackLink | null {
   const [link, setLink] = useState<BackLink | null>(null)
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search)
-    const next = resolveBack({
-      returnTo: search.get("return_to") ?? search.get("return"),
-      referrer: document.referrer,
-      currentHost: window.location.hostname,
-    }, HOSTS, tabStorage())
+    const next = resolveIdBack(returnTo, document.referrer, window.location.hostname, tabStorage())
     queueMicrotask(() => setLink(next))
-  }, [pathname])
+  }, [returnTo])
   return link
 }

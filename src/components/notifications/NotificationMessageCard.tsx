@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { NotificationIcon } from "./NotificationIcon"
 import { t } from "@/i18n/t"
+import { keepBrand } from "@/i18n/brand"
 
 export type NotificationMessageCardProps = {
   icon?: string
@@ -20,7 +21,7 @@ export function NotificationMessageCard({ icon = "bell", tone = "neutral", accen
     <NotificationIcon icon={icon} tone={tone} accentColor={accentColor} size={compact ? "sm" : "md"} />
     <div className="min-w-0 flex-1">
       {title && <div className="flex min-w-0 items-start gap-2">
-        <p className={`min-w-0 flex-1 break-words text-sm leading-snug text-foreground ${unread ? "font-semibold" : "font-medium"}`}>{title}</p>
+        <p className={`min-w-0 flex-1 break-words text-sm leading-snug text-foreground ${unread ? "font-semibold" : "font-medium"}`}>{keepBrand(title)}</p>
         {unread && <span aria-label={t("inbox.unreadItem")} className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
       </div>}
       {body && <div className={`${title ? "mt-1" : ""} break-words text-sm leading-relaxed text-muted-foreground ${compact ? "line-clamp-2" : ""}`}>{body}</div>}

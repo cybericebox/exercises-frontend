@@ -16,33 +16,19 @@ import { SecretInput } from "./SecretInput"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { RemoveAction } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
+import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
+import { formatCPU, formatMemory, outsideFrame, selectedPreset, devicePreset } from "@/lib/deviceResources"
+import { useResourcesConfig } from "./ResourcesConfigContext"
+import { LoadingArea } from "@/components/ui/spinner"
 
 const PROTOCOLS: Protocol[] = ["http", "https"]
 // The operator treats an omitted preset and explicit "basic" identically.
 // Keep accepting legacy "basic" values, but offer only one basic choice.
 const SECURITY_PRESETS: SecurityPreset[] = ["", "service", "net", "debug"]
-const QUANTITY_INPUT_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))((?:e|E)[+-]?\d+|Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E)?$/
-
-function splitQuantity(raw: string): { amount: string; unit: string } {
-  const match = QUANTITY_INPUT_RE.exec(raw)
-  return match ? { amount: match[1], unit: match[2] ?? "" } : { amount: raw, unit: "" }
-}
-
-const CPU_UNITS = [
-  { value: "m", labelKey: "admin.exTopo.cpuUnit.m" },
-  { value: "", labelKey: "admin.exTopo.cpuUnit.core" },
-]
-const MEMORY_UNITS = [
-  { value: "Mi", labelKey: "admin.exTopo.memoryUnit.Mi" },
-  { value: "Gi", labelKey: "admin.exTopo.memoryUnit.Gi" },
-  { value: "Ki", labelKey: "admin.exTopo.memoryUnit.Ki" },
-  { value: "Ti", labelKey: "admin.exTopo.memoryUnit.Ti" },
-  { value: "", labelKey: "admin.exTopo.memoryUnit.byte" },
-]
-
 /** One device with focused settings; switch/hub expose only basic properties. */
 export function DeviceCard({
   variantIndex,
@@ -59,6 +45,8 @@ export function DeviceCard({
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const type = useWatch({ control, name: `${base}.Type` })
   const externalEnabled = useWatch({ control, name: `${base}.External.Enabled` })
+  const persistenceEnabled = useWatch({ control, name: `${base}.Persistence.Enabled` })
+  const persistenceAvailable = useDevicePersistenceAvailable()
   const forwarding = type === "unmanaged-switch" || type === "hub"
   type DevicePanel = "basic" | "interfaces" | "env"
   const [panel, setPanel] = useEditorPosition("devicePanel")
@@ -113,13 +101,7 @@ export function DeviceCard({
           <div className="flex items-center gap-1.5"><button type="button" aria-expanded={expanded.resources} onClick={() => toggleSection("resources")}
             className="flex items-center gap-2 rounded-sm text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">
             <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${expanded.resources ? "" : "-rotate-90"}`} />{t("admin.exTopo.resources")}</button><FieldHelp text={t("admin.exTopo.resourcesHelp")} /></div>
-          {expanded.resources && <div data-device-resource-grid className={`grid gap-3 ${compact ? "grid-cols-1 @min-[26rem]:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
-            {(["CPURequest", "CPULimit", "MemoryRequest", "MemoryLimit"] as const).map((resource) => {
-              const key = `admin.exTopo.${resource.replace(/^CPU/, "cpu").replace(/^Memory/, "memory")}`
-              return <ResourceQuantityField key={resource} variantIndex={variantIndex} deviceIndex={deviceIndex}
-                resource={resource} labelKey={key} disabled={disabled} compact={compact} />
-            })}
-          </div>}
+          {expanded.resources && <ResourcePicker variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
         </section>}
 
         {visiblePanel === "interfaces" &&
@@ -186,46 +168,56 @@ export function DeviceCard({
             </div>}
           </section>
         }
+        {visiblePanel === "basic" && type === "container" && (persistenceAvailable || persistenceEnabled) && <section className="space-y-2 border-t border-border pt-4">
+          <Controller
+            control={control}
+            name={`${base}.Persistence.Enabled`}
+            render={({ field }) => (
+              <div className="flex items-center gap-1.5">
+                <Checkbox label={t("admin.exTopo.persistence")} checked={field.value} onChange={(event) => field.onChange(event.target.checked)} disabled={disabled} />
+                <FieldHelp lines={[t("admin.exTopo.persistenceHelp.containers"), t("admin.exTopo.persistenceHelp.restart"), t("admin.exTopo.persistenceHelp.tmp")]} />
+              </div>
+            )}
+          />
+        </section>}
         </div>
       </div>
     </div>
   )
 }
 
-function ResourceQuantityField({ variantIndex, deviceIndex, resource, labelKey, disabled, compact }: {
+/** The block size of one device: a preset of the platform (a whole number of blocks); presets, the frame and the amounts come from it. */
+function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
   variantIndex: number
   deviceIndex: number
-  resource: "CPURequest" | "CPULimit" | "MemoryRequest" | "MemoryLimit"
-  labelKey: string
   disabled: boolean
   compact: boolean
 }) {
-  const { control } = useFormContext<DraftFormValues>()
-  const isCPU = resource.startsWith("CPU")
-  const units = isCPU ? CPU_UNITS : MEMORY_UNITS
-  const [chosenUnit, setChosenUnit] = useState(isCPU ? "m" : "Mi")
-  return <FormField control={control} name={`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Resources.${resource}`}
-    render={({ field, fieldState }) => {
-      const { amount, unit } = splitQuantity(field.value)
-      const displayUnit = field.value && QUANTITY_INPUT_RE.test(field.value) ? unit : chosenUnit
-      const options = units.some((option) => option.value === displayUnit) ? units
-        : [...units, { value: displayUnit, labelKey: "" }]
-      return <FormItem className={compact ? "space-y-1" : undefined}>
-        <ExerciseFieldLabel labelKey={labelKey} helpKey={`${labelKey}Help`} form />
-        <div className="flex min-w-0 gap-2">
-          <FormControl><Input {...field} value={amount} inputMode="decimal" disabled={disabled}
-            placeholder={isCPU ? "250" : "512"} className="min-w-0 flex-1"
-            onChange={(event) => field.onChange(event.target.value ? `${event.target.value}${displayUnit}` : "")} /></FormControl>
-          <SelectMenu value={displayUnit} onChange={(next) => {
-            setChosenUnit(next)
-            if (amount) field.onChange(`${amount}${next}`)
-          }} disabled={disabled} ariaLabel={`${t(labelKey)} ${t("admin.exTopo.resourceUnit")}`}
-            options={options.map((option) => ({ value: option.value, label: option.labelKey ? t(option.labelKey) : option.value }))}
-            className="h-10 w-28 shrink-0" />
-        </div>
-        {fieldState.error && <FormMessage />}
-      </FormItem>
-    }} />
+  const { control, setValue } = useFormContext<DraftFormValues>()
+  const config = useResourcesConfig()
+  const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
+  const preset = useWatch({ control, name: `${base}.ResourcePreset` })
+  if (!config) return <LoadingArea compact className="h-24" label={t("admin.loading")} />
+  const selected = selectedPreset({ ResourcePreset: preset }, config)
+  const current = devicePreset({ ResourcePreset: preset }, config)
+  const outside = current ? outsideFrame(current.Blocks, config) : false
+
+  return <div data-device-resources className="min-w-0 space-y-3">
+    <div role="radiogroup" aria-label={t("admin.exTopo.resources")}
+      className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
+      {config.Presets.map((item) => (
+        <button key={item.ID} type="button" role="radio" aria-checked={selected === item.ID} disabled={disabled}
+          onClick={() => setValue(`${base}.ResourcePreset`, item.ID, { shouldDirty: true })}
+          className={`flex min-w-0 flex-col rounded-md border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 ${selected === item.ID ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}>
+          <span className="font-medium">{t(`exercises.res.preset.${item.ID}`)}</span>
+          <span className="truncate text-xs text-muted-foreground">{t("exercises.res.blockHint", { count: item.Blocks, cpu: formatCPU(item.CPUMillicores), memory: formatMemory(item.MemoryBytes) })}</span>
+        </button>
+      ))}
+    </div>
+    {current && <p data-resource-summary className={`text-xs ${outside ? "text-[var(--ib-warn)]" : "text-muted-foreground"}`}>
+      {t(outside ? "exercises.res.outsideFrame" : "exercises.res.insideFrame", { cpu: formatCPU(current.CPUMillicores), memory: formatMemory(current.MemoryBytes) })}
+    </p>}
+  </div>
 }
 
 /** EnvVarsList — container environment variables; secrets go through SecretInput. */

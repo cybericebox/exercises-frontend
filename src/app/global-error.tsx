@@ -7,6 +7,7 @@ import { GeistMono } from "geist/font/mono"
 import { ErrorScreen } from "@/components/ErrorScreen"
 import { applyTheme, readThemeChoice, resolveTheme } from "@/lib/theme"
 import { t } from "@/i18n/t"
+import { FeedbackLink } from "@/components/FeedbackLink"
 
 // Root layout failed: this replaces the whole document, so it brings its own <html>,
 // global styles and the saved theme (cib_theme cookie).
@@ -28,6 +29,8 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
       </head>
       <body className="grid-bg" suppressHydrationWarning>
         <ErrorScreen onRetry={retry} fullPage />
+        {/* plain mailto link; the root layout (and its FeedbackLink) is gone here */}
+        <FeedbackLink />
       </body>
     </html>
   )

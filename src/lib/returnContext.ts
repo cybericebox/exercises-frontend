@@ -1,25 +1,29 @@
-import { publicDomain } from "@/lib/origins"
+import { adminOrigin, eventDomain, exercisesOrigin, mainHost } from "@/lib/origins"
+import { STORAGE_EXERCISES_RETURN } from "@/lib/storageKeys"
 
 // Return context: an event page (or admin) opens the catalog with ?return_to=<absolute
 // https URL>[&event=<eventID>] (older links: ?return=). The URL is only accepted on
-// the platform domain (or a subdomain), and both values survive in-app
+// a platform host (landing, admin, catalog) or an event site, and both values survive in-app
 // navigation through sessionStorage.
 
 export type ReturnContext = { returnUrl: string | null; eventId: string | null }
 
-const STORAGE_KEY = "cybericebox.exercises.return"
 const EMPTY: ReturnContext = { returnUrl: null, eventId: null }
 
-/** Accepts only https URLs on `${domain}` or its subdomains; everything else → null. */
-export function safeReturnUrl(value: string | null | undefined, domain = publicDomain): string | null {
+const hostOf = (origin: string) => new URL(origin).hostname.toLowerCase()
+
+/** Accepts only https URLs on `${domain}` (the landing host), the admin/catalog hosts or `<tag>.${events}`; everything else → null. */
+export function safeReturnUrl(value: string | null | undefined, domain = mainHost, events = eventDomain): string | null {
   const root = domain.trim().toLowerCase()
+  const eventRoot = events.trim().toLowerCase()
   if (!value || !root) return null
   try {
     const url = new URL(value)
     const host = url.hostname.toLowerCase()
     if (url.protocol !== "https:") return null
     if (url.username || url.password) return null
-    if (host !== root && !host.endsWith(`.${root}`)) return null
+    const known = host === root || host === hostOf(adminOrigin) || host === hostOf(exercisesOrigin)
+    if (!known && !(eventRoot && host.endsWith(`.${eventRoot}`))) return null
     return url.toString()
   } catch {
     return null
@@ -33,7 +37,7 @@ function cleanEventId(value: string | null | undefined): string | null {
 
 export function readStoredReturnContext(): ReturnContext {
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    const raw = window.sessionStorage.getItem(STORAGE_EXERCISES_RETURN)
     if (!raw) return EMPTY
     const parsed = JSON.parse(raw) as Partial<ReturnContext>
     const returnUrl = safeReturnUrl(parsed.returnUrl ?? null)
@@ -45,7 +49,7 @@ export function readStoredReturnContext(): ReturnContext {
 
 function store(context: ReturnContext): void {
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(context))
+    window.sessionStorage.setItem(STORAGE_EXERCISES_RETURN, JSON.stringify(context))
   } catch { /* Storage may be disabled; the bar then lives for this page only. */ }
 }
 

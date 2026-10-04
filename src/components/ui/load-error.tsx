@@ -20,12 +20,14 @@ export function errorCode(error: unknown): number | undefined {
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
  * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
  */
-export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className }: {
+export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className, actions }: {
   message?: string
   onRetry?: () => void
   error?: unknown
   compact?: boolean
   className?: string
+  /** Extra buttons next to «Спробувати ще раз» (a way around the failure). */
+  actions?: React.ReactNode
 }) {
   const code = errorCode(error)
   return (
@@ -34,7 +36,10 @@ export function LoadError({ message = t("error.load.title"), onRetry, error, com
       <p className="text-sm font-medium text-foreground">{message}</p>
       {!compact && <p className="max-w-sm text-sm text-muted-foreground">{t("error.load.body")}</p>}
       {code !== undefined && <p className="font-mono text-xs text-muted-foreground">{t("error.load.code", { code })}</p>}
-      {onRetry && <Button variant="outline" size={compact ? "sm" : "default"} onClick={onRetry}>{t("error.load.retry")}</Button>}
+      {(onRetry || actions) && <div className="flex flex-wrap items-center justify-center gap-2">
+        {actions}
+        {onRetry && <Button variant="outline" size={compact ? "sm" : "default"} onClick={onRetry}>{t("error.load.retry")}</Button>}
+      </div>}
     </div>
   )
 }

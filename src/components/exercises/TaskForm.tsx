@@ -1,5 +1,7 @@
 "use client"
 
+import { exampleLabLink } from "@/lib/labId"
+import { ipExample } from "@/lib/placeholderLink"
 import { useEffect, useRef, useState } from "react"
 import { Controller, useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
@@ -18,7 +20,7 @@ import type { VariableDef } from "@/components/editor/variableUtils"
 import { getFlagPolicy, type FlagPolicy } from "@/api/exercises/flagPolicy"
 import type { TextFormatType } from "lexical"
 
-const DIFFICULTIES = ["trivial", "easy", "medium", "hard", "insane"] as const
+const DIFFICULTIES = ["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
 
 /** TaskForm — the fields of one selected task in a variant. */
 export function TaskForm({
@@ -48,9 +50,9 @@ export function TaskForm({
     const labelKey = placeholder.Kind === "vpn.subnet" ? "admin.exPh.kind.vpnSubnet" :
       placeholder.Kind === "internet.subnet" ? "admin.exPh.kind.internetSubnet" :
       placeholder.Kind === "external.link" ? "admin.exPh.kind.externalLink" : "admin.exPh.kind.ip"
-    const example = placeholder.Kind === "external.link" ? `https://${placeholder.DeviceName || "web"}.example.com` :
-      placeholder.Kind === "vpn.subnet" || placeholder.Kind === "internet.subnet" ? `10.0.0.0${placeholder.ShowMask ? "/24" : ""}` :
-      placeholder.IPReference === "static" && placeholder.Octets1to3 ? `${placeholder.Octets1to3}.${placeholder.LastOctet}` : `10.0.0.${placeholder.LastOctet}${placeholder.ShowMask ? "/24" : ""}`
+    const example = placeholder.Kind === "external.link" ? exampleLabLink(placeholder.DeviceName || "web") :
+      placeholder.Kind === "vpn.subnet" || placeholder.Kind === "internet.subnet" ? "10.0.0.0/24" :
+      ipExample(placeholder)
     return { name: placeholder.Key, description: t(labelKey), example }
   })
   const unavailableLabels = Object.fromEntries(placeholders.flatMap((placeholder) => {

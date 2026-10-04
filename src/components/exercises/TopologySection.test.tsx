@@ -310,6 +310,24 @@ describe("topology workspace", () => {
     expect(screen.queryByRole("textbox", { name: "admin.exTopo.deviceName" })).not.toBeInTheDocument()
   })
 
+  it("limits a container name to 35 characters with an inline error and a help hint", async () => {
+    render(<Harness />)
+    addNode("container")
+    fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.renameDevice: host-1" }))
+    const name = screen.getByRole("textbox", { name: "admin.exTopo.deviceName" })
+    expect(name).toHaveAttribute("maxlength", "35")
+    expect(screen.getByRole("button", { name: "admin.exTopo.deviceNameHelp" })).toBeInTheDocument()
+    fireEvent.change(name, { target: { value: "Web_1" } })
+    await act(async () => { fireEvent.keyDown(name, { key: "Enter" }) })
+    expect(screen.getByRole("alert")).toHaveTextContent("admin.ex.val.deviceName")
+    expect(topology().Devices[0].Name).toBe("host-1")
+    fireEvent.change(name, { target: { value: "a".repeat(35) } })
+    await act(async () => { fireEvent.keyDown(name, { key: "Enter" }) })
+    expect(topology().Devices[0].Name).toBe("a".repeat(35))
+  })
+
   it("renames a label in place without opening the inspector, while a glyph double click still opens it", async () => {
     render(<Harness />)
     addNode("container")
@@ -383,7 +401,7 @@ describe("topology workspace", () => {
   })
 
   it("resizes the canvas inspector and restores its width from this browser", () => {
-    const storageKey = "cybericebox:topology-inspector-width"
+    const storageKey = "cib_topology_inspector_width"
     const values = new Map([[storageKey, "400"]])
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => values.get(key) ?? null,

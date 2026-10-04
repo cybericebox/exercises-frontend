@@ -20,12 +20,14 @@
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
 import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
+import { normalizeElevation, type Elevation } from "./elevation"
+import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 
 const BASE = "/api/exercises"
 
 export type VersionStatus = "draft" | "published" | "unpublished" | "checkpoint"
-export type Difficulty = "trivial" | "easy" | "medium" | "hard" | "insane"
+export type Difficulty = "elementary" | "trivial" | "easy" | "medium" | "hard" | "insane"
 export type DeviceType = "container" | "unmanaged-switch" | "hub"
 export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
 export type SecurityPreset = "" | "basic" | "service" | "net" | "debug"
@@ -45,6 +47,10 @@ export type PlaceholderDTO = {
   Octets1to3?: string // only when IPReference === "static"
   LastOctet?: number // 0..255
   ShowMask?: boolean
+  AsLink?: boolean // ip only: resolves to scheme://ip[:port][path]; never with ShowMask
+  Scheme?: string // "http" | "https"; required with AsLink
+  Port?: number // 1..65535; omitted = the scheme default
+  Path?: string // starts with "/"; no spaces or quotes
   DeviceName?: string // only when Kind === "external.link"
 }
 
@@ -82,10 +88,11 @@ export type NormalizedRoute = {
   Via: string
   ViaRef?: NetworkIPRefDTO | null
 }
-export type DeviceResourcesDTO = { CPURequest?: string; MemoryRequest?: string; CPULimit?: string; MemoryLimit?: string }
-export type NormalizedDeviceResources = Required<DeviceResourcesDTO>
 
 export type InterfaceDTO = { Name: string; MAC?: string; IP: IPConfigDTO }
+
+/** State persistence of a container: its writable layer survives an unplanned restart. Debounce is a Go duration (1s-24h), empty = platform default. */
+export type PersistenceDTO = { Enabled: boolean; Debounce?: string }
 
 export type DeviceDTO = {
   ID?: string
@@ -93,10 +100,12 @@ export type DeviceDTO = {
   Type: DeviceType
   SecurityPreset?: Exclude<SecurityPreset, "">
   Image?: string
-  Resources?: DeviceResourcesDTO
+  /** A preset id of the platform (a whole number of blocks). Unset means the default preset. */
+  ResourcePreset?: string
   Interfaces?: InterfaceDTO[]
   EnvVars?: EnvVarDTO[]
   External?: ExternalDTO
+  Persistence?: PersistenceDTO
 }
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
@@ -155,6 +164,7 @@ export type VersionListItem = {
   VariantCount: number
   CreatedAt: string
   CreatedBy: string | null
+  AuthorName?: string // first and last name of CreatedBy; "" when unknown
   PublishedAt: string | null
 }
 
@@ -194,10 +204,11 @@ export type NormalizedDevice = {
   Type: DeviceType
   SecurityPreset: SecurityPreset
   Image: string
-  Resources: NormalizedDeviceResources
+  ResourcePreset: string
   Interfaces: NormalizedInterface[]
   EnvVars: NormalizedEnvVar[]
   External: ExternalDTO | null
+  Persistence?: PersistenceDTO | null
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
@@ -219,6 +230,23 @@ export type NormalizedVariant = {
   Topology: NormalizedTopology
 }
 
+/** Containers only; a variant is one entry of Variants. */
+export type ResourceTotals = ResourceAmount & { Devices: number; Blocks: number }
+export type DeviceOutside = { VariantID: string; DeviceID: string; Name: string; Blocks: number; Covered: boolean; AboveCeiling: boolean } & ResourceAmount
+
+/** The task's resources, computed by the server on every version response. */
+export type VersionResources = {
+  Min: ResourceTotals
+  Max: ResourceTotals
+  Variants: ({ VariantID: string } & ResourceTotals)[]
+  SpreadPercent: number
+  /** true: show the «variants differ a lot» warning. */
+  VariantsDiffer: boolean
+  /** Devices above the frame; Covered says an approved elevation holds them. */
+  Outside: DeviceOutside[]
+  ResourceHeavy: boolean
+}
+
 export type Version = {
   ID: string
   ExerciseID: string
@@ -226,8 +254,13 @@ export type Version = {
   AdminNote: string
   Label: string // snapshot caption; "" when none
   Variants: NormalizedVariant[]
+  /** null while the server has not computed it (an empty working copy). */
+  Resources: VersionResources | null
+  /** The latest elevation request of the exercise, if any. */
+  Elevation: Elevation | null
   CreatedAt: string
   CreatedBy: string | null
+  AuthorName?: string // first and last name of CreatedBy; "" when unknown
   PublishedAt: string | null
 }
 
@@ -273,12 +306,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     Type: raw.Type,
     SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",
-    Resources: {
-      CPURequest: raw.Resources?.CPURequest ?? "",
-      MemoryRequest: raw.Resources?.MemoryRequest ?? "",
-      CPULimit: raw.Resources?.CPULimit ?? "",
-      MemoryLimit: raw.Resources?.MemoryLimit ?? "",
-    },
+    ResourcePreset: raw.ResourcePreset ?? "",
     Interfaces: (raw.Interfaces ?? []).map(normalizeInterface),
     EnvVars: (raw.EnvVars ?? []).map((ev) => ({
       Name: ev.Name,
@@ -287,6 +315,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
       HasValue: ev.HasValue ?? false,
     })),
     External: raw.External ?? null,
+    Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,
   }
 }
 
@@ -316,10 +345,22 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
   }
 }
 
-type RawVersion = Omit<Version, "Variants" | "Label"> & { Variants: VariantDTO[] | null; Label?: string }
+type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation"> & {
+  Variants: VariantDTO[] | null
+  Label?: string
+  Resources?: (Omit<VersionResources, "Outside" | "Variants"> & { Outside: DeviceOutside[] | null; Variants: VersionResources["Variants"] | null }) | null
+  Elevation?: Parameters<typeof normalizeElevation>[0] | null
+}
+
+export function normalizeResources(raw: RawVersion["Resources"]): VersionResources | null {
+  return raw ? { ...raw, Outside: raw.Outside ?? [], Variants: raw.Variants ?? [] } : null
+}
 
 function normalizeVersion(raw: RawVersion): Version {
-  return { ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant) }
+  return {
+    ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
+    Resources: normalizeResources(raw.Resources), Elevation: raw.Elevation ? normalizeElevation(raw.Elevation) : null,
+  }
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────

@@ -1,22 +1,31 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useWatch } from "react-hook-form"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
-import { listVersions, type Version } from "@/api/exercises/versions"
+import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
+import { listVersions, type DeviceOutside, type Version } from "@/api/exercises/versions"
 import { ErrorScreen } from "@/components/ErrorScreen"
+import { NotFoundScreen } from "@/components/NotFoundScreen"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { DeployTestDialog } from "@/components/exercises/DeployTestDialog"
+import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
+import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
+import { ResourcesPanel } from "@/components/exercises/ResourcesPanel"
+import { ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
+import type { ResourcesConfig } from "@/api/exercises/capabilities"
+import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
-import { useExerciseActions, type DeployTarget } from "@/components/exercises/useExerciseActions"
+import { useExerciseActions } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
 import { Card, CardContent } from "@/components/ui/card"
 import { Form } from "@/components/ui/form"
@@ -25,11 +34,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
-import { exerciseHref } from "@/lib/exerciseRoutes"
+import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoutes"
 import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
-import { useUserNames } from "@/lib/userNames"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { useReturnContext } from "@/components/shell/ReturnContext"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
@@ -37,20 +45,13 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
 import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
-import { AccessCell, StatusBadges } from "./catalog/CatalogCells"
+import { AccessCell, ResourceHeavyBadge, StatusBadges } from "./catalog/CatalogCells"
 import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
 type DialogName = "history" | "snapshot" | "revert" | "archive" | "delete" | "export" | "access" | "propose"
-
-export function ExerciseNotFound() {
-  return <div className="frost-panel frost-in rounded-lg p-8 text-center">
-    <p className="text-muted-foreground">{t("admin.exDetail.notFound")}</p>
-    <Link href="/" className="mt-3 inline-block text-sm text-primary hover:underline">{t("admin.exDetail.back")}</Link>
-  </div>
-}
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -64,12 +65,11 @@ function ExerciseMeta({ exercise, version, isVersion, publishedAt }: {
   isVersion: boolean
   publishedAt: string | null
 }) {
-  const names = useUserNames([version?.CreatedBy])
   let text: string | null
   if (!exercise) {
     text = null
   } else if (isVersion && version) {
-    const author = version.CreatedBy ? names[version.CreatedBy]?.name : undefined
+    const author = version.AuthorName
     text = [t(`admin.exHistory.kind.${version.Status}`), formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt), author]
       .filter(Boolean).join(" · ")
   } else {
@@ -100,8 +100,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const userId = me?.ID ?? null
   const [mode, setMode] = useState<"view" | "edit">(exerciseId ? "view" : "edit")
   const [dialog, setDialog] = useState<DialogName | null>(null)
-  const [deploy, setDeploy] = useState<DeployTarget | null>(null)
-  const [laboratories, setLaboratories] = useState(false)
+  const router = useRouter()
+  // The user's running test labs, offered instead of a start once the limit of running labs is reached.
+  const [limitReached, setLimitReached] = useState<{ items: DeployListItem[]; at: number } | null>(null)
+  const [maxTests, setMaxTests] = useState(1)
+  const activeDeploys = useActiveDeploys(exerciseId)
+  const activeDeploy = activeDeploys.items[0] ?? null
+  const [laboratories, setLaboratories] = useState<boolean | null>(null)
+  const [devicePersistence, setDevicePersistence] = useState(false)
+  const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
   const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
@@ -163,7 +170,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) setLaboratories(capabilities.Laboratories) })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null) } })
       .catch(() => { if (!cancelled) setLaboratories(false) })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -204,6 +211,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leave.destination])
 
+  const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
+  const resourceBlocked = Boolean(editor.version?.Resources?.Outside.some((issue) => !issue.Covered))
+  // The elevation dialog picks a larger block per device: it is written to that device of the working copy.
+  const pickDeviceBlock = useCallback((issue: DeviceOutside, presetId: string) => {
+    const variants = editor.draftForm.getValues("Variants")
+    const variantIndex = variants.findIndex((variant) => variant.ID === issue.VariantID)
+    const deviceIndex = variantIndex < 0 ? -1 : variants[variantIndex].Topology.Devices.findIndex((device) => device.ID === issue.DeviceID)
+    if (deviceIndex >= 0) editor.draftForm.setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ResourcePreset`, presetId, { shouldDirty: true })
+  }, [editor.draftForm])
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
@@ -211,12 +227,25 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
 
+  // The testing page: an active lab is reopened, otherwise the page starts one for the chosen variant.
+  const openTest = (deployId: string | undefined = activeDeploy?.DeployID, forExercise: string | null = exerciseId) => {
+    if (!forExercise || !deployId) return
+    leave.allowNavigation()
+    router.push(testLabHref(forExercise, deployId))
+  }
+
+  // Test deploy needs a topology with devices and a connected platform infrastructure.
+  const hasDevices = watchedVariants.some((variant) => variant.Topology.Devices.length > 0)
+  const testBlockedReason = laboratories === null ? "" : !infraAllowed ? t("exercises.infra.blocked")
+    : !laboratories ? t("admin.exPage.action.testNoPlatform") : !hasDevices ? t("admin.exPage.action.testNoDevices") : ""
+  const testBlocked = laboratories === null || testBlockedReason !== ""
+
   const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
     return <p role="alert" className="text-sm text-destructive">{t("admin.ex.create.forbidden")}</p>
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (editor.loadState === "notFound") return <ExerciseNotFound />
+  if (editor.loadState === "notFound") return <NotFoundScreen block title={t("admin.exDetail.notFound")} />
   if (editor.loadState === "error") return <ErrorScreen title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
@@ -229,7 +258,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : null
 
-  return <EditorPositionProvider position={position} onChange={updatePosition}>
+  return <DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
       className="flex min-h-full w-full flex-col gap-4">
       <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
@@ -239,6 +268,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         badge={badge}
         meta={exercise && !isVersion ? <>
           <StatusBadges status={headerStatus(exercise)} />
+          <ResourceHeavyBadge show={exercise.ResourceHeavy} />
           <InfrastructureIcon show={exercise.Infrastructure} />
           <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
           <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />
@@ -247,14 +277,31 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         permissions={permissions}
         archived={archived}
         publishable={exercise ? canPublishExercise(exercise) : false}
+        publishBlockedReason={resourceBlocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
-        testAvailable={permissions.write && laboratories && infraAllowed}
+        testAvailable={permissions.write}
+        testBlocked={testBlocked}
+        testBlockedReason={testBlockedReason}
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
         onCancelNew={() => void editor.autosave.discard()}
-        onTest={(index) => void actions.test(index).then((target) => { if (target) setDeploy(target) })}
+        activeTestUntil={activeDeploy?.ExpiresAt ?? null}
+        onOpenTest={activeDeploy ? () => openTest() : undefined}
+        onTest={(index) => {
+          void actions.test(index).then(async (target) => {
+            if (!target) return
+            // A user runs a limited number of test labs across all exercises: open the running
+            // one (this exercise's, or pick among them) instead of failing.
+            const running = await listDeploys().catch(() => [] as DeployListItem[])
+            const here = running.find((item) => item.ExerciseID === target.exerciseId)
+            if (here) { openTest(here.DeployID); return }
+            if (running.length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
+            leave.allowNavigation()
+            router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
+          })
+        }}
         onHistory={() => setDialog("history")}
         onEdit={() => setMode("edit")}
         onDone={() => void actions.done()}
@@ -305,6 +352,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
+                {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+                  config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
+                  flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
                 <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
@@ -332,11 +382,13 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated); setDialog(null) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    {deploy && <DeployTestDialog open onClose={() => setDeploy(null)} exerciseId={deploy.exerciseId}
-      versionId={deploy.versionId} variantId={deploy.variantId} tasks={deploy.tasks} />}
+    <RunningLabsDialog open={limitReached !== null && limitReached.items.length > 0} items={limitReached?.items ?? []} now={limitReached?.at ?? 0}
+      description={t("admin.exTest.limitDescription", { n: limitReached?.items.length ?? 0, max: maxTests })}
+      onClose={() => setLimitReached(null)}
+      onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider>
+  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider>
 }

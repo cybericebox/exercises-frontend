@@ -1,12 +1,15 @@
 name: Deploy exercises to GitHub Pages
 
-# Static export (out/) → GitHub Pages. Runs on every published release (same as publish-image.yml) and on demand.
+# Static export (out/) → GitHub Pages. Runs only from promote.yml, after the pre-release checks, for the release commit.
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
-# The app needs the API at runtime (api.<domain> or NEXT_PUBLIC_API_DOMAIN).
+# The hosts are baked at build: every host derives from the one repository variable NEXT_PUBLIC_DOMAIN.
 on:
-  release:
-    types: [ published ]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit of the release to build
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -25,28 +28,42 @@ jobs:
     environment: github-pages
     steps:
       - name: Check repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 26
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Check the variables
+        # NEXT_PUBLIC_DOMAIN is the only host input: every host derives from it (deploy/base-domain.sh, the same file the image runs). The other
+        # values are per site and have no fallbacks.
+        run: |
+          . ./deploy/base-domain.sh
+          base_domain_check || { echo "::error::Set the repository variable NEXT_PUBLIC_DOMAIN"; exit 1; }
+          missing=""
+          for name in NEXT_PUBLIC_SUPPORT_EMAIL; do
+            eval "value=\"\${$name:-}\""
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then echo "::error::Set the repository variables:$missing"; exit 1; fi
+        env:
+          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
+          NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
       - name: Build static export
         run: npm run build
         env:
-          # repository variables; domain defaults to the production apex
-          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN || 'cybericebox.com' }}
-          # optional host overrides (bare host, no scheme); empty → <service>.<domain>
-          NEXT_PUBLIC_API_DOMAIN: ${{ vars.NEXT_PUBLIC_API_DOMAIN }}
-          NEXT_PUBLIC_ID_DOMAIN: ${{ vars.NEXT_PUBLIC_ID_DOMAIN }}
-          NEXT_PUBLIC_ADMIN_DOMAIN: ${{ vars.NEXT_PUBLIC_ADMIN_DOMAIN }}
+          # repository / environment variables: the base domain and the per-site values
+          NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
+          NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: out
 
@@ -59,4 +76,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

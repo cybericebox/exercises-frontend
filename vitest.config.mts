@@ -5,6 +5,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     globals: true,
+    env: {
+      // The one base domain; every host derives from it. ("localhost" where jsdom must accept the shared-domain cookies.)
+      NEXT_PUBLIC_DOMAIN: "localhost",
+      NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
+    },
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],
   },

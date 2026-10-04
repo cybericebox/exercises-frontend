@@ -1,34 +1,29 @@
+import { hosts } from "@/lib/hosts"
+
 /** Shared light/dark/system choice used by the platform, ID and admin apps. */
 export type ThemeChoice = "light" | "dark" | "system"
 
 const COOKIE = "cib_theme"
-// Pre-rename name: moved to COOKIE on first read, then deleted.
-const LEGACY_COOKIE = "ib_theme"
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 const MAX_AGE = 60 * 60 * 24 * 365
-const DOMAIN_ATTR = process.env.NEXT_PUBLIC_DOMAIN ? `; domain=.${process.env.NEXT_PUBLIC_DOMAIN}` : ""
+const DOMAIN_ATTR = `; domain=.${hosts().cookieDomain}`
 
 // Resolved before first paint, so navigating between subdomains has no theme flash.
-export const THEME_BOOT_SCRIPT = `(function(){try{var m=document.cookie.match(/(?:^|; )${COOKIE}=(light|dark|system)/);if(!m){m=document.cookie.match(/(?:^|; )${LEGACY_COOKIE}=(light|dark|system)/);if(m){var a="; path=/${DOMAIN_ATTR}; SameSite=Lax"+(location.protocol==="https:"?"; Secure":"");document.cookie="${COOKIE}="+m[1]+a+"; max-age=${MAX_AGE}";document.cookie="${LEGACY_COOKIE}="+a+"; max-age=0"}}var c=m?m[1]:"system";var d=c==="dark"||(c==="system"&&window.matchMedia("${DARK_QUERY}").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()`
+export const THEME_BOOT_SCRIPT = `(function(){try{var m=document.cookie.match(/(?:^|; )${COOKIE}=(light|dark|system)/);var c=m?m[1]:"system";var d=c==="dark"||(c==="system"&&window.matchMedia("${DARK_QUERY}").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()`
 
 function matchChoice(name: string): ThemeChoice | undefined {
   return document.cookie.match(new RegExp(`(?:^|; )${name}=(light|dark|system)`))?.[1] as ThemeChoice | undefined
 }
 
-function writeCookie(value: string, maxAge: number, name = COOKIE): void {
+function writeCookie(value: string, maxAge: number): void {
   const secure = location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `${name}=${value}; path=/${DOMAIN_ATTR}; SameSite=Lax${secure}; max-age=${maxAge}`
+  document.cookie = `${COOKIE}=${value}; path=/${DOMAIN_ATTR}; SameSite=Lax${secure}; max-age=${maxAge}`
 }
 
 export function readThemeChoice(): ThemeChoice {
   if (typeof document === "undefined") return "system"
   const choice = matchChoice(COOKIE)
-  if (choice) return choice
-  const legacy = matchChoice(LEGACY_COOKIE)
-  if (!legacy) return "system"
-  writeCookie(legacy, MAX_AGE)
-  writeCookie("", 0, LEGACY_COOKIE)
-  return legacy
+  return choice ?? "system"
 }
 
 export function resolveTheme(choice: ThemeChoice): "light" | "dark" {

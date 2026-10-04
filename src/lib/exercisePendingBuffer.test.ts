@@ -19,8 +19,8 @@ beforeEach(() => {
 
 describe("exercise pending buffer", () => {
   it("keys entries per user and exercise, with 'new' before creation", () => {
-    expect(pendingBufferKey("u1", "e1")).toBe("cybericebox.admin.exercise-pending.v1:u1:e1")
-    expect(pendingBufferKey("u1", null)).toBe("cybericebox.admin.exercise-pending.v1:u1:new")
+    expect(pendingBufferKey("u1", "e1")).toBe("cib_exercise_pending_u1_e1")
+    expect(pendingBufferKey("u1", null)).toBe("cib_exercise_pending_u1_new")
   })
 
   it("never writes flag values or environment-variable values", () => {

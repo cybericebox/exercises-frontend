@@ -9,9 +9,11 @@ import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
+import { BookingsMenu } from "./BookingsMenu"
+import { RunningTestsMenu } from "./RunningTestsMenu"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin } from "@/lib/origins"
@@ -40,7 +42,15 @@ async function signOutAndRedirect(): Promise<void> {
 // Back to the app that opened the catalog: only admin and event sites (lib/backLink). The same
 // compact arrow as the id profile, named by its destination.
 function BackArrow() {
-  const back = useBackLink()
+  const pathname = usePathname()
+  const [returnTo, setReturnTo] = useState<string | null>(null)
+  // Event pages opened the catalog with ?return=; newer callers send ?return_to=.
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search)
+    const next = search.get("return_to") ?? search.get("return")
+    queueMicrotask(() => setReturnTo(next))
+  }, [pathname])
+  const back = useBackLink(returnTo)
   if (!back || (back.kind !== "admin" && back.kind !== "event")) return null
   const label = t(BACK_LABELS[back.kind])
   return (
@@ -98,6 +108,8 @@ export function TopBar() {
         <AppNav />
       </div>
       <div className="flex items-center gap-3">
+        <RunningTestsMenu />
+        <BookingsMenu />
         <ThemeSwitch />
         <span className="h-5 w-px bg-border" aria-hidden="true" />
         <InboxButton defaultTab="requestsIfOpen" />

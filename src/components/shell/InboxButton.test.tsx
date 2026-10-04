@@ -71,7 +71,7 @@ describe("top-bar inbox", () => {
       { ID: "2", Title: "Акаунт", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", EventID: null, EventName: null, EventTag: null },
     ])
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
     expect((await screen.findByText("Старт")).closest("li")).toHaveTextContent("Зимовий CTF")
     expect(screen.getByText("Акаунт").closest("li")).not.toHaveTextContent("Зимовий CTF")
     for (const [path] of api.get.mock.calls) expect(new URL(path as string, "http://x").searchParams.has("event")).toBe(false)
@@ -111,7 +111,7 @@ describe("top-bar inbox", () => {
         ? { Items: [older], NextCursor: null }
         : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
     render(<InboxButton />)
-    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(screen.queryByText("Раніше")).not.toBeInTheDocument()
     act(() => observers.at(-1)?.trigger())
@@ -287,6 +287,23 @@ describe("top-bar inbox", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent("Запит уже вирішено")
       fireEvent.click(within(row).getByRole("button", { name: "Вирішено" }))
       await waitFor(() => expect(api.post).toHaveBeenLastCalledWith("/api/notifications/inbox/lab/resolve", {}))
+    })
+
+    it("keeps other requests resolvable while one resolve is pending", async () => {
+      const lab2 = { ...lab, ID: "lab2", Title: "Друга лабораторія" }
+      api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
+        ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: counts, OtherEventsCount: 0 }
+        : { Items: [lab, lab2], NextCursor: null }))
+      api.post.mockReturnValueOnce(new Promise(() => undefined)).mockResolvedValueOnce(undefined)
+      render(<InboxButton defaultTab="requestsIfOpen" />)
+      fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
+      const first = (await screen.findByText("Лабораторія впала")).closest("li")!
+      const second = screen.getByText("Друга лабораторія").closest("li")!
+      fireEvent.click(within(first).getByRole("button", { name: "Вирішено" }))
+      expect(within(first).getByRole("button", { name: /Вирішено/ })).toBeDisabled()
+      expect(within(second).getByRole("button", { name: "Вирішено" })).toBeEnabled()
+      fireEvent.click(within(second).getByRole("button", { name: "Вирішено" }))
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/lab2/resolve", {}))
     })
 
     it("shows only «Усі» when the backend sends no Counts", async () => {

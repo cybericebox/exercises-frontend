@@ -1,3 +1,4 @@
+import { exercisePositionKey } from "@/lib/storageKeys"
 /** Where the editor was: tab, variant, section, task, device panel. Stored per user and exercise. */
 export type EditorPosition = {
   tab: "general" | "variants"
@@ -24,7 +25,7 @@ export const DEFAULT_EDITOR_POSITION: EditorPosition = {
 }
 
 export function editorPositionStorageKey(userId: string, exerciseId: string): string {
-  return `cybericebox.admin.exercise-position.v1:${userId}:${exerciseId}`
+  return exercisePositionKey(userId, exerciseId)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

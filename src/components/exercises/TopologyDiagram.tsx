@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react"
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Cable, ChevronDown, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
@@ -8,7 +8,7 @@ import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import type { TopologyFormValues } from "@/lib/exerciseSchemas"
+import { MAX_DEVICE_NAME_LEN, type TopologyFormValues } from "@/lib/exerciseSchemas"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
@@ -154,18 +154,34 @@ function portLabelAxis(own: Point, other: Point): Point {
   return length ? { x: dx / length, y: dy / length } : { x: 1, y: 0 }
 }
 
-function portLabelPosition(own: Point, other: Point, offset: Point): Point {
+type LabelBox = { x: number; y: number; halfWidth: number; halfHeight: number }
+
+/** Where a node's name sits (centre and half size), so default port labels can keep clear of it. */
+function nodeNameBox(node: DiagramNode | undefined, point: Point, offset: Point): LabelBox {
+  return { x: point.x + offset.x, y: point.y + ICON_SIZE / 2 + LABEL_GAP + offset.y - 5,
+    halfWidth: Math.max(16, Math.min(node?.label.length ?? 0, 20) * 3.8 + 3), halfHeight: 11 }
+}
+
+function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: LabelBox): Point {
   const axis = portLabelAxis(own, other)
   const normal = { x: -axis.y, y: axis.x }
-  const along = PORT_LABEL_DISTANCE + offset.x
   const aside = PORT_LABEL_SIDE_GAP + offset.y
-  return { x: own.x + axis.x * along + normal.x * aside,
-    y: own.y + axis.y * along + normal.y * aside }
+  const at = (along: number) => ({ x: own.x + axis.x * along + normal.x * aside, y: own.y + axis.y * along + normal.y * aside })
+  let along = PORT_LABEL_DISTANCE + offset.x
+  let label = at(along)
+  // A label the author has not moved slides further along its link until it clears the node's name.
+  if (avoid && offset.x === 0 && offset.y === 0) {
+    for (let step = 0; step < 6 && Math.abs(label.x - avoid.x) < avoid.halfWidth + 14 && Math.abs(label.y - avoid.y) < avoid.halfHeight + 7; step += 1) {
+      along += 10
+      label = at(along)
+    }
+  }
+  return label
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
   onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
-  unavailableConnectionNodes = [], connectionMode = false }: {
+  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
   onLabelOffsetChange?: (key: string, offset: Point) => void
@@ -188,6 +204,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   selectedConnectionIndex?: number | null
   unavailableConnectionNodes?: string[]
   connectionMode?: boolean
+  /** More buttons at the end of the canvas toolbar. */
+  toolbarExtra?: ReactNode
 }) {
   const [drag, setDrag] = useState<
     | { kind: "node"; key: string; point: Point; start: Point; moved: boolean }
@@ -329,7 +347,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         const key = portLabelKey(nodeKey, port)
         const offset = storedPortLabelOffset(topology.VisualRender, key)
         const text = shortForwardingPort(port)
-        const label = portLabelPosition(own, other, offset)
+        const label = portLabelPosition(own, other, offset, nodeNameBox(nodeByKey.get(nodeKey), pos.get(nodeKey)!, storedLabelOffset(topology.VisualRender, nodeKey)))
         addBox(label.x, label.y, Math.max(12, text.length * 3.2 + 3), 10)
       }
     }
@@ -542,7 +560,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           const key = portLabelKey(nodeKey, port)
           const offset = drag?.kind === "port-label" && drag.key === key
             ? drag.offset : storedPortLabelOffset(topology.VisualRender, key)
-          const label = portLabelPosition(own, other, offset)
+          const label = portLabelPosition(own, other, offset, nodeNameBox(nodeByKey.get(nodeKey), pos.get(nodeKey)!, storedLabelOffset(topology.VisualRender, nodeKey)))
           return <text data-port-label data-port-label-key={key}
             x={label.x}
             y={label.y}
@@ -683,7 +701,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               onDoubleClick={(event) => event.stopPropagation()}>
               <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
-                  value={editingLabel.draft} maxLength={node.kind === "device" ? 63 : undefined} className="h-8"
+                  value={editingLabel.draft} maxLength={node.kind === "device" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
                   onBlur={commitNodeRename}
                   onKeyDown={(event) => {
@@ -782,6 +800,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       <HoverTooltip text={t("admin.exTopo.fitCanvas")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
+      {toolbarExtra}
     </div>
     {context && <TopologyContextMenu x={context.x} y={context.y} entries={contextEntries(context)} onClose={closeContext}
       returnFocus={context.trigger}

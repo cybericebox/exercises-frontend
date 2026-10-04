@@ -60,6 +60,8 @@ export type ExerciseEditor = {
   autosave: ExerciseAutosave
   getDraftVersionId: () => string
   reloadWorkingCopy: () => Promise<void>
+  /** Replaces the latest elevation request shown for the working copy (after a request is sent). */
+  setElevation: (elevation: Version["Elevation"]) => void
   /** The published version is shown read-only (no working copy access). */
   readOnly: boolean
 }
@@ -185,6 +187,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       const sent = capturedDraftIds(payload)
       const saved = await saveDraft(id, toSaveDraftInput(payload))
       rememberDraftVersion(saved.ID)
+      // The server recounts the resources and the elevation state on every save.
+      if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
       const updates = serverIdUpdates(sent, saved, draftForm.getValues())
       if (updates.length > 0) {
         suppressRef.current = true
@@ -378,9 +382,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     setLoadAttempt((attempt) => attempt + 1)
   }, [])
 
+  const setElevation = useCallback((elevation: Version["Elevation"]) => setVersion((current) => current && { ...current, Elevation: elevation }), [])
+
   const getDraftVersionId = useCallback(() => draftVersionIdRef.current, [])
 
   return {
-    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation,
   }
 }

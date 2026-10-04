@@ -8,6 +8,7 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import {
   DNS_LABEL_RE,
+  containerNameError,
   MAC_RE,
   isValidCIDR,
   isValidIPv4,
@@ -30,15 +31,25 @@ describe('DNS_LABEL_RE', () => {
     ['web', true],
     ['a', true],
     ['web-01', true],
-    ['a'.repeat(63), true],
+    ['a'.repeat(35), true],
+    ['a-'.repeat(17) + 'a', true],
     ['', false],
     ['-web', false],
     ['web-', false],
     ['Web', false],
     ['web_01', false],
-    ['a'.repeat(64), false],
+    ['a'.repeat(36), false],
+    ['a'.repeat(63), false],
   ])('%s → %s', (input, ok) => {
     expect(DNS_LABEL_RE.test(input)).toBe(ok)
+  })
+})
+
+describe('containerNameError', () => {
+  it('is null for a valid name, distinguishes too long from bad charset', () => {
+    expect(containerNameError('web-01')).toBeNull()
+    expect(containerNameError('a'.repeat(36))).toBe('admin.ex.val.deviceNameTooLong')
+    expect(containerNameError('Web')).toBe('admin.ex.val.deviceName')
   })
 })
 
@@ -154,22 +165,36 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
-  it('defaults missing resources and routes when reopening an old draft', () => {
+  it('defaults a missing preset and routes when reopening an old draft', () => {
     const legacy = loadedVersion()
-    delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).Resources
+    delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).ResourcePreset
     delete (legacy.Variants[0].Topology.Devices[0].Interfaces[0].IP as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]['Interfaces'][0]['IP']>).Routes
     const values = toDraftFormValues(legacy)
     const device = values.Variants[0].Topology.Devices[0]
-    expect(device).toHaveProperty('Resources', { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' })
+    expect(device).toHaveProperty('ResourcePreset', '')
     expect(device.Interfaces[0].IP).toHaveProperty('Routes', [])
     const saved = toSaveDraftInput(values).Variants[0].Topology.Devices?.[0]
-    expect(saved).not.toHaveProperty('Resources')
+    expect(saved).not.toHaveProperty('ResourcePreset')
     expect(saved?.Interfaces?.[0].IP).not.toHaveProperty('Routes')
   })
 
-  it('serializes only set resource fields and all static routes', () => {
+  it('sends the preset id of a device, and nothing for the default', () => {
     const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: '250m', MemoryRequest: '', CPULimit: '', MemoryLimit: '512Mi' } })
+    const preset = Object.assign(emptyDevice(), { ResourcePreset: 'medium' })
+    preset.Name = 'a'
+    const plain = emptyDevice()
+    plain.Name = 'b'
+    draft.Variants[0].Topology.Devices.push(preset, plain)
+    const [first, second] = toSaveDraftInput(draft).Variants[0].Topology.Devices ?? []
+    expect(first.ResourcePreset).toBe('medium')
+    expect(first).not.toHaveProperty('Resources')
+    expect(second.ResourcePreset).toBeUndefined()
+    expect(second).not.toHaveProperty('Resources')
+  })
+
+  it('serializes all static routes', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
     device.Name = 'web'
     Object.assign(device.Interfaces[0].IP, {
       Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '',
@@ -177,19 +202,10 @@ describe('topology operator parity', () => {
     })
     draft.Variants[0].Topology.Devices.push(device)
     const output = toSaveDraftInput(draft).Variants[0].Topology.Devices?.[0]
-    expect(output?.Resources).toEqual({ CPURequest: '250m', MemoryLimit: '512Mi' })
     expect(output?.Interfaces?.[0].IP.Routes).toEqual([
       { Dst: '10.1.0.0/16', Via: '10.0.0.1' },
       { Dst: '10.2.0.0/16', Via: '10.0.0.1' },
     ])
-  })
-
-  it.each(['0', '-1Mi', 'pizza', '500m'])("rejects invalid or excessive CPU request %s", (value) => {
-    const draft = validDraft()
-    const device = Object.assign(emptyDevice(), { Resources: { CPURequest: value, MemoryRequest: '', CPULimit: '250m', MemoryLimit: '' } })
-    device.Name = 'web'
-    draft.Variants[0].Topology.Devices.push(device)
-    expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
   it('rejects a second static address and resources on a switch', () => {
@@ -201,7 +217,7 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
     device.Type = 'unmanaged-switch'
     device.Interfaces = []
-    Object.assign(device, { Resources: { CPURequest: '250m' } })
+    Object.assign(device, { ResourcePreset: 'medium' })
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
@@ -255,18 +271,6 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
     other.LinkedDeviceID = second.ID
     expect(draftSchema.safeParse(draft).success).toBe(true)
-  })
-
-  it('accepts common positive Kubernetes resource suffixes', () => {
-    const draft = validDraft()
-    const device = emptyDevice()
-    device.Name = 'web'
-    draft.Variants[0].Topology.Devices.push(device)
-    for (const quantity of ['1', '250m', '512Mi', '2Gi', '1e3', '1.5G']) {
-      device.Resources.CPURequest = quantity
-      device.Resources.CPULimit = ''
-      expect(draftSchema.safeParse(draft).success).toBe(true)
-    }
   })
 })
 
@@ -347,6 +351,13 @@ describe('draftSchema', () => {
     expect(result.success).toBe(false)
     const paths = result.success ? [] : result.error.issues.map((i) => i.path.join('.'))
     expect(paths).toContain('Variants.1.Tasks')
+  })
+
+  it('accepts the elementary difficulty level', () => {
+    const draft = validDraft()
+    draft.Variants[0].Tasks[0].Difficulty = 'elementary'
+    const result = draftSchema.safeParse(draft)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.'))).not.toContain('Variants.0.Tasks.0.Difficulty')
   })
 
   it('rejects a difficulty that differs for the same task across variants', () => {
@@ -742,6 +753,31 @@ describe('draftSchema', () => {
     }]
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
+
+  it('ip link form validates scheme, port, path and mask', () => {
+    const draft = validDraft()
+    const ip = { Key: 'ph_link', Kind: 'ip' as const, IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '', AsLink: true, Scheme: 'https', PortText: '8443', Path: '/a?b=1' }
+    const ok = (p: Partial<typeof ip>) => { draft.Variants[0].Tasks[0].Placeholders = [{ ...ip, ...p }]; return draftSchema.safeParse(draft).success }
+    expect(ok({})).toBe(true)
+    expect(ok({ PortText: '', Path: '' })).toBe(true)
+    expect(ok({ Scheme: 'ftp' })).toBe(false)
+    expect(ok({ PortText: '0' })).toBe(false)
+    expect(ok({ PortText: '65536' })).toBe(false)
+    expect(ok({ Path: 'admin' })).toBe(false)
+    expect(ok({ Path: '/a b' })).toBe(false)
+    expect(ok({ ShowMask: true })).toBe(false)
+    expect(ok({ AsLink: false, Scheme: 'ftp', PortText: '0' })).toBe(true) // link fields are ignored without the switch
+  })
+
+  it('ip link form round-trips to the DTO and back', () => {
+    const draft = validDraft()
+    draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_link', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: true, DeviceName: '', AsLink: true, Scheme: 'https', PortText: '8443', Path: '/x' }]
+    const dto = toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders
+    expect(dto).toEqual([{ Key: 'ph_link', Kind: 'ip', IPReference: 'vpn', LastOctet: 5, ShowMask: false, AsLink: true, Scheme: 'https', Port: 8443, Path: '/x' }])
+    draft.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_plain', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '', AsLink: false, Scheme: 'http', PortText: '', Path: '' }]
+    const plain = toSaveDraftInput(draft).Variants[0].Tasks[0].Placeholders
+    expect(plain).toEqual([{ Key: 'ph_plain', Kind: 'ip', IPReference: 'vpn', LastOctet: 5, ShowMask: false }])
+  })
 })
 
 // ── Factories ──────────────────────────────────────────────────────────────────
@@ -787,6 +823,8 @@ const DEV_ID = '99999999-8888-7777-6666-555555555555'
 
 function loadedVersion(): Version {
   return {
+    Resources: null,
+    Elevation: null,
     ID: 'v1',
     ExerciseID: 'e1',
     Status: 'draft',
@@ -820,7 +858,7 @@ function loadedVersion(): Version {
           Type: 'container',
           SecurityPreset: '',
           Image: 'nginx:1.27',
-          Resources: { CPURequest: '', MemoryRequest: '', CPULimit: '', MemoryLimit: '' },
+          ResourcePreset: "",
           Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [] } }],
           EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
           External: { Port: 8080, Protocol: 'https' },
@@ -948,6 +986,24 @@ describe('toSaveDraftInput', () => {
     expect(input.Variants[0].Tasks[0].ID).toBeUndefined()
     expect(input.Variants[0].Index).toBe(1)
     expect(input.Variants[1].Index).toBe(2)
+  })
+
+  it('persistence goes out only when enabled and keeps a loaded debounce', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const off = emptyDevice()
+    off.Name = 'off'
+    const on = emptyDevice()
+    on.Name = 'on'
+    on.Persistence = { Enabled: true, Debounce: '5s' }
+    const plain = emptyDevice()
+    plain.Name = 'plain'
+    plain.Persistence = { Enabled: true, Debounce: '' }
+    draft.Variants[0].Topology.Devices = [off, on, plain]
+    const [offDTO, onDTO, plainDTO] = toSaveDraftInput(draft).Variants[0].Topology.Devices!
+    expect(offDTO.Persistence).toBeUndefined()
+    expect(onDTO.Persistence).toEqual({ Enabled: true, Debounce: '5s' })
+    expect(plainDTO.Persistence).toEqual({ Enabled: true })
   })
 
   it('a bare switch goes out bare, disabled External is omitted, null Description is omitted', () => {

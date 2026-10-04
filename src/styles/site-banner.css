@@ -1,0 +1,14 @@
+/* Site banner bar under the navbar/header: calm tinted fill per level (ds-v2 tokens), no accent border, no shadow.
+   Same look in every frontend. */
+.ib-site-banner{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 16px;
+  background:var(--ib-soft);color:var(--ib-ink);font:var(--ib-w-medium,500) var(--ib-fs-13,13px)/var(--ib-lh-ui,1.45) var(--ib-font)}
+.ib-site-banner--warning{background:var(--ib-warn-bg)}
+.ib-site-banner--critical{background:var(--ib-danger-bg)}
+.ib-site-banner__text{margin:0;min-width:0;text-align:center;overflow-wrap:anywhere}
+.ib-site-banner__link{margin-left:8px;color:inherit;font-weight:var(--ib-w-semibold,600);text-decoration:underline;text-underline-offset:2px}
+.ib-site-banner__link:hover{text-decoration-thickness:2px}
+.ib-site-banner__x{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border:0;border-radius:var(--ib-r,6px);
+  background:transparent;color:inherit;cursor:pointer}
+.ib-site-banner__x:hover{background:var(--ib-hover)}
+.ib-site-banner__x:focus-visible,.ib-site-banner__link:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
+.ib-site-banner__x svg{width:16px;height:16px}
