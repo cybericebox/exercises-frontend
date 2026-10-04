@@ -31,13 +31,14 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_MAIN_HOST` | yes | Landing host (bare host, no scheme). |
-| `NEXT_PUBLIC_API_HOST` | yes | API host. |
-| `NEXT_PUBLIC_ID_HOST` | yes | ID app host. |
-| `NEXT_PUBLIC_ADMIN_HOST` | yes | Admin app host. |
-| `NEXT_PUBLIC_EXERCISES_HOST` | yes | Exercises app host. |
-| `NEXT_PUBLIC_EVENT_DOMAIN` | yes | Event sites are `<tag>.<domain>`. |
-| `NEXT_PUBLIC_COOKIE_DOMAIN` | yes | `Domain` attribute of the shared theme/consent cookies (e.g. `cybericebox.com`); no implicit parent. |
+| `NEXT_PUBLIC_DOMAIN` | yes, unless every host below is set | Base domain: a bare lower case host name (no scheme, port or path). Every host below that is not set is derived from it (`deploy/base-domain.sh` at container start, `next.config` in dev and local builds, the Pages workflow). |
+| `NEXT_PUBLIC_MAIN_HOST` | no | Landing host (bare host, no scheme). Default: `<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_API_HOST` | no | API host. Default: `api.<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_ID_HOST` | no | ID app host. Default: `id.<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_ADMIN_HOST` | no | Admin app host. Default: `admin.<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_EXERCISES_HOST` | no | Exercises app host. Default: `exercises.<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_EVENT_DOMAIN` | no | Event sites are `<tag>.<domain>`. Default: `<DOMAIN>`; a value that is set wins. |
+| `NEXT_PUBLIC_COOKIE_DOMAIN` | no | `Domain` attribute of the shared theme/consent cookies (e.g. `cybericebox.com`). Default: `<DOMAIN>`; a value that is set wins. |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
 
@@ -79,3 +80,7 @@ Deployment and cluster configuration: see the infrastructure repository.
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 Copyright 2026 CyberICEBox
+
+### One base domain
+
+`deploy/base-domain.sh` (sourced by the container entrypoint and by the Pages workflow) and the host block of `next.config` implement one rule: `NEXT_PUBLIC_DOMAIN` is a bare lower case host name and every host that is empty or unset becomes `MAIN_HOST=DOMAIN`, `API_HOST=api.DOMAIN`, `ID_HOST=id.DOMAIN`, `ADMIN_HOST=admin.DOMAIN`, `EXERCISES_HOST=exercises.DOMAIN`, `EVENT_DOMAIN=DOMAIN`, `COOKIE_DOMAIN=DOMAIN`; a value that is set always wins; neither `DOMAIN` nor an explicit host is a start error. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against both; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).

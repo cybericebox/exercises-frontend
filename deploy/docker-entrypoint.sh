@@ -7,8 +7,11 @@ set -e
 
 ROOT=/usr/share/nginx/html
 
-# Every host is required: no derivation, no fallback.
-for name in NEXT_PUBLIC_MAIN_HOST NEXT_PUBLIC_API_HOST NEXT_PUBLIC_ID_HOST NEXT_PUBLIC_ADMIN_HOST NEXT_PUBLIC_EXERCISES_HOST NEXT_PUBLIC_EVENT_DOMAIN NEXT_PUBLIC_COOKIE_DOMAIN NEXT_PUBLIC_SUPPORT_EMAIL; do
+# The hosts are derived from NEXT_PUBLIC_DOMAIN when they are not set (deploy/base-domain.sh, the same file in every frontend);
+# the derived values are exported, so the substitution below treats them like the others. The other operator values are required.
+. /usr/local/lib/base-domain.sh
+base_domain_derive || exit 1
+for name in NEXT_PUBLIC_SUPPORT_EMAIL; do
   eval "value=\${$name:-}"
   if [ -z "$value" ]; then
     echo "$name is required." >&2

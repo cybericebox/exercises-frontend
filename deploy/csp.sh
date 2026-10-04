@@ -23,6 +23,10 @@ ROOT=/usr/share/nginx/html
 OUT=/tmp/nginx-gen/csp.conf
 MAP=/tmp/nginx-gen/http.d/csp-map.conf
 
+# The API host is derived from NEXT_PUBLIC_DOMAIN when it is not set (the same derivation as 40-next-public-env.sh).
+. /usr/local/lib/base-domain.sh
+base_domain_derive || exit 1
+
 host=${NEXT_PUBLIC_API_HOST:-}
 # A bare host (optionally with a port). Anything else could break the header or the nginx config.
 if ! printf '%s' "$host" | grep -Eq '^[A-Za-z0-9.-]+(:[0-9]+)?$'; then
