@@ -43,11 +43,11 @@ All user-facing text lives in `messages/uk.json` and `messages/en.json` and is r
 
 The nginx image needs no listener settings: the defaults below are baked in and every one can be overridden by env. The entrypoint (`deploy/nginx-entrypoint.sh`) reads the env at container start. The nginx config is in files under `deploy/nginx/` (`nginx.conf`, `server.conf`, and the snippets `listen-http.conf`, `listen-https.conf`, `client-auth.conf`, `health.conf`); the entrypoint only validates the env, renders the active snippets with `envsubst` into `/tmp/nginx-gen` (an empty file for each inactive one), and runs `nginx -t`, so a bad combination stops the container at start.
 
-By default: the plain listener is on `3000`, the health listener on `8081`, TLS turns on by itself when `/tls/tls.crt` and `/tls/tls.key` exist (mount the Secret at `/tls`), and client certificates are required when `/aop/ca.crt` also exists (mount the CA at `/aop`).
+By default: the plain listener is on `8080`, the health listener on `8081`, TLS turns on by itself when `/tls/tls.crt` and `/tls/tls.key` exist (mount the Secret at `/tls`), and client certificates are required when `/aop/ca.crt` also exists (mount the CA at `/aop`). With no files the service runs plain HTTP only. Explicitly set `TLS_CERT_FILE`/`TLS_KEY_FILE` that do not exist, or `TLS_CLIENT_AUTH=optional|require` without the CA file, stop the container at start. The entrypoint logs the active mode at start: `mode: http`, `mode: https` or `mode: https+client-auth`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `HTTP_PORT` | `3000` | Plain HTTP listener. Set but empty turns it off. |
+| `HTTP_PORT` | `8080` | Plain HTTP listener. Set but empty turns it off. |
 | `HTTPS_PORT` | `8443` | TLS listener (HTTP/2); on only when TLS is on. |
 | `TLS_CERT_FILE`, `TLS_KEY_FILE` | `/tls/tls.crt`, `/tls/tls.key` | PEM server certificate chain and key. TLS is on when both default files exist. Set explicitly: both must be set and readable; exactly one set = start error. |
 | `TLS_MIN_VERSION` | `1.2` | `1.2` or `1.3`. |

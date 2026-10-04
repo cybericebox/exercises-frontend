@@ -5,7 +5,7 @@
 # with envsubst (a fixed variable list) into /tmp/nginx-gen and writes an empty file for each inactive one. It then
 # runs `nginx -t`, so a bad combination stops the container at start, and starts the certificate reload loop.
 #
-#   HTTP_PORT            3000   plain HTTP listener; set but empty = off
+#   HTTP_PORT            8080   plain HTTP listener; set but empty = off
 #   HTTPS_PORT           8443   TLS listener, on only when TLS is on
 #   TLS_CERT_FILE, TLS_KEY_FILE   PEM server certificate chain and key (defaults /tls/tls.crt, /tls/tls.key). TLS is on when
 #                        both files exist; set explicitly, both must be set and readable (exactly one = error)
@@ -26,7 +26,7 @@ is_port() { case "$1" in '' | *[!0-9]*) return 1 ;; esac; [ "$1" -ge 1 ] && [ "$
 is_path() { printf '%s' "$1" | grep -Eq '^/[A-Za-z0-9._/+=@-]+$'; }
 
 # Unset means the default; set but empty means off (HTTP_PORT) or unset (the others).
-HTTP_PORT=${HTTP_PORT-3000}
+HTTP_PORT=${HTTP_PORT-8080}
 HTTPS_PORT=${HTTPS_PORT:-8443}
 TLS_CERT_FILE=${TLS_CERT_FILE:-}
 TLS_KEY_FILE=${TLS_KEY_FILE:-}
@@ -72,7 +72,7 @@ if [ -n "$TLS_CERT_FILE" ] || [ -n "$TLS_KEY_FILE" ]; then
   tls=true
   for f in "$TLS_CERT_FILE" "$TLS_KEY_FILE"; do
     is_path "$f" || die "'$f' is not a usable file path."
-    [ -r "$f" ] || die "$f is not readable."
+    [ -r "$f" ] || die "$f does not exist or is not readable (TLS_CERT_FILE/TLS_KEY_FILE are set explicitly)."
   done
 fi
 if [ "$TLS_CLIENT_AUTH" != off ]; then
@@ -106,6 +106,10 @@ render listen-https "$([ "$tls" = true ] && echo on || echo off)"
 render client-auth "$([ "$TLS_CLIENT_AUTH" != off ] && echo on || echo off)"
 render health "$([ -n "$HEALTH_PORT" ] && echo on || echo off)"
 
+if [ "$tls" != true ]; then mode=http
+elif [ "$TLS_CLIENT_AUTH" = off ]; then mode=https
+else mode="https+client-auth"; fi
+echo "[nginx] mode: $mode"
 echo "[nginx] http=${HTTP_PORT:-off} https=$([ "$tls" = true ] && echo "$HTTPS_PORT (tls>=$TLS_MIN_VERSION, client auth $TLS_CLIENT_AUTH)" || echo off) health=${HEALTH_PORT:-off}"
 if [ "$TLS_CLIENT_AUTH" = require ] && [ -n "$HTTP_PORT" ]; then
   echo "[nginx] warning: the plain HTTP listener on $HTTP_PORT is open next to client auth on $HTTPS_PORT; set HTTP_PORT= (empty) to serve only TLS." >&2
