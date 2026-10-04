@@ -26,7 +26,8 @@ COPY deploy/base-domain.sh /usr/local/lib/base-domain.sh
 # 50-csp.sh runs after the env substitution: it hashes the inline scripts and writes the CSP header
 # snippet that server.conf includes (see the header comment in deploy/csp.sh).
 COPY deploy/csp.sh /docker-entrypoint.d/50-csp.sh
-# 60-nginx-config.sh renders the listener snippets from the TLS_* / HTTP_PORT / HEALTH_PORT env and runs nginx -t.
+# 60-nginx-config.sh renders the listener snippets and runs nginx -t. The listener values are defaults in that script (TLS files /tls/tls.crt
+# and /tls/tls.key, client CA /aop/ca.crt, HTTPS 8443, health 8081); the TLS_* / HTTP_PORT / HEALTH_PORT env only overrides them.
 COPY deploy/nginx-entrypoint.sh /docker-entrypoint.d/60-nginx-config.sh
 RUN chmod +x /docker-entrypoint.d/40-next-public-env.sh /docker-entrypoint.d/50-csp.sh /docker-entrypoint.d/60-nginx-config.sh
-EXPOSE 3000 8443
+EXPOSE 3000 8443 8081
