@@ -19,7 +19,7 @@ import { DeviceFailure } from "@/components/exercises/DeviceLiveInfo"
 import { failedDevices, imageWarningText, queueLine } from "@/lib/deviceLive"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref, testLabHref } from "@/lib/exerciseRoutes"
-import { downloadBlob } from "@/lib/downloadBlob"
+import { VpnDialog } from "@/components/exercises/VpnDialog"
 import { LAB_SIDEBAR_COLLAPSED_KEY, LAB_TOPOLOGY_SHOWN_KEY, LAB_TOPOLOGY_WIDTH_KEY, pruneLayouts, removeLayout } from "@/lib/labLayout"
 import { taskValues } from "@/lib/placeholderResolve"
 import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
@@ -65,6 +65,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const [item, setItem] = useState<DeployListItem | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [endOpen, setEndOpen] = useState(false)
+  const [vpnOpen, setVpnOpen] = useState(false)
   const [ending, setEnding] = useState(false)
   const [endError, setEndError] = useState("")
   const [ended, setEnded] = useState(false)
@@ -198,7 +199,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
       center={<LabTimer expiresAt={ready ? item?.ExpiresAt ?? null : null} fallback={deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
-      onDownloadVpn={ready && vpnConfig ? () => downloadBlob(new Blob([vpnConfig], { type: "text/plain" }), "cybericebox.conf") : undefined}
+      onOpenVpn={ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
       onEnd={deploy.deployId ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
@@ -260,6 +261,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       </div>
     )}
 
+    <VpnDialog open={vpnOpen && Boolean(vpnConfig)} config={vpnConfig} onClose={() => setVpnOpen(false)} />
     <ConfirmDialog open={endOpen} tone="danger" busy={ending} error={endError} title={t("admin.exTest.endTitle")}
       description={t(othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEndOpen(false)} onConfirm={() => void endTest()} />
