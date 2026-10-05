@@ -100,6 +100,8 @@ export type DeployStatus = {
   VPNConnected?: boolean
   /** Time of that last handshake (ISO); absent when the VPN never connected. */
   VPNLastHandshake?: string
+  /** Tester page served inside the tunnel by the lab group's VPN pod; absent until known. */
+  VPNProbeURL?: string
   SolvedTaskIDs?: string[]
   /** Set while the lab waits in the launch queue. */
   Queue?: DeployQueue | null

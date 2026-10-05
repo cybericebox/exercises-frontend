@@ -180,6 +180,19 @@ describe("TestLabPage — bar", () => {
     expect(await blob.text()).toBe(readyStatus.VPNConfig)
   })
 
+  it("shows the waiting state, then Connected, and offers the tester page only when the status has its address", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: false, VPNProbeURL: "http://10.128.1.1:8088/" })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.waiting")
+    expect(dialog).not.toHaveTextContent("admin.exTest.vpnHelp.connected")
+    const check = screen.getByRole("link", { name: "admin.exTest.vpnHelp.check" })
+    expect(check).toHaveAttribute("href", "http://10.128.1.1:8088/")
+    expect(check).toHaveAttribute("target", "_blank")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.checkHint")
+  })
+
   it("keeps VPN as a text button with a shield icon (not wifi), and icon-only end/hint/web buttons", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnOpen" })
