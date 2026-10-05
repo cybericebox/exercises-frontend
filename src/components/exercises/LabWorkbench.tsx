@@ -54,7 +54,7 @@ export type LabBarProps = {
   center: ReactNode
   topologyShown?: boolean
   onToggleTopology?: () => void
-  onDownloadVpn?: () => void
+  onOpenVpn?: () => void
   /** Whether the author's VPN is connected to this lab. */
   vpn?: { connected: boolean }
   onEnd?: () => void
@@ -65,7 +65,7 @@ function vpnTooltip(vpn: LabBarProps["vpn"]): string {
 }
 
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
-export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onDownloadVpn, vpn, onEnd }: LabBarProps) {
+export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 bg-[var(--ib-brand)] px-4 py-3 text-white">
@@ -90,8 +90,8 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
             <Network aria-hidden="true" size={16} />
           </Button>
         </HoverTooltip>}
-        {onDownloadVpn && <HoverTooltip text={vpnTooltip(vpn)}>
-          <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnDownload")} aria-describedby="lab-vpn-state" data-vpn={vpn?.connected ? "connected" : "disconnected"} onClick={onDownloadVpn}>
+        {onOpenVpn && <HoverTooltip text={vpnTooltip(vpn)}>
+          <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnOpen")} aria-describedby="lab-vpn-state" data-vpn={vpn?.connected ? "connected" : "disconnected"} onClick={onOpenVpn}>
             {vpn?.connected
               ? <ShieldCheck aria-hidden="true" size={16} className="mr-1.5 fill-emerald-400/40 text-emerald-300" />
               : <Shield aria-hidden="true" size={16} className="mr-1.5 text-white/60" />}
@@ -253,8 +253,8 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
       render={(text) => view(hintTextToState(text))} onUnlock={onUnlockHint} cost={hintCost} />}
 
     {(prev || next) && <nav aria-label={t("admin.exTest.stages")} className="flex items-center justify-between gap-3 border-t border-border pt-4">
-      {prev ? <Button type="button" variant="outline" onClick={prev.select}>{t("admin.exTest.stagePrev", { n: prev.number })}</Button> : <span />}
-      {next ? <Button type="button" variant="outline" onClick={next.select}>{t("admin.exTest.stageNext", { n: next.number })}</Button> : <span />}
+      {prev ? <Button type="button" variant="outline" onClick={prev.select}>{t("admin.exTest.taskPrev")}</Button> : <span />}
+      {next ? <Button type="button" variant="outline" onClick={next.select}>{t("admin.exTest.taskNext")}</Button> : <span />}
     </nav>}
   </article>
 }

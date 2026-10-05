@@ -168,9 +168,12 @@ describe("TestLabPage — bar", () => {
     window.localStorage.clear()
   })
 
-  it("downloads the complete VPN config as cybericebox.conf", async () => {
+  it("opens the VPN instructions on «VPN» and downloads the config only from the dialog button", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.vpnDownload" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" }))
+    expect(await screen.findByRole("dialog")).toHaveTextContent("admin.exTest.vpnHelp.install")
+    expect(h.download).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.vpnHelp.downloadButton" }))
     expect(h.download).toHaveBeenCalledTimes(1)
     const [blob, name] = h.download.mock.calls[0] as [Blob, string]
     expect(name).toBe("cybericebox.conf")
@@ -179,7 +182,7 @@ describe("TestLabPage — bar", () => {
 
   it("keeps VPN as a text button with a shield icon (not wifi), and icon-only end/hint/web buttons", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })
+    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnOpen" })
     expect(vpn).toHaveTextContent("admin.exTest.vpnShort")
     expect(vpn.querySelector("svg")?.getAttribute("class")).toMatch(/shield/)
     expect(vpn.querySelector("svg")?.getAttribute("class")).not.toMatch(/wifi/)
@@ -192,7 +195,7 @@ describe("TestLabPage — bar", () => {
     vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConfig: undefined })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByRole("button", { name: "admin.exTest.vpnDownload" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.exTest.vpnOpen" })).not.toBeInTheDocument()
   })
 
 })
@@ -273,11 +276,11 @@ describe("TestLabPage — task as a participant sees it", () => {
   it("moves between stages with the links under the task", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     await screen.findByRole("heading", { name: "Login" })
-    expect(screen.queryByRole("button", { name: /stagePrev/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stageNext 2" }))
+    expect(screen.queryByRole("button", { name: /taskPrev/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskNext" }))
     expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /stageNext/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stagePrev 1" }))
+    expect(screen.queryByRole("button", { name: /taskNext/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskPrev" }))
     expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
   })
 
@@ -445,14 +448,14 @@ describe("TestLabPage — answer card, solved state and VPN indicator", () => {
     const at = new Date(2026, 8, 30, 12, 0, 5)
     vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: true, VPNLastHandshake: at.toISOString() })
     const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })
+    const vpn = await screen.findByRole("button", { name: "admin.exTest.vpnOpen" })
     expect(vpn).toHaveAttribute("data-vpn", "connected")
     expect(document.getElementById("lab-vpn-state")).toHaveTextContent(/^admin\.exTest\.vpnConnected$/)
     first.unmount()
 
     vi.mocked(deployStatus).mockResolvedValue(readyStatus)
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    expect(await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "disconnected")
+    expect(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" })).toHaveAttribute("data-vpn", "disconnected")
     expect(document.getElementById("lab-vpn-state")).toHaveTextContent("admin.exTest.vpnDisconnected")
   })
 
@@ -460,10 +463,10 @@ describe("TestLabPage — answer card, solved state and VPN indicator", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-      expect(await screen.findByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "disconnected")
+      expect(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" })).toHaveAttribute("data-vpn", "disconnected")
       vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: true, VPNLastHandshake: new Date().toISOString() })
       await act(async () => { await vi.advanceTimersByTimeAsync(5100) })
-      expect(screen.getByRole("button", { name: "admin.exTest.vpnDownload" })).toHaveAttribute("data-vpn", "connected")
+      expect(screen.getByRole("button", { name: "admin.exTest.vpnOpen" })).toHaveAttribute("data-vpn", "connected")
       expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
