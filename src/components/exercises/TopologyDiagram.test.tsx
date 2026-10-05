@@ -33,6 +33,13 @@ const topology: TopologyFormValues = {
 }
 
 describe('TopologyDiagram', () => {
+  it('marks only devices with external web access with a badge', () => {
+    const exposed = { ...topology, Devices: [{ ...topology.Devices[0], External: { Enabled: true, Port: 80, Protocol: 'http' as const } }, topology.Devices[1]] }
+    const { container } = render(<TopologyDiagram topology={exposed} />)
+    expect(container.querySelector('[data-testid="node-d1"] [data-external-badge]')).toHaveAttribute('aria-label', 'admin.exTopo.externalAccess')
+    expect(container.querySelector('[data-testid="node-d2"] [data-external-badge]')).toBeNull()
+  })
+
   it('fits the whole board to its available height rather than clipping lower nodes', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
     const svg = container.querySelector('svg[role="img"]')!
