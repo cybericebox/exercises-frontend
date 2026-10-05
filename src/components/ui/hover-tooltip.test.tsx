@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { HoverTooltip } from "./hover-tooltip"
 
@@ -91,5 +91,17 @@ describe("HoverTooltip — short labels", () => {
     render(<HoverTooltip text={"дуже довге пояснення ".repeat(5)}><button type="button">b</button></HoverTooltip>)
     fireEvent.pointerEnter(screen.getByRole("button", { name: "b" }))
     expect(screen.getByRole("tooltip").className).not.toContain("whitespace-nowrap")
+  })
+
+  it("follows its trigger when the trigger moves while open", async () => {
+    render(<HoverTooltip text="Пояснення"><button type="button">Довідка</button></HoverTooltip>)
+    const trigger = screen.getByRole("button", { name: "Довідка" })
+    let top = 300
+    trigger.parentElement!.getBoundingClientRect = () => ({ left: 100, right: 130, top, bottom: top + 30, width: 30, height: 30, x: 100, y: top, toJSON: () => ({}) })
+    fireEvent.pointerEnter(trigger)
+    expect(screen.getByRole("tooltip").style.top).toBe("293px")
+
+    top = 400
+    await waitFor(() => expect(screen.getByRole("tooltip").style.top).toBe("393px"))
   })
 })

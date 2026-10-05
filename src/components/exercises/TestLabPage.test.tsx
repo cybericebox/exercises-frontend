@@ -276,11 +276,11 @@ describe("TestLabPage — task as a participant sees it", () => {
   it("moves between stages with the links under the task", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     await screen.findByRole("heading", { name: "Login" })
-    expect(screen.queryByRole("button", { name: /stagePrev/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stageNext 2" }))
+    expect(screen.queryByRole("button", { name: /taskPrev/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskNext" }))
     expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /stageNext/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.stagePrev 1" }))
+    expect(screen.queryByRole("button", { name: /taskNext/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskPrev" }))
     expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
   })
 
