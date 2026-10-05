@@ -479,6 +479,7 @@
   "admin.exTopo.overview.showOnDiagram": "Show on diagram",
   "admin.exTopo.zoomIn": "Zoom in",
   "admin.exTopo.zoomOut": "Zoom out",
+  "admin.exTopo.externalAccess": "External web access",
   "admin.exTopo.zoomLevel": "Diagram zoom",
   "admin.exTopo.zoomCustom": "Zoom percentage",
   "admin.exTopo.zoomApply": "Apply",

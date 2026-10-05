@@ -15,8 +15,9 @@ import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
-/** A ready lab keeps being polled for the VPN state; a little slower, the lab itself no longer changes. */
-const READY_POLL_MS = 5000
+/** A ready lab keeps being polled for the VPN state: fast until the VPN connects, slow after. */
+const READY_POLL_MS = 3000
+const CONNECTED_POLL_MS = 10000
 
 /** Opening a web device: the link is fetched on every click, nothing is kept. */
 export type DeployLinkState = "idle" | "opening" | "error"
@@ -106,7 +107,7 @@ export function useDeployTest() {
     readySeen.current = s.Ready
     setState((p) => ({ ...p, status: s, busy: !s.Ready && !failed }))
     if (!failed) {
-      timer.current = setTimeout(() => void poll(id), s.Ready ? READY_POLL_MS : POLL_MS)
+      timer.current = setTimeout(() => void poll(id), s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
     }
   }, [])
 

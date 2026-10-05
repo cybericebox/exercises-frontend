@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, ChevronDown, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, ChevronDown, Globe, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +26,7 @@ import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMe
  */
 
 type NodeKind = "device" | "forwarding" | "vpn" | "internet"
-type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey }
+type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey; external?: boolean }
 type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string }
 type Point = { x: number; y: number }
 type DiagramHint = { text: string; left: number; top: number; below: boolean }
@@ -301,6 +301,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       label: d.Name || `${t("admin.exTopo.unnamedDevice")} ${index + 1}`,
       kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
+      external: Boolean(d.External?.Enabled),
     }))
     if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: gatewayLabelFor(topology.VisualRender, "vpn", t("admin.exTopo.vpn")), kind: "vpn" })
     if (topology.Internet.Enabled) nodes.push({ key: "internet", label: gatewayLabelFor(topology.VisualRender, "internet", t("admin.exTopo.internet")), kind: "internet" })
@@ -687,6 +688,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               commitPosition(node.key, { x: p.x + delta[0], y: p.y + delta[1] })
             }}>
             <TopologyGlyph kind={glyph} x={p.x - GLYPH_SIZE / 2} y={p.y - GLYPH_SIZE / 2} width={GLYPH_SIZE} height={GLYPH_SIZE} className="text-foreground" />
+            {node.external && <g data-external-badge role="img" aria-label={t("admin.exTopo.externalAccess")} className="text-foreground">
+              <title>{t("admin.exTopo.externalAccess")}</title>
+              <circle cx={p.x + GLYPH_SIZE / 2 - 2} cy={p.y - GLYPH_SIZE / 2 + 2} r={8} className="fill-background stroke-border" />
+              <Globe aria-hidden="true" x={p.x + GLYPH_SIZE / 2 - 8} y={p.y - GLYPH_SIZE / 2 - 4} width={12} height={12} />
+            </g>}
             <rect data-icon-hitbox x={p.x - ICON_SIZE / 2} y={p.y - ICON_SIZE / 2} width={ICON_SIZE} height={ICON_SIZE}
               fill="transparent" className="stroke-transparent" />
             {glyphBounds.radius
@@ -769,7 +775,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1">
+    <div className="absolute bottom-11 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1">
       <HoverTooltip text={t("admin.exTopo.zoomOut")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>

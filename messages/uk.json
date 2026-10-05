@@ -479,6 +479,7 @@
   "admin.exTopo.overview.showOnDiagram": "Показати на схемі",
   "admin.exTopo.zoomIn": "Збільшити схему",
   "admin.exTopo.zoomOut": "Зменшити схему",
+  "admin.exTopo.externalAccess": "Зовнішній доступ через вебпосилання",
   "admin.exTopo.zoomLevel": "Масштаб схеми",
   "admin.exTopo.zoomCustom": "Масштаб у відсотках",
   "admin.exTopo.zoomApply": "Задати",
