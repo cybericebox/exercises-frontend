@@ -105,7 +105,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [limitReached, setLimitReached] = useState<{ items: DeployListItem[]; at: number } | null>(null)
   const [maxTests, setMaxTests] = useState(1)
   const activeDeploys = useActiveDeploys(exerciseId)
-  const activeDeploy = activeDeploys.items[0] ?? null
+  // A lab whose lease is over only waits to be ended: it is not "the running test" of the exercise.
+  const activeDeploy = activeDeploys.items.find((item) => !item.Expired) ?? null
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [devicePersistence, setDevicePersistence] = useState(false)
   const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
@@ -297,7 +298,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             const running = await listDeploys().catch(() => [] as DeployListItem[])
             const here = running.find((item) => item.ExerciseID === target.exerciseId)
             if (here) { openTest(here.DeployID); return }
-            if (running.length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
+            if (running.filter((item) => !item.Expired).length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
             leave.allowNavigation()
             router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
           })
@@ -383,7 +384,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
     <RunningLabsDialog open={limitReached !== null && limitReached.items.length > 0} items={limitReached?.items ?? []} now={limitReached?.at ?? 0}
-      description={t("admin.exTest.limitDescription", { n: limitReached?.items.length ?? 0, max: maxTests })}
+      description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}

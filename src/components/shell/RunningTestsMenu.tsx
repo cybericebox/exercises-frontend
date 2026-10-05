@@ -24,6 +24,8 @@ export function RunningTestsMenu() {
   const [open, setOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const running = items.length > 0
+  // A lab whose lease is over only waits to be ended: it is listed, but not counted as running.
+  const active = items.filter((item) => !item.Expired).length
   useEffect(() => {
     if (!running) return
     const timer = setInterval(() => setNow(Date.now()), 30000)
@@ -32,7 +34,7 @@ export function RunningTestsMenu() {
   if (!running && !open) return null
   return <>
     <Button type="button" variant="outline" size="sm" data-running-tests onClick={() => { setNow(Date.now()); setOpen(true) }}>
-      <FlaskConical aria-hidden="true" size={16} className="mr-1.5" />{t("admin.exTest.running", { n: items.length })}
+      <FlaskConical aria-hidden="true" size={16} className="mr-1.5" />{active > 0 ? t("admin.exTest.running", { n: active }) : t("admin.exTest.endingLabs", { n: items.length })}
     </Button>
     <RunningLabsDialog open={open && running} items={items} now={now} onClose={() => setOpen(false)}
       onEnded={(id) => { forget(id); setTimeout(() => void refresh(), 1500) }} />

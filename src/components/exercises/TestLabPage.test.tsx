@@ -438,6 +438,60 @@ describe("TestLabPage — start and end", () => {
   })
 })
 
+describe("TestLabPage — expired lab", () => {
+  const expiredItem = { ...running, ExpiresAt: new Date(Date.now() - 60000).toISOString(), Expired: true }
+  const expiredStatus: DeployStatus = { Phase: "Ready", Ready: false, Expired: true, ExpiresAt: expiredItem.ExpiresAt }
+
+  it("shows the time-is-up state with only the end action, no VPN, tasks or topology", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([expiredItem])
+    vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect((await screen.findAllByText("admin.exTest.expired")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exTest.gone")).not.toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "admin.exTest.end" })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: /vpn/i })).not.toBeInTheDocument()
+    expect(screen.queryByText("Login")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "node web" })).not.toBeInTheDocument()
+  })
+
+  it("ends an expired lab through the danger confirmation", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([expiredItem])
+    vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(destroyDeploy).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("run-1"))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
+  })
+
+  it("switches to the expired state on the next refresh, without a loader in between", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
+    try {
+      render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(screen.getAllByText("Login").length).toBeGreaterThan(0)
+      vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+      await act(async () => { await vi.advanceTimersByTimeAsync(3100) })
+      expect(screen.getAllByText("admin.exTest.expired").length).toBeGreaterThan(0)
+      expect(screen.queryByRole("status")).not.toBeInTheDocument()
+      const calls = vi.mocked(deployStatus).mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(20000) })
+      expect(vi.mocked(deployStatus).mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("keeps the gone state for a lab that is really removed", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByText("admin.exTest.gone")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.expired")).not.toBeInTheDocument()
+  })
+})
+
 describe("TestLabPage — answer card, solved state and VPN indicator", () => {
   beforeEach(() => window.localStorage.clear())
 

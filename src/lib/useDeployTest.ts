@@ -106,7 +106,7 @@ export function useDeployTest() {
     const failed = !s.Ready && isTerminalPhase(s.Phase)
     readySeen.current = s.Ready
     setState((p) => ({ ...p, status: s, busy: !s.Ready && !failed }))
-    if (!failed) {
+    if (!failed && !s.Expired) {
       timer.current = setTimeout(() => void poll(id), s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
     }
   }, [])

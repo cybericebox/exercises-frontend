@@ -9,6 +9,7 @@ import { getExercise, type Exercise } from "@/api/exercises/catalog"
 import { getVersion, type NormalizedVariant, type VersionResources } from "@/api/exercises/versions"
 import { LabBar, LabTimer, TaskSidebar, TaskView } from "@/components/exercises/LabWorkbench"
 import { LabTopologyPanel } from "@/components/exercises/LabTopologyPanel"
+import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -182,7 +183,9 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   }
 
   const { meta } = load
-  const failed = Boolean(deploy.error) || status?.Phase === "Failed" || status?.Phase === "Error"
+  // The lease is over but the lab is not removed yet: nothing to work with, only to end.
+  const expired = Boolean(status?.Expired || item?.Expired)
+  const failed = !expired && (Boolean(deploy.error) || status?.Phase === "Failed" || status?.Phase === "Error")
   const ready = status?.Ready ?? false
   const values = ready && status ? taskValues(task?.Placeholders, status) : null
   const openingKey = deploy.link === "opening" && deploy.linkKey && values
@@ -192,22 +195,27 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const phase = deploy.error ? "Failed" : status?.Phase ?? "Pending"
   const index = task ? tasks.indexOf(task) : -1
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
-  const showTopology = topologyShown && ready
+  const showTopology = topologyShown && ready && !expired
   const imageNote = imageWarningText(status)
 
   return <div className="flex h-dvh flex-col bg-background">
     <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
-      center={<LabTimer expiresAt={ready ? item?.ExpiresAt ?? null : null} fallback={deployPhaseLabel(phase)} />}
+      center={<LabTimer expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
-      onOpenVpn={ready && vpnConfig ? () => setVpnOpen(true) : undefined}
+      onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
-      onEnd={deploy.deployId ? () => { setEndError(""); setEndOpen(true) } : undefined} />
+      onEnd={deploy.deployId && !expired ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     {deploy.link === "error" && <LoadError compact error={deploy.linkError}
       message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
 
     {imageNote && <p className="shrink-0 px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
 
-    {failed && isNoTestLabRoom(deploy.errorCause) ? (
+    {expired ? (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-4">
+        <EmptyState className="min-h-0 py-0" message={t("admin.exTest.expired")} />
+        <Button type="button" variant="destructive" onClick={() => { setEndError(""); setEndOpen(true) }}>{t("admin.exTest.end")}</Button>
+      </div>
+    ) : failed && isNoTestLabRoom(deploy.errorCause) ? (
       <NoRoomPanel className="min-h-0 flex-1" error={deploy.errorCause} variant={meta.variant} resources={meta.resources} onRetry={retry} />
     ) : failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}

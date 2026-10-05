@@ -40,6 +40,8 @@ export type DeployListItem = {
   CreatedAt: string
   /** When the lease ends. */
   ExpiresAt: string
+  /** The lease is over but the lab is not removed yet: it can only be ended. */
+  Expired?: boolean
   Tasks: DeployTask[]
   /** Tasks already checked correctly; kept with the deploy, so a reload keeps the progress. */
   SolvedTaskIDs?: string[]
@@ -108,6 +110,9 @@ export type DeployStatus = {
   /** Lab images pulled by tag, not pinned to a digest; empty when fine. */
   ImageWarning?: string
   GroupImageWarning?: string
+  /** End of the lease; with `Expired` the lab is only waiting to be removed (no VPN, no handshake). */
+  ExpiresAt?: string
+  Expired?: boolean
 }
 
 /** Start a test deploy of one variant; resolves with the deploy id to poll. */
