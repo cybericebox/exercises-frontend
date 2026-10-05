@@ -99,4 +99,23 @@ describe("RunningTestsMenu", () => {
     await waitFor(() => expect(vi.mocked(listDeploys).mock.calls.length).toBeGreaterThan(before))
     expect(screen.getByRole("button", { name: /admin\.exTest\.running 1/ })).toBeInTheDocument()
   })
+
+  it("lists an expired lab with its mark and the end action, and does not count it as running", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([lab("a", "e1", 30), { ...lab("b", "e2", -5), Expired: true }])
+    vi.mocked(destroyDeploy).mockResolvedValue(undefined)
+    render(<RunningTestsMenu />)
+    fireEvent.click(await screen.findByRole("button", { name: /admin\.exTest\.running 1/ }))
+    const dialog = await screen.findByRole("dialog")
+    expect(await within(dialog).findByText(/admin\.exTest\.expiredMark/)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endLabNamed Exercise e2" }))
+    const confirm = (await screen.findAllByRole("dialog")).at(-1)!
+    fireEvent.click(within(confirm).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("b"))
+  })
+
+  it("stays reachable when only expired labs are left", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...lab("b", "e2", -5), Expired: true }])
+    render(<RunningTestsMenu />)
+    expect(await screen.findByRole("button", { name: /admin\.exTest\.endingLabs 1/ })).toBeInTheDocument()
+  })
 })

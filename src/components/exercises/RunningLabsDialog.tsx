@@ -74,7 +74,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-foreground">{name}</div>
                 <div className="text-xs tabular-nums text-muted-foreground">
-                  {variant ? `${t("admin.exDraft.variant")} ${variant} · ` : ""}{t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })}
+                  {variant ? `${t("admin.exDraft.variant")} ${variant} · ` : ""}{item.Expired ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
