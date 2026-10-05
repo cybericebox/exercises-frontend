@@ -58,6 +58,23 @@ export function HoverTooltip({ text, content, children, className, describe = fa
     }
   }, [position])
 
+  // The trigger can move while the tooltip is open (a dialog still animating in when focus lands on its first button):
+  // follow it, so the tooltip stays anchored instead of hanging where the trigger was.
+  const openRef = useRef(open)
+  openRef.current = open
+  const isOpen = position !== null
+  useEffect(() => {
+    if (!isOpen) return
+    let last = trigger.current?.getBoundingClientRect()
+    let frame = requestAnimationFrame(function follow() {
+      const rect = trigger.current?.getBoundingClientRect()
+      if (rect && last && (Math.abs(rect.left - last.left) > 0.5 || Math.abs(rect.top - last.top) > 0.5)) openRef.current()
+      last = rect
+      frame = requestAnimationFrame(follow)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [isOpen])
+
   useEffect(() => {
     const child = trigger.current?.firstElementChild
     if (!describe || !position || !child) return

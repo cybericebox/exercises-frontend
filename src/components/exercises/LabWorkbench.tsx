@@ -253,8 +253,8 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
       render={(text) => view(hintTextToState(text))} onUnlock={onUnlockHint} cost={hintCost} />}
 
     {(prev || next) && <nav aria-label={t("admin.exTest.stages")} className="flex items-center justify-between gap-3 border-t border-border pt-4">
-      {prev ? <Button type="button" variant="outline" onClick={prev.select}>{t("admin.exTest.stagePrev", { n: prev.number })}</Button> : <span />}
-      {next ? <Button type="button" variant="outline" onClick={next.select}>{t("admin.exTest.stageNext", { n: next.number })}</Button> : <span />}
+      {prev ? <Button type="button" variant="outline" onClick={prev.select}>{t("admin.exTest.taskPrev")}</Button> : <span />}
+      {next ? <Button type="button" variant="outline" onClick={next.select}>{t("admin.exTest.taskNext")}</Button> : <span />}
     </nav>}
   </article>
 }
