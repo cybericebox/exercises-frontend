@@ -42,7 +42,7 @@ describe("proposals page", () => {
     vi.mocked(approveProposal).mockResolvedValue({ ...proposal, Status: "approved", CatalogExerciseID: "c9" })
     render(<ProposalsPage />)
     fireEvent.click(await screen.findByRole("button", { name: "exercises.proposals.approve" }))
-    expect(screen.getByLabelText("exercises.proposals.name")).toHaveValue("Header tricks")
+    expect(screen.getByLabelText(/^exercises\.proposals\.name/)).toHaveValue("Header tricks")
     fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.all/ }))
     fireEvent.click(screen.getAllByRole("button", { name: "exercises.proposals.approve" }).at(-1)!)
     await waitFor(() => expect(approveProposal).toHaveBeenCalledWith("p1", { Name: "Header tricks", AccessLevel: "all", EventIDs: [], Note: "" }))

@@ -12,6 +12,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Field } from "@/components/ui/form-field"
+import { Segmented } from "@/components/ui/segmented"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
@@ -28,6 +30,7 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
   const [access, setAccess] = useState<AccessValue>({ level: "own", eventIds: [] })
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
+  const [touched, setTouched] = useState(false)
   const nameValid = name.trim().length >= 3
 
   async function approve() {
@@ -51,10 +54,9 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
           <DialogDescription>{t("exercises.proposals.approveDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="approve-name">{t("exercises.proposals.name")}</Label>
-            <Input id="approve-name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={!nameValid} disabled={busy} />
-          </div>
+          <Field label={t("exercises.proposals.name")} required error={touched && !nameValid ? t("exercises.proposals.nameInvalid") : undefined}>
+            {(control) => <Input {...control} value={name} onChange={(event) => setName(event.target.value)} onBlur={() => setTouched(true)} disabled={busy} />}
+          </Field>
           <AccessLevelFields value={access} onChange={setAccess} allowOwn originEventName={proposal.EventName} disabled={busy} />
           <div className="space-y-1.5">
             <Label htmlFor="approve-note">{t("exercises.proposals.decisionNote")}</Label>
@@ -133,14 +135,8 @@ export default function ProposalsPage() {
     <div className="frost-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-3 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground">{t("exercises.proposals.title")}</h1>
-        <div role="radiogroup" aria-label={t("exercises.proposals.status")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
-          {STATUSES.map((value) => (
-            <button key={value} type="button" role="radio" aria-checked={status === value} onClick={() => setStatus(value)}
-              className={`h-8 rounded px-3 text-sm ${status === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {t(`exercises.proposals.status.${value}`)}
-            </button>
-          ))}
-        </div>
+        <Segmented value={status} onChange={(value) => setStatus(value as ProposalStatus)} ariaLabel={t("exercises.proposals.status")}
+          options={STATUSES.map((value) => ({ value, label: t(`exercises.proposals.status.${value}`) }))} />
       </div>
       {approved?.CatalogExerciseID && (
         <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--ib-ok-bg)] px-3.5 py-2.5 text-sm text-[var(--ib-ok)]">

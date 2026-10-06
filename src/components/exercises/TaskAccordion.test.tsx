@@ -138,14 +138,14 @@ describe('TaskAccordion', () => {
     const fields = screen.getByTestId('flag-delivery-fields')
     expect(fields).toHaveClass('items-start')
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable').closest('[data-testid="flag-device-field"]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exPh.missing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'admin.exPh.missing' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /admin.exTask.deviceFlagVar/ })).toBeInTheDocument()
     expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
   })
 
   it('identifies a linked container by both name and full ID', () => {
     render(<NamedDeviceHarness />)
-    expect(screen.getByRole('button', { name: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
   })
 
   it('does not invent a generation policy while unavailable and allows retry', async () => {
@@ -172,7 +172,7 @@ describe('TaskAccordion', () => {
 
   it('changing task difficulty updates the matching stage in every variant', () => {
     render(<Harness tasks={[task('first')]} otherTasks={[task('alternate')]} />)
-    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.ex.difficulty.easy' }), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('button', { description: 'admin.ex.difficulty.easy' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'admin.ex.difficulty.hard' }))
     expect(screen.getByTestId('variant-difficulty')).toHaveTextContent('[["hard"],["hard"]]')
   })

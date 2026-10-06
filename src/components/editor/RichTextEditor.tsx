@@ -1022,7 +1022,7 @@ const editorTheme = {
     h5: "text-sm font-semibold mb-1",
     h6: "text-sm font-medium text-muted-foreground mb-1",
   },
-  quote: "border-l-4 border-input pl-4 text-muted-foreground italic my-2",
+  quote: "rounded-md bg-[var(--ib-soft)] px-4 py-2 text-muted-foreground italic my-2",
   code: "block font-mono text-sm bg-secondary/40 p-3 rounded my-2 whitespace-pre-wrap",
   list: {
     ul: "list-disc list-inside my-1",

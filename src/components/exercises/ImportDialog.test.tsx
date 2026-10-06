@@ -21,7 +21,7 @@ const imported = (id: string, name: string): Exercise => ({
 })
 
 function chooseFile() {
-  fireEvent.change(screen.getByLabelText("admin.exImport.file"), {
+  fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
     target: { files: [new File(["zip"], "web.cybericebox.zip", { type: "application/zip" })] },
   })
 }
@@ -41,7 +41,7 @@ describe("ImportDialog", () => {
     const onImported = vi.fn()
     render(<ImportDialog onClose={onClose} onImported={onImported} />)
     chooseFile()
-    fireEvent.change(screen.getByLabelText("admin.exImport.password"), { target: { value: "pw" } })
+    fireEvent.change(screen.getByLabelText(/^admin\.exImport\.password/), { target: { value: "pw" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
     expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined)
@@ -64,6 +64,6 @@ describe("ImportDialog", () => {
     chooseFile()
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.exImport.passwordNeeded")
-    expect(screen.getByLabelText("admin.exImport.password")).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByLabelText(/^admin\.exImport\.password/)).toHaveAttribute("aria-invalid", "true")
   })
 })

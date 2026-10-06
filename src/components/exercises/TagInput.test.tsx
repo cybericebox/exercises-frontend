@@ -31,3 +31,14 @@ describe("TagInput suggestions", () => {
     expect(onChange).toHaveBeenCalledWith(["crypto"])
   })
 })
+
+describe("TagInput chips", () => {
+  it("removes a chip with a translated, 24 px button", () => {
+    const onChange = vi.fn()
+    render(<TagInput value={["web", "crypto"]} onChange={onChange} />)
+    const remove = screen.getAllByRole("button", { name: "admin.ex.tag.remove" })[0]
+    expect(remove).toHaveClass("h-6", "w-6")
+    fireEvent.click(remove)
+    expect(onChange).toHaveBeenCalledWith(["crypto"])
+  })
+})

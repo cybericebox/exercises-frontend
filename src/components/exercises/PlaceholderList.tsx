@@ -52,7 +52,7 @@ export function PlaceholderList({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exPh.title")}<FieldHelp text={t("admin.exPh.titleHelp")} /></span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{t("admin.exPh.title")}<FieldHelp text={t("admin.exPh.titleHelp")} /></span>
         {!disabled && (
           <Button type="button" variant="outline" size="sm" data-placeholder-add onClick={() => append(emptyPlaceholder())}>
             <Plus className="mr-1 h-4 w-4" />
