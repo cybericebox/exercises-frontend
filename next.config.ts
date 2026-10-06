@@ -60,8 +60,10 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // Keep URLs slashless and avoid browser-cached 308 slash redirects.
-  skipTrailingSlashRedirect: true,
+  // trailingSlash: every page exports as /<path>/index.html and the canonical URL ends with a slash. Without it a nested
+  // route (profile, profile/sessions) exported both profile.html and a profile/ directory, which nginx answered with 403.
+  // nginx redirects a slashless page path once to the slashed one (deploy/nginx/server.conf).
+  trailingSlash: true,
   allowedDevOrigins: [...new Set(devHosts)],
 }
 

@@ -36,7 +36,7 @@ async function signOutAndRedirect(): Promise<void> {
   } catch {
     // Even if the call fails, fall through to sign-in.
   }
-  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
+  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
 // Back to the app that opened the catalog: only admin and event sites (lib/backLink). The same
