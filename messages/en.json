@@ -152,6 +152,8 @@
   "admin.exImport.title": "Import exercises",
   "admin.exImport.description": "Choose a .zip archive exported from Cyber ICE Box. Import always creates new exercises and never overwrites existing ones.",
   "admin.exImport.file": "Archive",
+  "admin.exImport.chooseFile": "Choose file",
+  "admin.exImport.noFile": "No file chosen",
   "admin.exImport.password": "Password (if the archive is protected)",
   "admin.exImport.passwordNeeded": "Could not open the archive. If it is password-protected, enter the correct password.",
   "admin.exImport.submit": "Import",

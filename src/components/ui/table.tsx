@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn"
  */
 export function Table({ label, className, regionClassName, regionRef, busy, children }: { label: string; className?: string; regionClassName?: string; regionRef?: React.Ref<HTMLDivElement>; busy?: boolean; children: React.ReactNode }) {
   return (
-    <div ref={regionRef} role="region" aria-label={label} aria-busy={busy} tabIndex={0} className={cn("relative min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-primary", regionClassName)}>
+    <div ref={regionRef} role="region" aria-label={label} aria-busy={busy} tabIndex={0} className={cn("relative min-h-0 flex-initial overflow-auto focus-visible:outline-2 focus-visible:outline-primary", regionClassName)}>
       <table aria-label={label} className={cn("w-full border-separate border-spacing-0 text-sm", className)}>{children}</table>
     </div>
   )
