@@ -99,7 +99,7 @@ export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpe
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return <div>
-    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="text-xs font-medium text-muted-foreground">{label}</div>
     <div className="mt-1 space-y-1 text-foreground">{children}</div>
   </div>
 }

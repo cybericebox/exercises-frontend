@@ -262,7 +262,7 @@ describe("topology workspace", () => {
     addNode("container")
     addNode("container")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
-    expect(screen.getByRole("row", { name: /host-2/ })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByRole("row", { name: /host-2/ })).toHaveAttribute("data-selected", "true")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
     expect(diagram()).toBeInTheDocument()
     const host = within(diagram()).getByRole("button", { name: "host-1" })

@@ -45,8 +45,8 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
           const type = row.type === "vpn" || row.type === "internet" ? t(`admin.exTopo.${row.type}`)
             : t(`admin.exTopo.type.${row.type === "unmanaged-switch" ? "switch" : row.type}`)
           const icon = device ? topologyIconFor(device, topology.VisualRender) : row.type === "vpn" ? "vpn" : "internet"
-          return <tr key={row.key} aria-selected={selectedKey === row.key}
-            className={`${TABLE_ROW} group aria-selected:bg-accent/60`}>
+          return <tr key={row.key} data-selected={selectedKey === row.key || undefined}
+            className={`${TABLE_ROW} group data-[selected]:bg-accent/60`}>
             <td className={`${TABLE_CELL} min-w-0`}>
               <HoverTooltip text={name} className="max-w-full">
                 <button type="button" aria-label={name} onClick={() => onOpen(row.key)}
