@@ -1,5 +1,5 @@
 // Design system copy: src/styles/ds-tokens.css and the crest files in public/assets come from docs/design-system
-// (copied, never imported). ds.lock.json records the sha256 of every source and every copy.
+// (copied, never imported). manifest.json records the sha256 of every source and every copy.
 //   node scripts/ds-sync.mjs            copy from the design system (DS_DIR, default: docs/design-system in a parent folder) and rewrite the lock
 //   node scripts/ds-sync.mjs --check    fail when a copy was edited by hand; when the design system is reachable, also when it moved on
 // CI has no design-system checkout, so it checks the copies against the lock; locally the check also diffs the source.
@@ -18,7 +18,7 @@ function findDs() {
   return path.join(root, "..", "docs", "design-system")
 }
 const dsDir = path.resolve(process.env.DS_DIR ?? findDs())
-const lockFile = path.join(root, "src/styles/ds.lock.json")
+const lockFile = path.join(root, "src/styles/ds/manifest.json")
 
 // copy path (in the repo) -> source path (in the design system)
 const COPIES = {
@@ -29,15 +29,13 @@ const COPIES = {
 
 const sha = (data) => createHash("sha256").update(data).digest("hex")
 
-const HEADER = `/* Copy of docs/design-system/tokens.css (node scripts/ds-sync.mjs; ds.lock.json holds the hashes). Do not edit by hand.
-   Differences from the source: no @font-face (Geist comes from next/font), --ib-font / --ib-mono use its variables,
-   and --ib-shadow-overlay is none (this app has no shadows, see src/styles/noShadows.test.ts). */
+const HEADER = `/* Copy of docs/design-system/tokens.css (node scripts/ds-sync.mjs; manifest.json holds the hashes). Do not edit by hand.
+   Differences from the source: no @font-face (Geist comes from next/font) and --ib-font / --ib-mono use its variables. */
 `
 
 export function transform(tokens) {
   const body = tokens
     .replace(/^@font-face\{[^\n]*\}\n/gm, "")
-    .replace(/--ib-shadow-overlay:[^;]*;/g, "--ib-shadow-overlay:none;")
     .replace(/--ib-font:[^;]*;/, '--ib-font:var(--font-geist-sans),"Geist",system-ui,sans-serif;')
     .replace(/--ib-mono:[^;]*;/, '--ib-mono:var(--font-geist-mono),"Geist Mono",ui-monospace,monospace;')
   return HEADER + body
@@ -49,7 +47,7 @@ function readSource(rel) {
 
 export function check() {
   const problems = []
-  if (!fs.existsSync(lockFile)) return ["src/styles/ds.lock.json is missing: run node scripts/ds-sync.mjs"]
+  if (!fs.existsSync(lockFile)) return ["src/styles/ds/manifest.json is missing: run node scripts/ds-sync.mjs"]
   const lock = JSON.parse(fs.readFileSync(lockFile, "utf8"))
   const haveSource = fs.existsSync(path.join(dsDir, "tokens.css"))
   for (const [copy, source] of Object.entries(COPIES)) {

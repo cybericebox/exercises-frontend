@@ -1,6 +1,5 @@
-/* Copy of docs/design-system/tokens.css (node scripts/ds-sync.mjs; ds.lock.json holds the hashes). Do not edit by hand.
-   Differences from the source: no @font-face (Geist comes from next/font), --ib-font / --ib-mono use its variables,
-   and --ib-shadow-overlay is none (this app has no shadows, see src/styles/noShadows.test.ts). */
+/* Copy of docs/design-system/tokens.css (node scripts/ds-sync.mjs; manifest.json holds the hashes). Do not edit by hand.
+   Differences from the source: no @font-face (Geist comes from next/font) and --ib-font / --ib-mono use its variables. */
 /* CyberICEBox design tokens — approved 2026-09-23, computed palette 2026-09-24.
    Light is the default. Dark applies to any subtree with [data-theme="dark"].
    Every brand/accent-dependent colour is a FORMULA of the inputs below (docs/EVENT-THEME.md).
@@ -53,7 +52,7 @@
   --ib-solved-line:#E4E4EC;
   /* overlays — fixed */
   --ib-backdrop:rgba(22,21,43,.45);
-  --ib-shadow-overlay:none;
+  --ib-shadow-overlay:0 12px 32px -8px rgba(22,21,43,.28);
   /* button on the brand mass — fixed */
   --ib-mass-btn:#FFFFFF;
   /* wave texture */
@@ -92,7 +91,7 @@
   --ib-warn:#E8B45E; --ib-warn-bg:color-mix(in srgb,#544E4A,var(--ev-brand) 25%);
   --ib-solved:var(--ib-paper); --ib-solved-line:var(--ib-line);
   --ib-backdrop:rgba(6,5,14,.62);
-  --ib-shadow-overlay:none;
+  --ib-shadow-overlay:0 18px 44px -10px rgba(0,0,0,.55);
   --ib-mass-btn:#E6E6EE;
   --ib-wave-opacity:.16;
   --ib-s1:#3987e5;--ib-s2:#d95926;--ib-s3:#199e70;--ib-s4:#b55fd6;--ib-s5:#c98500;
