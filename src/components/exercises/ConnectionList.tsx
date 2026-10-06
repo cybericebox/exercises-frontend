@@ -213,7 +213,7 @@ export function ConnectionList({
                     options={optionsForEndpoint(ci, side)}
                     className="w-full"
                   />
-                  <p className="min-h-5 text-[0.8rem] font-medium leading-5 text-destructive">
+                  <p className="min-h-5 text-xs font-medium leading-5 text-destructive">
                     {fieldState.error ? fieldState.error.message ?? t("admin.ex.val.endpointDevice") : ""}
                   </p>
                 </div>

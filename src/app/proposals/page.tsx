@@ -164,7 +164,7 @@ export default function ProposalsPage() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.ID} className="border-b border-border/50 align-top">
+                  <tr key={item.ID} className="h-10 border-b border-border/50 align-top">
                     <td className="px-3 py-2">
                       <Link href={exerciseHref(item.ExerciseID)} className="font-medium text-foreground hover:underline">{item.ExerciseName}</Link>
                       {item.CatalogExerciseID && <Link href={exerciseHref(item.CatalogExerciseID)} className="block text-xs text-primary hover:underline">{t("exercises.proposals.openCatalog")}</Link>}

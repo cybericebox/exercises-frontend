@@ -2,7 +2,8 @@
  * Design rule: no shadows. Separation comes from a border (--ib-line) and surface contrast.
  * Fails on Tailwind shadow utilities (shadow-none is fine) in src/**\/*.{ts,tsx}, and on
  * box-shadow / text-shadow / drop-shadow() / shadow tokens in src/**\/*.css. Focus styles are
- * the only exception: a box-shadow inside a :focus / :focus-visible / :focus-within rule.
+ * the only exceptions: a box-shadow inside a :focus / :focus-visible / :focus-within rule, and the DS token
+ * --ib-shadow-overlay (overlays only: modal, menu, select, toast, tooltip).
  */
 import { describe, it, expect } from "vitest"
 import fs from "node:fs"
@@ -44,6 +45,7 @@ describe("no shadows", () => {
       const text = stripComments(fs.readFileSync(file, "utf8"))
       for (const match of text.matchAll(/(--[\w-]*shadow[\w-]*|box-shadow|text-shadow|filter)\s*:\s*([^;}]*)/g)) {
         const [, prop, value] = match
+        if (prop === "--ib-shadow-overlay") continue
         if (prop === "filter" ? !/drop-shadow\(/.test(value) : value.trim() === "none") continue
         const open = text.lastIndexOf("{", match.index)
         const selector = text.slice(Math.max(text.lastIndexOf("}", open), text.lastIndexOf("{", open - 1)) + 1, open)

@@ -34,7 +34,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
             type="button"
             onClick={toggle}
             aria-pressed={shown}
-            className="absolute inset-y-1 right-1 inline-flex items-center rounded-sm px-2.5 text-[13px] font-medium text-[var(--ib-dim)] hover:bg-[var(--ib-hover)] hover:text-[var(--ib-ink)] focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--ib-action)]"
+            className="absolute inset-y-1 right-1 inline-flex items-center rounded-sm px-2.5 text-xs font-medium text-[var(--ib-dim)] hover:bg-[var(--ib-hover)] hover:text-[var(--ib-ink)] focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--ib-action)]"
           >
             {shown ? t("admin.password.hide") : t("admin.password.show")}
           </button>

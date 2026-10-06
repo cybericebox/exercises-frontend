@@ -330,7 +330,7 @@ function Tooltip({
       {children}
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-2xs leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
       >
         {label}
       </div>
@@ -838,7 +838,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
           >
             <span className="text-xs font-medium text-foreground">{showNames ? opt.varName : `{{${opt.varName}}}`}</span>
             {opt.description && (
-              <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
+              <span className="block text-2xs font-sans text-muted-foreground mt-0.5">
                 {opt.description}
               </span>
             )}

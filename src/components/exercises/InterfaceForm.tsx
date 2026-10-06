@@ -65,7 +65,7 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
           onChange={(ref) => { refField.onChange(ref); setValue(viaName, "", { shouldDirty: true }) }} />} />
       </FormItem>} />
     </div>
-    <div data-error-slot className="min-h-4 text-[0.8rem] font-medium leading-4 text-destructive" aria-live="polite">
+    <div data-error-slot className="min-h-4 text-xs font-medium leading-4 text-destructive" aria-live="polite">
       {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDst")}: {destinationError}</p>}
       {typeof viaError === "string" && <p>{t("admin.exTopo.routeVia")}: {viaError}</p>}
     </div>
@@ -99,7 +99,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               manualInput={<FormControl><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Addresses`, ref ? [] : [""], { shouldDirty: true }) }} />} />
             {dhcpOverlap && <p role="note" data-ip-warning className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">{t("admin.exTopo.ref.dhcpOverlap")}</p>}
-            {(fieldState.error || getFieldState(addressRefName, refState).error || !compact) && <p className={compact ? "text-[0.8rem] font-medium leading-5 text-destructive" : "min-h-5 text-[0.8rem] font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? fieldState.error?.root?.message ?? getFieldState(addressRefName, refState).error?.message}</p>}
+            {(fieldState.error || getFieldState(addressRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? fieldState.error?.root?.message ?? getFieldState(addressRefName, refState).error?.message}</p>}
           </FormItem>
         )} />
         <FormField control={control} name={`${name}.IP.Gateway`} render={({ field, fieldState }) => (
@@ -109,7 +109,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               kind="gateway" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
               manualInput={<FormControl><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Gateway`, "", { shouldDirty: true }) }} />} />
-            {(fieldState.error || getFieldState(gatewayRefName, refState).error || !compact) && <p className={compact ? "text-[0.8rem] font-medium leading-5 text-destructive" : "min-h-5 text-[0.8rem] font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? getFieldState(gatewayRefName, refState).error?.message}</p>}
+            {(fieldState.error || getFieldState(gatewayRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? getFieldState(gatewayRefName, refState).error?.message}</p>}
           </FormItem>
         )} />
       </div>

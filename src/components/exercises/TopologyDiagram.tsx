@@ -566,7 +566,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             x={label.x}
             y={label.y}
             className={`${portLabelClass} select-none ${pan || (drag?.kind === "port-label" && drag.key === key) ? "cursor-grabbing" : onPortLabelOffsetChange ? "cursor-grab touch-none" : ""}`}
-            style={{ userSelect: "none" }} fontSize={10} textAnchor="middle"
+            style={{ userSelect: "none" }} fontSize={12} textAnchor="middle"
             paintOrder="stroke" stroke="var(--background)" strokeWidth={3}
             role={onPortLabelOffsetChange ? "button" : undefined} tabIndex={onPortLabelOffsetChange ? 0 : undefined}
             aria-label={onPortLabelOffsetChange ? `${t("admin.exTopo.movePortLabel")}: ${shortForwardingPort(port)}` : undefined}

@@ -6,8 +6,8 @@
   animation: crest-loading-pulse 1.8s ease-in-out infinite;
 }
 .crest-loader img { width: 100%; height: 100%; object-fit: contain; }
-.crest-loader-sm { font-size: 20px; }
-.crest-loader-md { font-size: 32px; }
+.crest-loader-sm { font-size: var(--ib-fs-20); }
+.crest-loader-md { font-size: var(--ib-fs-32); }
 .crest-loader-lg { font-size: 64px; }
 .loading-area {
   display: flex;
@@ -20,7 +20,7 @@
   text-align: center;
   container-type: inline-size;
 }
-.loading-area-label { color: var(--ib-dim); font-size: .8125rem; line-height: 1.4; }
+.loading-area-label { color: var(--ib-dim); font-size: var(--ib-fs-13); line-height: 1.4; }
 .loading-area-compact { min-height: 6rem; --crest-area-height: 6rem; --crest-max-size: 2.75rem; }
 .loading-area-panel { min-height: 10rem; --crest-area-height: 10rem; --crest-max-size: 4rem; }
 .loading-area-page { min-height: 100dvh; --crest-area-height: 100dvh; --crest-max-size: 5rem; }

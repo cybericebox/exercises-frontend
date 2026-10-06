@@ -120,7 +120,7 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
 }) {
   const label = t(collapsed ? "admin.exTest.sidebarExpand" : "admin.exTest.sidebarCollapse")
   return (
-    <aside data-collapsed={collapsed} className={cn("flex shrink-0 flex-col gap-2 overflow-y-auto border-r border-border p-3", collapsed ? "w-[72px]" : "w-[272px]")}>
+    <aside data-collapsed={collapsed} className={cn("flex shrink-0 flex-col gap-2 overflow-y-auto border-r border-border p-3", collapsed ? "w-[72px]" : "w-60")}>
       <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && <h2 className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("admin.exTest.tasksCount", { n: tasks.length })}</h2>}
         <HoverTooltip text={label}>

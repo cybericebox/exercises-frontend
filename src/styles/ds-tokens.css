@@ -1,79 +1,212 @@
-/* Mirror of ds-v2/tokens.css for the standalone admin build.
-   Keep semantic roles and formulas in sync with the design-system source. */
-:root {
-  --ev-brand: #211A52;
-  --ev-accent-light: var(--ev-brand);
-  --ev-accent-dark: #E6E6EE;
-  --ib-brand: var(--ev-brand);
-  --ib-brand-hover: color-mix(in srgb, var(--ev-brand), #FFFFFF 5%);
-  --ib-brand-active: color-mix(in srgb, var(--ev-brand), #FFFFFF 13%);
-  --ib-brand-line: color-mix(in srgb, var(--ev-brand), #FFFFFF 17%);
-  --ib-on-brand: #FFFFFF;
-  --ib-on-brand-2: color-mix(in srgb, var(--ev-brand), #FFFFFF 86%);
-  --ib-on-brand-3: color-mix(in srgb, var(--ev-brand), #FFFFFF 60%);
-  --ib-ice-on-brand: #7FD0FA;
-  --ib-font: var(--font-geist-sans), "Geist", system-ui, sans-serif;
-  --ib-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
-  --ib-placeholder: color-mix(in srgb, var(--ib-dim) 88%, var(--ib-surface));
-  --ib-admin-side-w: 224px;
-  --ib-admin-rail-w: 64px;
-  --ib-row-h: 38px;
-  --ib-r-sm: 4px;
-  --ib-r: 6px;
-  --ib-r-lg: 8px;
-  --ib-r-pill: 999px;
+/* Copy of docs/design-system/tokens.css (node scripts/ds-sync.mjs; manifest.json holds the hashes). Do not edit by hand.
+   Differences from the source: no @font-face (Geist comes from next/font) and --ib-font / --ib-mono use its variables. */
+/* CyberICEBox design tokens — approved 2026-09-23, computed palette 2026-09-24.
+   Light is the default. Dark applies to any subtree with [data-theme="dark"].
+   Every brand/accent-dependent colour is a FORMULA of the inputs below (docs/EVENT-THEME.md).
+   Platform fronts (landing, ID, admin) keep the defaults; the event front overrides the inputs
+   on :root per event. The same CSS renders both. */
+
+
+/* ── 1. INPUTS ───────────────────────────────────────────────────────────────
+   --ev-brand         base brand (dark; white text on it ≥ 4.5:1)
+   --ev-accent-light  accent brought to ≥ 4.5:1 on #F7F7F9       (no accent → brand)
+   --ev-accent-dark   accent brought to ≥ 4.5:1 on the dark paper (no accent → #E6E6EE)
+   --ev-accent-live   accent brought to ≥ 4.5:1 on the brand      (no accent → #FFFFFF)
+   The three accents are precomputed on save (a contrast loop CSS cannot do). */
+:root{
+  --ev-brand:#211A52;
+  --ev-accent-light:var(--ev-brand);
+  --ev-accent-dark:#E6E6EE;
+  --ev-accent-live:#FFFFFF;
 }
 
-:root, [data-theme="light"] {
-  color-scheme: light;
-  --ib-paper: #F7F7F9;
-  --ib-surface: #FFFFFF;
-  --ib-raised: #FFFFFF;
-  --ib-hero: #F0F0F5;
-  --ib-line: #E4E4EC;
-  --ib-control: #82839A;
-  --ib-ink: #16152B;
-  --ib-body: #2C2B42;
-  --ib-dim: #5A5A70;
-  --ib-action: var(--ev-brand);
-  --ib-ice: #1070A0;
-  --ib-action-hover: color-mix(in srgb, var(--ev-brand), #FFFFFF 8%);
-  --ib-on-action: #FFFFFF;
-  --ib-accent: var(--ev-accent-light);
-  --ib-soft: color-mix(in srgb, #FFFFFF, var(--ib-accent) 8%);
-  --ib-hover: color-mix(in srgb, var(--ib-ink) 6%, transparent);
-  --ib-ok: #1F7A55;
-  --ib-ok-bg: #E8F3EE;
-  --ib-danger: #B42318;
-  --ib-danger-bg: #FBECEA;
-  --ib-warn: #8A5A00;
-  --ib-warn-bg: #FAF1E0;
-  --ib-backdrop: rgba(22, 21, 43, .45);
+/* ── 2. LIGHT (default) ───────────────────────────────────────────────────── */
+:root,[data-theme="light"]{
+  color-scheme:light;
+  /* surfaces — fixed */
+  --ib-paper:#F7F7F9;
+  --ib-surface:#FFFFFF;
+  --ib-raised:#FFFFFF;
+  --ib-hero:#F0F0F5;
+  --ib-line:#E4E4EC;
+  --ib-control:#82839A;
+  /* text — fixed */
+  --ib-ink:#16152B;
+  --ib-body:#2C2B42;
+  --ib-dim:#5A5A70;
+  --ib-faint:#66667A;
+  /* action — from brand */
+  --ib-action:var(--ev-brand);
+  --ib-action-hover:color-mix(in srgb,var(--ev-brand),#FFFFFF 8%);
+  --ib-on-action:#FFFFFF;
+  /* highlight — from accent */
+  --ib-accent:var(--ev-accent-light);
+  --ib-soft:color-mix(in srgb,#FFFFFF,var(--ib-accent) 8%);
+  --ib-hover:color-mix(in srgb,var(--ib-ink) 6%,transparent);
+  /* states — fixed */
+  --ib-ok:#1F7A55;  --ib-ok-bg:#E8F3EE;
+  --ib-danger:#B42318; --ib-danger-bg:#FBECEA;
+  --ib-warn:#8A5A00; --ib-warn-bg:#FAF1E0;
+  /* challenge tiles */
+  --ib-solved:color-mix(in srgb,#FFFFFF,var(--ib-accent) 7%);
+  --ib-solved-line:#E4E4EC;
+  /* overlays — fixed */
+  --ib-backdrop:rgba(22,21,43,.45);
+  --ib-shadow-overlay:0 12px 32px -8px rgba(22,21,43,.28);
+  /* button on the brand mass — fixed */
+  --ib-mass-btn:#FFFFFF;
+  /* wave texture */
+  --ib-wave-filter:invert(1) grayscale(1);
+  --ib-wave-opacity:.22;
+  /* chart series — fixed by entity, never by rank */
+  --ib-s1:#2a78d6;--ib-s2:#eb6834;--ib-s3:#1baf7a;--ib-s4:#e87ba4;--ib-s5:#008300;
+  --ib-s6:#eda100;--ib-s7:#e34948;--ib-s8:#0f9fb8;--ib-s9:#b0651a;--ib-s10:#b04ad0;
+  --ib-s-own:var(--ib-accent);--ib-s-other:#7C7C8E;
+  --ib-grid:#E4E4EC;
 }
 
-[data-theme="dark"] {
-  color-scheme: dark;
-  --ib-paper: color-mix(in srgb, #403F41, var(--ev-brand) 25%);
-  --ib-surface: color-mix(in srgb, #4C4B4D, var(--ev-brand) 25%);
-  --ib-raised: color-mix(in srgb, #58575A, var(--ev-brand) 25%);
-  --ib-hero: var(--ib-paper);
-  --ib-line: color-mix(in srgb, #646363, var(--ev-brand) 25%);
-  --ib-control: #9896A6;
-  --ib-ink: #EEEDF6;
-  --ib-body: #DAD9E5;
-  --ib-dim: #BBB9CB;
-  --ib-action: #E6E6EE;
-  --ib-ice: #7FD0FA;
-  --ib-action-hover: #F5F5F9;
-  --ib-on-action: var(--ev-brand);
-  --ib-accent: var(--ev-accent-dark);
-  --ib-soft: color-mix(in srgb, var(--ib-surface), var(--ib-accent) 12%);
-  --ib-hover: color-mix(in srgb, var(--ib-ink) 6%, transparent);
-  --ib-ok: #7CE7AC;
-  --ib-ok-bg: color-mix(in srgb, #607167, var(--ev-brand) 25%);
-  --ib-danger: #FDA69E;
-  --ib-danger-bg: color-mix(in srgb, #5D4F4F, var(--ev-brand) 25%);
-  --ib-warn: #E8B45E;
-  --ib-warn-bg: color-mix(in srgb, #544E4A, var(--ev-brand) 25%);
-  --ib-backdrop: rgba(6, 5, 14, .62);
+/* ── 3. DARK ──────────────────────────────────────────────────────────────────
+   Dark neutrals = graphite base + 25% brand. The bases reproduce the approved
+   «Сутінки» values exactly for brand #211A52 (#383645, #413F4E, #4A4858, #53515F). */
+[data-theme="dark"]{
+  color-scheme:dark;
+  --ib-paper:color-mix(in srgb,#403F41,var(--ev-brand) 25%);
+  --ib-surface:color-mix(in srgb,#4C4B4D,var(--ev-brand) 25%);
+  --ib-raised:color-mix(in srgb,#58575A,var(--ev-brand) 25%);
+  --ib-hero:var(--ib-paper);
+  --ib-line:color-mix(in srgb,#646363,var(--ev-brand) 25%);
+  --ib-control:#9896A6;
+  --ib-ink:#EEEDF6;
+  --ib-body:#DAD9E5;
+  --ib-dim:#C8C6D6;     /* lifted one step: 5.3:1 on raised, 4.6:1 on soft */
+  --ib-faint:#C8C6D6;
+  --ib-action:#E6E6EE;
+  --ib-action-hover:#F5F5F9;
+  --ib-on-action:var(--ev-brand);
+  --ib-accent:var(--ev-accent-dark);
+  --ib-soft:color-mix(in srgb,var(--ib-surface),var(--ib-accent) 12%);
+  --ib-hover:color-mix(in srgb,var(--ib-ink) 6%,transparent);
+  --ib-ok:#7CE7AC;  --ib-ok-bg:color-mix(in srgb,#607167,var(--ev-brand) 25%);
+  --ib-danger:#FDA69E; --ib-danger-bg:color-mix(in srgb,#5D4F4F,var(--ev-brand) 25%);
+  --ib-warn:#E8B45E; --ib-warn-bg:color-mix(in srgb,#544E4A,var(--ev-brand) 25%);
+  --ib-solved:var(--ib-paper); --ib-solved-line:var(--ib-line);
+  --ib-backdrop:rgba(6,5,14,.62);
+  --ib-shadow-overlay:0 18px 44px -10px rgba(0,0,0,.55);
+  --ib-mass-btn:#E6E6EE;
+  --ib-wave-opacity:.16;
+  --ib-s1:#3987e5;--ib-s2:#d95926;--ib-s3:#199e70;--ib-s4:#b55fd6;--ib-s5:#c98500;
+  --ib-s6:#1a94ad;--ib-s7:#d55181;--ib-s8:#2f9a2f;--ib-s9:#e66767;--ib-s10:#a0671f;
+  --ib-s-own:var(--ib-accent);--ib-s-other:#9896A6;
+  --ib-grid:var(--ib-line);
+}
+
+/* ── 4. BRAND MASS — same in both themes ─────────────────────────────────────
+   sidebar (tower / admin), dark constructor blocks, footer, toasts, mass tiles */
+:root{
+  --ib-brand:var(--ev-brand);
+  --ib-brand-hover:color-mix(in srgb,var(--ev-brand),#FFFFFF 5%);
+  --ib-brand-active:color-mix(in srgb,var(--ev-brand),#FFFFFF 13%);
+  --ib-brand-line:color-mix(in srgb,var(--ev-brand),#FFFFFF 17%);
+  --ib-on-brand:#FFFFFF;
+  --ib-on-brand-2:color-mix(in srgb,var(--ev-brand),#FFFFFF 86%);
+  /* on-brand-3: 66% white keeps >=5:1 on the active row for the default brand. A light custom brand can
+     lift it: the event front precomputes --ev-on-brand-3 on save (contrast floor 4.5:1 on --ib-brand-active). */
+  --ib-on-brand-3:var(--ev-on-brand-3,color-mix(in srgb,var(--ev-brand),#FFFFFF 66%));
+  --ib-brand-points:color-mix(in srgb,var(--ev-brand),#FFFFFF 84%);
+
+  /* type */
+  --ib-font:var(--font-geist-sans),"Geist",system-ui,sans-serif;
+  --ib-mono:var(--font-geist-mono),"Geist Mono",ui-monospace,monospace;
+  --ib-fs-12:12px;--ib-fs-13:13px;--ib-fs-14:14px;--ib-fs-15:15px;--ib-fs-16:16px;
+  --ib-fs-11:var(--ib-fs-12);   /* alias: nothing in the product is set under 12px */
+  --ib-fs-20:20px;--ib-fs-24:24px;--ib-fs-32:32px;--ib-fs-48:48px;--ib-fs-72:72px;
+  --ib-lh-tight:1.15;--ib-lh-ui:1.35;--ib-lh-body:1.55;--ib-lh-text:1.6;   /* --ib-lh-text: running text at 15px */
+  --ib-w-regular:400;--ib-w-medium:500;--ib-w-semibold:600;
+
+  /* space (4px base) */
+  --ib-1:4px;--ib-2:8px;--ib-3:12px;--ib-4:16px;--ib-5:20px;--ib-6:24px;--ib-8:32px;--ib-10:40px;--ib-12:48px;--ib-16:64px;
+
+  /* shape */
+  --ib-r-sm:4px;--ib-r:6px;--ib-r-lg:8px;--ib-r-pill:999px;
+  --ib-control-h:32px;--ib-control-h-lg:40px;--ib-row-h:40px;--ib-nav-item-h:36px;
+
+  /* motion — opacity/colour/position only */
+  --ib-dur-fast:120ms;--ib-dur:160ms;--ib-dur-move:320ms;--ib-ease:cubic-bezier(.2,.7,.2,1);
+
+  /* layout */
+  --ib-sidebar-w:240px;--ib-topbar-h:56px;--ib-tower-w:var(--ib-sidebar-w);--ib-admin-side-w:var(--ib-sidebar-w);
+  --ib-modal-w:640px;--ib-popover-w:376px;
+}
+
+/* ── 5. LIVE / fullscreen results ────────────────────────────────────────────
+   Dark live = the whole screen in brand; light live = paper with a brand band. */
+.ib-live,[data-live="light"]{
+  --ib-live-bg:#F7F7F9;--ib-live-panel:#FFFFFF;--ib-live-line:#E4E4EC;
+  --ib-live-ink:#16152B;--ib-live-dim:#5A5A70;--ib-live-faint:#66667A;
+  --ib-live-lead:color-mix(in srgb,#FFFFFF,var(--ev-accent-light) 8%);
+  /* faint 5.2:1 on paper, 4.8:1 on the lead row; splitter hover #82839A 3.5:1 */
+  --ib-live-grip:#82839A;
+  /* chart set validated >=3:1 on paper #F7F7F9 */
+  --ib-s1:#2a78d6;--ib-s2:#ea6833;--ib-s3:#069f6d;--ib-s4:#d86c96;--ib-s5:#048203;
+  --ib-s6:#c28301;--ib-s7:#de4444;--ib-s8:#099db6;--ib-s9:#b0651a;--ib-s10:#b04ad0;
+  --ib-s-own:var(--ev-accent-light);--ib-live-grid:#E4E4EC;--ib-live-axis:#5A5A70;--ib-live-other:#7C7C8E;color-scheme:light;
+}
+[data-live="dark"]{
+  --ib-live-bg:var(--ev-brand);--ib-live-panel:var(--ev-brand);
+  --ib-live-line:color-mix(in srgb,var(--ev-brand),#FFFFFF 17%);
+  --ib-live-ink:#FFFFFF;
+  --ib-live-dim:color-mix(in srgb,var(--ev-brand),#FFFFFF 86%);
+  --ib-live-faint:color-mix(in srgb,var(--ev-brand),#FFFFFF 60%);
+  --ib-live-lead:color-mix(in srgb,var(--ev-brand),#FFFFFF 3%);
+  --ib-live-grid:var(--ib-live-line);--ib-live-axis:var(--ib-live-faint);
+  --ib-live-other:color-mix(in srgb,var(--ev-brand),#FFFFFF 50%);--ib-live-grip:var(--ib-live-other);
+  --ib-s1:#3987e5;--ib-s2:#d95926;--ib-s3:#199e70;--ib-s4:#b55fd6;--ib-s5:#c98500;
+  --ib-s6:#1a94ad;--ib-s7:#d55181;--ib-s8:#2f9a2f;--ib-s9:#e66767;--ib-s10:#a0671f;
+  --ib-s-own:var(--ev-accent-live);color-scheme:dark;
+}
+
+/* Folded from prototypes 2026-09-24 (platform / id / admin). Appended — light first, then dark. */
+:root,[data-theme="light"]{
+  /* waves on a QUIET (non-mass) zone, e.g. the landing hero left side: dark ink waves on --ib-hero */
+  --ib-wave-quiet-filter:none;
+  --ib-wave-quiet-opacity:.9;
+  /* diagrams (lab topology): dashed zone outline; hosts use --ib-control, routes --ib-action */
+  --ib-diagram-zone:#8C8DA1;   /* 3.3:1 on surface, 3.1:1 on paper */
+}
+[data-theme="dark"]{
+  --ib-wave-quiet-filter:invert(1) grayscale(1);
+  --ib-wave-quiet-opacity:.35;
+  --ib-diagram-zone:#8F8D9D;   /* 3.2:1 on surface, 3.6:1 on paper */
+}
+
+/* Wave 1 (2026-10-06): placeholder, tooltip and chart-theme tokens. Defined per theme (not on :root only),
+   because a var() alias on :root would be resolved once and ignore data-theme on a subtree. */
+:root,[data-theme="light"]{
+  --ib-placeholder:#5F5F73;            /* 6.2:1 surface, 5.8:1 paper, 5.5:1 hero, 5.3:1 soft */
+  --ib-tip-bg:var(--ib-raised);        /* tooltip bubble: raised fill + hairline + overlay shadow */
+  --ib-tip-fg:var(--ib-ink);
+  --ib-tip-line:var(--ib-line);
+  --ib-tip-dim:var(--ib-dim);
+  /* charts (read by chart-theme.js at render time) */
+  --ib-chart-axis:var(--ib-dim);       /* axis labels, 12px: 6.7:1 on surface */
+  --ib-chart-legend:var(--ib-body);    /* legend text, 13px */
+  --ib-chart-grid:var(--ib-grid);
+  --ib-chart-line:var(--ib-control);   /* axis line, tick marks */
+}
+[data-theme="dark"]{
+  --ib-placeholder:#C8C6D6;            /* 4.6:1 on soft, 5.3:1 on raised */
+  --ib-tip-bg:var(--ib-raised);
+  --ib-tip-fg:var(--ib-ink);
+  --ib-tip-line:var(--ib-control);     /* raised on paper is only 1.5:1, so the dark bubble border is the control line */
+  --ib-tip-dim:var(--ib-dim);
+  --ib-chart-axis:var(--ib-dim);       /* 5.9:1 on surface */
+  --ib-chart-legend:var(--ib-body);
+  --ib-chart-grid:var(--ib-grid);
+  --ib-chart-line:var(--ib-control);
+}
+:root{--ib-chart-fs-axis:12px;--ib-chart-fs-legend:13px;--ib-chart-lw:2px}
+/* live screens carry their own surface and ink: charts and bubbles follow them */
+.ib-live,[data-live]{
+  --ib-chart-axis:var(--ib-live-axis);--ib-chart-legend:var(--ib-live-ink);--ib-chart-grid:var(--ib-live-grid);--ib-chart-line:var(--ib-live-grid);
+  --ib-tip-bg:var(--ib-live-lead);--ib-tip-fg:var(--ib-live-ink);--ib-tip-line:var(--ib-live-line);--ib-tip-dim:var(--ib-live-dim);
 }
