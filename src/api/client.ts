@@ -21,7 +21,9 @@ export class ApiError extends Error {
     // English message — is the i18n key callers localize against (see i18n/apiError).
     public readonly code?: number,
     // Seconds from the Retry-After header of a 429 (rate limit / lockout), when sent.
-    public readonly retryAfterSeconds?: number
+    public readonly retryAfterSeconds?: number,
+    // X-Request-ID of the failed response: the key of the platform error journal entry (needs the header exposed by CORS).
+    public readonly requestId?: string
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
@@ -127,7 +129,8 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
       envelope?.Status?.Code,
-      parseRetryAfter(res.headers.get("Retry-After"))
+      parseRetryAfter(res.headers.get("Retry-After")),
+      res.headers.get("X-Request-ID") ?? undefined
     )
   }
 

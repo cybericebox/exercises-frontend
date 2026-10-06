@@ -10,5 +10,13 @@
   "public/assets/crest-128.png": {
     "source": "7ee06ebc72cbb7afdf656ead0b86fcac60a23142750971f8156cb23bde74271a",
     "copy": "7ee06ebc72cbb7afdf656ead0b86fcac60a23142750971f8156cb23bde74271a"
+  },
+  "src/styles/ds-error-page.css": {
+    "source": "06adf5d0c745037b1f119bcbdd37dcdf06426345222987f633afea8faf1dfd6c",
+    "copy": "06adf5d0c745037b1f119bcbdd37dcdf06426345222987f633afea8faf1dfd6c"
+  },
+  "src/styles/ds-service-down.css": {
+    "source": "4933539d02d2e81b8521d388008140830942e6f600074ecfade5030c09f88615",
+    "copy": "4933539d02d2e81b8521d388008140830942e6f600074ecfade5030c09f88615"
   }
 }

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import type { NextConfig } from "next"
 
 // Static export for the exercise catalog.
@@ -8,6 +9,8 @@ if (!DOMAIN) throw new Error("NEXT_PUBLIC_DOMAIN is required")
 if (DOMAIN !== "__NEXT_PUBLIC_DOMAIN__" && (DOMAIN.length > 253 || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(DOMAIN))) {
   throw new Error(`NEXT_PUBLIC_DOMAIN must be a bare lowercase host name (no scheme, port or path), got: ${DOMAIN}`)
 }
+// Build version for error reports (package.json).
+const APP_VERSION = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version
 const PLATFORM_HOSTS = [DOMAIN, `api.${DOMAIN}`, `id.${DOMAIN}`, `admin.${DOMAIN}`, `exercises.${DOMAIN}`]
 
 // Every other operator value is required: a missing one fails the build.
@@ -57,6 +60,7 @@ const nextConfig: NextConfig = {
     ? { headers: async () => [{ source: "/:path*", headers: [{ key: "Content-Security-Policy", value: devContentSecurityPolicy() }] }] }
     : {}),
   output: process.env.NODE_ENV === "production" ? "export" : undefined,
+  env: { NEXT_PUBLIC_APP_VERSION: APP_VERSION },
   images: {
     unoptimized: true,
   },

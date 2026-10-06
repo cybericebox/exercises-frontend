@@ -1,0 +1,31 @@
+/* Service down — «Сервер тимчасово недоступний» overlay. Not dismissable (no close, Esc does nothing, no backdrop click).
+   Behind:   the page stays in the DOM, dimmed to .45 and non-interactive: put .ib-service-down-behind on the app root
+             (opacity .45, pointer-events none) and set `inert` on it from IB.ServiceDown.open().
+   Card:     .ib-service-down (fixed overlay, centres) > .ib-service-down__card (surface, hairline, radius 8, padding 24,
+             max-width 340, --ib-shadow-overlay allowed) with role="alertdialog".
+             crest 36 (.ib-service-down__crest, pulses by opacity only; reduced motion: no pulse) → title 17/600 →
+             one line → status line (.ib-service-down__status, faint mono, aria-live) → full-width secondary button.
+   Markup:
+     <div class="ib-service-down" data-ib-service-down>
+       <div class="ib-service-down__card" role="alertdialog" aria-modal="true" aria-labelledby="sd-t" aria-describedby="sd-d" tabindex="-1">
+         <img class="ib-service-down__crest" src="assets/crest-64.png" width="36" height="36" alt="">
+         <h2 class="ib-service-down__title" id="sd-t">Сервер тимчасово недоступний</h2>
+         <p class="ib-service-down__text" id="sd-d">Сторінка оновиться сама, щойно сервер відповість.</p>
+         <p class="ib-service-down__status" role="status" aria-live="polite">Наступна спроба через 12 с</p>
+         <button type="button" class="ib-btn ib-btn--block" data-ib-service-down-retry>Спробувати зараз</button></div></div>
+   On event sites the crest is the event logo. Texts (incl. «Наступна спроба через {s} с», «Перевіряємо зʼєднання…») come
+   from the app's i18n messages (t("key", { s })). Behaviour: service-down.js (IB.ServiceDown). */
+
+.ib-service-down-behind{opacity:.45;pointer-events:none;user-select:none}
+.ib-service-down{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:var(--ib-4)}
+.ib-service-down--contained{position:absolute}   /* demo frames: overlay inside a positioned block */
+.ib-service-down__card{width:100%;max-width:340px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:var(--ib-2);padding:var(--ib-6);
+  background:var(--ib-surface);border:1px solid var(--ib-line);border-radius:var(--ib-r-lg);box-shadow:var(--ib-shadow-overlay);text-align:center}
+.ib-service-down__card:focus{outline:none}
+.ib-service-down__crest{display:block;width:36px;height:auto;margin-bottom:var(--ib-1);animation:ib-service-down-pulse 2.4s ease-in-out infinite}
+.ib-service-down__title{margin:0;font-size:17px;font-weight:var(--ib-w-semibold);line-height:1.3;color:var(--ib-ink);text-wrap:balance}
+.ib-service-down__text{margin:0;font-size:var(--ib-fs-14);line-height:var(--ib-lh-ui);color:var(--ib-dim);text-wrap:pretty}
+.ib-service-down__status{margin:0;min-height:1.35em;font-family:var(--ib-mono);font-size:var(--ib-fs-12);color:var(--ib-faint)}
+.ib-service-down__card .ib-btn{margin-top:var(--ib-2)}
+@keyframes ib-service-down-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.ib-service-down__crest{animation:none}}
