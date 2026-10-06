@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 
 import { PopupBlockedError, useDeployTest } from "./useDeployTest"
 import * as deployApi from "@/api/exercises/deploy"
+import { ApiError } from "@/api/client"
 
 vi.mock("@/api/exercises/deploy")
 
@@ -203,6 +204,55 @@ describe("useDeployTest", () => {
       expect(result.current.link).toBe("error")
       expect(result.current.linkError).toBeInstanceOf(PopupBlockedError)
       expect(mocked.openDeployLink).not.toHaveBeenCalled()
+    })
+  })
+  describe("polling", () => {
+    const setHidden = (hidden: boolean) => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden })
+      document.dispatchEvent(new Event("visibilitychange"))
+    }
+
+    beforeEach(() => { vi.useFakeTimers() })
+    afterEach(() => {
+      setHidden(false)
+      vi.useRealTimers()
+    })
+
+    it("stops polling and reports gone on a 404", async () => {
+      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true }).mockRejectedValue(new ApiError(404, "Test deployment not found"))
+      const { result } = renderHook(() => useDeployTest())
+      act(() => result.current.attach("g1", []))
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+      expect(result.current.gone).toBe(true)
+      const calls = mocked.deployStatus.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(120000) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(calls)
+    })
+
+    it("backs off while a ready lab keeps failing", async () => {
+      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true }).mockRejectedValue(new Error("boom"))
+      const { result } = renderHook(() => useDeployTest())
+      act(() => result.current.attach("g1", []))
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+      // Fixed 3s pace would be 20 polls; backoff keeps it well below that.
+      expect(mocked.deployStatus.mock.calls.length).toBeLessThan(8)
+      expect(result.current.gone).toBe(false)
+    })
+
+    it("pauses while the tab is hidden and resumes when it is shown", async () => {
+      mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+      const { result } = renderHook(() => useDeployTest())
+      act(() => result.current.attach("g1", []))
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(1)
+
+      act(() => setHidden(true))
+      await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(1)
+
+      await act(async () => { setHidden(false) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(2)
     })
   })
 })
