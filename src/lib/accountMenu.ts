@@ -2,7 +2,7 @@
  * accountMenu.ts — the platform-wide account menu, one copy per app (keep them identical).
  *
  * Every frontend shows the same entries in the same order, with the same labels and icons:
- * «Профіль», «Адміністрування» (admin-tier), «Каталог завдань» (admins and event staff), a
+ * «Профіль», «Панель платформи» (admin-tier), «Каталог завдань» (admins and event staff), a
  * divider, «Файли cookie», a divider, «Вийти». The link to the current app is hidden; the logo
  * leads to the landing, so there is no «Головна». Profile and catalog links carry return_to.
  * The app renders the entries; sign-out and the cookie panel are app-specific.
