@@ -26,6 +26,11 @@ export function ExercisesShell({ children }: { children: React.ReactNode }) {
   return <AccessProvider><AccessGate>{children}</AccessGate></AccessProvider>
 }
 
+// First focusable element of every shell: jumps past the top bar to <main id="main">.
+function SkipLink() {
+  return <a className="ib-skip" href="#main">{t("exercises.shell.skipToContent")}</a>
+}
+
 function AccessGate({ children }: { children: React.ReactNode }) {
   const { access, loading } = useExerciseAccess()
   const pathname = usePathname()
@@ -35,14 +40,22 @@ function AccessGate({ children }: { children: React.ReactNode }) {
   if (!hasCatalogAccess(access)) return <NoAccessScreen />
 
   // The lab testing page is full-screen on its own: none of the catalog chrome.
-  if (pathname.startsWith("/test")) return <div className="h-dvh overflow-hidden bg-background">{children}</div>
+  if (pathname.startsWith("/test")) {
+    return (
+      <>
+        <SkipLink />
+        <main id="main" tabIndex={-1} className="h-dvh overflow-hidden bg-background">{children}</main>
+      </>
+    )
+  }
 
   return (
     <ReturnContextProvider>
+      <SkipLink />
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
         <TopBar />
         <SiteBanners />
-        <main className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
+        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
       </div>
     </ReturnContextProvider>
   )

@@ -277,7 +277,7 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
   const hint = definition?.description ?? (missing ? content : name);
   if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
-    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
+    style={cleanStyle} aria-label={t("admin.exPh.editNamed", { name: content })}
     onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
     <HoverTooltip text={hint} className="inline">
@@ -330,7 +330,7 @@ function Tooltip({
       {children}
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 rounded-md bg-foreground px-2 py-1 text-2xs leading-none text-background whitespace-nowrap opacity-0 group-hover/format-tip:opacity-100 group-focus-within/format-tip:opacity-100 transition-opacity"
       >
         {label}
       </div>
@@ -838,7 +838,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
           >
             <span className="text-xs font-medium text-foreground">{showNames ? opt.varName : `{{${opt.varName}}}`}</span>
             {opt.description && (
-              <span className="block text-[10px] font-sans text-muted-foreground mt-0.5">
+              <span className="block text-2xs font-sans text-muted-foreground mt-0.5">
                 {opt.description}
               </span>
             )}
@@ -1022,7 +1022,7 @@ const editorTheme = {
     h5: "text-sm font-semibold mb-1",
     h6: "text-sm font-medium text-muted-foreground mb-1",
   },
-  quote: "border-l-4 border-input pl-4 text-muted-foreground italic my-2",
+  quote: "rounded-md bg-[var(--ib-soft)] px-4 py-2 text-muted-foreground italic my-2",
   code: "block font-mono text-sm bg-secondary/40 p-3 rounded my-2 whitespace-pre-wrap",
   list: {
     ul: "list-disc list-inside my-1",

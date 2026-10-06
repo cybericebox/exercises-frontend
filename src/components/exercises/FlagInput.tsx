@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import { Braces, ClipboardPaste, Plus } from "lucide-react"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Button } from "@/components/ui/button"
@@ -152,7 +153,7 @@ export function FlagInput({
     <div className="min-w-0 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             {t("admin.exTask.flag.title")}<FlagHelp />
           </span>
           {semanticsKey && <span className="text-xs text-muted-foreground">{t(semanticsKey)}</span>}
@@ -188,7 +189,7 @@ export function FlagInput({
           <div data-testid="flag-candidate-control" className="flex h-10 min-w-0 w-full items-center overflow-hidden rounded-md border border-border bg-card pr-0.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40">
             <div className="h-full shrink-0">
               {!disabled && (dynamic || template) ? <SelectMenu value={template ? "template" : "fixed"}
-                ariaLabel={`${t("admin.exTask.flag.mode")} ${index + 1}`}
+                ariaLabel={t("admin.exTask.flag.modeN", { n: index + 1 })}
                 compactChevron triggerVariant="default"
                 onChange={(mode) => update(index, mode === "template" ? TEMPLATE_PREFIX + visible : visible)}
                 options={[{ value: "fixed", label: t("admin.exTask.flag.modeFixed") }, { value: "template", label: t("admin.exTask.flag.modeTemplate") }]}
@@ -198,7 +199,7 @@ export function FlagInput({
             <Input name={namePrefix ? `${namePrefix}.${index}` : undefined} value={visible} placeholder={template ? String.raw`ICE{room-\d}` : "ICE{...}"}
               ref={(node) => { if (node) inputRefs.current.set(index, node); else inputRefs.current.delete(index) }}
               className="h-9 min-w-0 flex-1 border-0 bg-transparent text-sm font-normal placeholder:text-sm focus-visible:border-0 focus-visible:ring-0"
-              disabled={disabled} aria-label={`${t("admin.exTask.flag.title")} ${index + 1}`}
+              disabled={disabled} aria-label={t("admin.exTask.flag.titleN", { n: index + 1 })}
               aria-invalid={Boolean(issue)} onBlur={() => setTouched((current) => new Set(current).add(index))}
               onPaste={(event) => handlePaste(event, index)}
               onSelect={() => rememberCursor(index)} onKeyUp={() => rememberCursor(index)} onClick={() => rememberCursor(index)}
@@ -214,7 +215,7 @@ export function FlagInput({
               <DropdownMenuContent align="end" className="max-h-72 min-w-[20rem] max-w-[calc(100vw-2rem)] overflow-y-auto">
                 {INSERTION_GROUPS.map((group, groupIndex) => <div key={group.key}>
                   {groupIndex > 0 && <DropdownMenuSeparator />}
-                  <DropdownMenuLabel className="py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t(`admin.exTask.flag.${group.key}`)}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="py-1 text-xs font-semibold text-muted-foreground">{t(`admin.exTask.flag.${group.key}`)}</DropdownMenuLabel>
                   {group.items.map((item) => <DropdownMenuItem key={item.key} onSelect={() => insertAtCursor(index, item.text, item.caretBack)}>
                     {t(`admin.exTask.flag.${item.key}`)} <code className="ml-auto pl-4 text-xs text-muted-foreground">{item.text}</code>
                   </DropdownMenuItem>)}
@@ -232,7 +233,7 @@ export function FlagInput({
           </div>
           {info && template && <div data-testid="flag-candidate-meta" className="flex min-h-10 min-w-0 flex-[1_1_16rem] flex-col justify-center text-xs leading-5">
           <p className="break-words text-muted-foreground">
-            {t("admin.exTask.flag.example")}: <code>{info.example}</code> · {t("admin.exTask.flag.options")}: {info.cardinality.toLocaleString("uk-UA")} · {info.entropyBits.toFixed(1)} {t("admin.exTask.flag.bits")}
+            {tRich("admin.exTask.flag.candidateMeta", { example: <code>{info.example}</code>, count: info.cardinality.toLocaleString("uk-UA"), bits: info.entropyBits.toFixed(1) })}
           </p>
           </div>}
           </div>
@@ -243,7 +244,7 @@ export function FlagInput({
       {!dynamic && (value.length > 1 || value.some((candidate) => candidate.startsWith(TEMPLATE_PREFIX))) &&
         <p role="alert" className="text-xs text-destructive">{t("admin.exTask.flag.staticCount")}</p>}
       {dynamic && value.length === 0 && (policy
-        ? <p className="text-xs text-muted-foreground">{t("admin.exTask.flag.randomExample")}: <code>{`ICE{${"0".repeat(policy.RandomHexLength)}}`}</code> · {policy.RandomBits} {t("admin.exTask.flag.bits")}</p>
+        ? <p className="text-xs text-muted-foreground">{tRich("admin.exTask.flag.randomExampleLine", { example: <code>{`ICE{${"0".repeat(policy.RandomHexLength)}}`}</code>, bits: policy.RandomBits })}</p>
         : policyError
           ? <LoadError compact message={t("admin.exTask.flag.policyUnavailable")} error={policyError.cause} onRetry={onRetryPolicy} />
           : <LoadingArea compact className="h-24" label={t("admin.exTask.flag.policyLoading")} />)}
@@ -251,7 +252,7 @@ export function FlagInput({
         <DialogContent className="max-h-[min(90dvh,38rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("admin.exTask.flag.pasteTitle")}</DialogTitle>
-            <DialogDescription>{t("admin.exTask.flag.pasteDescription")} {pendingPaste && `${t("admin.exTask.flag.pasteTarget")} ${pendingPaste.index + 1}.`}</DialogDescription>
+            <DialogDescription>{t("admin.exTask.flag.pasteDescription")} {pendingPaste && t("admin.exTask.flag.pasteTargetN", { n: pendingPaste.index + 1 })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -260,10 +261,10 @@ export function FlagInput({
                 options={[{ value: "fixed", label: t("admin.exTask.flag.modeFixed") }, ...(dynamic ? [{ value: "template", label: t("admin.exTask.flag.modeTemplate") }] : [])]} className="w-full" />
             </div>
             {pendingPaste && <div className="space-y-2 text-sm">
-              <p className="text-muted-foreground">{t("admin.exTask.flag.pasteCount")} {pendingPaste.lines.length}</p>
+              <p className="text-muted-foreground">{t("admin.exTask.flag.pasteCountN", { count: pendingPaste.lines.length })}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                <span>{t("admin.exTask.flag.pasteValid")} {validPaste.length}</span>
-                <span className={invalidPaste.length ? "text-destructive" : "text-muted-foreground"}>{t("admin.exTask.flag.pasteInvalid")} {invalidPaste.length}</span>
+                <span>{t("admin.exTask.flag.pasteValidN", { count: validPaste.length })}</span>
+                <span className={invalidPaste.length ? "text-destructive" : "text-muted-foreground"}>{t("admin.exTask.flag.pasteInvalidN", { count: invalidPaste.length })}</span>
               </div>
               {invalidPaste.length > 0 && <ul className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-border p-2 text-xs" aria-label={t("admin.exTask.flag.pasteInvalid")}>
                 {invalidPaste.map((line) => <li key={line.line} className="break-all text-destructive">{line.line}. {line.text} <span className="text-muted-foreground">— {line.reason}</span></li>)}

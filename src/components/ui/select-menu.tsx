@@ -1,5 +1,6 @@
 "use client"
 
+import { useId } from "react"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
@@ -33,24 +34,37 @@ interface SelectMenuProps {
   portalled?: boolean
   modal?: boolean
   sideOffset?: number
+  id?: string
+  "aria-labelledby"?: string
+  "aria-describedby"?: string
+  "aria-invalid"?: boolean
+  "aria-required"?: boolean
 }
 
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, portalled = true, modal = true, sideOffset = 4 }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, portalled = true, modal = true, sideOffset = 4, id, "aria-labelledby": labelledBy, "aria-describedby": describedBy, "aria-invalid": invalid, "aria-required": required }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
+  const valueId = useId()
+  // The name stays the field label; the chosen option is announced as the description (an aria-label alone would hide it).
+  const described = [describedBy, selected ? valueId : undefined].filter(Boolean).join(" ") || undefined
   return (
     <DropdownMenu modal={modal}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          aria-label={ariaLabel}
+          id={id}
+          aria-label={labelledBy ? undefined : ariaLabel}
+          aria-labelledby={labelledBy}
+          aria-describedby={described}
+          aria-invalid={invalid}
+          aria-required={required}
           variant={triggerVariant}
           disabled={disabled}
           className={cn("h-10 justify-between font-normal", className)}
         >
-          <span className={cn("truncate", !selected && "text-placeholder", selected?.unavailable && "text-destructive")}>{selected ? selected.label : (placeholder ?? "")}</span>
+          <span id={valueId} className={cn("truncate", !selected && "text-placeholder", selected?.unavailable && "text-destructive")}>{selected ? selected.label : (placeholder ?? "")}</span>
           <ChevronDown className={cn(compactChevron ? "ml-1" : "ml-2", "h-4 w-4 shrink-0 opacity-60")} />
         </Button>
       </DropdownMenuTrigger>

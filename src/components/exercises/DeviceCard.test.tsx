@@ -4,9 +4,10 @@
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
@@ -223,22 +224,22 @@ describe('DeviceCard', () => {
     render(<Harness device={device} />)
     expect(screen.getByText('admin.exTopo.image')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTopo.ifaceName')).not.toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'admin.exTopo.external' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'admin.exTopo.externalToggle' })).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.externalToggle')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTopo.deviceName')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exTopo.imageHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTopo.imageHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.resources')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     expect(screen.getByText('admin.exTopo.ifaceName').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.ipTypeHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTopo.ipTypeHelp')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-10')
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'admin.exTopo.externalToggle' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.basic' }))
-    expect(screen.getByRole('switch', { name: 'admin.exTopo.external' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'admin.exTopo.externalToggle' })).toBeInTheDocument()
     expect(screen.queryByText('admin.exTopo.ifaceName')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.external' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.externalToggle' }))
     expect(screen.getByText('admin.exTopo.port').closest('label')).toHaveClass('leading-5')
     expect(screen.getByRole('spinbutton', { name: /admin.exTopo.port/ }).closest('div.space-y-2')?.querySelector('p:empty')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
@@ -265,11 +266,11 @@ describe('DeviceCard', () => {
     fireEvent.click(image)
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'admin.exTopo.resources' })).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'admin.exTopo.external' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'admin.exTopo.externalToggle' })).toBeInTheDocument()
     fireEvent.click(resources)
     expect(screen.queryByRole('radiogroup', { name: 'admin.exTopo.resources' })).not.toBeInTheDocument()
     fireEvent.click(external)
-    expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'admin.exTopo.externalToggle' })).not.toBeInTheDocument()
     fireEvent.click(image)
     expect(screen.getByText('admin.exTopo.image')).toBeInTheDocument()
   })
@@ -408,9 +409,9 @@ describe('DeviceCard', () => {
     expect(card.querySelector('[data-env-actions]')).toHaveClass('absolute', 'right-3', 'top-3')
     expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(0)
     expect(card).not.toHaveTextContent('admin.exEnv.secret')
-    expect(card).not.toHaveTextContent('admin.exEnv.variable 1')
+    expect(card).not.toHaveTextContent('admin.exEnv.variableN 1')
     expect(card).toHaveAttribute('role', 'group')
-    expect(card).toHaveAttribute('aria-label', 'admin.exEnv.variable 1')
+    expect(card).toHaveAttribute('aria-label', 'admin.exEnv.variableN 1')
   })
 
   it('reflows inspector fields when the panel is widened', () => {
@@ -458,8 +459,7 @@ describe('DeviceCard', () => {
     expect(entries).toHaveLength(2)
     expect(entries[0].Value).toBe('https://example.com')
     expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
-    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.imported')
-    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.duplicates')
+    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.importSummary')
   })
 })
 

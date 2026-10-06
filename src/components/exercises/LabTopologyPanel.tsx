@@ -44,7 +44,7 @@ export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpe
 
   return (
     <section aria-label={t("admin.exTest.topology")} className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="absolute inset-0 overflow-auto">
         <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={setSelected} onCanvasSelect={() => setSelected(null)}
           onPositionChange={move("nodes")} onLabelOffsetChange={move("labels")} onPortLabelOffsetChange={move("portLabels")}
           toolbarExtra={<HoverTooltip text={t("admin.exTest.layoutReset")}>
@@ -55,7 +55,7 @@ export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpe
           </HoverTooltip>} />
       </div>
       {info && (
-        <div role="region" aria-label={t("admin.exTest.card.title")} className="shrink-0 space-y-3 border-t border-border bg-background p-4 text-sm">
+        <div role="region" aria-label={t("admin.exTest.card.title")} className="absolute inset-x-0 bottom-0 z-10 max-h-[60%] space-y-3 overflow-y-auto border-t border-border bg-background p-4 text-sm">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-foreground">
               {info.kind === "device" ? info.name : t(info.kind === "vpn" ? "admin.exTopo.vpn" : "admin.exTopo.internet")}
@@ -99,7 +99,7 @@ export function LabTopologyPanel({ deployId, topology, status, openingKey, onOpe
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return <div>
-    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="text-xs font-medium text-muted-foreground">{label}</div>
     <div className="mt-1 space-y-1 text-foreground">{children}</div>
   </div>
 }

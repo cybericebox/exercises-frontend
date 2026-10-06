@@ -40,6 +40,8 @@ export type DeployListItem = {
   CreatedAt: string
   /** When the lease ends. */
   ExpiresAt: string
+  /** The lease is over but the lab is not removed yet: it can only be ended. */
+  Expired?: boolean
   Tasks: DeployTask[]
   /** Tasks already checked correctly; kept with the deploy, so a reload keeps the progress. */
   SolvedTaskIDs?: string[]
@@ -100,12 +102,17 @@ export type DeployStatus = {
   VPNConnected?: boolean
   /** Time of that last handshake (ISO); absent when the VPN never connected. */
   VPNLastHandshake?: string
+  /** Tester page served inside the tunnel by the lab group's VPN pod; absent until known. */
+  VPNProbeURL?: string
   SolvedTaskIDs?: string[]
   /** Set while the lab waits in the launch queue. */
   Queue?: DeployQueue | null
   /** Lab images pulled by tag, not pinned to a digest; empty when fine. */
   ImageWarning?: string
   GroupImageWarning?: string
+  /** End of the lease; with `Expired` the lab is only waiting to be removed (no VPN, no handshake). */
+  ExpiresAt?: string
+  Expired?: boolean
 }
 
 /** Start a test deploy of one variant; resolves with the deploy id to poll. */

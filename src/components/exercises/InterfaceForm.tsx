@@ -46,7 +46,7 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
 
   return <div data-route-card className="space-y-1 rounded-md border border-border p-2">
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItem")} {index + 1}</span>
+      <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItemN", { n: index + 1 })}</span>
       {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeRoute")} onClick={onRemove} className="h-7 w-7" />}
     </div>
     <div data-route-fields className={`grid ${compact ? "grid-cols-1 gap-2" : "gap-2 sm:grid-cols-2"}`}>
@@ -65,9 +65,9 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
           onChange={(ref) => { refField.onChange(ref); setValue(viaName, "", { shouldDirty: true }) }} />} />
       </FormItem>} />
     </div>
-    <div data-error-slot className="min-h-4 text-[0.8rem] font-medium leading-4 text-destructive" aria-live="polite">
-      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDst")}: {destinationError}</p>}
-      {typeof viaError === "string" && <p>{t("admin.exTopo.routeVia")}: {viaError}</p>}
+    <div data-error-slot className="min-h-4 text-xs font-medium leading-4 text-destructive" aria-live="polite">
+      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDstError", { error: destinationError })}</p>}
+      {typeof viaError === "string" && <p>{t("admin.exTopo.routeViaError", { error: viaError })}</p>}
     </div>
   </div>
 }
@@ -99,7 +99,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               manualInput={<FormControl><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Addresses`, ref ? [] : [""], { shouldDirty: true }) }} />} />
             {dhcpOverlap && <p role="note" data-ip-warning className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">{t("admin.exTopo.ref.dhcpOverlap")}</p>}
-            {(fieldState.error || getFieldState(addressRefName, refState).error || !compact) && <p className={compact ? "text-[0.8rem] font-medium leading-5 text-destructive" : "min-h-5 text-[0.8rem] font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? fieldState.error?.root?.message ?? getFieldState(addressRefName, refState).error?.message}</p>}
+            {(fieldState.error || getFieldState(addressRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? fieldState.error?.root?.message ?? getFieldState(addressRefName, refState).error?.message}</p>}
           </FormItem>
         )} />
         <FormField control={control} name={`${name}.IP.Gateway`} render={({ field, fieldState }) => (
@@ -109,7 +109,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               kind="gateway" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
               manualInput={<FormControl><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Gateway`, "", { shouldDirty: true }) }} />} />
-            {(fieldState.error || getFieldState(gatewayRefName, refState).error || !compact) && <p className={compact ? "text-[0.8rem] font-medium leading-5 text-destructive" : "min-h-5 text-[0.8rem] font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? getFieldState(gatewayRefName, refState).error?.message}</p>}
+            {(fieldState.error || getFieldState(gatewayRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? getFieldState(gatewayRefName, refState).error?.message}</p>}
           </FormItem>
         )} />
       </div>
@@ -169,7 +169,7 @@ export function InterfaceForm({
         {fields.map((field, ii) => <div key={field.id} className={`group inline-flex shrink-0 items-center rounded-md ${activeIndex === ii ? "bg-accent" : ""}`}><button type="button" role="tab" aria-selected={activeIndex === ii}
           onClick={() => setSelectedIndex(ii)}
           className={`rounded-md px-3 py-1.5 text-sm ${activeIndex === ii ? "font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-          {rows[ii]?.Name || `${t("admin.exTopo.interfaceItem")} ${ii + 1}`}
+          {rows[ii]?.Name || t("admin.exTopo.interfaceItemN", { n: ii + 1 })}
         </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => { remove(ii); setSelectedIndex(Math.max(0, ii - 1)) }} className="mr-1 h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}</div>)}
       </div>}
 
@@ -178,7 +178,7 @@ export function InterfaceForm({
         const ipType = rows[ii]?.IP?.Type
         return (
           <div key={field.id} data-interface-panel className={compact ? "space-y-2 pt-2" : "space-y-3 border-t border-border pt-3"}>
-            {!compact && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaces")} {ii + 1}</p>}
+            {!compact && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaceItemN", { n: ii + 1 })}</p>}
             <div data-interface-grid className={`grid ${compact ? "grid-cols-1 gap-2 @min-[26rem]:grid-cols-2" : "gap-3 sm:grid-cols-2 lg:grid-cols-3"}`}>
               <FormField control={control} name={`${name}.${ii}.Name`} render={({ field: nameField, fieldState }) => (
                 <FormItem className={compact ? "space-y-1" : undefined}>

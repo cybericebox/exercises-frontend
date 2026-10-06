@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { ApiError } from "@/api/client"
 import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
 
@@ -18,6 +19,8 @@ const POLL_MS = 4000
 /** A ready lab keeps being polled for the VPN state: fast until the VPN connects, slow after. */
 const READY_POLL_MS = 3000
 const CONNECTED_POLL_MS = 10000
+/** A failing poll backs off from the normal pace up to this. */
+const MAX_BACKOFF_MS = 60000
 
 /** Opening a web device: the link is fetched on every click, nothing is kept. */
 export type DeployLinkState = "idle" | "opening" | "error"
@@ -33,6 +36,8 @@ export type DeployTestState = {
   errorCause: unknown
   /** Tasks whose flags the author finds in the lab, known from the start of the deploy. */
   tasks: DeployTask[]
+  /** The server no longer knows the deploy (404): it was removed, so polling stopped. */
+  gone: boolean
   /** true while starting or polling a not-yet-terminal deploy. */
   busy: boolean
   link: DeployLinkState
@@ -41,7 +46,7 @@ export type DeployTestState = {
   linkError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], busy: false, link: "idle", linkKey: null, linkError: null }
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], gone: false, busy: false, link: "idle", linkKey: null, linkError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -49,8 +54,13 @@ export function useDeployTest() {
   const activeId = useRef<string | null>(null)
   const requestSequence = useRef(0)
   const readySeen = useRef(false)
+  const failures = useRef(0)
+  /** The deploy whose next poll waits for the tab to become visible again. */
+  const parked = useRef<string | null>(null)
 
   const clearTimer = () => {
+    parked.current = null
+    failures.current = 0
     if (timer.current) {
       clearTimeout(timer.current)
       timer.current = null
@@ -88,27 +98,67 @@ export function useDeployTest() {
     if (lastLink.current) openLink(lastLink.current.device, lastLink.current.port)
   }, [openLink])
 
+  const pollRef = useRef<(id: string) => Promise<void>>(async () => {})
+
+  // A hidden tab does not poll: the next poll waits until the tab is shown again.
+  const schedule = useCallback((id: string, ms: number) => {
+    if (typeof document !== "undefined" && document.hidden) {
+      parked.current = id
+      return
+    }
+    timer.current = setTimeout(() => void pollRef.current(id), ms)
+  }, [])
+
   const poll = useCallback(async (id: string) => {
+    parked.current = null
     let s: DeployStatus
     try {
       s = await deployStatus(id)
     } catch (e) {
       if (activeId.current !== id) return
+      if (e instanceof ApiError && e.status === 404) {
+        // The lab is gone: nothing left to poll.
+        setState((p) => ({ ...p, gone: true, busy: false }))
+        return
+      }
       if (readySeen.current) {
-        // A ready lab is only polled for the VPN state: a hiccup keeps the last status and tries again.
-        timer.current = setTimeout(() => void poll(id), READY_POLL_MS)
+        // A ready lab is only polled for the VPN state: a hiccup keeps the last status and tries again, slower each time.
+        failures.current += 1
+        schedule(id, Math.min(READY_POLL_MS * 2 ** failures.current, MAX_BACKOFF_MS))
         return
       }
       setState((p) => ({ ...p, error: (e as Error).message, errorCause: e, busy: false }))
       return
     }
     if (activeId.current !== id) return // a newer deploy (or a close) superseded this one
+    failures.current = 0
     const failed = !s.Ready && isTerminalPhase(s.Phase)
     readySeen.current = s.Ready
     setState((p) => ({ ...p, status: s, busy: !s.Ready && !failed }))
-    if (!failed) {
-      timer.current = setTimeout(() => void poll(id), s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
+    if (!failed && !s.Expired) {
+      schedule(id, s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
     }
+  }, [schedule])
+  useEffect(() => { pollRef.current = poll }, [poll])
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.hidden) {
+        // A poll already waiting on its timer is parked too.
+        if (timer.current && activeId.current) {
+          clearTimeout(timer.current)
+          timer.current = null
+          parked.current = activeId.current
+        }
+        return
+      }
+      const id = parked.current
+      if (!id || activeId.current !== id) return
+      parked.current = null
+      void pollRef.current(id)
+    }
+    document.addEventListener("visibilitychange", resume)
+    return () => document.removeEventListener("visibilitychange", resume)
   }, [])
 
   const start = useCallback(

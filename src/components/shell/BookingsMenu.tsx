@@ -72,7 +72,7 @@ export function BookingsMenu() {
   const items = load.state === "ready" ? load.items : []
   return <>
     <Button type="button" variant="outline" size="sm" data-bookings onClick={() => { setLoad({ state: "loading" }); setOpen(true) }}>
-      <CalendarClock aria-hidden="true" size={16} className="mr-1.5" />{t("exercises.book.menu")}
+      <CalendarClock aria-hidden="true" size={16} className="md:mr-1.5" /><span className="sr-only md:not-sr-only">{t("exercises.book.menu")}</span>
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg" aria-describedby={undefined}>

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react"
 import { exportExercises } from "@/api/exercises/archive"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
@@ -19,11 +19,16 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (includeSecrets && password.trim() === "") { setError(t("admin.exExport.passwordRequired")); return }
-    if (includeSecrets && password !== confirm) { setError(t("admin.exExport.mismatch")); return }
+    const missing = includeSecrets && password.trim() === ""
+    const mismatch = includeSecrets && !missing && password !== confirm
+    setPasswordError(missing ? t("admin.exExport.passwordRequired") : null)
+    setConfirmError(mismatch ? t("admin.exExport.mismatch") : null)
+    if (missing || mismatch) return
     setBusy(true)
     setError(null)
     try {
@@ -46,7 +51,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
           <DialogTitle>{t("admin.exExport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exExport.description")}</DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-foreground">{t("admin.exExport.count").replace("{count}", String(exerciseIds.length))}</p>
+        <p className="text-sm text-foreground">{t("admin.exExport.count", { count: exerciseIds.length })}</p>
         <div className="flex items-start gap-3">
           <Switch id="export-secrets" checked={includeSecrets} onCheckedChange={setIncludeSecrets} aria-label={t("admin.exExport.secrets")} />
           <div>
@@ -55,14 +60,12 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
           </div>
         </div>
         {includeSecrets && <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="export-password">{t("admin.exExport.password")}</Label>
-            <PasswordInput id="export-password" shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="export-confirm">{t("admin.exExport.confirm")}</Label>
-            <PasswordInput id="export-confirm" shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
-          </div>
+          <Field label={t("admin.exExport.password")} required error={passwordError}>
+            {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(null) }} />}
+          </Field>
+          <Field label={t("admin.exExport.confirm")} required error={confirmError}>
+            {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setConfirmError(null) }} />}
+          </Field>
           <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
         </div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

@@ -52,17 +52,14 @@ export function VariantTabs({
       <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-border pb-3">
         <TabsList className="exercise-variant-tabs max-w-full min-w-0 justify-start overflow-x-auto">
           {fields.map((field, i) => (
-            <span key={field.id} className="exercise-variant-item relative inline-flex shrink-0 items-center">
-              <TabsTrigger value={String(i)} className={fields.length > 1 && !disabled ? "exercise-variant-tab pr-9" : "exercise-variant-tab"}>
-                {t("admin.exDraft.variant")} {i + 1}
-              </TabsTrigger>
-              {fields.length > 1 && !disabled && <RemoveAction ariaLabel={t("admin.exDraft.removeVariant")}
-                wrapperClassName="exercise-variant-remove-anchor"
-                className="exercise-variant-remove h-7 w-7"
-                onClick={() => setPendingRemoval(i)} />}
-            </span>
+            <TabsTrigger key={field.id} value={String(i)} className="exercise-variant-tab">
+              {t("admin.exDraft.variantN", { n: i + 1 })}
+            </TabsTrigger>
           ))}
         </TabsList>
+        {/* Outside the tablist: a tab only selects. The action removes the variant that is open. */}
+        {fields.length > 1 && !disabled && <RemoveAction ariaLabel={t("admin.exDraft.removeVariant")} className="h-8 w-8"
+          onClick={() => setPendingRemoval(active)} />}
         {!disabled && (
           <>
             <Button type="button" variant="outline" size="sm" onClick={addVariant}>
@@ -80,7 +77,7 @@ export function VariantTabs({
       ))}
       <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
         title={t("admin.exDraft.removeVariantTitle")}
-        description={`${t("admin.exDraft.removeVariantDescription")}${pendingRemoval !== null ? ` ${t("admin.exDraft.variant")} ${pendingRemoval + 1}.` : ""}`}
+        description={pendingRemoval !== null ? t("admin.exDraft.removeVariantNDescription", { n: pendingRemoval + 1 }) : t("admin.exDraft.removeVariantDescription")}
         cancelLabel={t("admin.exDraft.removeVariantCancel")} confirmLabel={t("admin.exDraft.removeVariantConfirm")}
         onConfirm={() => {
           if (pendingRemoval !== null) removeVariant(pendingRemoval)

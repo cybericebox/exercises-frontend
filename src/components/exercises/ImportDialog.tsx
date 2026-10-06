@@ -10,7 +10,7 @@ import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
@@ -40,7 +40,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
       const result = await importExercises(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined)
-      toast.success(t("admin.exImport.done").replace("{count}", String(result.length)))
+      toast.success(t("admin.exImport.done", { count: result.length }))
       onImported?.()
       if (result.length === 1) {
         onClose()
@@ -52,7 +52,6 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       // The backend answers any unreadable archive (encrypted without/with a wrong password) with 400.
       if (cause instanceof ApiError && cause.status === 400 && !UPLOAD_ERROR_CODES.has(cause.code ?? 0)) {
         setPasswordNeeded(true)
-        setError(t("admin.exImport.passwordNeeded"))
       } else {
         setError(exerciseErrorMessage(cause))
       }
@@ -67,7 +66,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       {imported ? <>
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.resultTitle")}</DialogTitle>
-          <DialogDescription>{t("admin.exImport.done").replace("{count}", String(imported.length))}</DialogDescription>
+          <DialogDescription>{t("admin.exImport.done", { count: imported.length })}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-[50vh] space-y-1 overflow-y-auto text-sm">
           {imported.map((exercise) => <li key={exercise.ID}>
@@ -80,15 +79,12 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="import-file">{t("admin.exImport.file")}</Label>
-          <Input id="import-file" type="file" accept=".zip,application/zip" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="import-password">{t("admin.exImport.password")}</Label>
-          <PasswordInput id="import-password" autoComplete="off" value={password} aria-invalid={passwordNeeded}
-            className={passwordNeeded ? "border-destructive" : undefined} onChange={(event) => setPassword(event.target.value)} />
-        </div>
+        <Field label={t("admin.exImport.file")} required>
+          {(control) => <Input {...control} type="file" accept=".zip,application/zip" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
+        </Field>
+        <Field label={t("admin.exImport.password")} error={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
+          {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
+        </Field>
         {busy && progress !== null && (
           <div className="space-y-1.5" aria-live="polite">
             <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress}%</span></div>

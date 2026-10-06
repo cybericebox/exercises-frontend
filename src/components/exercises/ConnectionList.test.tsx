@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useForm, FormProvider, useFormContext, useWatch } from 'react-hook-form'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 import { ConnectionList, encodeEndpoint, decodeEndpoint } from './ConnectionList'
 import { TopologyConnectionDialog } from './TopologyConnectionDialog'
@@ -104,9 +104,9 @@ describe('ConnectionList', () => {
   it('expands only one row and offers a separate show-on-diagram action', () => {
     const onShowInDiagram = vi.fn()
     render(<Harness usedSwitch onShowInDiagram={onShowInDiagram} />)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnectionN 1' }))
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.endpoint.first' })).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnectionN 2' }))
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.endpoint.first' })).toHaveLength(1)
     fireEvent.click(within(screen.getByTestId('connection-row-1')).getByRole('button', { name: 'admin.exTopo.overview.showOnDiagram' }))
     expect(onShowInDiagram).toHaveBeenCalledWith(1)
@@ -119,7 +119,7 @@ describe('ConnectionList', () => {
     const remove = screen.getByRole('button', { name: 'admin.exTopo.removeConnection' })
     expect(row).toContainElement(remove)
     expect(remove.parentElement?.parentElement).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnectionN 1' }))
     expect(screen.getByTestId('connection-editor-0')).not.toContainElement(remove)
     expect(screen.getAllByRole('button', { name: 'admin.exTopo.removeConnection' })).toHaveLength(1)
   })
@@ -148,7 +148,7 @@ describe('ConnectionList', () => {
 
   it('keeps the gateway port selectable in the row already using it', () => {
     render(<Harness />)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnection 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.overview.editConnectionN 1' }))
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.endpoint.first' }), { key: 'ArrowDown' })
     expect(screen.getByRole('menuitemradio', { name: 'admin.exTopo.endpoint.vpn · eth0' })).toBeInTheDocument()
   })

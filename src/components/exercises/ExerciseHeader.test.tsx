@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({
-  t: (key: string) => key === "admin.exPage.action.deleteInUse" ? "In use: {events}" : key,
+  t: (key: string, vars?: { events?: string; name?: string }) => key === "admin.exPage.action.deleteInUse" ? `In use: ${vars?.events}` : key === "admin.exPage.action.eventName" ? `«${vars?.name}»` : key,
 }))
 // Plain anchor: the test has no app router to navigate with.
 vi.mock("next/link", () => ({

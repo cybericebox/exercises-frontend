@@ -3,10 +3,12 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 
 // Stub the heavy Lexical editor: TaskForm (rendered by an open row) imports it, and
 // jsdom does not need the real rich-text stack for these behavior tests.
@@ -104,7 +106,7 @@ describe('TaskAccordion', () => {
     // One task → no accordion header shows the untitled fallback yet.
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.add' }))
     // The appended empty task has no Name → its header uses the untitled fallback.
-    expect(screen.getByText('admin.exTask.untitled 2')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTask.numbered 2')).toBeInTheDocument()
     // Two tasks now → the remove-task control becomes available.
     expect(screen.getAllByRole('button', { name: 'admin.exTask.remove' })).toHaveLength(2)
   })
@@ -138,14 +140,14 @@ describe('TaskAccordion', () => {
     const fields = screen.getByTestId('flag-delivery-fields')
     expect(fields).toHaveClass('items-start')
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable').closest('[data-testid="flag-device-field"]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exPh.missing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'admin.exPh.missing' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /admin.exTask.deviceFlagVar/ })).toBeInTheDocument()
     expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
   })
 
   it('identifies a linked container by both name and full ID', () => {
     render(<NamedDeviceHarness />)
-    expect(screen.getByRole('button', { name: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
   })
 
   it('does not invent a generation policy while unavailable and allows retry', async () => {
@@ -153,7 +155,7 @@ describe('TaskAccordion', () => {
       .mockResolvedValueOnce({ RandomHexLength: 12, RandomBits: 48, WarningBits: 18 })
     render(<NamedDeviceHarness />)
     expect(await screen.findByText('admin.exTask.flag.policyUnavailable')).toBeInTheDocument()
-    expect(screen.queryByText('admin.exTask.flag.randomExample')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.exTask.flag.randomExampleLine')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText(/ICE\{0{12}\}/)).toBeInTheDocument()
   })
@@ -172,7 +174,7 @@ describe('TaskAccordion', () => {
 
   it('changing task difficulty updates the matching stage in every variant', () => {
     render(<Harness tasks={[task('first')]} otherTasks={[task('alternate')]} />)
-    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.ex.difficulty.easy' }), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('button', { description: 'admin.ex.difficulty.easy' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'admin.ex.difficulty.hard' }))
     expect(screen.getByTestId('variant-difficulty')).toHaveTextContent('[["hard"],["hard"]]')
   })
@@ -186,11 +188,11 @@ describe('TaskAccordion', () => {
   it('marks required task fields and exposes explanations', () => {
     render(<Harness tasks={[task('first')]} />)
     expect(screen.getByText('admin.exTask.name').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.nameHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.nameHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.difficulty').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.difficultyHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.difficultyHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.description').parentElement).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.descriptionHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.descriptionHelp')).toBeInTheDocument()
   })
 
   it('disabled=true → add-task and remove-task controls are absent (read-only)', () => {

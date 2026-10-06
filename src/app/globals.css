@@ -113,9 +113,31 @@
 
 	--font-sans: var(--font-geist-sans);
 	--font-mono: var(--font-geist-mono);
+
+	/* Type scale 12/13/14/15/16 (DS --ib-fs-*): nothing in the product is set under 12px. */
+	--text-2xs: 12px;
+	--text-2xs--line-height: 16px;
+	--text-xs: 13px;
+	--text-xs--line-height: 18px;
+	--text-sm: 14px;
+	--text-sm--line-height: 20px;
+	--text-base: 15px;
+	--text-base--line-height: 1.6;
+	--text-md: 16px;
+	--text-md--line-height: 1.35;
 }
 
 @layer base {
+	/* The «ICE» of the wordmark: ice blue of the crest, per theme (not a DS token). */
+	:root, [data-theme="light"] { --ib-ice: #1070A0; }
+	[data-theme="dark"] { --ib-ice: #7FD0FA; }
+
+	html {
+		-webkit-text-size-adjust: 100%;
+		/* focus and #anchors are never hidden under the sticky top bar */
+		scroll-padding-top: calc(var(--ib-topbar-h) + var(--ib-2));
+	}
+
 	:root {
 		--background: var(--ib-paper);
 		--foreground: var(--ib-body);
@@ -176,12 +198,44 @@
 		@apply grow overflow-auto h-full w-full;
 	}
 
+	/* #main takes programmatic focus (skip link) only */
+	[tabindex="-1"]:focus {
+		outline: none;
+	}
+
 	body {
 		min-height: 100vh;
 	}
 }
 
 @layer components {
+  /* Skip link: first focusable element of the shell; hidden until focused, hairline only (DS base.css). */
+  .ib-skip:not(:focus) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .ib-skip {
+    position: fixed;
+    top: var(--ib-2);
+    left: var(--ib-2);
+    z-index: 2000;
+    display: inline-flex;
+    align-items: center;
+    height: var(--ib-control-h-lg);
+    padding: 0 var(--ib-4);
+    border: 1px solid var(--ib-line);
+    border-radius: var(--ib-r);
+    background: var(--ib-raised);
+    color: var(--ib-ink);
+    font: var(--ib-w-medium) var(--ib-fs-14) / 1 var(--ib-font);
+    text-decoration: none;
+  }
+
   .frost-panel {
     background: var(--card);
     border: 1px solid var(--border);
@@ -233,4 +287,13 @@
 @keyframes notification-countdown {
 	from { transform: scaleX(1); }
 	to { transform: scaleX(0); }
+}
+
+/* Inputs under 16px zoom the page on iOS. Outside the layers, so it beats the text-* utilities. */
+@media (pointer: coarse) {
+	input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+	textarea,
+	select {
+		font-size: var(--ib-fs-16);
+	}
 }

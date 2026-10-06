@@ -40,6 +40,20 @@ describe("exercises shell", () => {
     nav.path = "/"
   })
 
+  it("puts the skip link first and the page in <main id=\"main\">, also on the lab page", async () => {
+    const { container, unmount } = render(<ExercisesShell><span>content</span></ExercisesShell>)
+    const skip = await screen.findByRole("link", { name: "exercises.shell.skipToContent" })
+    expect(skip).toHaveAttribute("href", "#main")
+    expect(container.firstElementChild).toBe(skip)
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main")
+    unmount()
+    nav.path = "/test"
+    render(<ExercisesShell><span>lab</span></ExercisesShell>)
+    expect(await screen.findByRole("link", { name: "exercises.shell.skipToContent" })).toHaveAttribute("href", "#main")
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main")
+    nav.path = "/"
+  })
+
   it("renders the page", async () => {
     render(<ExercisesShell><span>content</span></ExercisesShell>)
     expect(await screen.findByText("content")).toBeInTheDocument()

@@ -13,7 +13,8 @@ import { BookingsMenu } from "./BookingsMenu"
 import { RunningTestsMenu } from "./RunningTestsMenu"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
+import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin } from "@/lib/origins"
@@ -36,7 +37,7 @@ async function signOutAndRedirect(): Promise<void> {
   } catch {
     // Even if the call fails, fall through to sign-in.
   }
-  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in`
+  if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
 // Back to the app that opened the catalog: only admin and event sites (lib/backLink). The same
@@ -62,19 +63,24 @@ function BackArrow() {
   )
 }
 
-function AppNav() {
+// The sections of the app: «Каталог», and «Пропозиції» for admins.
+function useNavItems() {
   const pathname = usePathname()
   const { access } = useExerciseAccess()
-  const items = [
+  return [
     { href: "/", label: t("exercises.nav.catalog"), active: pathname === "/" || pathname.startsWith("/detail") || pathname.startsWith("/new") },
     ...(access?.IsAdmin ? [{ href: "/proposals", label: t("exercises.nav.proposals"), active: pathname.startsWith("/proposals") }] : []),
   ]
+}
+
+function AppNav() {
+  const items = useNavItems()
   if (items.length < 2) return null
   return (
     <nav aria-label={t("exercises.nav.label")} className="hidden items-center gap-1 sm:flex">
       {items.map((item) => (
         <Link key={item.href} href={item.href} aria-current={item.active ? "page" : undefined}
-          className={`rounded-md px-3 py-1.5 text-sm ${item.active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+          className={`inline-flex h-9 items-center rounded-md px-3 text-sm hover:text-foreground ${item.active ? "bg-[var(--ib-soft)] font-medium text-foreground" : "text-muted-foreground hover:bg-[var(--ib-hover)]"}`}>
           {item.label}
         </Link>
       ))}
@@ -95,19 +101,20 @@ export function TopBar() {
     { adminTier: Boolean(access?.IsAdmin), catalog: true, returnTo },
     { id: idOrigin, admin: adminOrigin, exercises: "" },
   )
+  const navItems = useNavItems()
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-[56px] items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
+    <header className="sticky top-0 z-40 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-6">
         <span className="flex min-w-0 items-center gap-3">
           <BackArrow />
           <Logo size={28} />
-          <Link href="/" className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</Link>
+          <Link href="/" className="truncate text-md font-semibold text-foreground">{t("exercises.app.title")}</Link>
         </span>
         <AppNav />
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <RunningTestsMenu />
         <BookingsMenu />
         <ThemeSwitch />
@@ -117,7 +124,7 @@ export function TopBar() {
           <DropdownMenuTrigger
             ref={triggerRef}
             aria-label={t("admin.accountMenu")}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images
@@ -147,6 +154,14 @@ export function TopBar() {
               <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {navItems.length > 1 && <>
+              {navItems.map((item) => (
+                <DropdownMenuItem key={item.href} asChild className="sm:hidden">
+                  <Link href={item.href} aria-current={item.active ? "page" : undefined} className={item.active ? "font-medium" : undefined}>{item.label}</Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="sm:hidden" />
+            </>}
             {entries.map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
               if (entry.kind === "cookies") {
@@ -154,11 +169,14 @@ export function TopBar() {
                 // A link to the cookie policy, always shown. With JS only the navigation is cancelled
                 // (on the native event, so the menu still sees the select).
                 return (
-                  <DropdownMenuItem key={i} asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
-                    <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
-                      <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
-                    </a>
-                  </DropdownMenuItem>
+                  <Fragment key={i}>
+                    <DropdownMenuItem asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
+                      <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
+                        <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
+                      </a>
+                    </DropdownMenuItem>
+                    <FeedbackMenuItem />
+                  </Fragment>
                 )
               }
               if (entry.kind === "signOut") {

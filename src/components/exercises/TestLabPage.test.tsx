@@ -7,6 +7,7 @@ import type { Version } from "@/api/exercises/versions"
 const h = vi.hoisted(() => ({ push: vi.fn(), download: vi.fn(), diagram: { last: null as unknown } }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
@@ -135,7 +136,7 @@ describe("TestLabPage — bar", () => {
     expect(screen.getByText("admin.exTest.caption")).toBeInTheDocument()
     expect(screen.getByLabelText("admin.exTest.progressLabel 0 2")).toBeInTheDocument()
     const timer = screen.getByRole("timer")
-    expect(timer).toHaveTextContent(/^[01]:\d\d:\d\d · admin\.exTest\.timerAvailable$/)
+    expect(timer).toHaveTextContent(/^admin\.exTest\.timerCountdown[01]:\d\d:\d\d$/)
   })
 
   it("counts down and says the time is up at the lease end", async () => {
@@ -178,6 +179,19 @@ describe("TestLabPage — bar", () => {
     const [blob, name] = h.download.mock.calls[0] as [Blob, string]
     expect(name).toBe("cybericebox.conf")
     expect(await blob.text()).toBe(readyStatus.VPNConfig)
+  })
+
+  it("shows the waiting state, then Connected, and offers the tester page only when the status has its address", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: false, VPNProbeURL: "http://10.128.1.1:8088/" })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.waiting")
+    expect(dialog).not.toHaveTextContent("admin.exTest.vpnHelp.connected")
+    const check = screen.getByRole("link", { name: "admin.exTest.vpnHelp.check" })
+    expect(check).toHaveAttribute("href", "http://10.128.1.1:8088/")
+    expect(check).toHaveAttribute("target", "_blank")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.checkHint")
   })
 
   it("keeps VPN as a text button with a shield icon (not wifi), and icon-only end/hint/web buttons", async () => {
@@ -230,7 +244,7 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("lists attachments for download and the hints as text", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const file = await screen.findByRole("link", { name: "admin.exTest.download notes.pdf" })
+    const file = await screen.findByRole("link", { name: "admin.exTest.downloadFile notes.pdf" })
     expect(file).toHaveAttribute("download", "notes.pdf")
     expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
     // hints start collapsed; an empty hint is not listed
@@ -305,6 +319,30 @@ describe("TestLabPage — sidebar", () => {
     await screen.findByText(/admin\.exDeploy\.correct/)
     expect(states()).toEqual(["solved", "todo"])
     expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
+  })
+
+  it("exposes progress as a progressbar and keeps the solved state in the task name, collapsed or not", async () => {
+    vi.mocked(checkDeployFlag).mockResolvedValue({ Correct: true })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const bar = screen.getByRole("progressbar", { name: "admin.exTest.progressLabel 0 2" })
+    expect(bar).toHaveAttribute("aria-valuenow", "0")
+    expect(bar).toHaveAttribute("aria-valuemax", "2")
+    fireEvent.change(screen.getByLabelText(/admin\.exDeploy\.flagInput/), { target: { value: "FLAG{a}" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    await screen.findByText(/admin\.exDeploy\.correct/)
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1")
+    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.solved/)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
+    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.entrySolved/)
+  })
+
+  it("stacks under lg: the resize separator is desktop-only and has a 24 px hit area", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const separator = await screen.findByRole("separator", { name: "admin.exTest.resize" })
+    expect(separator).toHaveClass("hidden", "lg:block", "before:-inset-x-[9px]")
+    expect(screen.getByRole("navigation", { name: "admin.exTest.tasks" }).closest("aside")).toHaveClass("max-lg:max-h-56", "lg:border-r")
   })
 
   it("collapses to number badges only and remembers the choice", async () => {
@@ -422,6 +460,77 @@ describe("TestLabPage — start and end", () => {
     await screen.findByRole("heading", { name: "Login" })
     unmount()
     expect(destroyDeploy).not.toHaveBeenCalled()
+  })
+})
+
+describe("TestLabPage — expired lab", () => {
+  const expiredItem = { ...running, ExpiresAt: new Date(Date.now() - 60000).toISOString(), Expired: true }
+  const expiredStatus: DeployStatus = { Phase: "Ready", Ready: false, Expired: true, ExpiresAt: expiredItem.ExpiresAt }
+
+  it("shows the time-is-up state with only the end action, no VPN, tasks or topology", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([expiredItem])
+    vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect((await screen.findAllByText("admin.exTest.expired")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exTest.gone")).not.toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "admin.exTest.end" })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: /vpn/i })).not.toBeInTheDocument()
+    expect(screen.queryByText("Login")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "node web" })).not.toBeInTheDocument()
+  })
+
+  it("ends an expired lab through the danger confirmation", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([expiredItem])
+    vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(destroyDeploy).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("run-1"))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
+  })
+
+  it("switches to the expired state on the next refresh, without a loader in between", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
+    try {
+      render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(screen.getAllByText("Login").length).toBeGreaterThan(0)
+      vi.mocked(deployStatus).mockResolvedValue(expiredStatus)
+      await act(async () => { await vi.advanceTimersByTimeAsync(3100) })
+      expect(screen.getAllByText("admin.exTest.expired").length).toBeGreaterThan(0)
+      expect(screen.queryByRole("status")).not.toBeInTheDocument()
+      const calls = vi.mocked(deployStatus).mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(20000) })
+      expect(vi.mocked(deployStatus).mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("shows the gone state and stops polling when the lab disappears while open", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
+    try {
+      render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(screen.getAllByText("Login").length).toBeGreaterThan(0)
+      vi.mocked(deployStatus).mockRejectedValue(new ApiError(404, "Test deployment not found"))
+      await act(async () => { await vi.advanceTimersByTimeAsync(3100) })
+      expect(screen.getByText("admin.exTest.gone")).toBeInTheDocument()
+      const calls = vi.mocked(deployStatus).mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+      expect(vi.mocked(deployStatus).mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("keeps the gone state for a lab that is really removed", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByText("admin.exTest.gone")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.expired")).not.toBeInTheDocument()
   })
 })
 
@@ -569,8 +678,8 @@ describe("TestLabPage — hints, long text and sidebar tooltip placement", () =>
     const answer = await screen.findByRole("heading", { name: "admin.exTest.flagTitle" })
     const hints = screen.getByRole("heading", { name: "exercises.hints.title" })
     expect(answer.compareDocumentPosition(hints) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const row = screen.getByText(/exercises\.hints\.item 1/).closest("li")!
-    expect(row).toHaveTextContent("exercises.hints.item 1")
+    const row = screen.getByText(/exercises\.hints\.itemLine 1/).closest("li")!
+    expect(row).toHaveTextContent("exercises.hints.itemLine 1")
     expect(screen.queryByText("Look at the robots file")).not.toBeInTheDocument()
     fireEvent.click(within(row).getByRole("button", { name: "admin.exTest.hintShowNamed 1" }))
     expect(within(row).getByText("Look at the robots file")).toBeInTheDocument()

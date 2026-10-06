@@ -3,11 +3,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: { name?: string }) => key === 'admin.ex.select.rowNamed' ? `${key}: ${vars?.name}` : key === 'exercises.badge.forkOf' ? `${key}: ${vars?.name}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 vi.mock('@/lib/useRole', () => ({
   useRole: () => ({
     me: { ID: h.userId },
@@ -81,7 +83,7 @@ describe('exercises catalog page', () => {
     expect(screen.getByText('web')).toBeInTheDocument()
     expect(screen.getByText('sql')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.draftOnly')).toBeInTheDocument()
-    expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
+    expect(document.querySelector('tbody time')).toHaveAttribute('datetime', item.UpdatedAt)
     const link = screen.getByText('SQLi basics').closest('a')
     expect(link).toHaveAttribute('href', `/detail?id=${item.ID}`)
   })
@@ -96,7 +98,16 @@ describe('exercises catalog page', () => {
   it('keeps column headings above rows within the scrolling table', async () => {
     const { container } = render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+    expect(container.querySelector('thead th')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+  })
+
+  it('keeps the header in the loading state and gives the page one h1', async () => {
+    mockList.mockReturnValue(new Promise(() => undefined))
+    const { container } = render(<Page />)
+    expect(container.querySelectorAll('thead th').length).toBeGreaterThan(0)
+    expect(container.querySelector('tbody.ib-table__state')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'accountMenu.exercises' })).toHaveAttribute('tabindex', '0')
   })
 
   it('debounces search and passes it to listExercises', async () => {
@@ -148,8 +159,7 @@ describe('exercises catalog page', () => {
     mockList.mockResolvedValue({ Items: [item], Total: 75, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByText('admin.table.total: 75')).toBeInTheDocument()
-    expect(screen.getByText('admin.table.page 1 admin.table.of 2')).toBeInTheDocument()
+    expect(screen.getByText('admin.table.summary')).toBeInTheDocument()
     const selector = screen.getByRole('button', { name: 'admin.table.perPage' })
     fireEvent.keyDown(selector, { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: '25' }))
@@ -249,7 +259,7 @@ describe('exercises catalog — archive, export and import', () => {
   it('selects rows and opens bulk export', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.row: SQLi basics' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: SQLi basics' }))
     expect(screen.getByText('admin.ex.selection.count')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.export' }))
     expect(screen.getByTestId('export-dialog')).toHaveTextContent(item.ID)
@@ -264,8 +274,8 @@ describe('exercises catalog — archive, export and import', () => {
     await screen.findByText('Exercise 0')
     fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.all' }))
     expect(screen.getByText('admin.ex.selection.limit')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 99' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 100' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Exercise 99' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Exercise 100' })).toBeDisabled()
   })
 
   it('hides selection without export and import without write', async () => {
@@ -328,7 +338,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByText('exercises.access.level.all')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.own')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.none')).toBeInTheDocument()
-    expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
+    expect(screen.getByText('exercises.badge.forkOf: Base')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
     // Published with changes: green «published» + yellow «changes» badges side by side.
@@ -362,14 +372,14 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
       'exercises.help.statusFilter.published exercises.help.statusFilter.changed exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
       'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
       'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      expect(helpButton(label)).toBeInTheDocument()
     }
   })
 
   it('shows multi-sentence help one sentence per line', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('button', { name: /^exercises.help.statusCol.published/ }))
+    fireEvent.click(helpButton(/^exercises.help.statusCol.published/))
     const lines = within(await screen.findByRole('tooltip')).getAllByText(/^exercises.help.statusCol\./)
     expect(lines.map((line) => [line.tagName, line.textContent])).toEqual([
       ['P', 'exercises.help.statusCol.published'], ['P', 'exercises.help.statusCol.draft'], ['P', 'exercises.help.statusCol.archived'],
@@ -400,7 +410,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByRole('button', { name: 'exercises.filter.events.all' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.catalog' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'exercises.help.events.catalog' })).toBeInTheDocument()
+    expect(helpButton('exercises.help.events.catalog')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.event' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.event' })).toBeInTheDocument()
   })
@@ -409,8 +419,8 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = { ...manager, IsAdmin: true }
     const { unmount } = render(<Page />)
     await screen.findByText('SQLi basics')
-    const help = screen.getByRole('button', { name: /exercises.help.scope.line/ })
-    fireEvent.focus(help)
+    const help = helpButton(/exercises.help.scope.line/)
+    fireEvent.click(help)
     const lines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
     expect(lines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
     expect(lines[1]).toHaveTextContent('exercises.help.scope.catalog')
@@ -418,7 +428,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = manager
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('button', { name: /exercises.help.scope.line/ }))
+    fireEvent.click(helpButton(/exercises.help.scope.line/))
     const managerLines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
     expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })

@@ -128,7 +128,7 @@ export function exerciseErrorMessage(e: unknown): string {
     const cataloged = catalogError(e)
     if (cataloged) return cataloged
     const message = ((e as ApiError).body as EnvelopeBody | null | undefined)?.Status?.Message
-    if (message) return `${t("admin.ex.err.generic")}: ${message}`
+    if (message) return t("admin.ex.err.genericWith", { message })
   }
   return t("admin.ex.err.generic")
 }

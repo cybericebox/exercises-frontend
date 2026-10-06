@@ -68,7 +68,7 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
     <section className="space-y-3 border-t border-border pt-3" aria-labelledby={`hints-${variantIndex}-${taskIndex}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h4 id={`hints-${variantIndex}-${taskIndex}`} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h4 id={`hints-${variantIndex}-${taskIndex}`} className="text-sm font-semibold text-foreground">
             {t("exercises.hints.title")}
           </h4>
           <span className="text-xs text-muted-foreground">{hints.length}/{MAX_HINTS}</span>

@@ -66,7 +66,7 @@ export function EventMultiSelect({ label, options, value, onChange, className }:
             ))}
         </div>
         {value.length > 0 && (
-          <div className="flex items-center justify-between border-t border-border pt-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
             <span>{t("exercises.access.selected", { count: value.length })}</span>
             <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onChange([])}>
               {t("exercises.filter.eventClear")}

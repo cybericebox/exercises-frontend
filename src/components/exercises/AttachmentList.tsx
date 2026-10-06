@@ -65,7 +65,7 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.exFiles.title")}</span>
+        <span className="text-sm font-semibold text-foreground">{t("admin.exFiles.title")}</span>
         {!disabled && (
           <>
             <input

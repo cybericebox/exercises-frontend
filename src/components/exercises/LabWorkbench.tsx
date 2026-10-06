@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { hintTextHasContent, hintTextToState } from "@/lib/hintText"
 import type { ExternalTarget, TaskValues } from "@/lib/placeholderResolve"
 import { cn } from "@/utils/cn"
@@ -43,7 +44,7 @@ export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fa
   if (!expiresAt) return <span className="text-sm text-white/80">{fallback}</span>
   const left = new Date(expiresAt).getTime() - now
   return left > 0
-    ? <span role="timer" className="text-sm text-white"><span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> · {t("admin.exTest.timerAvailable")}</span>
+    ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
     : <span role="timer" className="text-sm text-white">{t("admin.exTest.timerEnded")}</span>
 }
 
@@ -68,13 +69,14 @@ function vpnTooltip(vpn: LabBarProps["vpn"]): string {
 export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
-    <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 bg-[var(--ib-brand)] px-4 py-3 text-white">
-      <div className="flex min-w-0 flex-col gap-1">
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--ib-brand)] px-4 py-3 text-white lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-1 max-lg:flex-1">
         <span className="text-xs uppercase tracking-wider text-white/70">{t("admin.exTest.caption")}</span>
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold">{title}</h1>
-          <div className="flex shrink-0 items-center gap-2 text-xs text-white/80"
-            aria-label={t("admin.exTest.progressLabel", { done: progress.done, total: progress.total })}>
+          <div role="progressbar" className="flex shrink-0 items-center gap-2 text-xs text-white/80"
+            aria-label={t("admin.exTest.progressLabel", { done: progress.done, total: progress.total })}
+            aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done}>
             <span aria-hidden="true" className="h-1.5 w-24 overflow-hidden rounded-full bg-white/25">
               <span className="block h-full rounded-full bg-white" style={{ width: `${percent}%` }} />
             </span>
@@ -82,7 +84,7 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
           </div>
         </div>
       </div>
-      <div className="flex justify-center">{center}</div>
+      <div className="flex justify-center max-lg:order-last max-lg:w-full">{center}</div>
       <div className="flex items-center justify-end gap-2">
         {onToggleTopology && <HoverTooltip text={t(topologyShown ? "admin.exTest.topologyHide" : "admin.exTest.topologyShow")}>
           <Button type="button" variant="outline" size="sm" className={cn(BAR_BUTTON, "w-9 px-0", topologyShown && "bg-white/20")} aria-pressed={topologyShown}
@@ -120,7 +122,7 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
 }) {
   const label = t(collapsed ? "admin.exTest.sidebarExpand" : "admin.exTest.sidebarCollapse")
   return (
-    <aside data-collapsed={collapsed} className={cn("flex shrink-0 flex-col gap-2 overflow-y-auto border-r border-border p-3", collapsed ? "w-[72px]" : "w-[272px]")}>
+    <aside data-collapsed={collapsed} className={cn("flex shrink-0 flex-col gap-2 overflow-y-auto border-b border-border p-3 max-lg:max-h-56 max-lg:flex-none lg:border-b-0 lg:border-r", collapsed ? "lg:w-[72px]" : "lg:w-60")}>
       <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && <h2 className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("admin.exTest.tasksCount", { n: tasks.length })}</h2>}
         <HoverTooltip text={label}>
@@ -135,10 +137,11 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
           const done = solved.has(entry.ID)
           return (
             <HoverTooltip key={entry.ID || index} text={entry.Name} side="right" className="w-full">
-            <button type="button" aria-current={current ? "true" : undefined} aria-label={entry.Name}
+            <button type="button" aria-current={current ? "true" : undefined}
+              aria-label={collapsed ? (done ? t("admin.exTest.entrySolved", { name: entry.Name }) : entry.Name) : undefined}
               onClick={() => onSelect(entry.ID)}
               className={cn("flex w-full items-start gap-3 rounded-md p-2 text-left text-sm transition-colors hover:bg-muted", collapsed && "justify-center", current ? "text-foreground" : "text-muted-foreground")}>
-              <span data-task-number data-state={done ? "solved" : current ? "current" : "todo"}
+              <span aria-hidden={collapsed || !done ? "true" : undefined} data-task-number data-state={done ? "solved" : current ? "current" : "todo"}
                 className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold",
                   done ? "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]" : current ? "bg-[var(--ib-brand)] text-white" : "bg-secondary/60 text-foreground")}>
                 {done ? <Check aria-label={t("admin.exTest.solved")} size={16} /> : index + 1}
@@ -184,7 +187,7 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
         const price = cost?.(hint)
         return <li key={key} className="rounded-md border border-border p-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-foreground">{t("exercises.hints.item", { n: index + 1 })} · {t(`exercises.hints.level.${hint.Level}`)}{price ? ` · ${price}` : ""}</span>
+            <span className="text-sm text-foreground">{price ? t("exercises.hints.itemLinePriced", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`), price }) : t("exercises.hints.itemLine", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`) })}</span>
             {!open && <HoverTooltip text={t("admin.exTest.hintShow")}>
               <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" busy={busy === key} disabled={busy !== null}
                 aria-label={t("admin.exTest.hintShowNamed", { n: index + 1 })} onClick={() => void show(key, hint)}>
@@ -237,7 +240,7 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
         {task.Attachments.map((file) => <li key={file.FileID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
           <span className="min-w-0 truncate">{file.Name}</span>
           <HoverTooltip text={t("admin.exTest.download")}>
-            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={`${t("admin.exTest.download")} ${file.Name}`}
+            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={t("admin.exTest.downloadFile", { name: file.Name })}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted"><Download aria-hidden="true" size={16} /></a>
           </HoverTooltip>
         </li>)}

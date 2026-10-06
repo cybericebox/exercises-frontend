@@ -76,7 +76,7 @@ function writeReturnToCookie(): void {
 // a back-button re-triggering the 401 redirect loop.
 function redirectToSignInPage(signInUrl: string | null): void {
   if (typeof window === "undefined") return
-  window.location.replace(signInUrl || `${idOrigin}/sign-in`)
+  window.location.replace(signInUrl || `${idOrigin}/sign-in/`)
 }
 
 /** Shared by JSON requests and the progress-reporting multipart upload. */

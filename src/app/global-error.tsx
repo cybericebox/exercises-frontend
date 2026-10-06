@@ -30,7 +30,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
       <body className="grid-bg" suppressHydrationWarning>
         <ErrorScreen onRetry={retry} fullPage />
         {/* plain mailto link; the root layout (and its FeedbackLink) is gone here */}
-        <FeedbackLink />
+        <FeedbackLink className="feedback-link--standalone" />
       </body>
     </html>
   )

@@ -55,7 +55,7 @@ export function TaskAccordion({
       <div className="exercise-settings-layout min-w-0 gap-4">
         <nav aria-label={t("admin.exDraft.tasks.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
           <div className="mb-2 flex items-center justify-between border-b border-border px-2 pb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exDraft.tasks.title")}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("admin.exDraft.tasks.title")}</h3>
             {!disabled && <HoverTooltip text={t("admin.exTask.add")}>
               <Button type="button" variant="ghost" size="icon" aria-label={t("admin.exTask.add")}
                 className="h-7 w-7" onClick={addSharedTask}>
@@ -68,7 +68,7 @@ export function TaskAccordion({
               <button type="button" aria-current={activeIndex === ti ? "page" : undefined}
                 onClick={() => setSelected(ti)}
                 className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${activeIndex === ti ? "font-medium text-accent-foreground" : "text-muted-foreground"}`}>
-                {rows[ti]?.Name || `${t("admin.exTask.untitled")} ${ti + 1}`}
+                {rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 })}
               </button>
               {!disabled && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")}
                 className="mr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
