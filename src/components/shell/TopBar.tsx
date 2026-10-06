@@ -75,7 +75,7 @@ function AppNav() {
     <nav aria-label={t("exercises.nav.label")} className="hidden items-center gap-1 sm:flex">
       {items.map((item) => (
         <Link key={item.href} href={item.href} aria-current={item.active ? "page" : undefined}
-          className={`rounded-md px-3 py-1.5 text-sm ${item.active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+          className={`inline-flex h-9 items-center rounded-md px-3 text-sm ${item.active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
           {item.label}
         </Link>
       ))}
@@ -99,12 +99,12 @@ export function TopBar() {
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-[56px] items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
+    <header className="sticky top-0 z-40 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-6">
         <span className="flex min-w-0 items-center gap-3">
           <BackArrow />
           <Logo size={28} />
-          <Link href="/" className="truncate text-sm font-semibold text-foreground">{t("exercises.app.title")}</Link>
+          <Link href="/" className="truncate text-md font-semibold text-foreground">{t("exercises.app.title")}</Link>
         </span>
         <AppNav />
       </div>
@@ -118,7 +118,7 @@ export function TopBar() {
           <DropdownMenuTrigger
             ref={triggerRef}
             aria-label={t("admin.accountMenu")}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images

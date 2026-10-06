@@ -4,7 +4,7 @@ import { HelpCircle } from "lucide-react"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
-const codeClass = "rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground"
+const codeClass = "rounded bg-muted px-1 py-0.5 font-mono text-2xs text-foreground"
 
 export function FlagHelp() {
   const description = [

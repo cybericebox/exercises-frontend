@@ -281,7 +281,7 @@ export default function Page() {
             </thead>
             <tbody>
               {rows.map((item) => (
-                <tr key={item.ID} className={`border-b border-border/50 transition-colors hover:bg-accent/10 ${item.ArchivedAt ? "text-muted-foreground" : ""}`}>
+                <tr key={item.ID} className={`h-10 border-b border-border/50 transition-colors hover:bg-accent/10 ${item.ArchivedAt ? "text-muted-foreground" : ""}`}>
                   {canExport && <td className="px-3 py-2">
                     <input type="checkbox" aria-label={`${t("admin.ex.select.row")}: ${item.Name}`} checked={selected.has(item.ID)}
                       disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item.ID)} className="h-4 w-4 accent-primary" />

@@ -864,6 +864,7 @@
   "exercises.nav.catalog": "Catalog",
   "exercises.nav.proposals": "Proposals",
   "exercises.nav.label": "Sections",
+  "exercises.shell.skipToContent": "Skip to content",
   "exercises.access.level.all": "All events",
   "exercises.access.level.selected": "Selected events",
   "exercises.access.level.own": "Own event only",
