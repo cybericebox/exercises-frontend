@@ -7,7 +7,7 @@
  */
 import { ApiError, parseRetryAfter, redirectRequiredAuth } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
-import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 
 export type XhrOptions = {
   body?: XMLHttpRequestBodyInit
@@ -45,7 +45,7 @@ export function sendXhr<T>(method: string, path: string, options: XhrOptions = {
     }
     request.onload = () => {
       done()
-      if (isUnavailableStatus(request.status)) reportServiceUnavailable()
+      if (isUnreachableResponse(request.status, request.getResponseHeader("X-Request-ID"))) reportServiceUnavailable()
       if (request.status === 401) {
         redirectRequiredAuth(request.getResponseHeader("X-Sign-In-URL"))
         return

@@ -8,11 +8,22 @@ afterEach(() => {
 })
 
 describe("API outage detection", () => {
-  it.each([500, 501, 502, 503, 504, 599])("keeps the admin page on HTTP %i", async (status) => {
+  it.each([502, 503, 504])("reports an outage on a proxy HTTP %i without X-Request-ID", async (status) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
     await expect(apiGet("/api/auth/me", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
     expect(isServiceDown()).toBe(true)
-    reportServiceAvailable()
+  })
+
+  it.each([500, 501, 502, 503, 504, 599])("a backend HTTP %i with X-Request-ID is a real error, not an outage", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status, headers: { "X-Request-ID": "01a112da-1" } })))
+    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
+  })
+
+  it.each([500, 501, 599])("a bare HTTP %i is not an outage", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
+    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
   })
 
   it("shows the outage state on a network failure", async () => {

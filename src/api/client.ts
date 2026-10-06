@@ -5,7 +5,7 @@
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
 import { apiOrigin, idOrigin } from "@/lib/origins"
-import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
 
@@ -91,7 +91,7 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
-  if (isUnavailableStatus(res.status)) reportServiceUnavailable()
+  if (isUnreachableResponse(res.status, res.headers.get("X-Request-ID"))) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the

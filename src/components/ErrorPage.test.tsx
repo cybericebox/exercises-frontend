@@ -41,6 +41,16 @@ describe("ErrorPage", () => {
     expect(without).not.toContain("secret stack detail")
   })
 
+  it("without a platform code the reference is the request id alone", () => {
+    for (const code of [0, undefined]) {
+      const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={{ status: 500, code, requestId: "01a112da-1111-2222-3333-444455556666" }} onRetry={() => {}} />)
+      expect(html).toContain("01a112da")
+      expect(html).not.toContain("0-01a112da")
+      expect(html).not.toContain("500-01a112da")
+      expect(html).toContain("subject=" + encodeURIComponent("Помилка 01a112da"))
+    }
+  })
+
   it("an API error with a request id shows «{code}-{rid8}», the reported text and the report link", () => {
     const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={{ status: 500, code: 50310, requestId: "3f9a1c2e-1111-2222-3333-444455556666" }} onRetry={() => {}} />)
     expect(html).toContain("Номер звернення: 50310-3f9a1c2e")
@@ -52,8 +62,8 @@ describe("ErrorPage", () => {
   })
 
   it("an API error found on `cause` counts as an API error", () => {
-    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={new Error("x", { cause: { status: 503, requestId: "abcdef0123456789" } })} />)
-    expect(html).toContain("Номер звернення: 503-abcdef01")
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={new Error("x", { cause: { status: 503, code: 50310, requestId: "abcdef0123456789" } })} />)
+    expect(html).toContain("Номер звернення: 50310-abcdef01")
   })
 
   it("a frontend crash has no reported line, no number, only the report link with the message", () => {
