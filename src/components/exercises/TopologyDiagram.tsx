@@ -466,7 +466,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     <svg
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
-      role="img"
+      role="group"
       aria-label={t("admin.exTopo.diagram")}
       className={`block h-full w-full min-w-[680px] ${pan ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ minHeight: H }}

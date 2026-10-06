@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 import { FormProvider, useForm } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -38,7 +39,7 @@ describe('NetworkToggles', () => {
 
     fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.vpn' }))
     expect(screen.getByRole('switch', { name: 'admin.exTopo.vpnDhcp' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exTopo.dhcpHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTopo.dhcpHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.dhcp.enabled.vpn')).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.dhcp.disabled')).toBeInTheDocument()
     expect(screen.queryByRole('note')).not.toBeInTheDocument()

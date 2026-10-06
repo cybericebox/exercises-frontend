@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -186,11 +187,11 @@ describe('TaskAccordion', () => {
   it('marks required task fields and exposes explanations', () => {
     render(<Harness tasks={[task('first')]} />)
     expect(screen.getByText('admin.exTask.name').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.nameHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.nameHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.difficulty').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.difficultyHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.difficultyHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.description').parentElement).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTask.descriptionHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTask.descriptionHelp')).toBeInTheDocument()
   })
 
   it('disabled=true → add-task and remove-task controls are absent (read-only)', () => {

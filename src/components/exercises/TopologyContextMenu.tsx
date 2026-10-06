@@ -115,7 +115,7 @@ export function TopologyContextMenu({ x, y, label, entries, onClose, returnFocus
         <span className="min-w-0 flex-1 truncate">{entry.label}</span>
       </button>
       return <div key={entry.key} role="none" className={entry.separated ? "mt-1 border-t border-border pt-1" : undefined}>
-        {entry.disabled && entry.reason ? <HoverTooltip text={entry.reason} describe className="flex w-full">{item}</HoverTooltip> : item}
+        {entry.disabled && entry.reason ? <HoverTooltip text={entry.reason} describe="always" className="flex w-full">{item}</HoverTooltip> : item}
       </div>
     })}
   </div>, document.body)

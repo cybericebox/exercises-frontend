@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
@@ -226,12 +227,12 @@ describe('DeviceCard', () => {
     expect(screen.getByRole('switch', { name: 'admin.exTopo.externalToggle' })).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.externalToggle')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTopo.deviceName')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exTopo.imageHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTopo.imageHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTopo.resources')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     expect(screen.getByText('admin.exTopo.ifaceName').closest('label')).toHaveTextContent('*')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.ipTypeHelp' })).toBeInTheDocument()
+    expect(helpButton('admin.exTopo.ipTypeHelp')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-10')
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.externalToggle' })).not.toBeInTheDocument()
