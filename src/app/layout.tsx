@@ -18,9 +18,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
       {/* Browser extensions can add attributes to body before React hydrates. */}
       <body className="grid-bg" suppressHydrationWarning>
-        <RoleProvider>
-          <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
-        </RoleProvider>
+        {/* dimmed and inert behind the «server unavailable» overlay */}
+        <div data-app-root>
+          <RoleProvider>
+            <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
+          </RoleProvider>
+        </div>
         <ServiceStatusGate />
         {/* the consent panel is always mounted («Налаштування файлів cookie»); GA loads only when configured */}
         <Analytics gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID} />

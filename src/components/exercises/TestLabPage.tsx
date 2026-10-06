@@ -12,6 +12,7 @@ import { LabTopologyPanel } from "@/components/exercises/LabTopologyPanel"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorPage } from "@/components/ErrorPage"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
@@ -179,8 +180,10 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   if (load.state === "error" || deploy.gone) {
     const gone = deploy.gone || load.state === "error" && load.cause instanceof DeployGoneError
     const cause = load.state === "error" ? load.cause : undefined
-    return screen(<LoadError className="min-h-0 flex-1" message={gone ? t("admin.exTest.gone") : t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(cause) })}
-      error={gone ? undefined : cause} onRetry={gone ? undefined : retry} />)
+    // the whole test page failed (no lab bar, no shell): the full error page
+    return gone
+      ? <ErrorPage mode="page" status={404} title={t("admin.exTest.gone")} />
+      : <ErrorPage mode="page" status={500} body={t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(cause) })} error={cause} onRetry={retry} />
   }
 
   const { meta } = load

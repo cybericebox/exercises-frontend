@@ -1,0 +1,51 @@
+/* Error page — one layout for 404, 500 and any status. No card: a centred column.
+   Column:   .ib-error__code (big status, mono, soft grey: dim 42% over paper, aria-hidden) → .ib-error__title (18/600, balance; <br> or
+             .ib-error__line spans for an explicit two-line title) → .ib-error__text (one dim line, ≤330px) →
+             .ib-error__actions (primary button + optional text link «Назад», or one secondary button) →
+             .ib-error__ref (faint mono «Код помилки: 50310», only for errors that carry a platform code).
+   Modes:    .ib-error--block  inside an app shell that already rendered: only the column, centred in the content area
+                               (fills the block, min-height --ib-state-h), no brand, no footer.
+             .ib-error--page   full screen (min-height 100dvh): the column centred in the viewport + .ib-error__footer
+                               (hairline top, crest 18 + «Cyber ICE Box» wordmark left, links right; stacks on phones).
+   Markup (page):
+     <div class="ib-error ib-error--page"><main class="ib-error__main" id="main" tabindex="-1">
+       <p class="ib-error__code" aria-hidden="true">404</p>
+       <h1 class="ib-error__title"><span class="ib-error__line">Захід не знайдено</span><span class="ib-error__line">або у вас немає доступу</span></h1>
+       <p class="ib-error__text">Перевірте адресу або увійдіть в обліковий запис.</p>
+       <div class="ib-error__actions"><a class="ib-btn ib-btn--primary" href="…">Увійти</a><a class="ib-link" href="…">Назад</a></div>
+       <p class="ib-error__ref">Код помилки: 50310</p></main>
+     <footer class="ib-error__footer"><a class="ib-error__brand" href="/"><img src="assets/crest-64.png" width="18" height="18" alt="">Cyber&nbsp;ICE&nbsp;Box</a>
+       <nav class="ib-error__links" aria-label="…"><a href="/">На головну</a><a href="…">Надіслати відгук</a></nav></footer></div>
+   Block mode: same column in <div class="ib-error ib-error--block"><div class="ib-error__main">…</div></div>; use <h2> there if the shell has an <h1>.
+   All texts come from the app's i18n messages (t("key")); the code «404»/«500» is the HTTP status, not text. Tokens only, both themes, no shadows. */
+
+.ib-error{display:flex;flex-direction:column;color:var(--ib-dim)}
+.ib-error__main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--ib-2);padding:var(--ib-8) var(--ib-4);text-align:center}
+.ib-error__main:focus{outline:none}
+.ib-error--block{min-height:var(--ib-state-h,360px)}
+.ib-error--block.ib-error--fill{height:100%;min-height:0}
+.ib-error--page{container:ib-error/inline-size;min-height:100vh;min-height:100dvh;background:var(--ib-paper)}
+
+.ib-error__code{margin:0;font-family:var(--ib-mono);font-size:var(--ib-fs-72);font-weight:var(--ib-w-medium);line-height:1;letter-spacing:.02em;color:color-mix(in srgb,var(--ib-dim) 42%,var(--ib-paper));user-select:none}
+.ib-error__title{max-width:28ch;margin:var(--ib-2) 0 0;font-size:18px;font-weight:var(--ib-w-semibold);line-height:1.35;color:var(--ib-ink);text-wrap:balance}
+.ib-error__line{display:block}
+.ib-error__text{max-width:330px;margin:0;font-size:var(--ib-fs-14);line-height:var(--ib-lh-ui);color:var(--ib-dim);text-wrap:pretty}
+.ib-error__actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--ib-2) var(--ib-4);margin-top:var(--ib-3)}
+.ib-error__ref{margin:var(--ib-2) 0 0;font-family:var(--ib-mono);font-size:var(--ib-fs-12);color:var(--ib-faint)}
+
+/* page footer: hairline, brand left, links right; stacks on phones */
+.ib-error__footer{display:flex;align-items:center;justify-content:space-between;gap:var(--ib-2) var(--ib-6);padding:var(--ib-4) var(--ib-6);padding-bottom:max(var(--ib-4),env(safe-area-inset-bottom));border-top:1px solid var(--ib-line);font-size:var(--ib-fs-13)}
+.ib-error__brand{display:inline-flex;align-items:center;gap:var(--ib-2);color:var(--ib-ink);font-weight:var(--ib-w-semibold);white-space:nowrap;text-decoration:none}
+.ib-error__brand img{width:18px;height:18px;object-fit:contain;flex:none}
+.ib-error__brand:hover{text-decoration:none}
+.ib-error__links{display:flex;flex-wrap:wrap;align-items:center;gap:var(--ib-1) var(--ib-4)}
+.ib-error__links a{color:var(--ib-dim);text-decoration:none;white-space:nowrap}
+.ib-error__links a:hover{color:var(--ib-ink);text-decoration:underline;text-underline-offset:3px}
+.ib-error__brand:focus-visible,.ib-error__links a:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px;border-radius:var(--ib-r-sm)}
+/* 24px target, 44px rows on phones */
+.ib-error__links a,.ib-error__brand{display:inline-flex;align-items:center;min-height:24px}
+@media (pointer:coarse){.ib-error__links a,.ib-error__brand{min-height:44px}}
+@container ib-error (max-width:560px){
+  .ib-error__footer{flex-direction:column;align-items:flex-start}
+}
+@media (max-width:560px){.ib-error__code{font-size:56px}}

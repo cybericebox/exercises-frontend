@@ -50,10 +50,19 @@ jobs:
           cache-from: type=registry,ref=${{ matrix.image }}:buildcache-develop
           cache-to: ${{ github.event.pull_request.head.repo.full_name == github.repository && format('type=registry,ref={0}:buildcache-develop,mode=max', matrix.image) || '' }}
 
+  container:
+    name: Container tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build the image and test the nginx contract (listeners, TLS, trailing slash)
+        run: bash scripts/test-nginx-tls.sh
+
   passed:
     name: Check passed
     if: ${{ always() }}
-    needs: [test, image]
+    needs: [test, image, container]
     runs-on: ubuntu-latest
     steps:
       - name: Every check passed

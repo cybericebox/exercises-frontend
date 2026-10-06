@@ -15,7 +15,7 @@ export function TablePagination({ page, pageSize, total, onPage, onPageSize }: {
   onPageSize: (pageSize: number) => void
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize))
-  return <div className="mt-auto grid shrink-0 grid-cols-1 items-center gap-3 pt-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
+  return <div className="grid shrink-0 grid-cols-1 items-center gap-3 pt-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
     <span>{t("admin.table.summary", { total, page, pages })}</span>
     <div className="flex items-center gap-2 sm:justify-center">
       <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>{t("admin.table.previous")}</Button>

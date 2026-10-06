@@ -5,7 +5,7 @@
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
 import { apiOrigin, idOrigin } from "@/lib/origins"
-import { isNetworkOutage, isUnavailableStatus, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
 
@@ -21,7 +21,9 @@ export class ApiError extends Error {
     // English message — is the i18n key callers localize against (see i18n/apiError).
     public readonly code?: number,
     // Seconds from the Retry-After header of a 429 (rate limit / lockout), when sent.
-    public readonly retryAfterSeconds?: number
+    public readonly retryAfterSeconds?: number,
+    // X-Request-ID of the failed response: the key of the platform error journal entry (needs the header exposed by CORS).
+    public readonly requestId?: string
   ) {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
@@ -89,7 +91,7 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
-  if (isUnavailableStatus(res.status)) reportServiceUnavailable()
+  if (isUnreachableResponse(res.status, res.headers.get("X-Request-ID"))) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the
@@ -127,7 +129,8 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
       envelope?.Status?.Code,
-      parseRetryAfter(res.headers.get("Retry-After"))
+      parseRetryAfter(res.headers.get("Retry-After")),
+      res.headers.get("X-Request-ID") ?? undefined
     )
   }
 

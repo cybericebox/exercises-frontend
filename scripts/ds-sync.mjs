@@ -25,6 +25,8 @@ const COPIES = {
   "src/styles/ds-tokens.css": "tokens.css",
   "public/assets/crest-64.png": "assets/crest-64.png",
   "public/assets/crest-128.png": "assets/crest-128.png",
+  "src/styles/ds-error-page.css": "patterns/error-page/error-page.css",
+  "src/styles/ds-service-down.css": "patterns/service-down/service-down.css",
 }
 
 const sha = (data) => createHash("sha256").update(data).digest("hex")
@@ -65,7 +67,7 @@ function sync() {
   const lock = {}
   for (const [copy, source] of Object.entries(COPIES)) {
     const src = readSource(source)
-    const out = copy.endsWith(".css") ? Buffer.from(transform(src.toString("utf8"))) : src
+    const out = copy === "src/styles/ds-tokens.css" ? Buffer.from(transform(src.toString("utf8"))) : src
     fs.writeFileSync(path.join(root, copy), out)
     lock[copy] = { source: sha(src), copy: sha(out) }
   }
