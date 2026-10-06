@@ -49,7 +49,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         // A failed check must not leave the app on the loader: the shell shows the error page.
         .catch((e: unknown) => {
           if (cancelled) return
-          // The backend cannot be reached: the service gate probes and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
+          // The backend cannot be reached: the service gate probes once after the grace period and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
           if (isBackendUnreachable(e)) { setError(null); setMe(null); reportServiceUnavailable(); return }
           setError(e ?? new Error("session check failed"))
           setIsLoading(false)
