@@ -8,6 +8,7 @@
 #   H start errors (one of cert/key, auth without CA / without TLS, no listener, cert/key mismatch, bad values)
 #   I live replacement of the server certificate, of the client CA, and of a broken pair, without a restart
 #   J hardening: uid 101, read-only root, no capabilities
+#   M trailing slash: /<nested route>/ -> 308 -> 200, a missing path is 404 (never 403), no off-site redirect
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -277,6 +278,24 @@ C=$(start hard "${TLS[@]}") || { bad "container did not start"; exit 1; }
 check "J1 runs as uid 101" 101 "$(docker exec "$C" id -u)"
 docker exec "$C" sh -c 'touch /probe' 2>/dev/null && bad "J2 root filesystem is writable" || ok "J2 root filesystem is read-only"
 check "J3 effective capabilities empty" 0000000000000000 "$(docker exec "$C" sh -c 'grep CapEff /proc/1/status' | awk '{print $2}')"
+stop "$C"
+
+echo "== M trailing slash"
+# A nested route has both <route>.html and a <route>/ directory in the export: the slash form redirects, never a 403.
+ROUTE=detail
+C=$(start slash) || { bad "container did not start"; exit 1; }
+B=http://127.0.0.1:$(port "$C" 8080)
+check "M1 /$ROUTE/ -> 308" 308 "$(code "$B/$ROUTE/")"
+check "M2 /$ROUTE/ Location is the relative path without the slash" "/$ROUTE" "$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 10 "$B/$ROUTE/" | sed "s|^$B||")"
+check "M3 query string kept" "/$ROUTE?a=1&b=2" "$(curl -s -D - -o /dev/null --max-time 10 "$B/$ROUTE/?a=1&b=2" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
+check "M4 followed redirect -> 200" 200 "$(code -L "$B/$ROUTE/")"
+check "M5 /$ROUTE -> 200" 200 "$(code "$B/$ROUTE")"
+check "M6 / -> 200, not redirected" 200 "$(code "$B/")"
+check "M7 missing path -> 404, not 403" 404 "$(code "$B/no-such-page")"
+check "M8 missing path with a slash -> 308 -> 404" 404 "$(code -L "$B/no-such-page/")"
+check "M9 a directory without a page is not listed" 404 "$(code "$B/_next/static")"
+check "M10 double slash does not redirect off-site" "/$ROUTE" "$(curl -s -D - -o /dev/null --max-time 10 --path-as-is "$B//$ROUTE/" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
+check "M11 an encoded backslash stays encoded, on this host" "/%5Cevil.example" "$(curl -s -D - -o /dev/null --max-time 10 --path-as-is "$B/%5Cevil.example/" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
 stop "$C"
 
 echo
