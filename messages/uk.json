@@ -18,8 +18,8 @@
   "error.load.body": "Перевірте зʼєднання та спробуйте ще раз.",
   "error.load.retry": "Спробувати ще раз",
   "error.load.code": "Код помилки: {code}",
-  "serviceGate.title": "Сервіс тимчасово недоступний",
-  "serviceGate.body": "Спробуйте за хвилину, ми перевіряємо автоматично.",
+  "serviceGate.title": "Сервер платформи тимчасово недоступний",
+  "serviceGate.body": "Сторінка оновиться сама, щойно сервер відповість.",
   "serviceGate.checking": "Перевіряємо зʼєднання…",
   "serviceGate.nextTry": "Наступна спроба через {seconds} с",
   "serviceGate.retryNow": "Спробувати зараз",
@@ -1216,5 +1216,6 @@
   "admin.ex.err.genericWith": "Не вдалося виконати операцію: {message}",
   "admin.notif.editor.variableExampleLine": "Приклад: {example}",
   "admin.exTest.vpnHelp.installLink": "Встановіть WireGuard: {link}",
-  "admin.exPage.action.eventName": "«{name}»"
+  "admin.exPage.action.eventName": "«{name}»",
+  "error.page.links": "Посилання"
 }

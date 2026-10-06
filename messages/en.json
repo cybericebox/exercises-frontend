@@ -18,8 +18,8 @@
   "error.load.body": "Check your connection and try again.",
   "error.load.retry": "Try again",
   "error.load.code": "Error code: {code}",
-  "serviceGate.title": "The service is temporarily unavailable",
-  "serviceGate.body": "Try again in a minute, we check automatically.",
+  "serviceGate.title": "The platform server is temporarily unavailable",
+  "serviceGate.body": "The page will refresh by itself as soon as the server responds.",
   "serviceGate.checking": "Checking the connection…",
   "serviceGate.nextTry": "Next try in {seconds} s",
   "serviceGate.retryNow": "Try now",
@@ -1216,5 +1216,6 @@
   "admin.ex.err.genericWith": "The operation failed: {message}",
   "admin.notif.editor.variableExampleLine": "Example: {example}",
   "admin.exTest.vpnHelp.installLink": "Install WireGuard: {link}",
-  "admin.exPage.action.eventName": "«{name}»"
+  "admin.exPage.action.eventName": "«{name}»",
+  "error.page.links": "Links"
 }

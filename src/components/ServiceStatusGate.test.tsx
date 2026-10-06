@@ -21,7 +21,7 @@ describe("ServiceStatusGate", () => {
     vi.useFakeTimers()
     const fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
     vi.stubGlobal("fetch", fetch)
-    render(<><h1>page</h1><ServiceStatusGate /></>)
+    render(<><div data-app-root><h1>page</h1></div><ServiceStatusGate /></>)
 
     act(() => { reportServiceUnavailable() })
     await act(async () => { await vi.advanceTimersByTimeAsync(14_999) })
@@ -36,8 +36,12 @@ describe("ServiceStatusGate", () => {
     expect(screen.getByRole("alertdialog")).toBeInTheDocument()
     expect(screen.getByText("serviceGate.title")).toBeInTheDocument()
     expect(screen.getByText("serviceGate.nextTry 3")).toBeInTheDocument()
-    // The page underneath stays rendered.
+    // The page underneath stays rendered, dimmed and inert.
     expect(screen.getByText("page")).toBeInTheDocument()
+    const behind = document.querySelector("[data-app-root]")
+    expect(behind).toHaveClass("ib-service-down-behind")
+    expect(behind).toHaveAttribute("inert")
+    expect(screen.getByRole("button", { name: "serviceGate.retryNow" })).toHaveFocus()
   })
 
   it("shows nothing when the API is back before the first probe (10 s)", async () => {

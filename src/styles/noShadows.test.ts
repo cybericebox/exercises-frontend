@@ -46,6 +46,7 @@ describe("no shadows", () => {
       for (const match of text.matchAll(/(--[\w-]*shadow[\w-]*|box-shadow|text-shadow|filter)\s*:\s*([^;}]*)/g)) {
         const [, prop, value] = match
         if (prop === "--ib-shadow-overlay") continue
+        if (prop === "box-shadow" && value.trim() === "var(--ib-shadow-overlay)") continue   // overlay card (service-down)
         if (prop === "filter" ? !/drop-shadow\(/.test(value) : value.trim() === "none") continue
         const open = text.lastIndexOf("{", match.index)
         const selector = text.slice(Math.max(text.lastIndexOf("}", open), text.lastIndexOf("{", open - 1)) + 1, open)

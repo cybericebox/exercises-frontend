@@ -8,8 +8,7 @@ import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { listVersions, type DeviceOutside, type Version } from "@/api/exercises/versions"
-import { ErrorScreen } from "@/components/ErrorScreen"
-import { NotFoundScreen } from "@/components/NotFoundScreen"
+import { ErrorPage } from "@/components/ErrorPage"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
@@ -246,8 +245,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     return <p role="alert" className="text-sm text-destructive">{t("admin.ex.create.forbidden")}</p>
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
-  if (editor.loadState === "notFound") return <NotFoundScreen block title={t("admin.exDetail.notFound")} />
-  if (editor.loadState === "error") return <ErrorScreen title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
+  if (editor.loadState === "notFound") return <ErrorPage mode="block" status={404} title={t("admin.exDetail.notFound")} />
+  if (editor.loadState === "error") return <ErrorPage mode="block" status={500} title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
   const canManageAccess = Boolean(exercise && exercise.Scope === "catalog" && rights.manageAccess && !archived && !isVersion)

@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({ push: vi.fn(), download: vi.fn(), diagram: { last:
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), usePathname: () => "/test" }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }))
