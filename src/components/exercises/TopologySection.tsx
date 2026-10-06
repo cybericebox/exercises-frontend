@@ -478,7 +478,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
             </div>
             {nameError && <p role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
           </div> : <HoverTooltip text={t("admin.exTopo.renameDevice")} className="max-w-full">
-            <button type="button" disabled={disabled} aria-label={`${t("admin.exTopo.renameDevice")}: ${settingsName}`}
+            <button type="button" disabled={disabled} aria-label={t("admin.exTopo.renameDeviceOf", { name: settingsName })}
               onClick={() => startRename(settingsTarget)}
               className="group mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-sm text-left text-base font-semibold text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:hover:text-foreground">
               <span className="min-w-0 truncate">{settingsName}</span>

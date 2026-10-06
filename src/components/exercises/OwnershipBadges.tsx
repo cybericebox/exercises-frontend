@@ -30,12 +30,12 @@ export function OwnershipBadges({ exercise, showAccess, showEvent = true }: { ex
   if (showEvent && exercise.Scope === "event") {
     badges.push({
       key: "event",
-      label: exercise.OwnerEventName ? `${t("exercises.badge.event")} · ${exercise.OwnerEventName}` : t("exercises.badge.event"),
+      label: exercise.OwnerEventName ? t("exercises.badge.eventNamed", { event: exercise.OwnerEventName }) : t("exercises.badge.event"),
       tone: "bg-primary/10 text-primary",
     })
   }
   if (exercise.ForkedFrom) {
-    badges.push({ key: "fork", label: `${t("exercises.badge.fork")}: ${exercise.ForkedFrom.ExerciseName}`, tone: "bg-muted text-muted-foreground" })
+    badges.push({ key: "fork", label: t("exercises.badge.forkOf", { name: exercise.ForkedFrom.ExerciseName }), tone: "bg-muted text-muted-foreground" })
   }
   if (exercise.PendingProposalID) {
     badges.push({ key: "proposal", label: t("exercises.badge.pending"), tone: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]" })

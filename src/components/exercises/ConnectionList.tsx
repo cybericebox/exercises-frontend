@@ -166,7 +166,7 @@ export function ConnectionList({
           {fields.map((field, ci) => <Fragment key={field.id}><tr data-testid={`connection-row-${ci}`}
             className={`group ${selectedIndex === ci ? "bg-accent" : "hover:bg-muted/60"}`}>
             <td className="px-3 py-2 tabular-nums">
-              <button type="button" aria-label={`${t("admin.exTopo.overview.editConnection")} ${ci + 1}`}
+              <button type="button" aria-label={t("admin.exTopo.overview.editConnectionN", { n: ci + 1 })}
                 aria-expanded={expandedIndex === ci} onClick={() => toggleEditor(ci)}
                 className="flex items-center gap-1 rounded-sm font-medium focus-visible:outline-2 focus-visible:outline-primary">
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expandedIndex === ci ? "" : "-rotate-90"}`} />{ci + 1}

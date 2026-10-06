@@ -287,7 +287,7 @@ function EnvVarsList({
       </div>
       {importResult && <p role="status" className="text-xs text-muted-foreground">
         {importResult === "read-error" ? t("admin.exEnv.importReadError")
-          : `${t("admin.exEnv.imported")}: ${importResult.imported.length} · ${t("admin.exEnv.duplicates")}: ${importResult.duplicates} · ${t("admin.exEnv.invalid")}: ${importResult.invalid}`}
+          : t("admin.exEnv.importSummary", { imported: importResult.imported.length, duplicates: importResult.duplicates, invalid: importResult.invalid })}
       </p>}
 
       {fields.length > 0 && <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
@@ -301,7 +301,7 @@ function EnvVarsList({
         // supplies a fresh value via SecretInput's "Replace" (Value !== "").
         const lockSecret = isSecret && hasValue && value === ""
         return (
-          <div key={field.id} data-env-row role="group" aria-label={`${t("admin.exEnv.variable")} ${ei + 1}`}
+          <div key={field.id} data-env-row role="group" aria-label={t("admin.exEnv.variableN", { n: ei + 1 })}
             className={`relative min-w-0 rounded-md border border-border ${compact ? "p-4" : "p-3"}`}>
             <div data-env-actions className="absolute right-3 top-3 flex items-center gap-1">
               <Controller control={control} name={`${name}.${ei}.Secret`} render={({ field: secretField }) => (
@@ -355,7 +355,7 @@ function EnvVarsList({
           {flagBindings.map((binding) => <li key={binding.taskIndex} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
             <button type="button" className="min-w-0 truncate text-left text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
               onClick={() => { setTask(binding.taskIndex); setSection("tasks") }}>
-              {binding.taskName || `${t("admin.exDraft.tasks.title")} ${binding.taskIndex + 1}`}
+              {binding.taskName || t("admin.exTask.numbered", { n: binding.taskIndex + 1 })}
             </button>
             <code className="min-w-0 break-all rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">{binding.variable}</code>
           </li>)}

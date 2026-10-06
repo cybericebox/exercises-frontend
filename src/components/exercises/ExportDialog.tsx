@@ -51,7 +51,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
           <DialogTitle>{t("admin.exExport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exExport.description")}</DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-foreground">{t("admin.exExport.count").replace("{count}", String(exerciseIds.length))}</p>
+        <p className="text-sm text-foreground">{t("admin.exExport.count", { count: exerciseIds.length })}</p>
         <div className="flex items-start gap-3">
           <Switch id="export-secrets" checked={includeSecrets} onCheckedChange={setIncludeSecrets} aria-label={t("admin.exExport.secrets")} />
           <div>

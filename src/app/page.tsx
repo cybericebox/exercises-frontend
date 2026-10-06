@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Upload } from "lucide-react"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { useRole } from "@/lib/useRole"
 import { listExercisesPage, type ExerciseListItem, type InfrastructureFilter, type ScopeFilter } from "@/api/exercises/catalog"
 import { listEventOptions, type EventOption } from "@/api/events/list"
@@ -212,7 +213,7 @@ export default function Page() {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value))}
           helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
-            <li key={value || "all"}><strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong> — {t(`exercises.help.scope.${value || "all"}`)}</li>
+            <li key={value || "all"}>{tRich("exercises.help.scope.line", { name: <strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong>, text: t(`exercises.help.scope.${value || "all"}`) })}</li>
           ))}</ul>}>
           <Segmented value={filters.scope} onChange={(value) => update({ scope: value as ScopeFilter })} ariaLabel={t("exercises.scope.label")}
             options={scopeTabs.map((value) => ({ value, label: t(`exercises.scope.${value || "all"}`) }))} />

@@ -46,7 +46,7 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
 
   return <div data-route-card className="space-y-1 rounded-md border border-border p-2">
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItem")} {index + 1}</span>
+      <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItemN", { n: index + 1 })}</span>
       {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeRoute")} onClick={onRemove} className="h-7 w-7" />}
     </div>
     <div data-route-fields className={`grid ${compact ? "grid-cols-1 gap-2" : "gap-2 sm:grid-cols-2"}`}>
@@ -66,8 +66,8 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
       </FormItem>} />
     </div>
     <div data-error-slot className="min-h-4 text-xs font-medium leading-4 text-destructive" aria-live="polite">
-      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDst")}: {destinationError}</p>}
-      {typeof viaError === "string" && <p>{t("admin.exTopo.routeVia")}: {viaError}</p>}
+      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDstError", { error: destinationError })}</p>}
+      {typeof viaError === "string" && <p>{t("admin.exTopo.routeViaError", { error: viaError })}</p>}
     </div>
   </div>
 }
@@ -169,7 +169,7 @@ export function InterfaceForm({
         {fields.map((field, ii) => <div key={field.id} className={`group inline-flex shrink-0 items-center rounded-md ${activeIndex === ii ? "bg-accent" : ""}`}><button type="button" role="tab" aria-selected={activeIndex === ii}
           onClick={() => setSelectedIndex(ii)}
           className={`rounded-md px-3 py-1.5 text-sm ${activeIndex === ii ? "font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-          {rows[ii]?.Name || `${t("admin.exTopo.interfaceItem")} ${ii + 1}`}
+          {rows[ii]?.Name || t("admin.exTopo.interfaceItemN", { n: ii + 1 })}
         </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => { remove(ii); setSelectedIndex(Math.max(0, ii - 1)) }} className="mr-1 h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}</div>)}
       </div>}
 
@@ -178,7 +178,7 @@ export function InterfaceForm({
         const ipType = rows[ii]?.IP?.Type
         return (
           <div key={field.id} data-interface-panel className={compact ? "space-y-2 pt-2" : "space-y-3 border-t border-border pt-3"}>
-            {!compact && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaces")} {ii + 1}</p>}
+            {!compact && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaceItemN", { n: ii + 1 })}</p>}
             <div data-interface-grid className={`grid ${compact ? "grid-cols-1 gap-2 @min-[26rem]:grid-cols-2" : "gap-3 sm:grid-cols-2 lg:grid-cols-3"}`}>
               <FormField control={control} name={`${name}.${ii}.Name`} render={({ field: nameField, fieldState }) => (
                 <FormItem className={compact ? "space-y-1" : undefined}>

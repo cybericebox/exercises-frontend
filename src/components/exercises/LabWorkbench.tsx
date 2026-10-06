@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { hintTextHasContent, hintTextToState } from "@/lib/hintText"
 import type { ExternalTarget, TaskValues } from "@/lib/placeholderResolve"
 import { cn } from "@/utils/cn"
@@ -43,7 +44,7 @@ export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fa
   if (!expiresAt) return <span className="text-sm text-white/80">{fallback}</span>
   const left = new Date(expiresAt).getTime() - now
   return left > 0
-    ? <span role="timer" className="text-sm text-white"><span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> · {t("admin.exTest.timerAvailable")}</span>
+    ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
     : <span role="timer" className="text-sm text-white">{t("admin.exTest.timerEnded")}</span>
 }
 
@@ -137,7 +138,7 @@ export function TaskSidebar({ tasks, selectedId, solved, collapsed, onToggle, on
           return (
             <HoverTooltip key={entry.ID || index} text={entry.Name} side="right" className="w-full">
             <button type="button" aria-current={current ? "true" : undefined}
-              aria-label={collapsed ? (done ? `${entry.Name}, ${t("admin.exTest.solved")}` : entry.Name) : undefined}
+              aria-label={collapsed ? (done ? t("admin.exTest.entrySolved", { name: entry.Name }) : entry.Name) : undefined}
               onClick={() => onSelect(entry.ID)}
               className={cn("flex w-full items-start gap-3 rounded-md p-2 text-left text-sm transition-colors hover:bg-muted", collapsed && "justify-center", current ? "text-foreground" : "text-muted-foreground")}>
               <span aria-hidden={collapsed || !done ? "true" : undefined} data-task-number data-state={done ? "solved" : current ? "current" : "todo"}
@@ -186,7 +187,7 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
         const price = cost?.(hint)
         return <li key={key} className="rounded-md border border-border p-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-foreground">{t("exercises.hints.item", { n: index + 1 })} · {t(`exercises.hints.level.${hint.Level}`)}{price ? ` · ${price}` : ""}</span>
+            <span className="text-sm text-foreground">{price ? t("exercises.hints.itemLinePriced", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`), price }) : t("exercises.hints.itemLine", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`) })}</span>
             {!open && <HoverTooltip text={t("admin.exTest.hintShow")}>
               <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" busy={busy === key} disabled={busy !== null}
                 aria-label={t("admin.exTest.hintShowNamed", { n: index + 1 })} onClick={() => void show(key, hint)}>
@@ -239,7 +240,7 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
         {task.Attachments.map((file) => <li key={file.FileID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
           <span className="min-w-0 truncate">{file.Name}</span>
           <HoverTooltip text={t("admin.exTest.download")}>
-            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={`${t("admin.exTest.download")} ${file.Name}`}
+            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={t("admin.exTest.downloadFile", { name: file.Name })}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted"><Download aria-hidden="true" size={16} /></a>
           </HoverTooltip>
         </li>)}

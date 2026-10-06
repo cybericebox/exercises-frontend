@@ -7,7 +7,8 @@ import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 
 // Stub the heavy Lexical editor: TaskForm (rendered by an open row) imports it, and
 // jsdom does not need the real rich-text stack for these behavior tests.
@@ -105,7 +106,7 @@ describe('TaskAccordion', () => {
     // One task → no accordion header shows the untitled fallback yet.
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.add' }))
     // The appended empty task has no Name → its header uses the untitled fallback.
-    expect(screen.getByText('admin.exTask.untitled 2')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTask.numbered 2')).toBeInTheDocument()
     // Two tasks now → the remove-task control becomes available.
     expect(screen.getAllByRole('button', { name: 'admin.exTask.remove' })).toHaveLength(2)
   })
@@ -154,7 +155,7 @@ describe('TaskAccordion', () => {
       .mockResolvedValueOnce({ RandomHexLength: 12, RandomBits: 48, WarningBits: 18 })
     render(<NamedDeviceHarness />)
     expect(await screen.findByText('admin.exTask.flag.policyUnavailable')).toBeInTheDocument()
-    expect(screen.queryByText('admin.exTask.flag.randomExample')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.exTask.flag.randomExampleLine')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText(/ICE\{0{12}\}/)).toBeInTheDocument()
   })

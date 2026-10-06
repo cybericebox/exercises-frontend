@@ -7,6 +7,7 @@ import type { Version } from "@/api/exercises/versions"
 const h = vi.hoisted(() => ({ push: vi.fn(), download: vi.fn(), diagram: { last: null as unknown } }))
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }))
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
@@ -135,7 +136,7 @@ describe("TestLabPage — bar", () => {
     expect(screen.getByText("admin.exTest.caption")).toBeInTheDocument()
     expect(screen.getByLabelText("admin.exTest.progressLabel 0 2")).toBeInTheDocument()
     const timer = screen.getByRole("timer")
-    expect(timer).toHaveTextContent(/^[01]:\d\d:\d\d · admin\.exTest\.timerAvailable$/)
+    expect(timer).toHaveTextContent(/^admin\.exTest\.timerCountdown[01]:\d\d:\d\d$/)
   })
 
   it("counts down and says the time is up at the lease end", async () => {
@@ -243,7 +244,7 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("lists attachments for download and the hints as text", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const file = await screen.findByRole("link", { name: "admin.exTest.download notes.pdf" })
+    const file = await screen.findByRole("link", { name: "admin.exTest.downloadFile notes.pdf" })
     expect(file).toHaveAttribute("download", "notes.pdf")
     expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
     // hints start collapsed; an empty hint is not listed
@@ -333,7 +334,7 @@ describe("TestLabPage — sidebar", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1")
     expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.solved/)
     fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
-    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.solved/)
+    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.entrySolved/)
   })
 
   it("stacks under lg: the resize separator is desktop-only and has a 24 px hit area", async () => {
@@ -677,8 +678,8 @@ describe("TestLabPage — hints, long text and sidebar tooltip placement", () =>
     const answer = await screen.findByRole("heading", { name: "admin.exTest.flagTitle" })
     const hints = screen.getByRole("heading", { name: "exercises.hints.title" })
     expect(answer.compareDocumentPosition(hints) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const row = screen.getByText(/exercises\.hints\.item 1/).closest("li")!
-    expect(row).toHaveTextContent("exercises.hints.item 1")
+    const row = screen.getByText(/exercises\.hints\.itemLine 1/).closest("li")!
+    expect(row).toHaveTextContent("exercises.hints.itemLine 1")
     expect(screen.queryByText("Look at the robots file")).not.toBeInTheDocument()
     fireEvent.click(within(row).getByRole("button", { name: "admin.exTest.hintShowNamed 1" }))
     expect(within(row).getByText("Look at the robots file")).toBeInTheDocument()

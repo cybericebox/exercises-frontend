@@ -271,7 +271,7 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
     fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
   })
 })
@@ -281,7 +281,7 @@ describe("exercise page — one test lab per user", () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
     fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variant 1" }))
+    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
   }
 
   it("offers the user's running test of another exercise instead of starting a second", async () => {

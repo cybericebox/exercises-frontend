@@ -298,7 +298,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   const { nodes, edges } = useMemo(() => {
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
       key: d.ID,
-      label: d.Name || `${t("admin.exTopo.unnamedDevice")} ${index + 1}`,
+      label: d.Name || t("admin.exTopo.unnamedDeviceN", { n: index + 1 }),
       kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
       external: Boolean(d.External?.Enabled),
@@ -569,7 +569,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             style={{ userSelect: "none" }} fontSize={12} textAnchor="middle"
             paintOrder="stroke" stroke="var(--background)" strokeWidth={3}
             role={onPortLabelOffsetChange ? "button" : undefined} tabIndex={onPortLabelOffsetChange ? 0 : undefined}
-            aria-label={onPortLabelOffsetChange ? `${t("admin.exTopo.movePortLabel")}: ${shortForwardingPort(port)}` : undefined}
+            aria-label={onPortLabelOffsetChange ? t("admin.exTopo.movePortLabelOf", { port: shortForwardingPort(port) }) : undefined}
             onPointerDown={(event) => {
               if (!onPortLabelOffsetChange || event.button !== 0) return
               event.preventDefault()
@@ -734,7 +734,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               paintOrder="stroke" stroke="var(--background)" strokeWidth={4}
               role={onLabelOffsetChange || onNodeRename ? "button" : undefined}
               tabIndex={onLabelOffsetChange || onNodeRename ? 0 : undefined}
-              aria-label={onLabelOffsetChange ? `${t("admin.exTopo.moveLabel")}: ${node.label}` : undefined}
+              aria-label={onLabelOffsetChange ? t("admin.exTopo.moveLabelOf", { name: node.label }) : undefined}
               aria-description={onNodeRename ? t("admin.exTopo.renameDevice") : undefined}
               onClick={(event) => event.stopPropagation()}
               onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); beginNodeRename(node) }}

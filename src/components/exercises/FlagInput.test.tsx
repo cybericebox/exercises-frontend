@@ -5,7 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 
 import { FlagInput } from './FlagInput'
 
@@ -36,7 +37,7 @@ describe('FlagInput', () => {
     }
     render(<Controlled />)
     fireEvent.click(screen.getByText('admin.exTask.flag.add'))
-    const newInput = await screen.findByRole('textbox', { name: 'admin.exTask.flag.title 2' }) as HTMLInputElement
+    const newInput = await screen.findByRole('textbox', { name: 'admin.exTask.flag.titleN 2' }) as HTMLInputElement
     expect(newInput).toHaveValue('ICE{}')
     await waitFor(() => expect(newInput).toHaveFocus())
     expect(newInput.selectionStart).toBe(4)
@@ -53,10 +54,10 @@ describe('FlagInput', () => {
     fireEvent.mouseEnter(pasteHint!)
     expect(screen.getByRole('tooltip')).toHaveTextContent('admin.exTask.flag.pasteHintHelp')
     expect(addActions).toContainElement(screen.getByRole('button', { name: 'admin.exTask.flag.add' }))
-    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' })
+    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' })
     fireEvent.paste(input, { clipboardData: { getData: () => 'ICE{first}\r\n\r\nICE{second}\n' } })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
-    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteCount 2')
+    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteCountN 2')
     expect(within(dialog).getByRole('button', { name: 'admin.exTask.flag.pasteMode' })).toHaveTextContent('admin.exTask.flag.modeFixed')
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exTask.flag.pasteConfirm' }))
@@ -65,7 +66,7 @@ describe('FlagInput', () => {
 
   it('explains literal-only templates during list import and keeps duplicate and format errors distinct', () => {
     render(<FlagInput value={['ICE{old}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => 'ICE{fixed}\nICE{fixed}\nICE{has space}' },
     })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
@@ -78,13 +79,13 @@ describe('FlagInput', () => {
 
   it('shows the literal-only template reason after leaving a flag field', () => {
     render(<FlagInput value={['template:ICE{fixed}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.blur(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }))
+    fireEvent.blur(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }))
     expect(screen.getByRole('alert')).toHaveTextContent('admin.ex.val.flagTemplateNeedsRandom')
   })
 
   it('imports a pasted list as templates when that mode is chosen', () => {
     render(<FlagInput value={['ICE{old}', 'ICE{keep}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => String.raw`ICE{room-\d}` + '\n' + String.raw`ICE{user-\l}` },
     })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
@@ -96,12 +97,12 @@ describe('FlagInput', () => {
 
   it('shows invalid lines and imports only valid flags after confirmation', () => {
     render(<FlagInput value={['ICE{old}', 'ICE{keep}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => 'ICE{first}\nwrong\nICE{keep}\nICE{second}' },
     })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
-    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteValid 2')
-    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteInvalid 2')
+    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteValidN 2')
+    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteInvalidN 2')
     expect(within(dialog).getByText(/2\. wrong/)).toBeInTheDocument()
     expect(within(dialog).getByText(/3\. ICE\{keep\}/)).toBeInTheDocument()
     expect(onChange).not.toHaveBeenCalled()
@@ -111,17 +112,17 @@ describe('FlagInput', () => {
 
   it('disables list import when no candidate matches the chosen mode', () => {
     render(<FlagInput value={['ICE{old}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => 'wrong\nICE{has space}' },
     })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
-    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteValid 0')
+    expect(dialog).toHaveTextContent('admin.exTask.flag.pasteValidN 0')
     expect(within(dialog).getByRole('button', { name: 'admin.exTask.flag.pasteValidOnly' })).toBeDisabled()
   })
 
   it('cancels a multiline paste without changing the current flag', () => {
     render(<FlagInput value={['ICE{old}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => 'ICE{first}\nICE{second}' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.pasteCancel' }))
@@ -131,7 +132,7 @@ describe('FlagInput', () => {
 
   it('does not import multiple values into a task without a linked device', () => {
     render(<FlagInput value={['ICE{old}']} onChange={onChange} linkedDeviceID="" />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }), {
       clipboardData: { getData: () => 'ICE{first}\nICE{second}' },
     })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })
@@ -141,7 +142,7 @@ describe('FlagInput', () => {
 
   it('leaves a single pasted flag to the ordinary input behavior', () => {
     render(<FlagInput value={['ICE{old}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' })
+    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' })
     const accepted = fireEvent.paste(input, { clipboardData: { getData: () => 'ICE{one}' } })
     expect(accepted).toBe(true)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -164,7 +165,7 @@ describe('FlagInput', () => {
   it('shows an explicit fixed/template switch without the storage marker in the input', () => {
     render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" />)
     expect(screen.getByDisplayValue(String.raw`ICE{\d}`)).toBeInTheDocument()
-    const type = screen.getByRole('button', { name: 'admin.exTask.flag.mode 1' })
+    const type = screen.getByRole('button', { name: 'admin.exTask.flag.modeN 1' })
     expect(type).toHaveTextContent('admin.exTask.flag.modeTemplate')
     fireEvent.keyDown(type, { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'admin.exTask.flag.modeFixed' }))
@@ -173,7 +174,7 @@ describe('FlagInput', () => {
 
   it('does not offer templates or multiple candidates for a static task', () => {
     render(<FlagInput value={['ICE{fixed}']} onChange={onChange} linkedDeviceID="" />)
-    expect(screen.queryByRole('button', { name: 'admin.exTask.flag.mode 1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.exTask.flag.modeN 1' })).not.toBeInTheDocument()
     expect(screen.getByText('admin.exTask.flag.modeFixed')).toHaveClass('bg-primary', 'text-primary-foreground')
     expect(screen.getByText('admin.exTask.flag.staticTypeHelp')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTask.flag.add')).not.toBeInTheDocument()
@@ -202,8 +203,8 @@ describe('FlagInput', () => {
     expect(rows[1]).toHaveTextContent('2.')
     expect(rows[0]).not.toHaveClass('border')
     expect(rows[0].parentElement).not.toHaveClass('divide-y')
-    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.mode 1' }).compareDocumentPosition(rows[0].querySelector('input')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.mode 1' })).toHaveClass('text-sm', 'bg-primary', 'text-primary-foreground', 'exercise-flag-mode')
+    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.modeN 1' }).compareDocumentPosition(rows[0].querySelector('input')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.modeN 1' })).toHaveClass('text-sm', 'bg-primary', 'text-primary-foreground', 'exercise-flag-mode')
     expect(within(rows[0]).getByTestId('flag-candidate-control')).toHaveClass('border')
     expect(rows[0].querySelector('input')).toHaveClass('border-0')
     expect(rows[0].querySelector('input')).toHaveClass('text-sm', 'placeholder:text-sm')
@@ -226,7 +227,7 @@ describe('FlagInput', () => {
 
   it('inserts a digit-exclusion block at the text cursor', () => {
     render(<FlagInput value={['template:ICE{room-}']} onChange={onChange} linkedDeviceID="vm-1" />)
-    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }) as HTMLInputElement
+    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }) as HTMLInputElement
     input.focus()
     input.setSelectionRange(9, 9)
     fireEvent.select(input)
@@ -241,7 +242,7 @@ describe('FlagInput', () => {
       return <FlagInput value={flags} onChange={setFlags} linkedDeviceID="vm-1" />
     }
     render(<Controlled />)
-    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.title 1' }) as HTMLInputElement
+    const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' }) as HTMLInputElement
     input.focus()
     input.setSelectionRange(9, 9)
     fireEvent.select(input)
@@ -264,7 +265,7 @@ describe('FlagInput', () => {
     render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1"
       errors={['Invalid flag.']} policy={{ RandomHexLength: 12, RandomBits: 48, WarningBits: 20 }} />)
     const meta = screen.getByTestId('flag-candidate-meta')
-    expect(meta).toHaveTextContent('admin.exTask.flag.example')
+    expect(meta).toHaveTextContent('admin.exTask.flag.candidateMeta')
     expect(meta).not.toHaveTextContent('admin.exTask.flag.weak')
     const feedback = screen.getByRole('alert')
     expect(feedback).toHaveTextContent('Invalid flag. admin.exTask.flag.weak')

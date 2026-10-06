@@ -8,7 +8,8 @@ import { helpButton } from '@/test/help'
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
 
-vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: { name?: string }) => key === 'admin.ex.select.rowNamed' ? `${key}: ${vars?.name}` : key }))
+vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: { name?: string }) => key === 'admin.ex.select.rowNamed' ? `${key}: ${vars?.name}` : key === 'exercises.badge.forkOf' ? `${key}: ${vars?.name}` : key }))
+vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 vi.mock('@/lib/useRole', () => ({
   useRole: () => ({
     me: { ID: h.userId },
@@ -337,7 +338,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByText('exercises.access.level.all')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.own')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.none')).toBeInTheDocument()
-    expect(screen.getByText('exercises.badge.fork: Base')).toBeInTheDocument()
+    expect(screen.getByText('exercises.badge.forkOf: Base')).toBeInTheDocument()
     expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
     // Published with changes: green «published» + yellow «changes» badges side by side.
