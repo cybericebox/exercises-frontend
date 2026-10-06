@@ -41,8 +41,13 @@ export function onServiceRestored(listener: () => void): () => void {
   return () => restoredListeners.delete(listener)
 }
 
-export function isUnavailableStatus(status: number): boolean {
-  return status >= 500 && status <= 599
+/**
+ * A response that came from the proxy / CDN instead of our backend: 502/503/504 without
+ * the X-Request-ID the backend puts on every answer. Any other 5xx is a real backend
+ * error (the 500 page); this one means the backend cannot be reached.
+ */
+export function isUnreachableResponse(status: number, requestId: string | null | undefined): boolean {
+  return (status === 502 || status === 503 || status === 504) && !requestId
 }
 
 // Requests cut by leaving the page fail like a network error; they are not outages.
@@ -60,6 +65,20 @@ if (typeof window !== "undefined") {
 export function isNetworkOutage(error: unknown, signal?: AbortSignal | null): boolean {
   if (leaving || signal?.aborted) return false
   return !(error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError"))
+}
+
+/**
+ * The backend cannot be reached: a network failure, or a proxy 502/503/504 that never
+ * got to the backend. The session gate and the API client hand these to the service
+ * status gate instead of rendering the 500 page; a 5xx the backend itself answered
+ * (it carries X-Request-ID) is not one.
+ */
+export function isBackendUnreachable(error: unknown): boolean {
+  if (error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number") {
+    const { status, requestId } = error as { status: number; requestId?: string }
+    return isUnreachableResponse(status, requestId)
+  }
+  return isNetworkOutage(error)
 }
 
 // Short backend restarts must not flash the modal: after the first failure the
@@ -96,8 +115,8 @@ export function startOutageGrace(probe: () => Promise<boolean>): () => void {
 const PROBE_TIMEOUT_MS = 10_000
 
 /**
- * The recovery probe: session validation answers below 500 for everyone (200
- * signed in, 401 anonymous) once the API and its storage respond. It goes to
+ * The recovery probe: session validation answers for everyone (200 signed in, 401
+ * anonymous) once the API responds; only a proxy 502/503/504 or no answer is down. It goes to
  * the API origin like every other call.
  */
 export async function probeService(origin: string): Promise<boolean> {
@@ -106,7 +125,7 @@ export async function probeService(origin: string): Promise<boolean> {
     const response = await fetch(`${origin}/api/auth/me`, {
       credentials: "include", cache: "no-store", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     })
-    return !isUnavailableStatus(response.status)
+    return !isUnreachableResponse(response.status, response.headers.get("X-Request-ID"))
   } catch {
     return false
   }

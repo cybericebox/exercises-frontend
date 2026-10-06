@@ -34,11 +34,11 @@ function apiFailure(error: unknown): ApiFailure | null {
   return null
 }
 
-// «{code}-{rid8}»: platform error code and the first 8 hex chars of the request id; the code alone when the header is not readable.
+// «{code}-{rid8}»: platform error code and the first 8 hex chars of the request id; the request id alone when there is no platform code (absent or 0).
 function reference(failure: ApiFailure): string | undefined {
-  const code = failure.code ?? failure.status
   const rid = failure.requestId?.replace(/-/g, "").slice(0, 8)
-  return rid ? `${code}-${rid}` : undefined
+  if (!rid) return undefined
+  return failure.code ? `${failure.code}-${rid}` : rid
 }
 
 // Prefilled mailto of «Повідомити деталі»: no personal data beyond what the user types.
@@ -97,7 +97,7 @@ export function ErrorPage({ mode, status, title, body, error, onRetry, home = st
   const heading = title ?? (notFound ? t("error.notFound") : t("error.page.title"))
   const text = body ?? (notFound ? t("error.notFoundDescription") : failure ? t("error.page.reported") : t("error.page.body"))
   const ref = failure ? reference(failure) : undefined
-  const code = failure ? failure.code ?? failure.status : undefined
+  const code = failure ? failure.code || failure.status : undefined
   const Title = mode === "page" ? "h1" : "h2"
   const main = <>
     <p className="ib-error__code" aria-hidden="true">{status}</p>

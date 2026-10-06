@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
-import { onServiceRestored } from "@/lib/serviceStatus"
+import { isBackendUnreachable, onServiceRestored, reportServiceUnavailable } from "@/lib/serviceStatus"
 
 export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
@@ -45,10 +45,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false
     const load = () => {
       void fetchMe()
-        .then((m) => { if (!cancelled) { setMe(m); setError(null) } })
+        .then((m) => { if (!cancelled) { setMe(m); setError(null); setIsLoading(false) } })
         // A failed check must not leave the app on the loader: the shell shows the error page.
-        .catch((e: unknown) => { if (!cancelled) setError(e ?? new Error("session check failed")) })
-        .finally(() => { if (!cancelled) setIsLoading(false) })
+        .catch((e: unknown) => {
+          if (cancelled) return
+          // The backend cannot be reached: the service gate probes and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
+          if (isBackendUnreachable(e)) { setError(null); setMe(null); reportServiceUnavailable(); return }
+          setError(e ?? new Error("session check failed"))
+          setIsLoading(false)
+        })
     }
     load()
     const unsubscribe = onServiceRestored(load)
