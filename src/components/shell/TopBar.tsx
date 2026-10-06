@@ -13,7 +13,8 @@ import { BookingsMenu } from "./BookingsMenu"
 import { RunningTestsMenu } from "./RunningTestsMenu"
 import { ThemeSwitch } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
+import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin } from "@/lib/origins"
@@ -154,11 +155,14 @@ export function TopBar() {
                 // A link to the cookie policy, always shown. With JS only the navigation is cancelled
                 // (on the native event, so the menu still sees the select).
                 return (
-                  <DropdownMenuItem key={i} asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
-                    <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
-                      <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
-                    </a>
-                  </DropdownMenuItem>
+                  <Fragment key={i}>
+                    <DropdownMenuItem asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
+                      <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
+                        <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
+                      </a>
+                    </DropdownMenuItem>
+                    <FeedbackMenuItem />
+                  </Fragment>
                 )
               }
               if (entry.kind === "signOut") {
