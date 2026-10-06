@@ -34,8 +34,7 @@ describe("admin session check", () => {
     vi.mocked(fetchMe).mockRejectedValue(make())
     render(<RoleProvider><State /></RoleProvider>)
     await vi.waitFor(() => expect(isServiceDown()).toBe(true))
-    // the overlay shows at once, no grace period
-    expect(getServiceStatus()).toBe("down")
+    expect(getServiceStatus()).toBe("suspect")
     expect(screen.getByText("loading")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "failed" })).toBeNull()
   })

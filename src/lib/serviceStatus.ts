@@ -18,16 +18,6 @@ export function reportServiceUnavailable(): void {
   listeners.forEach((listener) => listener(status))
 }
 
-/**
- * The backend is known to be unreachable (the session check just failed on it): show the
- * outage overlay at once, without the grace period; retries continue inside the overlay.
- */
-export function reportServiceDown(): void {
-  if (status === "down") return
-  status = "down"
-  listeners.forEach((listener) => listener(status))
-}
-
 export function confirmServiceUnavailable(): void {
   if (status !== "suspect") return
   status = "down"
@@ -92,10 +82,10 @@ export function isBackendUnreachable(error: unknown): boolean {
 }
 
 // Short backend restarts must not flash the modal: after the first failure the
-// gate waits, probes, waits again and probes again; only when every probe fails
-// (about 30 s in all) does the outage show.
+// gate waits OUTAGE_GRACE_MS, probes once and, if the backend still does not answer,
+// shows the outage (about 15 s after the first failure).
 export const OUTAGE_GRACE_MS = 15_000
-export const OUTAGE_GRACE_PROBES = 2
+export const OUTAGE_GRACE_PROBES = 1
 
 /**
  * Runs the grace period for a "suspect" status: one probe per OUTAGE_GRACE_MS,
