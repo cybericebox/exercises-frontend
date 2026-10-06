@@ -9,7 +9,7 @@ import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
@@ -80,7 +80,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
         <Field label={t("admin.exImport.file")} required>
-          {(control) => <Input {...control} type="file" accept=".zip,application/zip" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
+          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={setFile} />}
         </Field>
         <Field label={t("admin.exImport.password")} error={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
           {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}

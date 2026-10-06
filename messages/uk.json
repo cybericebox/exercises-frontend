@@ -152,6 +152,8 @@
   "admin.exImport.title": "Імпорт завдань",
   "admin.exImport.description": "Оберіть архів .zip, експортований з Cyber ICE Box. Імпорт завжди створює нові завдання й ніколи не перезаписує наявні.",
   "admin.exImport.file": "Архів",
+  "admin.exImport.chooseFile": "Вибрати файл",
+  "admin.exImport.noFile": "Файл не вибрано",
   "admin.exImport.password": "Пароль (якщо архів захищено)",
   "admin.exImport.passwordNeeded": "Не вдалося відкрити архів. Якщо він захищений паролем, введіть правильний пароль.",
   "admin.exImport.submit": "Імпортувати",
