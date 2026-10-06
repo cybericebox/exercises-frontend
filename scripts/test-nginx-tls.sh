@@ -122,6 +122,11 @@ C=$(start plain) || { bad "container did not start"; exit 1; }
 check "A1 /healthz on 8080 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8080)/healthz")"
 hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 8080)/")
 grep -qi '^content-security-policy:' <<<"$hdr" && ok "A2 CSP header present" || bad "A2 CSP header missing"
+# The page hashes (the per-URI map in csp.sh) must reach the header of every page, or its inline scripts (the RSC payload) are blocked.
+for page in / /sign-in/; do
+  hdr=$(curl -s -D - -o /dev/null --max-time 10 "http://127.0.0.1:$(port "$C" 8080)$page")
+  [[ $(grep -i '^content-security-policy:' <<<"$hdr" | grep -o "'sha256-" | wc -l) -gt 1 ]] && ok "A2b CSP page hashes on $page" || bad "A2b CSP page hashes missing on $page"
+done
 refused "A3 nothing on 8443" -k "https://localhost:$(port "$C" 8443)/"
 check "A4 default health port 8081 -> 200" 200 "$(code "http://127.0.0.1:$(port "$C" 8081)/healthz")"
 stop "$C"
