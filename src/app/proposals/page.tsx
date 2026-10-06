@@ -13,6 +13,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingArea } from "@/components/ui/spinner"
+import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
@@ -108,6 +109,7 @@ export default function ProposalsPage() {
   const [rejecting, setRejecting] = useState<Proposal | null>(null)
   const [approved, setApproved] = useState<Proposal | null>(null)
   const isAdmin = access?.IsAdmin ?? false
+  const columns = status === "pending" ? 6 : 5
 
   useEffect(() => {
     if (!isAdmin) return
@@ -128,7 +130,7 @@ export default function ProposalsPage() {
   }
 
   return (
-    <div className="frost-panel frost-in flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6">
+    <div className="frost-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-3 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground">{t("exercises.proposals.title")}</h1>
         <div role="radiogroup" aria-label={t("exercises.proposals.status")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
@@ -142,54 +144,54 @@ export default function ProposalsPage() {
       </div>
       {approved?.CatalogExerciseID && (
         <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--ib-ok-bg)] px-3.5 py-2.5 text-sm text-[var(--ib-ok)]">
-          <span>{t("exercises.proposals.approved").replace("{name}", approved.ExerciseName)}</span>
+          <span>{t("exercises.proposals.approved", { name: approved.ExerciseName })}</span>
           <Link href={exerciseHref(approved.CatalogExerciseID)} className="font-medium underline underline-offset-2">{t("exercises.proposals.openCatalog")}</Link>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {items === null ? <LoadingArea className="h-full" label={t("admin.loading")} />
-          : error ? <LoadError message={t("exercises.proposals.loadError")} error={error.cause} onRetry={() => setReload((key) => key + 1)} className="h-full" />
-          : items.length === 0 ? <EmptyState message={t(`exercises.proposals.empty.${status}`)} className="h-full" />
+      <Table label={t("exercises.proposals.title")} busy={items === null} className="min-w-[44rem]">
+        <thead>
+          <tr className={TABLE_HEAD_ROW}>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.exercise")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.event")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.by")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.note")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t(status === "pending" ? "exercises.proposals.col.at" : "exercises.proposals.col.decided")}</th>
+            {status === "pending" && <th scope="col" className={TABLE_HEAD_CELL}><span className="sr-only">{t("exercises.proposals.col.actions")}</span></th>}
+          </tr>
+        </thead>
+        {items === null ? <TableState colSpan={columns}><LoadingArea label={t("admin.loading")} /></TableState>
+          : error ? <TableState colSpan={columns}><LoadError message={t("exercises.proposals.loadError")} error={error.cause} onRetry={() => setReload((key) => key + 1)} /></TableState>
+          : items.length === 0 ? <TableState colSpan={columns}><EmptyState message={t(`exercises.proposals.empty.${status}`)} /></TableState>
           : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-card">
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">{t("exercises.proposals.col.exercise")}</th>
-                  <th className="px-3 py-2 font-medium">{t("exercises.proposals.col.event")}</th>
-                  <th className="px-3 py-2 font-medium">{t("exercises.proposals.col.by")}</th>
-                  <th className="px-3 py-2 font-medium">{t("exercises.proposals.col.note")}</th>
-                  <th className="px-3 py-2 font-medium">{t(status === "pending" ? "exercises.proposals.col.at" : "exercises.proposals.col.decided")}</th>
-                  {status === "pending" && <th className="px-3 py-2"><span className="sr-only">{t("exercises.proposals.col.actions")}</span></th>}
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.ID} className={`${TABLE_ROW} align-top`}>
+                  <td className={TABLE_CELL}>
+                    <Link href={exerciseHref(item.ExerciseID)} className="font-medium text-foreground hover:underline">{item.ExerciseName}</Link>
+                    {item.CatalogExerciseID && <Link href={exerciseHref(item.CatalogExerciseID)} className="block text-xs text-primary hover:underline">{t("exercises.proposals.openCatalog")}</Link>}
+                  </td>
+                  <td className={`${TABLE_CELL} text-muted-foreground`}>{item.EventName}</td>
+                  <td className={`${TABLE_CELL} text-muted-foreground`}>{item.ProposedByName || <span aria-label={t("admin.ex.none")}>—</span>}</td>
+                  <td className={`${TABLE_CELL} max-w-sm text-muted-foreground`}>
+                    {item.Note ? <span className="line-clamp-3 whitespace-pre-line">{item.Note}</span> : <span aria-label={t("admin.ex.none")}>—</span>}
+                    {item.DecisionNote && <span className="mt-1 block text-xs">{t("exercises.proposals.decisionNoteLine", { note: item.DecisionNote })}</span>}
+                  </td>
+                  <td className={`${TABLE_CELL} whitespace-nowrap tabular-nums text-muted-foreground`}>
+                    {(() => { const at = (status === "pending" ? item.ProposedAt : item.DecidedAt) ?? item.ProposedAt; return <time dateTime={at}>{formatExerciseDateTime(at)}</time> })()}
+                  </td>
+                  {status === "pending" && (
+                    <td className={`${TABLE_CELL} whitespace-nowrap text-right`}>
+                      <span className="inline-flex gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => setRejecting(item)}>{t("exercises.proposals.reject")}</Button>
+                        <Button type="button" size="sm" onClick={() => setApproving(item)}>{t("exercises.proposals.approve")}</Button>
+                      </span>
+                    </td>
+                  )}
                 </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.ID} className="h-10 border-b border-border/50 align-top">
-                    <td className="px-3 py-2">
-                      <Link href={exerciseHref(item.ExerciseID)} className="font-medium text-foreground hover:underline">{item.ExerciseName}</Link>
-                      {item.CatalogExerciseID && <Link href={exerciseHref(item.CatalogExerciseID)} className="block text-xs text-primary hover:underline">{t("exercises.proposals.openCatalog")}</Link>}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.EventName}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.ProposedByName || "—"}</td>
-                    <td className="max-w-sm px-3 py-2 text-muted-foreground">
-                      <span className="line-clamp-3 whitespace-pre-line">{item.Note || "—"}</span>
-                      {item.DecisionNote && <span className="mt-1 block text-xs">{t("exercises.proposals.decisionNote")}: {item.DecisionNote}</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{formatExerciseDateTime((status === "pending" ? item.ProposedAt : item.DecidedAt) ?? item.ProposedAt)}</td>
-                    {status === "pending" && (
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
-                        <span className="inline-flex gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={() => setRejecting(item)}>{t("exercises.proposals.reject")}</Button>
-                          <Button type="button" size="sm" onClick={() => setApproving(item)}>{t("exercises.proposals.approve")}</Button>
-                        </span>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
           )}
-      </div>
+      </Table>
       {approving && <ApproveDialog proposal={approving} onClose={() => setApproving(null)}
         onDone={(proposal) => { setApproving(null); setApproved(proposal); decided(proposal); toast.success(t("exercises.proposals.approvedToast")) }} />}
       {rejecting && <RejectDialog proposal={rejecting} onClose={() => setRejecting(null)}
