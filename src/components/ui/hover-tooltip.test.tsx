@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { act } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { FieldHelp } from "./field-help"
 import { HoverTooltip } from "./hover-tooltip"
 
 describe("HoverTooltip", () => {
@@ -103,5 +105,72 @@ describe("HoverTooltip — short labels", () => {
 
     top = 400
     await waitFor(() => expect(screen.getByRole("tooltip").style.top).toBe("393px"))
+  })
+})
+
+describe("HoverTooltip — contract", () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  it("opens a real mouse hover only after 300 ms, never for touch", () => {
+    vi.useFakeTimers()
+    render(<HoverTooltip text="Пояснення"><button type="button">a</button></HoverTooltip>)
+    const trigger = screen.getByRole("button", { name: "a" })
+    fireEvent.pointerEnter(trigger, { pointerType: "touch" })
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.pointerLeave(trigger)
+
+    fireEvent.pointerEnter(trigger, { pointerType: "mouse" })
+    act(() => { vi.advanceTimersByTime(299) })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(2) })
+    expect(screen.getByRole("tooltip")).toBeInTheDocument()
+  })
+
+  it("keeps the bubble while the pointer is on it and closes on Esc", () => {
+    render(<HoverTooltip text="Пояснення"><button type="button">a</button></HoverTooltip>)
+    const trigger = screen.getByRole("button", { name: "a" })
+    fireEvent.pointerEnter(trigger)
+    const bubble = screen.getByRole("tooltip")
+    expect(bubble.className).not.toContain("pointer-events-none")
+    fireEvent.pointerLeave(trigger, { relatedTarget: bubble })
+    fireEvent.pointerMove(bubble)
+    expect(screen.getByRole("tooltip")).toBeInTheDocument()
+
+    fireEvent.keyDown(document.body, { key: "Escape" })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    // dismissed until the pointer leaves: re-entering the same hover does not reopen it
+    fireEvent.pointerEnter(trigger)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.pointerLeave(trigger)
+    fireEvent.pointerEnter(trigger)
+    expect(screen.getByRole("tooltip")).toBeInTheDocument()
+  })
+
+  it("keeps a reason in aria-describedby permanently with describe=always", () => {
+    render(<HoverTooltip text="Спершу збережіть" describe="always"><button type="button" aria-disabled="true">Тест</button></HoverTooltip>)
+    expect(screen.getByRole("button", { name: "Тест" })).toHaveAccessibleDescription("Спершу збережіть")
+  })
+})
+
+describe("FieldHelp", () => {
+  it("is named «Довідка», describes by the text, toggles on tap and does not open on focus", () => {
+    render(<FieldHelp text="Назва, яку бачать учасники." />)
+    const button = screen.getByRole("button", { name: "Довідка" })
+    expect(button).toHaveAccessibleDescription("Назва, яку бачать учасники.")
+
+    fireEvent.focus(button)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+    fireEvent.pointerDown(button, { pointerType: "touch" })
+    fireEvent.click(button)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Назва, яку бачать учасники.")
+
+    fireEvent.click(button)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+    fireEvent.click(button)
+    fireEvent.pointerDown(document.body, { pointerType: "touch" })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 })

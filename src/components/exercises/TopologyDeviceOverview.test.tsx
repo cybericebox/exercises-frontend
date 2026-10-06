@@ -20,7 +20,7 @@ describe("TopologyDeviceOverview", () => {
     render(<TopologyDeviceOverview topology={topology} disabled={false} selectedKey={null} onOpen={onOpen} onRemove={onRemove} />)
 
     const table = screen.getByRole("table", { name: "admin.exTopo.devices" })
-    expect(table.parentElement).toHaveClass("overflow-x-auto")
+    expect(table.parentElement).toHaveAttribute("role", "region")
     const host = within(table).getByRole("row", { name: /a-very-long-host-name/ })
     expect(within(host).getByText("0 / 1")).toBeInTheDocument()
     expect(within(host).getByText("1")).toBeInTheDocument()
@@ -38,6 +38,13 @@ describe("TopologyDeviceOverview", () => {
 
     const gateway = within(table).getByRole("row", { name: /admin.exTopo.vpn/ })
     expect(within(gateway).getByText("—")).toBeInTheDocument()
+  })
+
+  it("keeps the header and a centred empty state when there are no devices", () => {
+    render(<TopologyDeviceOverview topology={emptyVariant(0).Topology} disabled={false} selectedKey={null} onOpen={vi.fn()} onRemove={vi.fn()} />)
+    const table = screen.getByRole("table", { name: "admin.exTopo.devices" })
+    expect(within(table).getByRole("columnheader", { name: "admin.exTopo.overview.device" })).toBeInTheDocument()
+    expect(within(table).getByText("admin.exTopo.noDevices")).toBeInTheDocument()
   })
 
   it("keeps only the settings action when the editor is read-only", () => {

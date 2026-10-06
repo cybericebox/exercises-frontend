@@ -27,7 +27,7 @@ import { STORAGE_TOPOLOGY_INSPECTOR_WIDTH } from "@/lib/storageKeys"
 
 type Gateway = "vpn" | "internet"
 const INSPECTOR_DEFAULT_WIDTH = 480
-const INSPECTOR_MIN_WIDTH = 448
+const INSPECTOR_MIN_WIDTH = 352
 const INSPECTOR_MAX_WIDTH = 720
 const MIN_CANVAS_WIDTH = 560
 const INSPECTOR_GAP = 8
@@ -397,8 +397,9 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         <div className="flex flex-wrap items-center gap-2">
           {connectMode && <span className="text-xs text-muted-foreground">{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>}
           {!disabled && (connectMode ? <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>
-            : <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null}>
-              <Button type="button" variant="outline" size="sm" disabled={linkUnavailableReason !== null} onClick={() => { setConnectMode(true); setLinkNodes([]) }}>
+            : <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
+              <Button type="button" variant="outline" size="sm" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                onClick={() => { if (linkUnavailableReason !== null) return; setConnectMode(true); setLinkNodes([]) }}>
                 <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
               </Button>
             </HoverTooltip>)}
@@ -442,11 +443,11 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     {settingsTarget !== null && <aside role="complementary"
       aria-label={t("admin.exTopo.deviceSettings")}
       style={{ "--topology-inspector-width": `${displayedInspectorWidth}px` } as CSSProperties}
-      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[28rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
+      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[22rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
       <div role="separator" aria-orientation="vertical" aria-label={t("admin.exTopo.resizeSettings")}
         aria-valuemin={INSPECTOR_MIN_WIDTH} aria-valuemax={inspectorMaxWidth} aria-valuenow={displayedInspectorWidth}
         tabIndex={0}
-        className="group absolute top-1/2 -left-4 z-20 hidden h-16 w-6 -translate-y-1/2 cursor-col-resize touch-none rounded-full focus-visible:outline-2 focus-visible:outline-primary xl:block"
+        className="group absolute top-1/2 -left-5 z-20 hidden h-16 w-8 -translate-y-1/2 cursor-col-resize touch-none rounded-full focus-visible:outline-2 focus-visible:outline-primary xl:block"
         onPointerDown={(event) => { if (event.button !== 0) return; event.preventDefault(); resizePointer.current = event.pointerId; event.currentTarget.setPointerCapture?.(event.pointerId) }}
         onPointerMove={moveInspectorDivider}
         onPointerUp={(event) => { if (resizePointer.current !== event.pointerId) return; resizePointer.current = null; saveInspectorWidth() }}

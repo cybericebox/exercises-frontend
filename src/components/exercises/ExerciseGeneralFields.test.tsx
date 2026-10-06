@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
+import { helpButton } from "@/test/help"
 import { useForm } from "react-hook-form"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
@@ -20,8 +21,8 @@ describe("ExerciseGeneralFields", () => {
     expect(screen.getByDisplayValue("Web 101")).toBeEnabled()
     expect(screen.getByLabelText("admin.ex.field.description").tagName).toBe("TEXTAREA")
     expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toHaveValue("Day one")
-    expect(screen.getByRole("button", { name: "admin.ex.help.name" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.ex.field.tagsHelp" })).toBeInTheDocument()
+    expect(helpButton("admin.ex.help.name")).toBeInTheDocument()
+    expect(helpButton("admin.ex.field.tagsHelp")).toBeInTheDocument()
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
   })
 

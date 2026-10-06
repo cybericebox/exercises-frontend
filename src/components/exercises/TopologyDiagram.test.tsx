@@ -42,7 +42,7 @@ describe('TopologyDiagram', () => {
 
   it('fits the whole board to its available height rather than clipping lower nodes', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     expect(svg).toHaveClass('h-full')
     expect(svg.parentElement).toHaveClass('h-full')
   })
@@ -56,7 +56,7 @@ describe('TopologyDiagram', () => {
     })
     try {
       const { container } = render(<TopologyDiagram topology={topology} />)
-      const svg = container.querySelector('svg[role="img"]')!
+      const svg = container.querySelector('svg[role="group"]')!
       act(() => onResize?.([{ contentRect: { width: 1440, height: 800 } } as ResizeObserverEntry], {} as ResizeObserver))
       expect(svg).toHaveAttribute('viewBox', '0 0 1440 800')
       expect(container.querySelector('[data-testid="node-d1"] [data-icon-hitbox]')).toHaveAttribute('width', '56')
@@ -124,7 +124,7 @@ describe('TopologyDiagram', () => {
       ...topology.Devices[0], ID: `host-${index + 1}`, Name: `host-${index + 1}`,
     }))
     const { container } = render(<TopologyDiagram topology={{ ...topology, VPN: { Enabled: false, DHCP: false }, Devices: devices, Connections: [], VisualRender: null }} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     const [, , width, height] = svg.getAttribute('viewBox')!.split(' ').map(Number)
     const points = Array.from(container.querySelectorAll('[data-icon-hitbox]')).map((rect) =>
       `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
@@ -260,7 +260,7 @@ describe('TopologyDiagram', () => {
     const onEdgeSelect = vi.fn()
     const { container, rerender } = render(<TopologyDiagram topology={topology}
       onPortLabelOffsetChange={onPortLabelOffsetChange} onEdgeSelect={onEdgeSelect} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     const caption = container.querySelector('[data-edge="e0"]')!.parentElement!.querySelector('[data-port-label]')!
     const key = caption.getAttribute('data-port-label-key')!
@@ -695,7 +695,7 @@ describe('TopologyDiagram', () => {
   it('does not trap a dragged node inside an invisible inset', () => {
     const onPositionChange = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onPositionChange={onPositionChange} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     const node = screen.getByTestId('node-d1')
     fireEvent(node, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 450, clientY: 300 }))
@@ -710,7 +710,7 @@ describe('TopologyDiagram', () => {
     const onCanvasSelect = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onNodeSelect={onNodeSelect}
       onPositionChange={onPositionChange} onCanvasSelect={onCanvasSelect} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     const background = container.querySelector('[data-canvas-background]')!
     expect(svg).toHaveClass('cursor-grab')
@@ -731,7 +731,7 @@ describe('TopologyDiagram', () => {
     const onNodeSelect = vi.fn()
     const onPositionChange = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onNodeSelect={onNodeSelect} onPositionChange={onPositionChange} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     fireEvent.pointerEnter(svg)
     fireEvent.keyDown(document, { key: ' ', code: 'Space' })
@@ -749,7 +749,7 @@ describe('TopologyDiagram', () => {
   it('maps add-node coordinates through the zoomed viewport', () => {
     const onCanvasAddNode = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onCanvasAddNode={onCanvasAddNode} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
     fireEvent.contextMenu(svg, { clientX: 200, clientY: 200 })
@@ -760,7 +760,7 @@ describe('TopologyDiagram', () => {
 
   it('zooms the wheel around the pointer and keeps the same world point beneath it', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     fireEvent.wheel(svg, { clientX: 200, clientY: 150, deltaY: -500 })
     const transform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')!
@@ -775,7 +775,7 @@ describe('TopologyDiagram', () => {
   it('persists a node move in world coordinates after zooming', () => {
     const onPositionChange = vi.fn()
     const { container } = render(<TopologyDiagram topology={topology} onPositionChange={onPositionChange} />)
-    const svg = container.querySelector('svg[role="img"]')!
+    const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
     const node = screen.getByTestId('node-d1')

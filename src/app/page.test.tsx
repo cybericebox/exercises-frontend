@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { helpButton } from '@/test/help'
 
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
@@ -370,14 +371,14 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
       'exercises.help.statusFilter.published exercises.help.statusFilter.changed exercises.help.statusFilter.draftOnly', 'exercises.help.tags.any exercises.help.tags.existing',
       'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
       'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      expect(helpButton(label)).toBeInTheDocument()
     }
   })
 
   it('shows multi-sentence help one sentence per line', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('button', { name: /^exercises.help.statusCol.published/ }))
+    fireEvent.click(helpButton(/^exercises.help.statusCol.published/))
     const lines = within(await screen.findByRole('tooltip')).getAllByText(/^exercises.help.statusCol\./)
     expect(lines.map((line) => [line.tagName, line.textContent])).toEqual([
       ['P', 'exercises.help.statusCol.published'], ['P', 'exercises.help.statusCol.draft'], ['P', 'exercises.help.statusCol.archived'],
@@ -408,7 +409,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByRole('button', { name: 'exercises.filter.events.all' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.catalog' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'exercises.help.events.catalog' })).toBeInTheDocument()
+    expect(helpButton('exercises.help.events.catalog')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.event' }))
     expect(await screen.findByRole('button', { name: 'exercises.filter.events.event' })).toBeInTheDocument()
   })
@@ -417,8 +418,8 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = { ...manager, IsAdmin: true }
     const { unmount } = render(<Page />)
     await screen.findByText('SQLi basics')
-    const help = screen.getByRole('button', { name: /exercises.help.scope.line/ })
-    fireEvent.focus(help)
+    const help = helpButton(/exercises.help.scope.line/)
+    fireEvent.click(help)
     const lines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
     expect(lines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
     expect(lines[1]).toHaveTextContent('exercises.help.scope.catalog')
@@ -426,7 +427,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = manager
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('button', { name: /exercises.help.scope.line/ }))
+    fireEvent.click(helpButton(/exercises.help.scope.line/))
     const managerLines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
     expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })

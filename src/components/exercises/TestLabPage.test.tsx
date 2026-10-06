@@ -320,6 +320,30 @@ describe("TestLabPage — sidebar", () => {
     expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
   })
 
+  it("exposes progress as a progressbar and keeps the solved state in the task name, collapsed or not", async () => {
+    vi.mocked(checkDeployFlag).mockResolvedValue({ Correct: true })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const bar = screen.getByRole("progressbar", { name: "admin.exTest.progressLabel 0 2" })
+    expect(bar).toHaveAttribute("aria-valuenow", "0")
+    expect(bar).toHaveAttribute("aria-valuemax", "2")
+    fireEvent.change(screen.getByLabelText(/admin\.exDeploy\.flagInput/), { target: { value: "FLAG{a}" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    await screen.findByText(/admin\.exDeploy\.correct/)
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1")
+    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.solved/)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.sidebarCollapse" }))
+    expect(within(nav).getAllByRole("button")[0]).toHaveAccessibleName(/admin\.exTest\.solved/)
+  })
+
+  it("stacks under lg: the resize separator is desktop-only and has a 24 px hit area", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("navigation", { name: "admin.exTest.tasks" })
+    const separator = await screen.findByRole("separator", { name: "admin.exTest.resize" })
+    expect(separator).toHaveClass("hidden", "lg:block", "before:-inset-x-[9px]")
+    expect(screen.getByRole("navigation", { name: "admin.exTest.tasks" }).closest("aside")).toHaveClass("max-lg:max-h-56", "lg:border-r")
+  })
+
   it("collapses to number badges only and remembers the choice", async () => {
     const first = render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     const nav = await screen.findByRole("navigation", { name: "admin.exTest.tasks" })

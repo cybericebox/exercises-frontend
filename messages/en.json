@@ -993,6 +993,7 @@
   "exercises.help.events.all": "The selected events' own exercises and catalog exercises open to them.",
   "ui.toast.region": "Action notifications",
   "ui.toast.close": "Close notification: {message}",
+  "ui.help": "Help",
   "app.brand": "Cyber ICE Box",
   "admin.exTopo.imagePlaceholder": "nginx:1.27",
   "admin.exEnv.namePlaceholder": "DB_PASS",

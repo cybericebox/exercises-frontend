@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -206,10 +206,13 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
       onEnd={deploy.deployId && !expired ? () => { setEndError(""); setEndOpen(true) } : undefined} />
-    {deploy.link === "error" && <LoadError compact error={deploy.linkError}
-      message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
-
-    {imageNote && <p className="shrink-0 px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
+    <div className="relative flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto">
+    {/* Notices float over the content: they appear and go without moving the lab under them. */}
+    {(deploy.link === "error" || imageNote) && <div className="absolute inset-x-0 top-0 z-20 border-b border-border bg-background">
+      {deploy.link === "error" && <LoadError compact error={deploy.linkError}
+        message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
+      {imageNote && <p className="px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
+    </div>}
 
     {expired ? (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-4">
@@ -223,10 +226,10 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
           message={queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
-        {failedDevices(status?.Devices).length > 0 && <div className="mx-auto w-full max-w-xl shrink-0 space-y-2 p-4">
+        {failedDevices(status?.Devices).length > 0 && <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[45%] w-full max-w-xl space-y-2 overflow-y-auto bg-background p-4">
           {failedDevices(status?.Devices).map((device) => <div key={device.Name} className="space-y-1">
             <div className="font-mono text-xs text-muted-foreground">{device.Name}</div>
             <DeviceFailure device={device} />
@@ -236,10 +239,10 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     ) : tasks.length === 0 ? (
       <EmptyState className="min-h-0 flex-1" message={t("admin.exTest.noTasks")} />
     ) : (
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col max-lg:flex-none lg:flex-row">
         <TaskSidebar tasks={tasks} selectedId={task?.ID ?? null} solved={solvedIds} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onSelect={setSelected} />
-        <div ref={split} className="flex min-h-0 min-w-0 flex-1">
-          <div className="min-w-0 overflow-y-auto p-6" style={{ flex: showTopology ? `${ratio} 1 0` : "1 1 0" }}>
+        <div ref={split} className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none lg:flex-row">
+          <div className="min-w-0 p-4 lg:flex-[var(--lab-task-flex)] lg:overflow-y-auto lg:p-6" style={{ "--lab-task-flex": showTopology ? `${ratio} 1 0` : "1 1 0" } as CSSProperties}>
             {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
               flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} solved={solvedIds.has(task.ID)} openingKey={openingKey}
               onOpenExternal={(target) => deploy.openLink(target.device, target.port)}
@@ -250,7 +253,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
           {showTopology && <>
             <div role="separator" aria-orientation="vertical" tabIndex={0} aria-label={t("admin.exTest.resize")}
               aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(ratio * 100)}
-              className="w-1.5 shrink-0 cursor-col-resize touch-none bg-border hover:bg-primary/40 focus-visible:bg-primary/60 focus-visible:outline-none"
+              className="relative hidden w-1.5 shrink-0 cursor-col-resize touch-none bg-border before:absolute before:inset-y-0 before:-inset-x-[9px] before:content-[''] hover:bg-primary/40 focus-visible:bg-primary/60 focus-visible:outline-none lg:block"
               onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId) }}
               onPointerMove={(event) => {
                 if (!event.currentTarget.hasPointerCapture(event.pointerId) || !split.current) return
@@ -261,7 +264,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
                 if (event.key === "ArrowLeft") setRatio(clampRatio(ratio - 0.03))
                 if (event.key === "ArrowRight") setRatio(clampRatio(ratio + 0.03))
               }} />
-            <div className="min-h-0 min-w-0" style={{ flex: `${1 - ratio} 1 0` }}>
+            <div className="h-[70dvh] min-h-[24rem] min-w-0 lg:h-auto lg:min-h-0 lg:flex-[var(--lab-topology-flex)]" style={{ "--lab-topology-flex": `${1 - ratio} 1 0` } as CSSProperties}>
               <LabTopologyPanel deployId={deploy.deployId ?? ""} topology={meta.variant.Topology} status={status} openingKey={deploy.link === "opening" ? deploy.linkKey : null}
                 onOpenWeb={(device, port) => deploy.openLink(device, port)} />
             </div>
@@ -269,6 +272,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         </div>
       </div>
     )}
+    </div>
 
     <VpnDialog open={vpnOpen && Boolean(vpnConfig)} config={vpnConfig} connected={status?.VPNConnected ?? false} probeUrl={status?.VPNProbeURL} onClose={() => setVpnOpen(false)} />
     <ConfirmDialog open={endOpen} tone="danger" busy={ending} error={endError} title={t("admin.exTest.endTitle")}

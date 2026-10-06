@@ -37,7 +37,7 @@ function addNode(name: "container" | "switch" | "hub" | "vpn" | "internet") {
 }
 
 function diagram() {
-  return screen.getByRole("img", { name: "admin.exTopo.diagram" })
+  return screen.getByRole("group", { name: "admin.exTopo.diagram" })
 }
 
 describe("topology workspace", () => {
@@ -78,10 +78,10 @@ describe("topology workspace", () => {
     expect(tab("admin.exTopo.diagram")).toHaveAttribute("aria-current", "page")
     expect(tab("admin.exTopo.diagram")).toHaveClass("bg-card", "text-foreground")
     expect(tab("admin.exTopo.devices")).not.toHaveClass("bg-card")
-    expect(screen.getByRole("button", { name: "admin.exTopo.tabHelp.diagram.what admin.exTopo.tabHelp.diagram.connect" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "ui.help" })).toHaveAccessibleDescription("admin.exTopo.tabHelp.diagram.what admin.exTopo.tabHelp.diagram.connect")
     fireEvent.click(tab("admin.exTopo.connections"))
     expect(tab("admin.exTopo.connections")).toHaveClass("bg-card")
-    expect(screen.getByRole("button", { name: "admin.exTopo.tabHelp.connections.what admin.exTopo.tabHelp.connections.gateway" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "ui.help" })).toHaveAccessibleDescription("admin.exTopo.tabHelp.connections.what admin.exTopo.tabHelp.connections.gateway")
     expect(screen.queryByRole("heading", { name: "admin.exTopo.connections" })).not.toBeInTheDocument()
     expect(tab("admin.exTopo.connections").querySelector("button")).toBeNull()
   })
@@ -90,10 +90,11 @@ describe("topology workspace", () => {
     render(<Harness />)
     expect(diagram()).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
-    expect(screen.queryByRole("img", { name: "admin.exTopo.diagram" })).not.toBeInTheDocument()
-    // Empty panels show the shared EmptyState, filling and centered in the panel.
+    expect(screen.queryByRole("group", { name: "admin.exTopo.diagram" })).not.toBeInTheDocument()
+    // Empty panels show the shared EmptyState centered in the panel; the device table keeps its header.
     const noDevices = screen.getByText("admin.exTopo.noDevices").closest("[data-empty-state]")
-    expect(noDevices).toHaveClass("flex-1", "items-center", "justify-center")
+    expect(noDevices?.parentElement).toHaveClass("items-center", "justify-center")
+    expect(screen.getByRole("columnheader", { name: "admin.exTopo.overview.device" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
     expect(screen.getByText("admin.exTopo.noConnections").closest("[data-empty-state]")?.parentElement).toHaveClass("flex-1", "items-center", "justify-center")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
@@ -318,7 +319,7 @@ describe("topology workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.renameDevice: host-1" }))
     const name = screen.getByRole("textbox", { name: "admin.exTopo.deviceName" })
     expect(name).toHaveAttribute("maxlength", "35")
-    expect(screen.getByRole("button", { name: "admin.exTopo.deviceNameHelp" })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "ui.help" }).some((button) => document.getElementById(button.getAttribute("aria-describedby") ?? "")?.textContent === "admin.exTopo.deviceNameHelp")).toBe(true)
     fireEvent.change(name, { target: { value: "Web_1" } })
     await act(async () => { fireEvent.keyDown(name, { key: "Enter" }) })
     expect(screen.getByRole("alert")).toHaveTextContent("admin.ex.val.deviceName")
@@ -419,14 +420,14 @@ describe("topology workspace", () => {
       expect(panel).toHaveClass("xl:ml-2", "xl:border")
       expect(divider).toHaveClass("top-1/2", "h-16")
       expect(within(divider).queryByTestId("topology-inspector-divider-line")).not.toBeInTheDocument()
-      expect(divider).toHaveAttribute("aria-valuemin", "448")
-      expect(divider).toHaveAttribute("aria-valuenow", "448")
-      expect(panel.style.getPropertyValue("--topology-inspector-width")).toBe("448px")
-      expect(panel).toHaveClass("xl:min-w-[28rem]")
+      expect(divider).toHaveAttribute("aria-valuemin", "352")
+      expect(divider).toHaveAttribute("aria-valuenow", "400")
+      expect(panel.style.getPropertyValue("--topology-inspector-width")).toBe("400px")
+      expect(panel).toHaveClass("xl:min-w-[22rem]")
 
       fireEvent.keyDown(divider, { key: "ArrowLeft" })
-      expect(divider).toHaveAttribute("aria-valuenow", "472")
-      expect(window.localStorage.getItem(storageKey)).toBe("472")
+      expect(divider).toHaveAttribute("aria-valuenow", "424")
+      expect(window.localStorage.getItem(storageKey)).toBe("424")
 
       vi.spyOn(screen.getByTestId("topology-canvas-layout"), "getBoundingClientRect")
         .mockReturnValue({ right: 1200, width: 1200 } as DOMRect)
@@ -444,8 +445,8 @@ describe("topology workspace", () => {
       expect(divider).toHaveAttribute("aria-valuenow", "550")
       expect(window.localStorage.getItem(storageKey)).toBe("550")
       fireEvent.keyDown(divider, { key: "Home" })
-      expect(divider).toHaveAttribute("aria-valuenow", "448")
-      expect(window.localStorage.getItem(storageKey)).toBe("448")
+      expect(divider).toHaveAttribute("aria-valuenow", "352")
+      expect(window.localStorage.getItem(storageKey)).toBe("352")
     } finally {
       vi.unstubAllGlobals()
     }
@@ -463,7 +464,7 @@ describe("topology workspace", () => {
     expect(within(panel).queryByText("admin.exTopo.networkDescription.vpn.speed")).not.toBeInTheDocument()
     expect(within(panel).getByRole("button", { name: "admin.exTopo.renameDevice: admin.exTopo.vpn" })).toBeInTheDocument()
     expect(within(panel).queryByRole("button", { name: "admin.exTopo.icon.change" })).not.toBeInTheDocument()
-    expect(panel).toHaveClass("xl:min-w-[28rem]")
+    expect(panel).toHaveClass("xl:min-w-[22rem]")
     expect(within(panel).getByRole("switch", { name: "admin.exTopo.vpnDhcp" })).toBeInTheDocument()
     expect(within(panel).queryByRole("switch", { name: "admin.exTopo.vpn" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.closeSettings" }))
@@ -607,15 +608,19 @@ describe("topology workspace", () => {
   it("disables «add connection» with a reason until two devices exist", () => {
     render(<Harness />)
     const add = () => screen.getByRole("button", { name: "admin.exTopo.addConnection" })
-    expect(add()).toBeDisabled()
+    expect(add()).toHaveAttribute("aria-disabled", "true")
+    expect(add()).toHaveAccessibleDescription("admin.exTopo.needTwoDevices")
     fireEvent.pointerEnter(add().parentElement!)
     expect(screen.getByRole("tooltip")).toHaveTextContent("admin.exTopo.needTwoDevices")
+    fireEvent.click(add())
+    expect(screen.queryByText("admin.exTopo.canvasSelectFirst")).not.toBeInTheDocument()
     addNode("container")
-    expect(add()).toBeDisabled()
+    expect(add()).toHaveAttribute("aria-disabled", "true")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
     expect(screen.getByRole("button", { name: "admin.exTopo.addConnection" })).toBeDisabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
     addNode("switch")
+    expect(add()).not.toHaveAttribute("aria-disabled")
     expect(add()).toBeEnabled()
   })
 
