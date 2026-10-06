@@ -79,3 +79,7 @@ Copyright 2026 CyberICEBox
 ### One base domain
 
 `NEXT_PUBLIC_DOMAIN` is the only host input and every host derives from it: main = `DOMAIN`, `api.DOMAIN`, `id.DOMAIN`, `admin.DOMAIN`, `exercises.DOMAIN`, event sites `<tag>.DOMAIN`, the cookie domain = `DOMAIN`. The code reads the derived hosts through one helper (`src/**/hosts.ts`); `deploy/base-domain.sh` (sourced by the container entrypoint and the Pages workflow) and the domain check in `next.config` reject an unset or malformed domain. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against all three; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).
+
+## Error catalog sync
+
+`messages/errors.en.json` and `messages/errors.uk.json` mirror the backend error catalog (`daemon/error-catalog/`). After the backend adds error codes, run `npm run sync:errors` (daemon checkout expected at `../daemon`, or pass `-- --daemon <path>`). It adds the codes the app does not have yet and keeps the app's existing texts; `-- --check` only lists what is missing (exit 1), `-- --overwrite` also replaces existing texts. Commit the result.
