@@ -484,6 +484,23 @@ describe("TestLabPage — expired lab", () => {
     }
   })
 
+  it("shows the gone state and stops polling when the lab disappears while open", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
+    try {
+      render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(screen.getAllByText("Login").length).toBeGreaterThan(0)
+      vi.mocked(deployStatus).mockRejectedValue(new ApiError(404, "Test deployment not found"))
+      await act(async () => { await vi.advanceTimersByTimeAsync(3100) })
+      expect(screen.getByText("admin.exTest.gone")).toBeInTheDocument()
+      const calls = vi.mocked(deployStatus).mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+      expect(vi.mocked(deployStatus).mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("keeps the gone state for a lab that is really removed", async () => {
     vi.mocked(listDeploys).mockResolvedValue([])
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)

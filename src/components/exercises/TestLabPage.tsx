@@ -176,10 +176,11 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   if (load.state === "loading" || ended) {
     return screen(<LoadingArea className="min-h-0 flex-1" label={t("admin.loading")} />)
   }
-  if (load.state === "error") {
-    const gone = load.cause instanceof DeployGoneError
-    return screen(<LoadError className="min-h-0 flex-1" message={gone ? t("admin.exTest.gone") : t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(load.cause) })}
-      error={gone ? undefined : load.cause} onRetry={gone ? undefined : retry} />)
+  if (load.state === "error" || deploy.gone) {
+    const gone = deploy.gone || load.state === "error" && load.cause instanceof DeployGoneError
+    const cause = load.state === "error" ? load.cause : undefined
+    return screen(<LoadError className="min-h-0 flex-1" message={gone ? t("admin.exTest.gone") : t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(cause) })}
+      error={gone ? undefined : cause} onRetry={gone ? undefined : retry} />)
   }
 
   const { meta } = load
