@@ -1,5 +1,5 @@
 /* Error page — one layout for 404, 500 and any status. No card: a centred column.
-   Column:   .ib-error__code (big status, mono, muted grey, aria-hidden) → .ib-error__title (18/600, balance; <br> or
+   Column:   .ib-error__code (big status, mono, soft grey: dim 42% over paper, aria-hidden) → .ib-error__title (18/600, balance; <br> or
              .ib-error__line spans for an explicit two-line title) → .ib-error__text (one dim line, ≤330px) →
              .ib-error__actions (primary button + optional text link «Назад», or one secondary button) →
              .ib-error__ref (faint mono «Код помилки: 50310», only for errors that carry a platform code).
@@ -26,7 +26,7 @@
 .ib-error--block.ib-error--fill{height:100%;min-height:0}
 .ib-error--page{container:ib-error/inline-size;min-height:100vh;min-height:100dvh;background:var(--ib-paper)}
 
-.ib-error__code{margin:0;font-family:var(--ib-mono);font-size:var(--ib-fs-72);font-weight:var(--ib-w-medium);line-height:1;letter-spacing:.02em;color:var(--ib-line);user-select:none}
+.ib-error__code{margin:0;font-family:var(--ib-mono);font-size:var(--ib-fs-72);font-weight:var(--ib-w-medium);line-height:1;letter-spacing:.02em;color:color-mix(in srgb,var(--ib-dim) 42%,var(--ib-paper));user-select:none}
 .ib-error__title{max-width:28ch;margin:var(--ib-2) 0 0;font-size:18px;font-weight:var(--ib-w-semibold);line-height:1.35;color:var(--ib-ink);text-wrap:balance}
 .ib-error__line{display:block}
 .ib-error__text{max-width:330px;margin:0;font-size:var(--ib-fs-14);line-height:var(--ib-lh-ui);color:var(--ib-dim);text-wrap:pretty}

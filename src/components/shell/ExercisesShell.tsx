@@ -5,6 +5,7 @@ import { SiteBanners } from "./SiteBanners"
 import { ReturnContextProvider } from "./ReturnContext"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
+import { ErrorPage } from "@/components/ErrorPage"
 import { PageLoader } from "@/components/ui/spinner"
 import { NoAccessScreen } from "./NoAccessScreen"
 import { SignInRedirect } from "./SignInRedirect"
@@ -12,10 +13,15 @@ import { hasCatalogAccess } from "@/lib/exerciseRights"
 import { AccessProvider, useExerciseAccess } from "./AccessContext"
 
 export function ExercisesShell({ children }: { children: React.ReactNode }) {
-  const { role, isLoading } = useRole()
+  const { role, isLoading, error, retry } = useRole()
 
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
+  }
+
+  // The session check failed (5xx / network): the error page with the reference, never an endless loader.
+  if (error) {
+    return <ErrorPage mode="page" status={500} error={error} onRetry={retry} />
   }
 
   // Not authenticated (401) → straight to the id sign-in with return_to, behind the loader.
