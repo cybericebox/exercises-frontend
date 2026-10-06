@@ -2,6 +2,7 @@
 
 import { HelpCircle } from "lucide-react"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 const codeClass = "rounded bg-muted px-1 py-0.5 font-mono text-2xs text-foreground"
@@ -20,7 +21,7 @@ export function FlagHelp() {
     t("admin.exTask.flag.templateExclusionRules"),
     t("admin.exTask.flag.escapeRules"),
     t("admin.exTask.flag.templateClassEscapeRules"),
-    t("admin.exTask.flag.example") + ": ICE{\\d[A-C]} → ICE{0A}",
+    t("admin.exTask.flag.exampleMapping", { template: "ICE{\\d[A-C]}", result: "ICE{0A}" }),
     t("admin.exTask.flag.sectionSelection"),
     t("admin.exTask.flag.weightHelp"),
     t("admin.exTask.flag.selectionExample"),
@@ -51,7 +52,7 @@ export function FlagHelp() {
         <p>{t("admin.exTask.flag.templateExclusionRules")} <code className={codeClass}>{"[\\d^13]"}</code></p>
         <p>{t("admin.exTask.flag.escapeRules")} <code className={codeClass}>{"\\["}</code> <code className={codeClass}>{"\\]"}</code> <code className={codeClass}>{"\\\\"}</code></p>
         <p>{t("admin.exTask.flag.templateClassEscapeRules")}</p>
-        <p className="text-muted-foreground">{t("admin.exTask.flag.example")}: <code className={codeClass}>{"ICE{\\d[A-C]}"}</code> → <code className={codeClass}>{"ICE{0A}"}</code></p>
+        <p className="text-muted-foreground">{tRich("admin.exTask.flag.exampleMapping", { template: <code className={codeClass}>{"ICE{\\d[A-C]}"}</code>, result: <code className={codeClass}>{"ICE{0A}"}</code> })}</p>
       </section>
 
       <section className="space-y-1 border-t border-border pt-2">

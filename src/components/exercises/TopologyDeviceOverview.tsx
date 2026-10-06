@@ -41,7 +41,7 @@ export function TopologyDeviceOverview({ topology, disabled, selectedKey, onOpen
         {rows.map((row, index) => {
           const device = topology.Devices.find((candidate) => candidate.ID === row.key)
           const name = row.type === "vpn" || row.type === "internet" ? gatewayLabelFor(topology.VisualRender, row.type, t(`admin.exTopo.${row.type}`))
-            : row.name || `${t("admin.exTopo.unnamedDevice")} ${index + 1}`
+            : row.name || t("admin.exTopo.unnamedDeviceN", { n: index + 1 })
           const type = row.type === "vpn" || row.type === "internet" ? t(`admin.exTopo.${row.type}`)
             : t(`admin.exTopo.type.${row.type === "unmanaged-switch" ? "switch" : row.type}`)
           const icon = device ? topologyIconFor(device, topology.VisualRender) : row.type === "vpn" ? "vpn" : "internet"

@@ -78,7 +78,7 @@ describe("ResourcesPanel", () => {
     const approved = elevation({ Status: "approved", Approved: [{ DeviceID: "big", Name: "big", Blocks: 64, CPUMillicores: 500, MemoryBytes: 2048 * MIB }] })
     const { container } = view(resources({ Outside: [outside({ Covered: true })] }), approved)
     expect(container.querySelector("[data-issue-state='approved']")).toBeInTheDocument()
-    expect(container.querySelector("[data-approved]")).toHaveTextContent('"count":64,"cpu":"500m","memory":"2Gi"')
+    expect(container.querySelector("[data-approved]")).toHaveTextContent('exercises.res.approvedLine')
     expect(container.querySelector("[data-approved]")).toHaveTextContent("exercises.res.raiseNote")
     expect(container.querySelector("[data-publish-blocked]")).toBeNull()
     expect(screen.queryByRole("button", { name: "exercises.res.request" })).toBeNull()

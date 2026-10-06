@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 import { DeviceCard } from './DeviceCard'
 import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
@@ -409,9 +409,9 @@ describe('DeviceCard', () => {
     expect(card.querySelector('[data-env-actions]')).toHaveClass('absolute', 'right-3', 'top-3')
     expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(0)
     expect(card).not.toHaveTextContent('admin.exEnv.secret')
-    expect(card).not.toHaveTextContent('admin.exEnv.variable 1')
+    expect(card).not.toHaveTextContent('admin.exEnv.variableN 1')
     expect(card).toHaveAttribute('role', 'group')
-    expect(card).toHaveAttribute('aria-label', 'admin.exEnv.variable 1')
+    expect(card).toHaveAttribute('aria-label', 'admin.exEnv.variableN 1')
   })
 
   it('reflows inspector fields when the panel is widened', () => {
@@ -459,8 +459,7 @@ describe('DeviceCard', () => {
     expect(entries).toHaveLength(2)
     expect(entries[0].Value).toBe('https://example.com')
     expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
-    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.imported')
-    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.duplicates')
+    expect(document.querySelector('p[role="status"]')).toHaveTextContent('admin.exEnv.importSummary')
   })
 })
 

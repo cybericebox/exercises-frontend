@@ -25,6 +25,6 @@ export function formatExerciseDate(iso: string): string {
 export function formatExerciseDateTime(iso: string, now: Date = new Date()): string {
   const date = new Date(iso)
   const time = date.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })
-  if (sameDay(date, now)) return t("admin.exPage.date.today").replace("{time}", time)
+  if (sameDay(date, now)) return t("admin.exPage.date.today", { time })
   return `${formatExerciseDate(iso)}, ${time}`
 }

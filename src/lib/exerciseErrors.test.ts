@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 import { ApiError } from '@/api/client'
 import {
@@ -43,7 +43,7 @@ describe('exerciseErrorMessage', () => {
 
   it('falls back to generic + backend Status.Message for unknown codes', () => {
     expect(exerciseErrorMessage(apiError(500, 42, 'weird backend fact')))
-      .toBe('admin.ex.err.generic: weird backend fact')
+      .toBe('admin.ex.err.genericWith weird backend fact')
   })
 
   it('falls back to plain generic for non-ApiError', () => {
@@ -83,7 +83,7 @@ describe('task description and catalog fallback', () => {
   })
 
   it('answers a 429 with the wait message, whatever the body', () => {
-    expect(exerciseErrorMessage(new ApiError(429, '', undefined, undefined, undefined, 7))).toBe('error.tooManyRequests.wait')
+    expect(exerciseErrorMessage(new ApiError(429, '', undefined, undefined, undefined, 7))).toBe('error.tooManyRequests.wait 7')
     expect(exerciseErrorMessage(new ApiError(429, { Status: { Code: 70428, Message: 'x' } }, 'x', undefined, 70428))).toBe('error.tooManyRequests')
   })
 })

@@ -49,7 +49,7 @@ describe("RunningTestsMenu", () => {
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(2)
     expect(await within(dialog).findByText("Exercise ex-1")).toBeInTheDocument()
     expect(within(dialog).getAllByText(/admin\.exTest\.left/)[0]).toHaveTextContent("admin.exTest.left 1:42")
-    await waitFor(() => expect(within(dialog).getAllByText(/admin\.exDraft\.variant 1/).length).toBe(2))
+    await waitFor(() => expect(within(dialog).getAllByText(/admin\.exTest\.runningVariant 1/).length).toBe(2))
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.openLabNamed Exercise ex-2" }))
     expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-2&deploy=run-2")
   })

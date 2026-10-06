@@ -100,13 +100,13 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
           {ranges.length === 0 && <p role="alert" className="text-xs text-destructive">{t("admin.ex.val.dhcpRangesRequired")}</p>}
           {ranges.map((range, index) => <div key={index} className="flex items-center gap-2">
             <span className="shrink-0 text-xs text-muted-foreground">.</span>
-            <Input type="number" min={2} max={254} step={1} value={range.Start} disabled={disabled} aria-label={`${t("admin.exTopo.dhcp.rangeStart")} ${index + 1}`}
+            <Input type="number" min={2} max={254} step={1} value={range.Start} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeStartN", { n: index + 1 })}
               className="h-9 min-w-0" onChange={(event) => field.onChange(ranges.map((item, i) => i === index ? { ...item, Start: Number(event.target.value) } : item))} />
             <span aria-hidden="true" className="text-xs text-muted-foreground">—</span>
             <span className="shrink-0 text-xs text-muted-foreground">.</span>
-            <Input type="number" min={2} max={254} step={1} value={range.End} disabled={disabled} aria-label={`${t("admin.exTopo.dhcp.rangeEnd")} ${index + 1}`}
+            <Input type="number" min={2} max={254} step={1} value={range.End} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeEndN", { n: index + 1 })}
               className="h-9 min-w-0" onChange={(event) => field.onChange(ranges.map((item, i) => i === index ? { ...item, End: Number(event.target.value) } : item))} />
-            {!disabled && <RemoveAction ariaLabel={`${t("admin.exTopo.dhcp.removeRange")} ${index + 1}`} onClick={() => field.onChange(ranges.filter((_, i) => i !== index))} className="h-9 w-9 shrink-0" />}
+            {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.dhcp.removeRangeN", { n: index + 1 })} onClick={() => field.onChange(ranges.filter((_, i) => i !== index))} className="h-9 w-9 shrink-0" />}
           </div>)}
           {fieldState.error?.message && <p role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
         </div>

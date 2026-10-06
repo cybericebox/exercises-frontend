@@ -68,7 +68,7 @@ export function TaskAccordion({
               <button type="button" aria-current={activeIndex === ti ? "page" : undefined}
                 onClick={() => setSelected(ti)}
                 className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${activeIndex === ti ? "font-medium text-accent-foreground" : "text-muted-foreground"}`}>
-                {rows[ti]?.Name || `${t("admin.exTask.untitled")} ${ti + 1}`}
+                {rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 })}
               </button>
               {!disabled && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")}
                 className="mr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"

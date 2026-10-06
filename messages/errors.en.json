@@ -320,7 +320,7 @@
   "71145": "Event stage overlaps another stage",
   "71148": "The stage is closed and cannot be changed",
   "71149": "The stage has opened: nothing can be removed from it or moved out of it",
-  "71150": "Only an upcoming stage without sets can be deleted",
+  "71150": "Only an upcoming stage without exercises can be deleted",
   "71151": "Stages need a scheduled event start and finish",
   "71152": "Only an open stage can be closed now",
   "71201": "Participation type cannot be changed after publication",

@@ -59,7 +59,7 @@ export function TaskForm({
     if (placeholder.Kind !== "external.link" || !placeholder.DeviceName) return []
     const device = devices.find((candidate) => candidate.Name === placeholder.DeviceName)
     if (!device) return []
-    return [[placeholder.Key, `${t("admin.exPh.device")} «${device.Name}» — ${t("admin.exPh.missing")}`]]
+    return [[placeholder.Key, t("admin.exPh.deviceMissing", { name: device.Name })]]
   }))
   const linkable = devices.filter((d) => d.Type === "container")
   const linkedDeviceID = useWatch({ control, name: `${base}.LinkedDeviceID` })

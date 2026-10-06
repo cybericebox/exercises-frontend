@@ -74,7 +74,7 @@ function ExerciseMeta({ exercise, version, isVersion, publishedAt }: {
       .filter(Boolean).join(" · ")
   } else {
     // Publication info only; Exercise.UpdatedAt does not track working-copy edits.
-    text = publishedAt ? t("admin.exPage.meta.published").replace("{date}", formatExerciseDate(publishedAt)) : null
+    text = publishedAt ? t("admin.exPage.meta.published", { date: formatExerciseDate(publishedAt) }) : null
   }
   return text ? <span className="text-xs text-muted-foreground">{text}</span> : null
 }
@@ -224,7 +224,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const getTestVariants = useCallback((): TestVariantOption[] =>
     editor.draftForm.getValues("Variants").map((variant, index) => ({
       index,
-      label: `${t("admin.exDraft.variant")} ${index + 1}`,
+      label: t("admin.exDraft.variantN", { n: index + 1 }),
       disabled: variant.Topology.Devices.length === 0,
     })), [editor.draftForm])
 
@@ -332,7 +332,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       {returnUrl && justDone && <EventReturnCallout returnUrl={returnUrl} kind={justDone} />}
       {!infraAllowed && !readOnly && <InfrastructureBlockedNote />}
       {isVersion && version && exercise && <VersionBanner
-        label={t("admin.exPage.version.banner").replace("{date}", formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt))}
+        label={t("admin.exPage.version.banner", { date: formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt) })}
         canRestore={permissions.write && !archived}
         busy={actions.busy}
         onBack={() => void actions.openVersion(null)}

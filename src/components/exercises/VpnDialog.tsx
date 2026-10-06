@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { downloadBlob } from "@/lib/downloadBlob"
 
 const WIREGUARD_INSTALL_URL = "https://www.wireguard.com/install/"
@@ -29,7 +30,7 @@ export function VpnDialog({ open, config, connected = false, probeUrl, onClose }
         <DialogDescription>{t("admin.exTest.vpnHelp.description")}</DialogDescription>
       </DialogHeader>
       <ol className="list-decimal space-y-1.5 pl-5 text-sm">
-        <li>{t("admin.exTest.vpnHelp.install")} <a className="underline" href={WIREGUARD_INSTALL_URL} target="_blank" rel="noopener noreferrer">{WIREGUARD_INSTALL_URL.replace(/^https:\/\//, "")}</a></li>
+        <li>{tRich("admin.exTest.vpnHelp.installLink", { link: <a className="underline" href={WIREGUARD_INSTALL_URL} target="_blank" rel="noopener noreferrer">{WIREGUARD_INSTALL_URL.replace(/^https:\/\//, "")}</a> })}</li>
         <li>{t("admin.exTest.vpnHelp.download")}</li>
         <li>{t("admin.exTest.vpnHelp.import")}</li>
         <li>{t("admin.exTest.vpnHelp.open")}</li>

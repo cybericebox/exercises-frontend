@@ -135,7 +135,7 @@ export function VariablePickerMenu({ variables, onSelect, onClose, values, initi
               <code className="block font-mono text-2xs text-primary">{variable.name}</code>
               {example && (
                 <small className="block text-2xs text-muted-foreground">
-                  {t("admin.notif.editor.variableExample")}: {example}
+                  {t("admin.notif.editor.variableExampleLine", { example })}
                 </small>
               )}
             </button>

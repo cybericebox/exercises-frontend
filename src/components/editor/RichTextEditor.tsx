@@ -277,7 +277,7 @@ function VariablePreview({ name, formats }: { name: string; formats: TextFormatT
   const cleanStyle = marked ? undefined : { background: "transparent", border: 0, padding: 0, color: "inherit", fontSize: "inherit", lineHeight: "inherit" };
   const hint = definition?.description ?? (missing ? content : name);
   if (onEdit) return <HoverTooltip text={hint} describe className="inline"><button type="button" contentEditable={false} className={cn(style, "cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary")}
-    style={cleanStyle} aria-label={`${t("admin.exPh.edit")}: ${content}`}
+    style={cleanStyle} aria-label={t("admin.exPh.editNamed", { name: content })}
     onClick={(event) => { event.preventDefault(); onEdit(name) }}>{content}</button></HoverTooltip>;
   return (
     <HoverTooltip text={hint} className="inline">

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({
-  t: (key: string) => key === "admin.exPage.action.deleteInUse" ? "In use: {events}" : key,
+  t: (key: string, vars?: { events?: string }) => key === "admin.exPage.action.deleteInUse" ? `In use: ${vars?.events}` : key,
 }))
 // Plain anchor: the test has no app router to navigate with.
 vi.mock("next/link", () => ({
@@ -140,7 +140,7 @@ describe("ExerciseHeader", () => {
     render(<ExerciseHeader {...makeProps({ usageEvents: ["Cybershield 2026", "CTF school"] })} />)
     openMenu("admin.exPage.action.more")
     expect(await screen.findByRole("menuitem", { name: "admin.exPage.action.delete" })).toHaveAttribute("aria-disabled", "true")
-    expect(screen.getByText("In use: «Cybershield 2026», «CTF school»")).toBeInTheDocument()
+    expect(screen.getByText("In use: Cybershield 2026, CTF school")).toBeInTheDocument()
   })
 
   it("offers Unarchive for an archived exercise and no Edit", async () => {

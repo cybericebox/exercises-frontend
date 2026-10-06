@@ -117,7 +117,7 @@ function ElevationState({ elevation, config }: { elevation: Elevation | null; co
     {elevation.Status === "approved" && elevation.Approved.length > 0 && <div data-approved>
       <p>{t("exercises.res.approved")}</p>
       <ul className="text-muted-foreground">
-        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{entry.Name || entry.DeviceID}: {t("exercises.res.blockHint", { count: entry.Blocks, cpu: formatCPU(entry.CPUMillicores), memory: formatMemory(entry.MemoryBytes) })}</li>)}
+        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{t("exercises.res.approvedLine", { name: entry.Name || entry.DeviceID, hint: t("exercises.res.blockHint", { count: entry.Blocks, cpu: formatCPU(entry.CPUMillicores), memory: formatMemory(entry.MemoryBytes) }) })}</li>)}
       </ul>
       <p className="text-muted-foreground">{t("exercises.res.raiseNote")}</p>
     </div>}
@@ -172,7 +172,7 @@ function ElevationDialog({ exerciseId, issues, config, onPickBlock, flush, onClo
           {config && onPickBlock && options.length > 0
             ? <SelectMenu value={blockOf(issue)} disabled={busy} ariaLabel={t("exercises.res.dialog.block", { name: issue.Name || t("exercises.res.unnamed") })}
               onChange={(next) => { setPicked((current) => ({ ...current, [`${issue.VariantID}:${issue.DeviceID}`]: next })); onPickBlock(issue, next) }}
-              options={options.map((preset) => ({ value: preset.ID, label: `${t(`exercises.res.preset.${preset.ID}`)} · ${t("exercises.res.blockHint", { count: preset.Blocks, cpu: formatCPU(preset.CPUMillicores), memory: formatMemory(preset.MemoryBytes) })}` }))}
+              options={options.map((preset) => ({ value: preset.ID, label: t("exercises.res.presetOption", { name: t(`exercises.res.preset.${preset.ID}`), hint: t("exercises.res.blockHint", { count: preset.Blocks, cpu: formatCPU(preset.CPUMillicores), memory: formatMemory(preset.MemoryBytes) }) }) }))}
               className="h-9 w-64 shrink-0" />
             : <span className="shrink-0 text-muted-foreground">{t("exercises.res.blockHint", { count: issue.Blocks, cpu: formatCPU(issue.CPUMillicores), memory: formatMemory(issue.MemoryBytes) })}</span>}
         </li>)}

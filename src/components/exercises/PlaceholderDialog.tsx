@@ -144,7 +144,7 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
           onChange={(DeviceName) => setDraft({ ...draft, DeviceName })}
           options={[
             ...(draft.DeviceName && !topology.externalDeviceNames.includes(draft.DeviceName)
-              ? [{ value: draft.DeviceName, label: `${draft.DeviceName} — ${t("admin.exPh.missing")}`, unavailable: true }] : []),
+              ? [{ value: draft.DeviceName, label: t("admin.exPh.itemMissing", { name: draft.DeviceName }), unavailable: true }] : []),
             ...topology.externalDeviceNames.map((device) => ({ value: device, label: device })),
           ]} className="w-full" />
       </div>}

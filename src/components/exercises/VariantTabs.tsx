@@ -53,7 +53,7 @@ export function VariantTabs({
         <TabsList className="exercise-variant-tabs max-w-full min-w-0 justify-start overflow-x-auto">
           {fields.map((field, i) => (
             <TabsTrigger key={field.id} value={String(i)} className="exercise-variant-tab">
-              {t("admin.exDraft.variant")} {i + 1}
+              {t("admin.exDraft.variantN", { n: i + 1 })}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -77,7 +77,7 @@ export function VariantTabs({
       ))}
       <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
         title={t("admin.exDraft.removeVariantTitle")}
-        description={`${t("admin.exDraft.removeVariantDescription")}${pendingRemoval !== null ? ` ${t("admin.exDraft.variant")} ${pendingRemoval + 1}.` : ""}`}
+        description={pendingRemoval !== null ? t("admin.exDraft.removeVariantNDescription", { n: pendingRemoval + 1 }) : t("admin.exDraft.removeVariantDescription")}
         cancelLabel={t("admin.exDraft.removeVariantCancel")} confirmLabel={t("admin.exDraft.removeVariantConfirm")}
         onConfirm={() => {
           if (pendingRemoval !== null) removeVariant(pendingRemoval)

@@ -46,7 +46,7 @@ describe('TaskForm inline placeholders', () => {
   it('shows the flag target collision beside the environment variable field', async () => {
     render(<ConflictHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
-    expect(await screen.findByText('Ця змінна вже зайнята звичайною змінною оточення або прапором іншої задачі.')).toBeInTheDocument()
+    expect(await screen.findByText('Ця змінна вже зайнята звичайною змінною оточення або прапором іншого підзавдання.')).toBeInTheDocument()
   })
   it('marks an unavailable linked device in red inside and outside its dropdown', () => {
     const initial = emptyDraft()

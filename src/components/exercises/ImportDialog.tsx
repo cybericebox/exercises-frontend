@@ -40,7 +40,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
       const result = await importExercises(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined)
-      toast.success(t("admin.exImport.done").replace("{count}", String(result.length)))
+      toast.success(t("admin.exImport.done", { count: result.length }))
       onImported?.()
       if (result.length === 1) {
         onClose()
@@ -66,7 +66,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       {imported ? <>
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.resultTitle")}</DialogTitle>
-          <DialogDescription>{t("admin.exImport.done").replace("{count}", String(imported.length))}</DialogDescription>
+          <DialogDescription>{t("admin.exImport.done", { count: imported.length })}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-[50vh] space-y-1 overflow-y-auto text-sm">
           {imported.map((exercise) => <li key={exercise.ID}>
