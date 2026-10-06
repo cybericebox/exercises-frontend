@@ -18,6 +18,16 @@ export function reportServiceUnavailable(): void {
   listeners.forEach((listener) => listener(status))
 }
 
+/**
+ * The backend is known to be unreachable (the session check just failed on it): show the
+ * outage overlay at once, without the grace period; retries continue inside the overlay.
+ */
+export function reportServiceDown(): void {
+  if (status === "down") return
+  status = "down"
+  listeners.forEach((listener) => listener(status))
+}
+
 export function confirmServiceUnavailable(): void {
   if (status !== "suspect") return
   status = "down"

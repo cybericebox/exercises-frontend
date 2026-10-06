@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { fetchMe, type Me } from "@/lib/auth"
-import { isBackendUnreachable, onServiceRestored, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { isBackendUnreachable, onServiceRestored, reportServiceDown } from "@/lib/serviceStatus"
 
 export type Role = "user" | "admin_viewer" | "admin" | "super_admin"
 
@@ -49,8 +49,8 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         // A failed check must not leave the app on the loader: the shell shows the error page.
         .catch((e: unknown) => {
           if (cancelled) return
-          // The backend cannot be reached: the service gate probes and shows its overlay, the loader stays, and the check re-runs when the gate sees the backend back.
-          if (isBackendUnreachable(e)) { setError(null); setMe(null); reportServiceUnavailable(); return }
+          // The backend cannot be reached: the service gate shows its overlay at once and keeps probing, the loader stays, and the check re-runs when the gate sees the backend back.
+          if (isBackendUnreachable(e)) { setError(null); setMe(null); reportServiceDown(); return }
           setError(e ?? new Error("session check failed"))
           setIsLoading(false)
         })

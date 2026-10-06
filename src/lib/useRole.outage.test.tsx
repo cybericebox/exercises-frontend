@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { RoleProvider, useRole } from "./useRole"
-import { isServiceDown, reportServiceAvailable } from "./serviceStatus"
+import { getServiceStatus, isServiceDown, reportServiceAvailable } from "./serviceStatus"
 import { fetchMe } from "./auth"
 import { ApiError } from "@/api/client"
 
@@ -34,6 +34,8 @@ describe("admin session check", () => {
     vi.mocked(fetchMe).mockRejectedValue(make())
     render(<RoleProvider><State /></RoleProvider>)
     await vi.waitFor(() => expect(isServiceDown()).toBe(true))
+    // the overlay shows at once, no grace period
+    expect(getServiceStatus()).toBe("down")
     expect(screen.getByText("loading")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "failed" })).toBeNull()
   })
