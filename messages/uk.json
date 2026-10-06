@@ -1213,5 +1213,6 @@
   "admin.exPh.editNamed": "Редагувати підстановку: {name}",
   "admin.ex.err.genericWith": "Не вдалося виконати операцію: {message}",
   "admin.notif.editor.variableExampleLine": "Приклад: {example}",
-  "admin.exTest.vpnHelp.installLink": "Встановіть WireGuard: {link}"
+  "admin.exTest.vpnHelp.installLink": "Встановіть WireGuard: {link}",
+  "admin.exPage.action.eventName": "«{name}»"
 }

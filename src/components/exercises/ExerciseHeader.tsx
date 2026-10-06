@@ -223,7 +223,7 @@ function MoreMenu(props: ExerciseHeaderProps) {
             </DropdownMenuItem>
             {inUse && (
               <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">
-                {t("admin.exPage.action.deleteInUse", { events: usageEvents.join(", ") })}
+                {t("admin.exPage.action.deleteInUse", { events: usageEvents.map((name) => t("admin.exPage.action.eventName", { name })).join(", ") })}
               </p>
             )}
           </>

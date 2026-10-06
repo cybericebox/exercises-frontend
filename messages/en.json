@@ -1213,5 +1213,6 @@
   "admin.exPh.editNamed": "Edit placeholder: {name}",
   "admin.ex.err.genericWith": "The operation failed: {message}",
   "admin.notif.editor.variableExampleLine": "Example: {example}",
-  "admin.exTest.vpnHelp.installLink": "Install WireGuard: {link}"
+  "admin.exTest.vpnHelp.installLink": "Install WireGuard: {link}",
+  "admin.exPage.action.eventName": "«{name}»"
 }
