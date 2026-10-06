@@ -7,7 +7,7 @@ import { act, render, screen, waitFor, fireEvent, within } from '@testing-librar
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
 
-vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
+vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: { name?: string }) => key === 'admin.ex.select.rowNamed' ? `${key}: ${vars?.name}` : key }))
 vi.mock('@/lib/useRole', () => ({
   useRole: () => ({
     me: { ID: h.userId },
@@ -81,7 +81,7 @@ describe('exercises catalog page', () => {
     expect(screen.getByText('web')).toBeInTheDocument()
     expect(screen.getByText('sql')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.status.draftOnly')).toBeInTheDocument()
-    expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
+    expect(document.querySelector('tbody time')).toHaveAttribute('datetime', item.UpdatedAt)
     const link = screen.getByText('SQLi basics').closest('a')
     expect(link).toHaveAttribute('href', `/detail?id=${item.ID}`)
   })
@@ -96,7 +96,16 @@ describe('exercises catalog page', () => {
   it('keeps column headings above rows within the scrolling table', async () => {
     const { container } = render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+    expect(container.querySelector('thead th')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+  })
+
+  it('keeps the header in the loading state and gives the page one h1', async () => {
+    mockList.mockReturnValue(new Promise(() => undefined))
+    const { container } = render(<Page />)
+    expect(container.querySelectorAll('thead th').length).toBeGreaterThan(0)
+    expect(container.querySelector('tbody.ib-table__state')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'accountMenu.exercises' })).toHaveAttribute('tabindex', '0')
   })
 
   it('debounces search and passes it to listExercises', async () => {
@@ -148,8 +157,7 @@ describe('exercises catalog page', () => {
     mockList.mockResolvedValue({ Items: [item], Total: 75, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByText('admin.table.total: 75')).toBeInTheDocument()
-    expect(screen.getByText('admin.table.page 1 admin.table.of 2')).toBeInTheDocument()
+    expect(screen.getByText('admin.table.summary')).toBeInTheDocument()
     const selector = screen.getByRole('button', { name: 'admin.table.perPage' })
     fireEvent.keyDown(selector, { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: '25' }))
@@ -249,7 +257,7 @@ describe('exercises catalog — archive, export and import', () => {
   it('selects rows and opens bulk export', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.row: SQLi basics' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: SQLi basics' }))
     expect(screen.getByText('admin.ex.selection.count')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.export' }))
     expect(screen.getByTestId('export-dialog')).toHaveTextContent(item.ID)
@@ -264,8 +272,8 @@ describe('exercises catalog — archive, export and import', () => {
     await screen.findByText('Exercise 0')
     fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.all' }))
     expect(screen.getByText('admin.ex.selection.limit')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 99' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.row: Exercise 100' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Exercise 99' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Exercise 100' })).toBeDisabled()
   })
 
   it('hides selection without export and import without write', async () => {

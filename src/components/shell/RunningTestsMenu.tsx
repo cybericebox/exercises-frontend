@@ -34,7 +34,7 @@ export function RunningTestsMenu() {
   if (!running && !open) return null
   return <>
     <Button type="button" variant="outline" size="sm" data-running-tests onClick={() => { setNow(Date.now()); setOpen(true) }}>
-      <FlaskConical aria-hidden="true" size={16} className="mr-1.5" />{active > 0 ? t("admin.exTest.running", { n: active }) : t("admin.exTest.endingLabs", { n: items.length })}
+      <FlaskConical aria-hidden="true" size={16} className="md:mr-1.5" /><span className="sr-only md:not-sr-only">{active > 0 ? t("admin.exTest.running", { n: active }) : t("admin.exTest.endingLabs", { n: items.length })}</span>
     </Button>
     <RunningLabsDialog open={open && running} items={items} now={now} onClose={() => setOpen(false)}
       onEnded={(id) => { forget(id); setTimeout(() => void refresh(), 1500) }} />
