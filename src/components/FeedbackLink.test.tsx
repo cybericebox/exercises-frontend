@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 
@@ -12,7 +14,20 @@ describe("FeedbackLink", () => {
     expect(html).toContain('href="mailto:')
     expect(html).toContain("subject=")
     expect(html).toContain("%2Fsign-in")
-    expect(html).toContain('class="feedback-link"')
+  })
+
+  it("passes className and children through, and the stylesheet has no fixed position", () => {
+    const html = renderToStaticMarkup(<FeedbackLink className="x"><b>y</b></FeedbackLink>)
+    expect(html).toContain('class="x"')
+    expect(html).toContain("<b>y</b>")
+    const css = readFileSync(join(__dirname, "feedback-link.css"), "utf8")
+    expect(css).not.toMatch(/position\s*:\s*fixed/)
+  })
+
+  it("is an account menu item, not a root layout element", () => {
+    const read = (f: string) => readFileSync(join(__dirname, "..", f), "utf8")
+    expect(read("components/shell/TopBar.tsx")).toContain("<FeedbackMenuItem />")
+    expect(read("app/layout.tsx")).not.toContain("FeedbackLink")
   })
 
   it("names the app in the subject, with no no-break spaces", () => {
