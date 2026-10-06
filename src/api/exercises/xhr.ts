@@ -59,7 +59,7 @@ export function sendXhr<T>(method: string, path: string, options: XhrOptions = {
         ? parsed as { Status?: { Code?: number; Message?: string }; Data?: unknown }
         : undefined
       if (request.status < 200 || request.status >= 300) {
-        reject(new ApiError(request.status, parsed, envelope?.Status?.Message, request.getResponseHeader("X-Sign-In-URL") ?? undefined, envelope?.Status?.Code, parseRetryAfter(request.getResponseHeader("Retry-After"))))
+        reject(new ApiError(request.status, parsed, envelope?.Status?.Message, request.getResponseHeader("X-Sign-In-URL") ?? undefined, envelope?.Status?.Code, parseRetryAfter(request.getResponseHeader("Retry-After")), request.getResponseHeader("X-Request-ID") ?? undefined))
         return
       }
       resolve((envelope ? envelope.Data : parsed) as T)

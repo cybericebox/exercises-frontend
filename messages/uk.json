@@ -1217,5 +1217,18 @@
   "admin.notif.editor.variableExampleLine": "Приклад: {example}",
   "admin.exTest.vpnHelp.installLink": "Встановіть WireGuard: {link}",
   "admin.exPage.action.eventName": "«{name}»",
-  "error.page.links": "Посилання"
+  "error.page.links": "Посилання",
+  "error.page.reported": "Ми вже отримали звіт про цю помилку. Оновіть сторінку або поверніться назад.",
+  "error.page.ref": "Номер звернення: {ref}",
+  "error.page.copy": "Скопіювати номер звернення",
+  "error.page.copied": "Скопійовано",
+  "error.page.report": "Повідомити деталі",
+  "error.report.subject": "Помилка {ref}",
+  "error.report.subjectCrash": "Помилка інтерфейсу: {app}",
+  "error.report.url": "Сторінка: {url}",
+  "error.report.time": "Час: {time}",
+  "error.report.ref": "Номер звернення: {ref}",
+  "error.report.message": "Повідомлення: {message}",
+  "error.report.app": "Застосунок: {app} {version}",
+  "error.report.did": "Що ви робили?"
 }

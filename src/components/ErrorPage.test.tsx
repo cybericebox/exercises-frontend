@@ -31,7 +31,7 @@ describe("ErrorPage", () => {
   })
 
   it("shows the code line only for an error that carries a platform code", () => {
-    const withCode = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={{ code: 50310 }} onRetry={() => {}} />)
+    const withCode = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={{ status: 500, code: 50310 }} onRetry={() => {}} />)
     expect(withCode).toContain("ib-error__ref")
     expect(withCode).toContain("Код помилки: 50310")
     expect(withCode).toContain("Не вдалося завантажити сторінку")
@@ -39,6 +39,37 @@ describe("ErrorPage", () => {
     const without = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={new Error("secret stack detail")} onRetry={() => {}} />)
     expect(without).not.toContain("ib-error__ref")
     expect(without).not.toContain("secret stack detail")
+  })
+
+  it("an API error with a request id shows «{code}-{rid8}», the reported text and the report link", () => {
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={{ status: 500, code: 50310, requestId: "3f9a1c2e-1111-2222-3333-444455556666" }} onRetry={() => {}} />)
+    expect(html).toContain("Номер звернення: 50310-3f9a1c2e")
+    expect(html).toContain(uk["error.page.reported"])
+    expect(html).toContain('aria-label="Скопіювати номер звернення"')
+    expect(html).toContain(">Повідомити деталі<")
+    expect(html).toContain("subject=" + encodeURIComponent("Помилка 50310-3f9a1c2e"))
+    expect(html).toContain(encodeURIComponent("Що ви робили?"))
+  })
+
+  it("an API error found on `cause` counts as an API error", () => {
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={new Error("x", { cause: { status: 503, requestId: "abcdef0123456789" } })} />)
+    expect(html).toContain("Номер звернення: 503-abcdef01")
+  })
+
+  it("a frontend crash has no reported line, no number, only the report link with the message", () => {
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={500} error={new Error("boom ".repeat(100))} onRetry={() => {}} />)
+    expect(html).toContain(uk["error.page.body"])
+    expect(html).not.toContain(uk["error.page.reported"])
+    expect(html).not.toContain("Номер звернення")
+    expect(html).toContain(">Повідомити деталі<")
+    expect(html).toContain(encodeURIComponent("Повідомлення: boom"))
+    expect(decodeURIComponent(html.match(/body=([^"&]*)/)![1])).not.toContain("boom ".repeat(50))
+  })
+
+  it("404 has neither the number nor the report link", () => {
+    const html = renderToStaticMarkup(<ErrorPage mode="block" status={404} error={{ status: 404, requestId: "abcdef0123456789" }} />)
+    expect(html).not.toContain("Номер звернення")
+    expect(html).not.toContain("Повідомити деталі")
   })
 
   it("has the texts in both catalogs", () => {

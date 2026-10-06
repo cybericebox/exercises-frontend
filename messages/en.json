@@ -1217,5 +1217,18 @@
   "admin.notif.editor.variableExampleLine": "Example: {example}",
   "admin.exTest.vpnHelp.installLink": "Install WireGuard: {link}",
   "admin.exPage.action.eventName": "«{name}»",
-  "error.page.links": "Links"
+  "error.page.links": "Links",
+  "error.page.reported": "We already received a report about this error. Reload the page or go back.",
+  "error.page.ref": "Reference number: {ref}",
+  "error.page.copy": "Copy the reference number",
+  "error.page.copied": "Copied",
+  "error.page.report": "Send details",
+  "error.report.subject": "Error {ref}",
+  "error.report.subjectCrash": "Interface error: {app}",
+  "error.report.url": "Page: {url}",
+  "error.report.time": "Time: {time}",
+  "error.report.ref": "Reference number: {ref}",
+  "error.report.message": "Message: {message}",
+  "error.report.app": "App: {app} {version}",
+  "error.report.did": "What were you doing?"
 }
