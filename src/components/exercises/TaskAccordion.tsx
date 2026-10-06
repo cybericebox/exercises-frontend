@@ -55,7 +55,7 @@ export function TaskAccordion({
       <div className="exercise-settings-layout min-w-0 gap-4">
         <nav aria-label={t("admin.exDraft.tasks.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
           <div className="mb-2 flex items-center justify-between border-b border-border px-2 pb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exDraft.tasks.title")}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("admin.exDraft.tasks.title")}</h3>
             {!disabled && <HoverTooltip text={t("admin.exTask.add")}>
               <Button type="button" variant="ghost" size="icon" aria-label={t("admin.exTask.add")}
                 className="h-7 w-7" onClick={addSharedTask}>

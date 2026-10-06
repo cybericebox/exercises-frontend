@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { RotateCw, TriangleAlert } from "lucide-react"
 
 import { resetDeployDevice, setDeployDeviceRescue, type DeployDeviceStatus } from "@/api/exercises/deploy"
@@ -34,6 +34,7 @@ export function DeviceFailure({ device }: { device: DeployDeviceStatus }) {
  * queue, so quick changes never race and nothing is disabled while a save is pending.
  */
 export function DeviceLiveInfo({ deployId, device }: { deployId: string; device: DeployDeviceStatus | undefined }) {
+  const rescueId = useId()
   const name = device?.Name ?? ""
   const snapshot = device?.Snapshot ?? null
   const [override, setOverride] = useState<boolean | null>(null)
@@ -83,7 +84,7 @@ export function DeviceLiveInfo({ deployId, device }: { deployId: string; device:
     <DeviceFailure device={device} />
     {snapshot && <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("admin.exLive.snapshot.title")}</div>
+        <div className="text-sm font-semibold text-foreground">{t("admin.exLive.snapshot.title")}</div>
         {snapshot.Warning && <Badge tone="warn">{t("admin.exLive.snapshot.warning")}</Badge>}
       </div>
       <div className="space-y-0.5 text-foreground">
@@ -93,8 +94,8 @@ export function DeviceLiveInfo({ deployId, device }: { deployId: string; device:
       </div>
       {snapshot.Warning && <div className="break-words text-xs text-muted-foreground">{snapshot.Warning}</div>}
       <div className="flex items-center gap-2">
-        <Switch checked={rescue} onCheckedChange={toggleRescue} aria-label={t("admin.exLive.rescue")} />
-        <span>{t("admin.exLive.rescue")}</span>
+        <Switch id={rescueId} checked={rescue} onCheckedChange={toggleRescue} />
+        <label htmlFor={rescueId}>{t("admin.exLive.rescue")}</label>
         <FieldHelp text={t("admin.exLive.rescueHelp")} />
       </div>
       {rescue && <div role="status" className="rounded-md bg-[var(--ib-warn-bg)] p-3 text-xs text-foreground">{t("admin.exLive.rescueBanner")}</div>}

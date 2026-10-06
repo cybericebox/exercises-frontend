@@ -183,7 +183,7 @@ export function TaskForm({
       <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
 
       {(linkable.length > 0 || linkedDeviceID) && <section className="space-y-3 border-t border-border pt-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exTask.flagDelivery")}</h4>
+        <h4 className="text-sm font-semibold text-foreground">{t("admin.exTask.flagDelivery")}</h4>
         <div data-testid="flag-delivery-fields" className="flex flex-wrap items-start gap-3">
         <FormField control={control} name={`${base}.LinkedDeviceID`} render={({ field }) => (
           <FormItem data-testid="flag-device-field" className="w-full max-w-md flex-1">

@@ -152,7 +152,7 @@ export function FlagInput({
     <div className="min-w-0 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             {t("admin.exTask.flag.title")}<FlagHelp />
           </span>
           {semanticsKey && <span className="text-xs text-muted-foreground">{t(semanticsKey)}</span>}
@@ -214,7 +214,7 @@ export function FlagInput({
               <DropdownMenuContent align="end" className="max-h-72 min-w-[20rem] max-w-[calc(100vw-2rem)] overflow-y-auto">
                 {INSERTION_GROUPS.map((group, groupIndex) => <div key={group.key}>
                   {groupIndex > 0 && <DropdownMenuSeparator />}
-                  <DropdownMenuLabel className="py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t(`admin.exTask.flag.${group.key}`)}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="py-1 text-xs font-semibold text-muted-foreground">{t(`admin.exTask.flag.${group.key}`)}</DropdownMenuLabel>
                   {group.items.map((item) => <DropdownMenuItem key={item.key} onSelect={() => insertAtCursor(index, item.text, item.caretBack)}>
                     {t(`admin.exTask.flag.${item.key}`)} <code className="ml-auto pl-4 text-xs text-muted-foreground">{item.text}</code>
                   </DropdownMenuItem>)}

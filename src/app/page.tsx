@@ -27,6 +27,7 @@ import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
+import { Segmented } from "@/components/ui/segmented"
 import { SelectMenu } from "@/components/ui/select-menu"
 
 /** Label row of a filter, with a help icon. */
@@ -213,15 +214,8 @@ export default function Page() {
           helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
             <li key={value || "all"}><strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong> — {t(`exercises.help.scope.${value || "all"}`)}</li>
           ))}</ul>}>
-          <div role="radiogroup" aria-label={t("exercises.scope.label")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
-            {scopeTabs.map((value) => (
-              <button key={value || "all"} type="button" role="radio" aria-checked={filters.scope === value}
-                onClick={() => update({ scope: value })}
-                className={`h-8 rounded px-3 text-sm ${filters.scope === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {t(`exercises.scope.${value || "all"}`)}
-              </button>
-            ))}
-          </div>
+          <Segmented value={filters.scope} onChange={(value) => update({ scope: value as ScopeFilter })} ariaLabel={t("exercises.scope.label")}
+            options={scopeTabs.map((value) => ({ value, label: t(`exercises.scope.${value || "all"}`) }))} />
         </FilterField>
         {(eventOptions.length > 0 || filters.events.length > 0) && (
           <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={[t(`exercises.help.events.${eventsMode}`)]}>

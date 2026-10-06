@@ -52,7 +52,7 @@ describe('TaskForm inline placeholders', () => {
     const initial = emptyDraft()
     initial.Variants[0].Tasks[0].LinkedDeviceID = 'removed-device'
     render(<Harness initial={initial} />)
-    const trigger = screen.getByRole('button', { name: 'джерело недоступне' })
+    const trigger = screen.getByRole('button', { description: 'джерело недоступне' })
     expect(trigger.querySelector('span')).toHaveClass('text-destructive')
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('menuitemradio', { name: 'джерело недоступне' })).toHaveClass('text-destructive')

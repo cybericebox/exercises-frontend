@@ -112,7 +112,7 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
         const Heading = tag
         return <Heading key={key} className={HEADING[tag]} style={alignment(node)}>{children}</Heading>
       }
-      case "quote": return <blockquote key={key} className="my-2 border-l-4 border-input pl-4 italic text-muted-foreground" style={alignment(node)}>{children}</blockquote>
+      case "quote": return <blockquote key={key} className="my-2 rounded-md bg-[var(--ib-soft)] px-4 py-2 italic text-muted-foreground" style={alignment(node)}>{children}</blockquote>
       case "code": return <pre key={key} className="my-2 whitespace-pre-wrap rounded bg-secondary/40 p-3 font-mono text-sm"><code>{children}</code></pre>
       case "list": return node.listType === "number" ? <ol key={key} className="my-1 list-inside list-decimal">{children}</ol>
         : node.listType === "bullet" ? <ul key={key} className="my-1 list-inside list-disc">{children}</ul> : null

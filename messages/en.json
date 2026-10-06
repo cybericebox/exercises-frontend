@@ -253,7 +253,7 @@
   "admin.ex.field.name": "Name",
   "admin.ex.field.description": "Description",
   "admin.ex.field.tags": "Tags",
-  "admin.ex.help.name": "The catalog name used to find this exercise in the admin interface.",
+  "admin.ex.help.name": "The name of the card in the exercise catalog. Search finds the exercise by it.",
   "admin.ex.field.descriptionHelp": "A short description for the catalog and search. This is not the participant-facing task text.",
   "admin.ex.field.tagsHelp": "Tags help find exercises in the catalog. Type a new tag or choose an existing one.",
   "admin.ex.tagHint": "Type a tag and press Enter or comma",
@@ -1191,5 +1191,7 @@
   "exercises.book.limit.duration": "Length: from {min} to {max} minutes",
   "exercises.book.limit.past": "The start is in the past",
   "exercises.book.limit.ahead": "At most {days} days ahead",
-  "exercises.book.limit.tooMany": "At most {max} bookings at once"
+  "exercises.book.limit.tooMany": "At most {max} bookings at once",
+  "admin.ex.tag.remove": "Remove tag {tag}",
+  "exercises.proposals.nameInvalid": "The name must be at least 3 characters."
 }

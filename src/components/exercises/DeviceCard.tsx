@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { ChevronDown, LockKeyhole, LockKeyholeOpen, Plus, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
@@ -50,6 +50,7 @@ export function DeviceCard({
   const forwarding = type === "unmanaged-switch" || type === "hub"
   type DevicePanel = "basic" | "interfaces" | "env"
   const [panel, setPanel] = useEditorPosition("devicePanel")
+  const externalId = useId()
   const [expanded, setExpanded] = useState({ image: true, resources: true, external: true })
   const visiblePanel: DevicePanel = forwarding || (panel !== "interfaces" && panel !== "env") ? "basic" : panel
   const sections: DevicePanel[] = forwarding ? [] : ["basic", "interfaces", "env"]
@@ -118,12 +119,12 @@ export function DeviceCard({
             </div>
             {expanded.external && <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium">{t("admin.exTopo.externalToggle")}</span>
+                <label htmlFor={externalId} className="text-sm font-medium">{t("admin.exTopo.externalToggle")}</label>
               <Controller
                 control={control}
                 name={`${base}.External.Enabled`}
                 render={({ field }) => (
-                  <Switch aria-label={t("admin.exTopo.external")} checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+                  <Switch id={externalId} checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
                 )}
               />
               </div>
@@ -348,7 +349,7 @@ function EnvVarsList({
         })}
       </div>}
       {flagBindings.length > 0 && <div className="space-y-2 border-t border-border pt-3">
-        <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("admin.exEnv.taskFlags")}</h5>
+        <h5 className="text-sm font-semibold text-foreground">{t("admin.exEnv.taskFlags")}</h5>
         <p className="text-xs text-muted-foreground">{t("admin.exEnv.taskFlagsHelp")}</p>
         <ul className="divide-y divide-border">
           {flagBindings.map((binding) => <li key={binding.taskIndex} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">

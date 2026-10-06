@@ -54,16 +54,17 @@ export function TagInput({
 
   return (
     <div className="relative min-w-0">
-    <div className={cn("flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5", className)}>
+    <div className={cn("flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]", className)}>
       {value.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-secondary/40 px-2 py-0.5 text-xs text-foreground"
+          className="inline-flex items-center gap-0.5 rounded-full bg-secondary/40 py-0 pl-2 pr-0.5 text-sm text-foreground"
         >
           {tag}
-          {!disabled && (
-            <button type="button" aria-label={`remove-${tag}`} onClick={() => onChange(value.filter((x) => x !== tag))}>
-              <X className="h-3 w-3 opacity-60 hover:opacity-100" />
+          {disabled ? <span className="pr-1.5" /> : (
+            <button type="button" aria-label={t("admin.ex.tag.remove", { tag })} onClick={() => onChange(value.filter((x) => x !== tag))}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">
+              <X aria-hidden="true" className="h-3.5 w-3.5 opacity-70" />
             </button>
           )}
         </span>
@@ -113,7 +114,7 @@ export function TagInput({
     {showSuggestions && <div id={listId} role="listbox" className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
       {matchingSuggestions.map(({ Tag, Count }, index) => <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={activeSuggestion === index}
         onPointerDown={(event) => { event.preventDefault(); commit(Tag) }}
-        className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-accent", activeSuggestion === index && "bg-accent")}
+        className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-[var(--ib-hover)]", activeSuggestion === index && "bg-[var(--ib-soft)]")}
       ><span>{Tag}</span><span className="text-xs text-muted-foreground">· {Count}</span></div>)}
     </div>}
     </div>

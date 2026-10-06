@@ -253,7 +253,7 @@
   "admin.ex.field.name": "Назва",
   "admin.ex.field.description": "Опис",
   "admin.ex.field.tags": "Теги",
-  "admin.ex.help.name": "Назва картки в каталозі завдань. За нею можна знайти завдання в адмінці.",
+  "admin.ex.help.name": "Назва картки в каталозі завдань. За нею завдання знаходять у пошуку.",
   "admin.ex.field.descriptionHelp": "Короткий опис для каталогу та пошуку. Це не текст задачі для учасників.",
   "admin.ex.field.tagsHelp": "Теги допомагають знайти завдання в каталозі. Введіть новий тег або виберіть наявний зі списку.",
   "admin.ex.tagHint": "Введіть тег і натисніть Enter або кому",
@@ -1191,5 +1191,7 @@
   "exercises.book.limit.duration": "Тривалість: від {min} до {max} хвилин",
   "exercises.book.limit.past": "Початок уже минув",
   "exercises.book.limit.ahead": "Не далі ніж за {days} днів",
-  "exercises.book.limit.tooMany": "Не більше {max} бронювань одночасно"
+  "exercises.book.limit.tooMany": "Не більше {max} бронювань одночасно",
+  "admin.ex.tag.remove": "Прибрати тег {tag}",
+  "exercises.proposals.nameInvalid": "Назва має містити щонайменше 3 символи."
 }
