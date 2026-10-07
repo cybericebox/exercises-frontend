@@ -77,6 +77,11 @@ jobs:
     secrets: inherit
 
   release:
+    # Canonical cache publication and retirement must not overlap.
+    concurrency:
+      group: docker-hub-cache-maintenance
+      cancel-in-progress: false
+      queue: max
     name: Release
     needs: [verify, pages]
     if: ${{ !failure() && !cancelled() }}
