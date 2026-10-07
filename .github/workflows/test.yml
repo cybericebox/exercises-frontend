@@ -29,3 +29,7 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+      - name: CI release and cache safety tests
+        run: |
+          bash .github/scripts/ci.test.sh
+          python3 .github/scripts/cache_test.py
