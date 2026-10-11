@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { PlaceholderFormValues } from "@/lib/exerciseSchemas"
-import { emptyPlaceholder } from "@/lib/exerciseSchemas"
+import { emptyPlaceholder, placeholderToDTO } from "@/lib/exerciseSchemas"
 import { FieldHelp } from "@/components/ui/field-help"
 import { LINK_SCHEMES, MAX_LINK_PATH, ipExample, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
 import type { PlaceholderKind } from "@/api/exercises/versions"
@@ -35,6 +35,7 @@ export function PlaceholderDialog({ open, onOpenChange, value, topology, onSave 
 
 function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omit<PlaceholderDialogProps, "open">) {
   const [draft, setDraft] = useState<PlaceholderFormValues | null>(value)
+  const dirty = Boolean(draft && (!value || JSON.stringify(placeholderToDTO(draft)) !== JSON.stringify(placeholderToDTO(value))))
   const kind = draft?.Kind
   const canVPN = topology.vpnEnabled
   const canInternet = topology.internetEnabled
@@ -150,9 +151,11 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
       </div>}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("admin.exPh.cancel")}</Button>
-        <Button type="button" disabled={!valid} onClick={() => { if (draft && valid) onSave(draft) }}>
-          {value ? t("admin.exPh.save") : t("admin.exPh.insertAction")}
-        </Button>
+        <div className="min-h-10 sm:min-w-24">
+          {(!value || dirty) && <Button type="button" className="w-full" disabled={!valid} onClick={() => { if (draft && valid && dirty) onSave(draft) }}>
+            {value ? t("admin.exPh.save") : t("admin.exPh.insertAction")}
+          </Button>}
+        </div>
       </DialogFooter>
     </DialogContent>
 }

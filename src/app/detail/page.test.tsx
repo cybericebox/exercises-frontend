@@ -105,8 +105,8 @@ describe("exercise page — modes", () => {
     expect(name).toBeEnabled()
     fireEvent.change(name, { target: { value: "Web 102" } })
     await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }), { timeout: 2000 })
-    await waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(1))
     expect(await screen.findByText("admin.exPage.save.saved")).toBeInTheDocument()
+    expect(saveDraft).not.toHaveBeenCalled() // A name-only edit does not rewrite the unchanged working copy.
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
