@@ -631,7 +631,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
   }
 }
 
-function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
+export function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
   switch (p.Kind) {
     case "ip":
       return {

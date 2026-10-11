@@ -70,9 +70,20 @@ function identityOf(exercise: Exercise): IdentityFormValues {
   return { Name: exercise.Name, Description: exercise.Description, Tags: exercise.Tags }
 }
 
+// JSON object key order is not an edit (rich-text documents arrive as JSON); array order is.
+function payloadSignature(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => {
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const object = item as Record<string, unknown>
+      return Object.fromEntries(Object.keys(object).sort().map((key) => [key, object[key]]))
+    }
+    return item
+  })
+}
+
 /**
- * Thrown by save() after the draft went out while an invalid identity edit was held
- * back: the queue reports "error" (indicator, leave guard, buffer kept). No toast —
+ * Thrown by save() while an invalid identity edit was held back (changed draft values
+ * are still persisted): the queue reports "error" (indicator, leave guard, buffer kept). No toast —
  * the field already shows the validation message.
  */
 class IdentityRejectedError extends Error {
@@ -103,6 +114,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const exerciseIdRef = useRef<string | null>(exerciseId)
   const draftVersionIdRef = useRef("")
   const savedIdentityRef = useRef("")
+  const savedDraftRef = useRef<string | null>(null)
   const suppressRef = useRef(false)
   const lastSignatureRef = useRef("")
   const lastSaveErrorRef = useRef<string | null>(null)
@@ -177,24 +189,30 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           }
         } else if (JSON.stringify(identity) !== savedIdentityRef.current) {
           // Invalid identity edit: never send it, but don't report the round as "saved"
-          // either — the draft below still goes out so it isn't lost, then the round
+          // either — changed draft values still go out so they aren't lost, then the round
           // fails with IdentityRejectedError so the indicator shows "not saved", the
           // leave guard stays armed and the buffer (holding the invalid identity) is kept.
           identityRejected = true
         }
       }
       const payload = draftForm.getValues()
-      const sent = capturedDraftIds(payload)
-      const saved = await saveDraft(id, toSaveDraftInput(payload))
-      rememberDraftVersion(saved.ID)
-      // The server recounts the resources and the elevation state on every save.
-      if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
-      const updates = serverIdUpdates(sent, saved, draftForm.getValues())
-      if (updates.length > 0) {
-        suppressRef.current = true
-        for (const update of updates) draftForm.setValue(update.path, update.value)
-        suppressRef.current = false
-        lastSignatureRef.current = signature()
+      const input = toSaveDraftInput(payload)
+      if (payloadSignature(input) !== savedDraftRef.current) {
+        const sent = capturedDraftIds(payload)
+        const saved = await saveDraft(id, input)
+        // Only an acknowledged server snapshot advances the baseline, never live edits
+        // made while this request was pending. Include assigned IDs for subsequent saves.
+        savedDraftRef.current = payloadSignature(toSaveDraftInput(toDraftFormValues(saved)))
+        rememberDraftVersion(saved.ID)
+        // The server recounts the resources and the elevation state on every save.
+        if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
+        const updates = serverIdUpdates(sent, saved, draftForm.getValues())
+        if (updates.length > 0) {
+          suppressRef.current = true
+          for (const update of updates) draftForm.setValue(update.path, update.value)
+          suppressRef.current = false
+          lastSignatureRef.current = signature()
+        }
       }
       lastSaveErrorRef.current = null
       if (identityRejected) throw new IdentityRejectedError()
@@ -233,7 +251,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       if (!id) return
       const identity = identitySchema.safeParse(identityForm.getValues())
       if (identity.success && JSON.stringify(identity.data) !== savedIdentityRef.current) updateExerciseKeepalive(id, identity.data)
-      saveDraftKeepalive(id, toSaveDraftInput(draftForm.getValues()))
+      const draft = toSaveDraftInput(draftForm.getValues())
+      if (payloadSignature(draft) !== savedDraftRef.current) saveDraftKeepalive(id, draft)
     },
   })
 
@@ -303,6 +322,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (!versionId) rememberDraftVersion(loadedVersion.ID)
           savedIdentityRef.current = JSON.stringify(identityOf(loaded))
           const serverDraft = workingCopyValues(loadedVersion)
+          savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
           applyValues(apply ? pending.identity : identityOf(loaded), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
           setLoadState("ready")
           if (apply) {
@@ -372,6 +392,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     setVersion(draft)
     rememberDraftVersion(draft.ID)
     savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+    savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
     applyValues(identityOf(loaded), workingCopyValues(draft))
   }, [applyValues, rememberDraftVersion])
 

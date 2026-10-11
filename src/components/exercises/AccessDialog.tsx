@@ -1,13 +1,26 @@
 "use client"
 
-import { useState } from "react"
-import { setExerciseAccess, type Exercise } from "@/api/exercises/catalog"
+import { useEffect, useRef, useState } from "react"
+import { setExerciseAccess, type AccessInput, type Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { AccessLevelFields, accessValueValid, type AccessValue } from "./AccessLevelFields"
+
+function accessOf(exercise: Exercise): AccessValue {
+  return {
+    level: exercise.AccessLevel === "own" && !exercise.OriginEventID ? "all" : exercise.AccessLevel || "all",
+    eventIds: exercise.AccessEventIDs,
+  }
+}
+
+function accessInput(value: AccessValue): AccessInput {
+  return { AccessLevel: value.level, EventIDs: value.level === "selected" ? [...new Set(value.eventIds)].sort() : [] }
+}
+
+const sameAccess = (left: AccessValue, right: AccessValue) => JSON.stringify(accessInput(left)) === JSON.stringify(accessInput(right))
 
 /** Admins: which events may use a catalog exercise (PUT :id/access). */
 export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
@@ -17,36 +30,72 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
   onSaved: (exercise: Exercise) => void
 }) {
   const allowOwn = Boolean(exercise.OriginEventID)
-  const [value, setValue] = useState<AccessValue>({
-    level: exercise.AccessLevel === "own" && !allowOwn ? "all" : exercise.AccessLevel || "all",
-    eventIds: exercise.AccessEventIDs,
-  })
+  const [value, setValue] = useState<AccessValue>(() => accessOf(exercise))
+  const valueRef = useRef(value)
+  const [baseline, setBaseline] = useState(value)
+  const baselineRef = useRef(baseline)
+  const observedRef = useRef(baseline)
+  const savingRef = useRef(false)
+  const mountedRef = useRef(true)
   const [busy, setBusy] = useState(false)
+  const dirty = !sameAccess(value, baseline)
+
+  function change(next: AccessValue) {
+    valueRef.current = next
+    setValue(next)
+  }
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
+  useEffect(() => {
+    const next = accessOf(exercise)
+    if (sameAccess(next, observedRef.current)) return
+    observedRef.current = next
+    if (sameAccess(valueRef.current, baselineRef.current)) {
+      valueRef.current = next
+      setValue(next)
+    }
+    baselineRef.current = next
+    setBaseline(next)
+  }, [exercise])
 
   async function save() {
+    const sent = valueRef.current
+    if (savingRef.current || !accessValueValid(sent) || sameAccess(sent, baselineRef.current)) return
+    savingRef.current = true
     setBusy(true)
     try {
-      const updated = await setExerciseAccess(exercise.ID, { AccessLevel: value.level, EventIDs: value.eventIds })
+      const updated = await setExerciseAccess(exercise.ID, accessInput(sent))
+      const acknowledged = accessOf(updated)
+      baselineRef.current = acknowledged
+      if (mountedRef.current) setBaseline(acknowledged)
       toast.success(t("exercises.access.saved"))
       onSaved(updated)
+      if (mountedRef.current && sameAccess(valueRef.current, sent)) onClose()
     } catch (error) {
       toast.error(exerciseErrorMessage(error))
     } finally {
-      setBusy(false)
+      savingRef.current = false
+      if (mountedRef.current) setBusy(false)
     }
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("exercises.access.dialogTitle")}</DialogTitle>
           <DialogDescription>{t("exercises.access.dialogDescription")}</DialogDescription>
         </DialogHeader>
-        <AccessLevelFields value={value} onChange={setValue} allowOwn={allowOwn} originEventName={originEventName} disabled={busy} knownEvents={exercise.AccessEvents} />
+        <AccessLevelFields value={value} onChange={change} allowOwn={allowOwn} originEventName={originEventName} knownEvents={exercise.AccessEvents} />
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
-          <Button type="button" disabled={busy || !accessValueValid(value)} onClick={() => void save()}>{t("exercises.access.save")}</Button>
+          <Button type="button" variant="outline" onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
+          <div className="min-h-10 sm:min-w-24">
+            {(dirty || busy) && <Button type="button" className="w-full" busy={busy} disabled={!accessValueValid(value)} onClick={() => void save()}>{t("exercises.access.save")}</Button>}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

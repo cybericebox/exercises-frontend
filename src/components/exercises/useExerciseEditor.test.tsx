@@ -17,7 +17,7 @@ vi.mock("@/api/exercises/versions", () => ({
 }))
 
 import { createExercise, getExercise, updateExercise } from "@/api/exercises/catalog"
-import { getDraft, getVersion, saveDraft } from "@/api/exercises/versions"
+import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
@@ -83,6 +83,95 @@ beforeEach(() => {
 })
 
 describe("useExerciseEditor", () => {
+  it("does not PUT a draft when an edit is reverted before the debounce drains", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("AdminNote", "temporary note"))
+    act(() => latest.draftForm.setValue("AdminNote", ""))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(latest.autosave.hasUnsaved()).toBe(false)
+    expect(storage.has(pendingBufferKey("editor-1", "ex-1"))).toBe(false)
+  })
+
+  it("skips a draft PUT for identity-only edits but still persists a real draft change", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+    act(() => latest.draftForm.setValue("AdminNote", "real note"))
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "real note" }))
+  })
+
+  it("reverts against the acknowledged in-flight draft, not the latest observed local values", async () => {
+    let resolve: (value: Version) => void = () => undefined
+    mockSaveDraft.mockReturnValueOnce(new Promise((done) => { resolve = done }))
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("AdminNote", "sent note"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => latest.draftForm.setValue("AdminNote", ""))
+    await act(async () => resolve({ ...serverVersion, AdminNote: "sent note" }))
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "" }))
+    expect(latest.draftForm.getValues("AdminNote")).toBe("")
+    expect(latest.autosave.hasUnsaved()).toBe(false)
+  })
+
+  it("uses the same canonical payload for no-op pagehide and subsequent drain", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("AdminNote", "temporary"))
+    act(() => latest.draftForm.setValue("AdminNote", ""))
+    act(() => window.dispatchEvent(new Event("pagehide")))
+    expect(saveDraftKeepalive).not.toHaveBeenCalled()
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+  })
+
+  it("continues to retry a rejected draft even when local edits do not change again", async () => {
+    mockSaveDraft.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ ...serverVersion, AdminNote: "persist me" })
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("AdminNote", "persist me"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.autosave.status).toBe("error")
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(latest.autosave.hasUnsaved()).toBe(false)
+  })
+
+  it("ignores document object key order while preserving meaningful content array order", async () => {
+    const loaded = structuredClone(serverVersion)
+    loaded.Variants[0].Tasks[0].Description = { root: { type: "root", children: [{ text: "first", type: "text" }, { text: "second", type: "text" }] } }
+    mockGetDraft.mockResolvedValue(loaded)
+    mockSaveDraft.mockResolvedValue(loaded)
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("Variants.0.Tasks.0.Description", { root: { children: [{ type: "text", text: "first" }, { type: "text", text: "second" }], type: "root" } }))
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+    act(() => latest.draftForm.setValue("Variants.0.Tasks.0.Description", { root: { children: [{ type: "text", text: "second" }, { type: "text", text: "first" }], type: "root" } }))
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
   it("creates the exercise once the name is valid, then saves the working copy", async () => {
     const onCreated = vi.fn()
     render(<Harness onCreated={onCreated} />)
@@ -244,10 +333,12 @@ describe("useExerciseEditor", () => {
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Renamed once" } })
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft"))
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(screen.getByTestId("status")).toHaveTextContent("error")
     expect(toast.error).toHaveBeenCalledTimes(1)
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Renamed twice" } })
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft again"))
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(screen.getByTestId("status")).toHaveTextContent("error")
     // Same underlying failure both times — still only one toast.
@@ -260,6 +351,7 @@ describe("useExerciseEditor", () => {
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "ab" } })
+    act(() => latest.draftForm.setValue("AdminNote", "Keep the changed draft"))
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockUpdate).not.toHaveBeenCalled()
     // The draft still goes out so it isn't lost...
@@ -282,7 +374,7 @@ describe("useExerciseEditor", () => {
     expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
     act(() => { latest.draftForm.setValue("AdminNote", "note") })
     await act(async () => { await latest.autosave.flush() })
-    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
     expect(mockUpdate).toHaveBeenCalledTimes(1)
   })
 
@@ -293,7 +385,7 @@ describe("useExerciseEditor", () => {
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 101 " } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+    expect(mockSaveDraft).not.toHaveBeenCalled()
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 
