@@ -72,25 +72,25 @@ describe('PlaceholderDialog', () => {
     const existing: PlaceholderFormValues = { Key: 'ph_existing', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web' }
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
       topology={{ ...unavailable, externalDeviceNames: ['web', 'db'] }} onSave={save} />)
-    expect(screen.queryByRole('button', { name: 'Зберегти' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
     fireEvent.keyDown(screen.getByRole('button', { name: 'Пристрій' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'db' }))
     fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Key: 'ph_existing', Kind: 'external.link', DeviceName: 'db' }))
   })
 
-  it('hides Save again after reverting the meaningful placeholder fields', () => {
+  it('disables visible Save again after reverting the meaningful placeholder fields', () => {
     const existing: PlaceholderFormValues = { Key: 'ph_existing', Kind: 'ip', IPReference: 'vpn', Octets1to3: '', LastOctet: 5, ShowMask: false, DeviceName: '' }
     const save = vi.fn()
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
       topology={{ ...unavailable, vpnEnabled: true }} onSave={save} />)
-    expect(screen.queryByRole('button', { name: 'Зберегти' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '6' } })
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeEnabled()
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '5' } })
     // The same kind selection can supply defaults for fields that are omitted in the request.
     fireEvent.click(screen.getByRole('button', { name: /^IP-адреса/ }))
-    expect(screen.queryByRole('button', { name: 'Зберегти' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
     expect(save).not.toHaveBeenCalled()
   })
 
@@ -99,7 +99,7 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
       topology={{ ...unavailable, vpnEnabled: true }} onSave={vi.fn()} />)
     fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '00081' } })
-    expect(screen.queryByRole('button', { name: 'Зберегти' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
   })
 
   it('keeps text styling in the editor instead of duplicating its controls in the dialog', () => {

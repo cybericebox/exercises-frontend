@@ -94,7 +94,7 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
           <div className="min-h-10 sm:min-w-24">
-            {(dirty || busy) && <Button type="button" className="w-full" busy={busy} disabled={!accessValueValid(value)} onClick={() => void save()}>{t("exercises.access.save")}</Button>}
+            <Button type="button" className="w-full" busy={busy} disabled={!dirty || !accessValueValid(value)} onClick={() => void save()}>{t("exercises.access.save")}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
