@@ -25,14 +25,14 @@ beforeEach(() => {
 })
 
 describe("catalog access Save", () => {
-  it("hides clean Save and treats a reselected event-ID set as unchanged", async () => {
+  it("disables visible clean Save and treats a reselected event-ID set as unchanged", async () => {
     render(<AccessDialog exercise={exercise} onClose={vi.fn()} onSaved={vi.fn()} />)
     await act(async () => {})
-    expect(screen.queryByRole("button", { name: "exercises.access.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "exercises.access.save" })).toBeDisabled()
     fireEvent.click(screen.getByRole("checkbox", { name: /Winter/ }))
     expect(screen.getByRole("button", { name: "exercises.access.save" })).toBeEnabled()
     fireEvent.click(screen.getByRole("checkbox", { name: /Winter/ }))
-    expect(screen.queryByRole("button", { name: "exercises.access.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "exercises.access.save" })).toBeDisabled()
     expect(setExerciseAccess).not.toHaveBeenCalled()
   })
 
@@ -70,7 +70,7 @@ describe("catalog access Save", () => {
     const updated = { ...exercise, AccessLevel: "none" as const, AccessEventIDs: [], AccessEvents: [] }
     rerender(<AccessDialog exercise={updated} onClose={vi.fn()} onSaved={vi.fn()} />)
     expect(screen.getByRole("radio", { name: /exercises.access.level.none/ })).toBeChecked()
-    expect(screen.queryByRole("button", { name: "exercises.access.save" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "exercises.access.save" })).toBeDisabled()
     fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.all/ }))
     rerender(<AccessDialog exercise={exercise} onClose={vi.fn()} onSaved={vi.fn()} />)
     expect(screen.getByRole("radio", { name: /exercises.access.level.all/ })).toBeChecked()
