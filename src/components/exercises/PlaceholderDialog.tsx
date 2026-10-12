@@ -152,9 +152,9 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("admin.exPh.cancel")}</Button>
         <div className="min-h-10 sm:min-w-24">
-          {(!value || dirty) && <Button type="button" className="w-full" disabled={!valid} onClick={() => { if (draft && valid && dirty) onSave(draft) }}>
+          <Button type="button" className="w-full" disabled={!valid || Boolean(value && !dirty)} onClick={() => { if (draft && valid && dirty) onSave(draft) }}>
             {value ? t("admin.exPh.save") : t("admin.exPh.insertAction")}
-          </Button>}
+          </Button>
         </div>
       </DialogFooter>
     </DialogContent>
