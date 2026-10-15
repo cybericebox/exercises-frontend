@@ -37,7 +37,7 @@ async function signOutAndRedirect(): Promise<void> {
 
 export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => void; menuButtonRef?: Ref<HTMLButtonElement> }) {
   const pathname = usePathname()
-  const section = pathname.startsWith("/bookings") ? "exercises.book.menu" : pathname.startsWith("/proposals") ? "exercises.nav.proposals" : "exercises.nav.catalog"
+  const section = pathname.startsWith("/proposals") ? "exercises.nav.proposals" : "exercises.nav.catalog"
   const { me } = useRole()
   const [themeChoice, selectTheme] = useThemeChoice()
   const [themeExpanded, setThemeExpanded] = useState(false)

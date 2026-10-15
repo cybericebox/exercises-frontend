@@ -7,13 +7,13 @@ vi.mock("@/api/exercises/testLabs", () => ({ getRoom: vi.fn(), listBookings: vi.
 
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import { cancelBooking, getRoom, listBookings } from "@/api/exercises/testLabs"
-import { BookingsPage } from "./BookingsPage"
+import { BookingsMenu } from "./BookingsMenu"
 
 const MIB = 1024 ** 2
 const frame = { CPUMillicores: 250, MemoryBytes: 1024 * MIB }
 const booking = (id: string) => ({ ID: id, From: "2099-01-01T13:00:00Z", To: "2099-01-01T15:00:00Z", Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB } })
 
-describe("BookingsPage", () => {
+describe("BookingsMenu", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: { Frame: frame } } as never)
@@ -22,7 +22,8 @@ describe("BookingsPage", () => {
 
   it("shows the empty state and the room hint", async () => {
     vi.mocked(listBookings).mockResolvedValue([])
-    render(<BookingsPage />)
+    render(<BookingsMenu />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.book.menu" }))
     expect(await screen.findByText("exercises.book.empty")).toBeTruthy()
     expect(screen.getByText(/exercises\.book\.room\.none/)).toBeTruthy()
   })
@@ -30,7 +31,8 @@ describe("BookingsPage", () => {
   it("cancels a booking only after the danger confirmation", async () => {
     vi.mocked(listBookings).mockResolvedValueOnce([booking("b1")]).mockResolvedValue([])
     vi.mocked(cancelBooking).mockResolvedValue(undefined)
-    render(<BookingsPage />)
+    render(<BookingsMenu />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.book.menu" }))
     fireEvent.click(await screen.findByRole("button", { name: /exercises\.book\.cancelNamed/ }))
     expect(cancelBooking).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "exercises.book.cancel" }))
