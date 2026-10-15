@@ -248,7 +248,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+        <h1 className="min-w-0 break-words text-xl sm:text-2xl font-semibold text-foreground">{title}</h1>
         {badge && <StatusBadge badge={badge} />}
         {props.meta}
         {(mode === "edit" || mode === "new") && <SaveIndicator status={saveStatus} onRetry={props.onRetrySave} />}

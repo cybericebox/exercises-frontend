@@ -15,14 +15,14 @@ export function TablePagination({ page, pageSize, total, onPage, onPageSize }: {
   onPageSize: (pageSize: number) => void
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize))
-  return <div className="grid shrink-0 grid-cols-1 items-center gap-3 pt-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
-    <span>{t("admin.table.summary", { total, page, pages })}</span>
-    <div className="flex items-center gap-2 sm:justify-center">
+  return <div className="grid shrink-0 grid-cols-2 items-center gap-x-2 gap-y-2 pt-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto_1fr]">
+    <span className="col-span-2 sm:col-span-1">{t("admin.table.summary", { total, page, pages })}</span>
+    <div className="flex items-center gap-1.5 sm:justify-center">
       <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>{t("admin.table.previous")}</Button>
       <Button type="button" variant="outline" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>{t("admin.table.next")}</Button>
     </div>
-    <div className="flex items-center gap-2 sm:justify-end">
-      <span>{t("admin.table.perPage")}</span>
+    <div className="flex items-center justify-end gap-1.5">
+      <span className="sr-only sm:not-sr-only">{t("admin.table.perPage")}</span>
       <SelectMenu value={String(pageSize)} onChange={(value) => onPageSize(Number(value))}
         options={PAGE_SIZES.map((value) => ({ value: String(value), label: String(value) }))}
         ariaLabel={t("admin.table.perPage")} className="w-20" />
