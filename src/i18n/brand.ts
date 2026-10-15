@@ -3,6 +3,7 @@
 export const BRAND = "Cyber\u00A0ICE\u00A0Box"
 
 // The wordmark renders «ICE» in its own span: «Cyber» + span + «Box», glued by no-break spaces.
+export const BRAND_ICE = "ICE"
 export const BRAND_HEAD = "Cyber\u00A0"
 export const BRAND_TAIL = "\u00A0Box"
 

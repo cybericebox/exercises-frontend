@@ -1,29 +1,23 @@
 "use client"
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Logo } from "@/components/brand/Logo"
 import { useRole } from "@/lib/useRole"
 import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
-import { BookingsMenu } from "./BookingsMenu"
 import { RunningTestsMenu } from "./RunningTestsMenu"
 import { THEME_OPTIONS, useThemeChoice } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { Fragment, useId, useEffect, useRef, useState } from "react"
+import { Fragment, useId, useRef, useState, type Ref } from "react"
 import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
 import { adminOrigin, idOrigin } from "@/lib/origins"
 import { ACCOUNT_MENU_ICON_PROPS, ACCOUNT_MENU_ICONS, ACCOUNT_MENU_LABELS, accountMenu } from "@/lib/accountMenu"
 import { initials } from "@/lib/initials"
-import { BACK_LABELS } from "@/lib/backLink"
-import { useBackLink } from "@/lib/useBackLink"
-import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { ArrowLeft, ChevronDown } from "lucide-react"
+import { Menu, ChevronDown } from "lucide-react"
 import type { ThemeChoice } from "@/lib/theme"
 import { useExerciseAccess } from "./AccessContext"
 
@@ -41,55 +35,9 @@ async function signOutAndRedirect(): Promise<void> {
   if (typeof window !== "undefined") window.location.href = `${idOrigin}/sign-in/`
 }
 
-// Back to the app that opened the catalog: only admin and event sites (lib/backLink). The same
-// compact arrow as the id profile, named by its destination.
-function BackArrow() {
+export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => void; menuButtonRef?: Ref<HTMLButtonElement> }) {
   const pathname = usePathname()
-  const [returnTo, setReturnTo] = useState<string | null>(null)
-  // Event pages opened the catalog with ?return=; newer callers send ?return_to=.
-  useEffect(() => {
-    const search = new URLSearchParams(window.location.search)
-    const next = search.get("return_to") ?? search.get("return")
-    queueMicrotask(() => setReturnTo(next))
-  }, [pathname])
-  const back = useBackLink(returnTo)
-  if (!back || (back.kind !== "admin" && back.kind !== "event")) return null
-  const label = t(BACK_LABELS[back.kind])
-  return (
-    <HoverTooltip text={label}>
-      <a href={back.href} aria-label={label} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
-        <ArrowLeft size={18} aria-hidden="true" />
-      </a>
-    </HoverTooltip>
-  )
-}
-
-// The sections of the app: «Каталог», and «Пропозиції» for admins.
-function useNavItems() {
-  const pathname = usePathname()
-  const { access } = useExerciseAccess()
-  return [
-    { href: "/", label: t("exercises.nav.catalog"), active: pathname === "/" || pathname.startsWith("/detail") || pathname.startsWith("/new") },
-    ...(access?.IsAdmin ? [{ href: "/proposals", label: t("exercises.nav.proposals"), active: pathname.startsWith("/proposals") }] : []),
-  ]
-}
-
-function AppNav() {
-  const items = useNavItems()
-  if (items.length < 2) return null
-  return (
-    <nav aria-label={t("exercises.nav.label")} className="hidden items-center gap-1 sm:flex">
-      {items.map((item) => (
-        <Link key={item.href} href={item.href} aria-current={item.active ? "page" : undefined}
-          className={`inline-flex h-9 items-center rounded-md px-3 text-sm hover:text-foreground ${item.active ? "bg-[var(--ib-soft)] font-medium text-foreground" : "text-muted-foreground hover:bg-[var(--ib-hover)]"}`}>
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  )
-}
-
-export function TopBar() {
+  const section = pathname.startsWith("/bookings") ? "exercises.book.menu" : pathname.startsWith("/proposals") ? "exercises.nav.proposals" : "exercises.nav.catalog"
   const { me } = useRole()
   const [themeChoice, selectTheme] = useThemeChoice()
   const [themeExpanded, setThemeExpanded] = useState(false)
@@ -108,22 +56,16 @@ export function TopBar() {
     { adminTier: Boolean(access?.IsAdmin), catalog: true, returnTo },
     { id: idOrigin, admin: adminOrigin, exercises: "" },
   )
-  const navItems = useNavItems()
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-card px-3 sm:px-4 md:px-6">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3 lg:gap-6">
-        <span className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <BackArrow />
-          <Logo size={32} className="shrink-0" />
-          <Link href="/" className="truncate text-md font-semibold text-foreground">{t("exercises.app.title")}</Link>
-        </span>
-        <AppNav />
+    <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button ref={menuButtonRef} type="button" aria-label={t("exercises.shell.openMenu")} onClick={onMenuClick} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <span className="truncate text-sm font-semibold text-foreground">{t(section)}</span>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <RunningTestsMenu />
-        <BookingsMenu />
         <InboxButton defaultTab="requestsIfOpen" />
         <DropdownMenu onOpenChange={(open) => { if (!open) setThemeExpanded(false) }}>
           <DropdownMenuTrigger
@@ -155,9 +97,18 @@ export function TopBar() {
             }}
           >
             <DropdownMenuLabel className="flex flex-col gap-0.5">
-              <span className="break-words font-medium">{fullName}</span>
-              <span className="break-all text-xs font-normal text-muted-foreground">{me?.Email}</span>
+              <span className="truncate font-medium" title={fullName}>{fullName}</span>
+              <span className="truncate text-xs font-normal text-muted-foreground" title={me?.Email}>{me?.Email}</span>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {entries.filter((entry) => entry.kind === "link").map((entry) => {
+              const Icon = ACCOUNT_MENU_ICONS[entry.key]
+              return (
+                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
+                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} /><span className="min-w-0 truncate">{t(ACCOUNT_MENU_LABELS[entry.key])}</span></a>
+                </DropdownMenuItem>
+              )
+            })}
             <DropdownMenuSeparator />
             <DropdownMenuItem ref={themeTrigger} className="gap-2" aria-expanded={themeExpanded} aria-controls={themeChoicesID}
               onSelect={(event) => { event.preventDefault(); setThemeExpanded((expanded) => !expanded) }}
@@ -177,16 +128,7 @@ export function TopBar() {
               }}>
               {THEME_OPTIONS.map(({ value, icon: Icon, label }) => <DropdownMenuRadioItem key={value} value={value} className="gap-2"><Icon aria-hidden="true" className="h-4 w-4" />{t(label)}</DropdownMenuRadioItem>)}
             </DropdownMenuRadioGroup>}
-            <DropdownMenuSeparator />
-            {navItems.length > 1 && <>
-              {navItems.map((item) => (
-                <DropdownMenuItem key={item.href} asChild className="sm:hidden">
-                  <Link href={item.href} aria-current={item.active ? "page" : undefined} className={item.active ? "font-medium" : undefined}>{item.label}</Link>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator className="sm:hidden" />
-            </>}
-            {entries.map((entry, i) => {
+            {entries.filter((entry) => entry.kind !== "link").map((entry, i) => {
               if (entry.kind === "divider") return <DropdownMenuSeparator key={i} />
               if (entry.kind === "cookies") {
                 const Icon = ACCOUNT_MENU_ICONS.cookies
@@ -211,12 +153,7 @@ export function TopBar() {
                   </DropdownMenuItem>
                 )
               }
-              const Icon = ACCOUNT_MENU_ICONS[entry.key]
-              return (
-                <DropdownMenuItem key={entry.key} asChild className="group gap-2">
-                  <a href={entry.href}><Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS[entry.key])}</a>
-                </DropdownMenuItem>
-              )
+              return null
             })}
           </DropdownMenuContent>
         </DropdownMenu>
