@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { Sidebar } from "./Sidebar"
 import { MobileDrawer } from "./MobileDrawer"
 import { useRef, useState } from "react"
+import { listBookings } from "@/api/exercises/testLabs"
 
-const state = vi.hoisted(() => ({ path: "/bookings/", admin: true }))
+vi.mock("@/api/exercises/testLabs", () => ({ listBookings: vi.fn(() => Promise.resolve([])), getRoom: vi.fn(() => Promise.resolve(null)), cancelBooking: vi.fn(), createBooking: vi.fn() }))
+vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn(() => Promise.resolve({ Resources: { Frame: { CPUMillicores: 250, MemoryBytes: 1024 ** 3 } } })) }))
+
+const state = vi.hoisted(() => ({ path: "/", admin: true }))
 vi.mock("next/navigation", () => ({ usePathname: () => state.path }))
 vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmin: state.admin } }) }))
 vi.mock("@/lib/useBackLink", () => ({ useBackLink: () => null }))
@@ -17,13 +21,14 @@ function Drawer() {
 }
 
 describe("catalog sidebar", () => {
-  beforeEach(() => { state.path = "/bookings/"; state.admin = true })
+  beforeEach(() => { state.path = "/"; state.admin = true })
 
   it("links catalog, bookings and proposals with the active section and navigation callback", () => {
     const onNavigate = vi.fn()
     render(<Sidebar onNavigate={onNavigate} />)
-    expect(Array.from(screen.getByRole("navigation").querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(["/", "/bookings", "/proposals"])
-    expect(screen.getByRole("link", { name: "exercises.book.menu" })).toHaveAttribute("aria-current", "page")
+    expect(Array.from(screen.getByRole("navigation").querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(["/", "/proposals"])
+    expect(screen.getByRole("link", { name: "exercises.nav.catalog" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("button", { name: "exercises.book.menu" })).toHaveAttribute("aria-haspopup", "dialog")
     fireEvent.click(screen.getByRole("link", { name: "exercises.nav.catalog" }))
     expect(onNavigate).toHaveBeenCalledOnce()
   })
@@ -31,7 +36,7 @@ describe("catalog sidebar", () => {
   it("keeps bookings available to an event author but hides admin-only proposals", () => {
     state.admin = false
     render(<Sidebar />)
-    expect(screen.getByRole("link", { name: "exercises.book.menu" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "exercises.book.menu" })).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "exercises.nav.proposals" })).not.toBeInTheDocument()
   })
 
@@ -49,7 +54,30 @@ describe("catalog sidebar", () => {
   it("closes the phone drawer when a section is chosen", async () => {
     render(<Drawer />)
     fireEvent.click(screen.getByRole("button", { name: "open" }))
-    fireEvent.click(screen.getByRole("link", { name: "exercises.book.menu" }))
+    fireEvent.click(screen.getByRole("link", { name: "exercises.nav.catalog" }))
     await vi.waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
   })
+  it("opens bookings from the sidebar without navigating away or fetching them in advance", async () => {
+    vi.mocked(listBookings).mockClear()
+    const previous = window.location.href
+    render(<Sidebar />)
+    expect(listBookings).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "exercises.book.menu" }))
+    expect(await screen.findByRole("dialog", { name: "exercises.book.listTitle" })).toBeInTheDocument()
+    expect(await screen.findByText("exercises.book.empty")).toBeInTheDocument()
+    expect(window.location.href).toBe(previous)
+  })
+
+  it("opens the booking window over the phone drawer and restores focus after Escape", async () => {
+    render(<Drawer />)
+    fireEvent.click(screen.getByRole("button", { name: "open" }))
+    const button = screen.getByRole("button", { name: "exercises.book.menu" })
+    fireEvent.click(button)
+    const bookings = await screen.findByRole("dialog", { name: "exercises.book.listTitle" })
+    fireEvent.keyDown(bookings, { key: "Escape" })
+    await waitFor(() => expect(button).toHaveFocus())
+    expect(screen.getByRole("dialog", { name: "exercises.nav.label" })).toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "exercises.book.listTitle" })).not.toBeInTheDocument()
+  })
+
 })

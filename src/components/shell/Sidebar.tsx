@@ -1,15 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowLeft, CalendarClock, ClipboardList, Puzzle, X } from "lucide-react"
+import { ArrowLeft, ClipboardList, Puzzle, X } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { BRAND_HEAD, BRAND_ICE, BRAND_TAIL } from "@/i18n/brand"
 import { t } from "@/i18n/t"
 import { BACK_LABELS } from "@/lib/backLink"
 import { useBackLink } from "@/lib/useBackLink"
 import { useExerciseAccess } from "./AccessContext"
+import { BookingsMenu } from "./BookingsMenu"
 
 export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
   const pathname = usePathname()
@@ -22,8 +23,7 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
   }, [pathname])
   const back = useBackLink(returnTo)
   const items = [
-    { href: "/", label: "exercises.nav.catalog", icon: Puzzle, active: !pathname.startsWith("/bookings") && !pathname.startsWith("/proposals") },
-    { href: "/bookings", label: "exercises.book.menu", icon: CalendarClock, active: pathname.startsWith("/bookings") },
+    { href: "/", label: "exercises.nav.catalog", icon: Puzzle, active: !pathname.startsWith("/proposals") },
     ...(access?.IsAdmin ? [{ href: "/proposals", label: "exercises.nav.proposals", icon: ClipboardList, active: pathname.startsWith("/proposals") }] : []),
   ]
   return (
@@ -37,9 +37,9 @@ export function Sidebar({ onNavigate, onClose }: { onNavigate?: () => void; onCl
         {onClose && <button type="button" onClick={onClose} aria-label={t("exercises.shell.closeMenu")} className="shrink-0 rounded p-1.5 hover:bg-[var(--ib-brand-hover)] md:hidden"><X className="h-5 w-5" /></button>}
       </div>
       <nav className="ib-admin-side__nav" aria-label={t("exercises.nav.label")}>
-        {items.map((item) => <Link key={item.href} href={item.href} className="ib-admin-side__item" aria-current={item.active ? "page" : undefined} onClick={onNavigate}>
+        {items.map((item) => <Fragment key={item.href}><Link href={item.href} className="ib-admin-side__item" aria-current={item.active ? "page" : undefined} onClick={onNavigate}>
           <item.icon aria-hidden="true" /><span className="ib-admin-side__label">{t(item.label)}</span>
-        </Link>)}
+        </Link>{item.href === "/" && <BookingsMenu />}</Fragment>)}
       </nav>
       {back && (back.kind === "admin" || back.kind === "event") && <div className="ib-admin-side__foot">
         <a href={back.href} className="ib-admin-side__item min-w-0"><ArrowLeft aria-hidden="true" /><span className="ib-admin-side__label">{t(BACK_LABELS[back.kind])}</span></a>
