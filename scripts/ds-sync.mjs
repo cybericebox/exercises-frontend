@@ -22,6 +22,7 @@ const lockFile = path.join(root, "src/styles/ds/manifest.json")
 
 // copy path (in the repo) -> source path (in the design system)
 const COPIES = {
+  "src/styles/ds-admin-sidebar.css": "patterns/admin-sidebar/admin-sidebar.css",
   "src/styles/ds-tokens.css": "tokens.css",
   "public/assets/crest-64.png": "assets/crest-64.png",
   "public/assets/crest-128.png": "assets/crest-128.png",
