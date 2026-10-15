@@ -1,6 +1,10 @@
 "use client"
+import { useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { TopBar } from "./TopBar"
+import { Sidebar } from "./Sidebar"
+import { MobileDrawer } from "./MobileDrawer"
+import { useMediaQuery } from "./useMediaQuery"
 import { SiteBanners } from "./SiteBanners"
 import { ReturnContextProvider } from "./ReturnContext"
 import { useRole } from "@/lib/useRole"
@@ -55,14 +59,28 @@ function AccessGate({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return (
-    <ReturnContextProvider>
-      <SkipLink />
-      <div className="flex h-dvh flex-col overflow-hidden bg-background">
-        <TopBar />
+  return <ReturnContextProvider><CatalogLayout>{children}</CatalogLayout></ReturnContextProvider>
+}
+
+function CatalogLayout({ children }: { children: React.ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const desktop = useMediaQuery("(min-width: 768px)")
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external viewport breakpoint
+    if (desktop) setMenuOpen(false)
+  }, [desktop])
+
+  return <>
+    <SkipLink />
+    <div className="flex h-dvh overflow-hidden bg-background">
+      {desktop && <Sidebar />}
+      {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} onReturnFocus={() => menuButton.current?.focus()} />}
+      <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
+        <TopBar onMenuClick={() => setMenuOpen(true)} menuButtonRef={menuButton} />
         <SiteBanners />
         <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
       </div>
-    </ReturnContextProvider>
-  )
+    </div>
+  </>
 }

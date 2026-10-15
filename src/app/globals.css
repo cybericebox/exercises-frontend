@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '../styles/ds-tokens.css';
+@import '../styles/ds-admin-sidebar.css';
 @import '../styles/ds-error-page.css';
 @import '../styles/ds-service-down.css';
 

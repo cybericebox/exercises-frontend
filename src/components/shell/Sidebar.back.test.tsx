@@ -1,7 +1,7 @@
 // The catalog's back arrow: only when opened from admin or an event site, named by its destination.
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
-import { TopBar } from "./TopBar"
+import { render, screen } from "@testing-library/react"
+import { Sidebar } from "./Sidebar"
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }))
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { FirstName: "Ada", LastName: "L", Email: "a@example.org" } }) }))
@@ -21,10 +21,10 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 const open = (search: string) => {
   window.history.replaceState(null, "", `/${search}`)
-  return render(<TopBar />)
+  return render(<Sidebar />)
 }
 
-describe("TopBar back arrow", () => {
+describe("Sidebar return link", () => {
   beforeEach(() => window.sessionStorage.clear())
 
   it("leads back to admin with its tooltip", async () => {
@@ -32,8 +32,7 @@ describe("TopBar back arrow", () => {
     const arrow = await screen.findByRole("link", { name: "back.toAdmin" })
     expect(arrow).toHaveAttribute("href", "https://admin.cybericebox.local/events")
     expect(arrow).not.toHaveAttribute("title")
-    fireEvent.focus(arrow)
-    expect(screen.getByRole("tooltip")).toHaveTextContent("back.toAdmin")
+    expect(arrow.closest(".ib-admin-side__foot")).not.toBeNull()
   })
 
   it("leads back to the event from the older ?return= and keeps it after navigation", async () => {
@@ -48,7 +47,7 @@ describe("TopBar back arrow", () => {
     for (const source of ["https://cybericebox.local/", "https://id.cybericebox.local/profile", "https://evil.com/"]) {
       window.sessionStorage.clear()
       const { unmount } = open(`?return_to=${encodeURIComponent(source)}`)
-      await screen.findByRole("button", { name: "admin.accountMenu" })
+      await screen.findByRole("navigation", { name: "exercises.nav.label" })
       await new Promise((resolve) => setTimeout(resolve, 0))
       expect(screen.queryByRole("link", { name: /back\./ }), source).not.toBeInTheDocument()
       unmount()

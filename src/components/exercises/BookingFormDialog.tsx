@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import { createBooking, type Amount, type Booking } from "@/api/exercises/testLabs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { t } from "@/i18n/t"
@@ -14,7 +15,7 @@ import { formatClock } from "@/lib/bookingFormat"
 
 const pad = (value: number) => String(value).padStart(2, "0")
 
-/** RFC3339 → the value of a datetime-local input (the browser's time zone). */
+/** RFC3339 → the picker's wall-clock value in the browser's time zone. */
 export function toLocalInput(iso: string): string {
   const d = new Date(iso)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -77,7 +78,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
     <div className="grid gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="booking-start">{t("exercises.book.start")}</Label>
-        <Input id="booking-start" type="datetime-local" value={startValue} onChange={(event) => { setStartValue(event.target.value); setError("") }} />
+        <DateTimePicker id="booking-start" aria-label={t("exercises.book.start")} value={startValue} onChange={(value) => { setStartValue(value); setError("") }} />
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="booking-minutes">{t("exercises.book.minutes")}</Label>
