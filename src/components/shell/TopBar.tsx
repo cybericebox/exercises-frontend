@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Logo } from "@/components/brand/Logo"
@@ -11,9 +11,9 @@ import { apiPost, mediaUrl } from "@/api/client"
 import { t } from "@/i18n/t"
 import { BookingsMenu } from "./BookingsMenu"
 import { RunningTestsMenu } from "./RunningTestsMenu"
-import { ThemeSwitch } from "./ThemeSwitch"
+import { THEME_OPTIONS, useThemeChoice } from "./ThemeSwitch"
 import { InboxButton } from "./InboxButton"
-import { Fragment, useEffect, useRef, useState } from "react"
+import { Fragment, useId, useEffect, useRef, useState } from "react"
 import { FeedbackMenuItem } from "@/components/FeedbackMenuItem"
 import { openConsentSettings } from "@/lib/consent"
 import { COOKIE_POLICY_HREF } from "@/components/consent/cookiePolicyHref"
@@ -23,7 +23,8 @@ import { initials } from "@/lib/initials"
 import { BACK_LABELS } from "@/lib/backLink"
 import { useBackLink } from "@/lib/useBackLink"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronDown } from "lucide-react"
+import type { ThemeChoice } from "@/lib/theme"
 import { useExerciseAccess } from "./AccessContext"
 
 // Unified account menu (lib/accountMenu): same entries, labels and icons in every app.
@@ -90,6 +91,12 @@ function AppNav() {
 
 export function TopBar() {
   const { me } = useRole()
+  const [themeChoice, selectTheme] = useThemeChoice()
+  const [themeExpanded, setThemeExpanded] = useState(false)
+  const themeChoicesID = useId()
+  const themeTrigger = useRef<HTMLDivElement>(null)
+  const currentTheme = THEME_OPTIONS.find((option) => option.value === themeChoice)!
+  const ThemeIcon = currentTheme.icon
   // Set by the cookie item: on menu close, focus goes back to the trigger first, then the
   // banner opens (it remembers the trigger and returns focus there).
   const openConsentRef = useRef(false)
@@ -105,11 +112,11 @@ export function TopBar() {
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="sticky top-0 z-40 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
-      <div className="flex min-w-0 items-center gap-6">
-        <span className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-card px-3 sm:px-4 md:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3 lg:gap-6">
+        <span className="flex min-w-0 items-center gap-2 sm:gap-3">
           <BackArrow />
-          <Logo size={28} />
+          <Logo size={32} className="shrink-0" />
           <Link href="/" className="truncate text-md font-semibold text-foreground">{t("exercises.app.title")}</Link>
         </span>
         <AppNav />
@@ -117,10 +124,8 @@ export function TopBar() {
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <RunningTestsMenu />
         <BookingsMenu />
-        <ThemeSwitch />
-        <span className="h-5 w-px bg-border" aria-hidden="true" />
         <InboxButton defaultTab="requestsIfOpen" />
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => { if (!open) setThemeExpanded(false) }}>
           <DropdownMenuTrigger
             ref={triggerRef}
             aria-label={t("admin.accountMenu")}
@@ -150,9 +155,28 @@ export function TopBar() {
             }}
           >
             <DropdownMenuLabel className="flex flex-col gap-0.5">
-              <span className="font-medium">{fullName}</span>
-              <span className="text-xs font-normal text-muted-foreground">{me?.Email}</span>
+              <span className="break-words font-medium">{fullName}</span>
+              <span className="break-all text-xs font-normal text-muted-foreground">{me?.Email}</span>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem ref={themeTrigger} className="gap-2" aria-expanded={themeExpanded} aria-controls={themeChoicesID}
+              onSelect={(event) => { event.preventDefault(); setThemeExpanded((expanded) => !expanded) }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowRight") { event.preventDefault(); setThemeExpanded(true) }
+                if (event.key === "ArrowLeft") { event.preventDefault(); setThemeExpanded(false) }
+              }}>
+              <ThemeIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{t("theme.label")}</span>
+              <span className="ml-auto text-xs text-muted-foreground">{t(currentTheme.label)}</span>
+              <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 transition-transform ${themeExpanded ? "rotate-180" : ""}`} />
+            </DropdownMenuItem>
+            {themeExpanded && <DropdownMenuRadioGroup id={themeChoicesID} aria-label={t("theme.label")} value={themeChoice}
+              onValueChange={(value) => selectTheme(value as ThemeChoice)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") { event.preventDefault(); setThemeExpanded(false); themeTrigger.current?.focus() }
+              }}>
+              {THEME_OPTIONS.map(({ value, icon: Icon, label }) => <DropdownMenuRadioItem key={value} value={value} className="gap-2"><Icon aria-hidden="true" className="h-4 w-4" />{t(label)}</DropdownMenuRadioItem>)}
+            </DropdownMenuRadioGroup>}
             <DropdownMenuSeparator />
             {navItems.length > 1 && <>
               {navItems.map((item) => (

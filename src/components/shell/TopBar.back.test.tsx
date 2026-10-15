@@ -8,7 +8,6 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { FirstName: "Ada", Last
 vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmin: true } }) }))
 vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
 vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
-vi.mock("./ThemeSwitch", () => ({ ThemeSwitch: () => null }))
 vi.mock("@/lib/origins", () => ({
   mainHost: "cybericebox.local",
   apiOrigin: "https://api.cybericebox.local",

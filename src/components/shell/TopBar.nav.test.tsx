@@ -9,7 +9,6 @@ vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmi
 vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
 vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
 vi.mock("./BookingsMenu", () => ({ BookingsMenu: () => null }))
-vi.mock("./ThemeSwitch", () => ({ ThemeSwitch: () => null }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 describe("TopBar sections", () => {

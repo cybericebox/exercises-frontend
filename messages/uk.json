@@ -23,6 +23,8 @@
   "serviceGate.checking": "Перевіряємо зʼєднання…",
   "serviceGate.nextTry": "Наступна спроба через {seconds} с",
   "serviceGate.retryNow": "Спробувати зараз",
+  "exercises.filter.label": "Фільтри",
+  "exercises.filter.active": "Фільтри застосовано",
   "theme.label": "Тема",
   "theme.light": "Світла",
   "theme.dark": "Темна",

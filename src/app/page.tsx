@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Upload } from "lucide-react"
+import { ChevronDown, SlidersHorizontal, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
 import { useRole } from "@/lib/useRole"
@@ -61,6 +61,7 @@ const STATUS_OPTION_KEYS: Record<StatusFilter, string> = {
 
 export default function Page() {
   const router = useRouter()
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
   const [rows, setRows] = useState<ExerciseListItem[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -190,7 +191,7 @@ export default function Page() {
   const statusOptions: StatusFilter[] = ["all", "published", "changed", "draft", ...(isAdmin ? ["archived" as const] : [])]
 
   return (
-    <div className="frost-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-3 sm:p-6">
+    <div className="frost-panel flex min-h-full min-w-0 flex-col rounded-lg sm:h-full sm:min-h-0 sm:overflow-hidden p-3 sm:p-6">
       <h1 className="sr-only">{t("exercises.nav.catalog")}</h1>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Input
@@ -210,7 +211,11 @@ export default function Page() {
           </div>
         )}
       </div>
-      <div className="mb-3 flex flex-wrap items-end gap-3">
+      <Button type="button" variant="outline" className="mb-3 w-full justify-between sm:hidden" aria-expanded={filtersExpanded} aria-controls="catalog-filters" onClick={() => setFiltersExpanded((expanded) => !expanded)}>
+        <span className="inline-flex items-center gap-2"><SlidersHorizontal aria-hidden="true" className="h-4 w-4" />{t(filtered ? "exercises.filter.active" : "exercises.filter.label")}</span>
+        <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${filtersExpanded ? "rotate-180" : ""}`} />
+      </Button>
+      <div className={`mb-3 min-w-0 flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end ${filtersExpanded ? "flex" : "hidden"}`} id="catalog-filters">
         <FilterField label={t("exercises.scope.label")} help={scopeTabs.map((value) => scopeHelpLine(value))}
           helpContent={<ul className="space-y-1">{scopeTabs.map((value) => (
             <li key={value || "all"}>{tRich("exercises.help.scope.line", { name: <strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong>, text: t(`exercises.help.scope.${value || "all"}`) })}</li>
@@ -221,7 +226,7 @@ export default function Page() {
         {(eventOptions.length > 0 || filters.events.length > 0) && (
           <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={[t(`exercises.help.events.${eventsMode}`)]}>
             <EventMultiSelect label={t(`exercises.filter.events.${eventsMode}`)} options={eventOptions} value={filters.events}
-              onChange={(events) => update({ events })} className="min-w-48 max-w-72 text-sm" />
+              onChange={(events) => update({ events })} className="w-full sm:min-w-48 sm:max-w-72 text-sm" />
           </FilterField>
         )}
         <FilterField label={t("exercises.filter.infra")} help={helpLines("exercises.help.infra", ["needed", "notNeeded"])}>
@@ -231,14 +236,14 @@ export default function Page() {
               { value: "yes", label: t("exercises.filter.infraYes") },
               { value: "no", label: t("exercises.filter.infraNo") },
             ]}
-            ariaLabel={t("exercises.filter.infra")} className="h-10 min-w-48 text-sm" />
+            ariaLabel={t("exercises.filter.infra")} className="h-10 w-full sm:min-w-48 text-sm" />
         </FilterField>
         <FilterField label={t("admin.ex.col.status")} help={helpLines("exercises.help.statusFilter", ["published", "changed", "draftOnly"])}>
           <SelectMenu value={filters.status} onChange={(value) => update({ status: value as StatusFilter })}
             options={statusOptions.map((value) => ({ value, label: t(STATUS_OPTION_KEYS[value]) }))}
-            ariaLabel={t("admin.ex.filterStatus")} className="h-10 min-w-44 text-sm" />
+            ariaLabel={t("admin.ex.filterStatus")} className="h-10 w-full sm:min-w-44 text-sm" />
         </FilterField>
-        <FilterField label={t("admin.ex.filterTags.label")} help={helpLines("exercises.help.tags", ["any", "existing"])} className="min-w-64 max-w-md flex-1">
+        <FilterField label={t("admin.ex.filterTags.label")} help={helpLines("exercises.help.tags", ["any", "existing"])} className="w-full sm:min-w-64 sm:max-w-md sm:flex-1">
           <TagFilter value={filters.tags} onChange={(tags) => update({ tags })} />
         </FilterField>
       </div>
@@ -252,7 +257,7 @@ export default function Page() {
         </div>
       )}
 
-      <Table label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem]">
+      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem]">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
             {canExport && <th scope="col" className={`${TABLE_HEAD_CELL} w-10`}>

@@ -106,7 +106,7 @@ export function TaskForm({
       <div className="flex flex-wrap items-end gap-3">
         {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
         <FormField control={control} name={`${base}.Name`} render={({ field }) => (
-          <FormItem className="min-w-56 flex-1 space-y-1">
+          <FormItem className="min-w-0 w-full sm:min-w-56 sm:flex-1 space-y-1">
             <ExerciseFieldLabel labelKey="admin.exTask.name" helpKey="admin.exTask.nameHelp" required form />
             <FormControl><Input {...field} required disabled={disabled} onChange={(event) => {
               field.onChange(event)
