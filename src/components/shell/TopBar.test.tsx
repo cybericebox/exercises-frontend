@@ -14,6 +14,13 @@ vi.mock("@/lib/origins", async (orig) => ({ ...(await orig<typeof import("@/lib/
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 describe("TopBar cookie settings", () => {
+  it("orders account links, theme, feedback, cookies and sign-out consistently", () => {
+    render(<TopBar />)
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.accountMenu" }), { key: "ArrowDown" })
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "accountMenu.profile", "theme.labeltheme.system", "feedback.link", "consent.menuLabel", "accountMenu.signOut",
+    ])
+  })
   it("is always in the account menu and opens the consent panel without navigating", async () => {
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_ANALYTICS_ID", "")
     const opened = vi.fn()
