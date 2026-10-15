@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { X } from "lucide-react"
+import { CalendarClock, X } from "lucide-react"
 
 import { getExerciseCapabilities, type ResourcesConfig } from "@/api/exercises/capabilities"
 import { cancelBooking, getRoom, listBookings, type Booking, type Room } from "@/api/exercises/testLabs"
 import { BookingFormDialog } from "@/components/exercises/BookingFormDialog"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { LoadError } from "@/components/ui/load-error"
@@ -24,10 +25,11 @@ type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state:
 const VIA_KEY = { booking: "exercises.book.via.booking", pool: "exercises.book.via.pool", free: "exercises.book.via.free", "": "exercises.book.via.free" } as const
 
 /**
- * «Бронювання»: the author's upcoming test lab bookings (cancel, add) and whether
+ * The sidebar's «Бронювання»: the author's upcoming test lab bookings (cancel, add) and whether
  * there is room for a test lab right now (the largest a platform device may be is the yardstick).
  */
-export function BookingsPage() {
+export function BookingsMenu() {
+  const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<Load>({ state: "loading" })
   const [cancelling, setCancelling] = useState<Booking | null>(null)
   const [busy, setBusy] = useState(false)
@@ -48,9 +50,9 @@ export function BookingsPage() {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial page load
-    void refresh()
-  }, [refresh])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads when the dialog opens
+    if (open) void refresh()
+  }, [open, refresh])
 
   async function cancel() {
     if (!cancelling) return
@@ -69,10 +71,20 @@ export function BookingsPage() {
 
   const items = load.state === "ready" ? load.items : []
   return <>
-    <div className="flex min-h-full min-w-0 flex-col gap-6">
-      <h1 className="text-xl font-semibold text-foreground">{t("exercises.book.listTitle")}</h1>
-      <section aria-label={t("exercises.book.listTitle")} className="frost-panel flex min-h-72 min-w-0 flex-col rounded-lg p-4">
-        <div className="flex min-h-56 flex-1 flex-col">
+    <Dialog open={open} onOpenChange={(next) => { if (next) setLoad({ state: "loading" }); setOpen(next) }}>
+      <DialogTrigger asChild>
+        <button type="button" className="ib-admin-side__item">
+          <CalendarClock aria-hidden="true" /><span className="ib-admin-side__label">{t("exercises.book.menu")}</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg text-foreground" aria-describedby={undefined}>
+        <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0 text-left">
+          <DialogTitle>{t("exercises.book.listTitle")}</DialogTitle>
+          <DialogClose asChild>
+            <button type="button" aria-label={t("exercises.book.close")} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
+          </DialogClose>
+        </DialogHeader>
+        <div className="flex min-h-56 flex-col">
           {load.state === "loading" ? <LoadingArea className="min-h-0 flex-1" label={t("admin.loading")} />
             : load.state === "error" ? <LoadError className="min-h-0 flex-1" error={load.cause} message={t("exercises.book.loadFailed")} onRetry={() => { setLoad({ state: "loading" }); void refresh() }} />
             : <>
@@ -104,8 +116,8 @@ export function BookingsPage() {
               </div>
             </>}
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
     <ConfirmDialog open={cancelling !== null} tone="danger" busy={busy} error={error} title={t("exercises.book.cancelTitle")}
       description={t("exercises.book.cancelDescription")} confirmLabel={t("exercises.book.cancel")} cancelLabel={t("exercises.book.keep")}
       onCancel={() => setCancelling(null)} onConfirm={() => void cancel()} />

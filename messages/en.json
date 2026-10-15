@@ -1251,5 +1251,6 @@
   "ui.dateTime.zone": "{zone} ({offset})",
   "ui.dateTime.done": "Done",
   "exercises.shell.openMenu": "Open menu",
-  "exercises.shell.closeMenu": "Close menu"
+  "exercises.shell.closeMenu": "Close menu",
+  "exercises.book.close": "Close bookings"
 }

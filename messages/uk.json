@@ -1251,5 +1251,6 @@
   "ui.dateTime.zone": "{zone} ({offset})",
   "ui.dateTime.done": "Готово",
   "exercises.shell.openMenu": "Відкрити меню",
-  "exercises.shell.closeMenu": "Закрити меню"
+  "exercises.shell.closeMenu": "Закрити меню",
+  "exercises.book.close": "Закрити бронювання"
 }
