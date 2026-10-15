@@ -12,7 +12,7 @@ export function FeedbackMenuItem() {
     <DropdownMenuItem asChild className="group gap-2">
       <FeedbackLink>
         <MessageSquare {...ACCOUNT_MENU_ICON_PROPS} className="shrink-0 text-muted-foreground group-focus:text-accent-foreground" />
-        {t("feedback.link")}
+        <span className="account-menu__label">{t("feedback.link")}</span>
       </FeedbackLink>
     </DropdownMenuItem>
   )

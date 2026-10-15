@@ -1,4 +1,5 @@
 "use client"
+import "@/styles/account-menu.css"
 import { usePathname } from "next/navigation"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
@@ -87,7 +88,7 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56"
+            className="account-menu" collisionPadding={16}
             onCloseAutoFocus={(e) => {
               if (!openConsentRef.current) return
               openConsentRef.current = false
@@ -96,7 +97,7 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
               openConsentSettings()
             }}
           >
-            <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <DropdownMenuLabel className="account-menu__identity">
               <span className="truncate font-medium" title={fullName}>{fullName}</span>
               <span className="truncate text-xs font-normal text-muted-foreground" title={me?.Email}>{me?.Email}</span>
             </DropdownMenuLabel>
@@ -136,12 +137,12 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
                 // (on the native event, so the menu still sees the select).
                 return (
                   <Fragment key={i}>
+                    <FeedbackMenuItem />
                     <DropdownMenuItem asChild className="group gap-2" onSelect={() => { openConsentRef.current = true }}>
                       <a href={COOKIE_POLICY_HREF} aria-label={t(ACCOUNT_MENU_LABELS.cookiesAria)} onClick={(e) => e.nativeEvent.preventDefault()}>
-                        <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.cookies)}
+                        <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} /><span className="account-menu__label">{t(ACCOUNT_MENU_LABELS.cookies)}</span>
                       </a>
                     </DropdownMenuItem>
-                    <FeedbackMenuItem />
                   </Fragment>
                 )
               }
@@ -149,7 +150,7 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
                 const Icon = ACCOUNT_MENU_ICONS.signOut
                 return (
                   <DropdownMenuItem key={i} className="group gap-2" onSelect={(e) => { e.preventDefault(); void signOutAndRedirect() }}>
-                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} />{t(ACCOUNT_MENU_LABELS.signOut)}
+                    <Icon {...ACCOUNT_MENU_ICON_PROPS} className={ICON_CLASS} /><span className="account-menu__label">{t(ACCOUNT_MENU_LABELS.signOut)}</span>
                   </DropdownMenuItem>
                 )
               }
