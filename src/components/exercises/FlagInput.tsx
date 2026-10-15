@@ -212,7 +212,7 @@ export function FlagInput({
                   <Braces aria-hidden="true" className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-72 min-w-[20rem] max-w-[calc(100vw-2rem)] overflow-y-auto">
+              <DropdownMenuContent align="end" className="max-h-72 min-w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-y-auto">
                 {INSERTION_GROUPS.map((group, groupIndex) => <div key={group.key}>
                   {groupIndex > 0 && <DropdownMenuSeparator />}
                   <DropdownMenuLabel className="py-1 text-xs font-semibold text-muted-foreground">{t(`admin.exTask.flag.${group.key}`)}</DropdownMenuLabel>

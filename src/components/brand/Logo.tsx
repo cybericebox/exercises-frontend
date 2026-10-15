@@ -31,13 +31,13 @@ export function Logo({ size = 64, className, href }: LogoProps) {
       width={Math.round((size * 375) / 368)}
       height={size}
       className={className}
-      style={{ display: "inline-block", objectFit: "contain" }}
+      style={{ display: "inline-block", width: Math.round((size * 375) / 368), height: size, flexShrink: 0, objectFit: "contain" }}
     />
   )
   const target = href === null ? null : href ?? LANDING_HREF
   if (!target) return img
   return (
-    <a href={target} aria-label={t("app.brand")} style={{ display: "inline-flex", lineHeight: 0 }}>
+    <a href={target} aria-label={t("app.brand")} style={{ display: "inline-flex", flexShrink: 0, lineHeight: 0 }}>
       {img}
     </a>
   )

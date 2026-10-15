@@ -132,7 +132,7 @@ export default function ProposalsPage() {
   }
 
   return (
-    <div className="frost-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-3 sm:p-6">
+    <div className="frost-panel flex min-h-full min-w-0 flex-col rounded-lg sm:h-full sm:min-h-0 sm:overflow-hidden p-3 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground">{t("exercises.proposals.title")}</h1>
         <Segmented value={status} onChange={(value) => setStatus(value as ProposalStatus)} ariaLabel={t("exercises.proposals.status")}

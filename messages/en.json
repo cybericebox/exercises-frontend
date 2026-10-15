@@ -23,6 +23,8 @@
   "serviceGate.checking": "Checking the connection…",
   "serviceGate.nextTry": "Next try in {seconds} s",
   "serviceGate.retryNow": "Try now",
+  "exercises.filter.label": "Filters",
+  "exercises.filter.active": "Filters applied",
   "theme.label": "Theme",
   "theme.light": "Light",
   "theme.dark": "Dark",

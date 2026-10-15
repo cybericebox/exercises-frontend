@@ -70,7 +70,7 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--ib-brand)] px-4 py-3 text-white lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col gap-1 max-lg:flex-1">
+      <div className="flex min-w-0 flex-col gap-1 max-sm:w-full max-lg:flex-1 max-sm:flex-none">
         <span className="text-xs uppercase tracking-wider text-white/70">{t("admin.exTest.caption")}</span>
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold">{title}</h1>

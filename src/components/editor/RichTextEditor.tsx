@@ -816,10 +816,19 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
   ) => {
     if (menuOptions.length === 0 || !anchorElementRef.current) return null;
     const rect = anchorElementRef.current.getBoundingClientRect();
+    const menuWidth = Math.min(320, window.innerWidth - 24);
+    const below = window.innerHeight - rect.bottom - 12;
+    const above = rect.top - 12;
+    const openAbove = below < 160 && above > below;
     return createPortal(
       <div
-        className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto py-1 rounded-lg bg-popover border border-input"
-        style={{ top: rect.bottom + 4, left: rect.left }}
+        className="fixed z-[9999] overflow-y-auto overscroll-contain break-words py-1 rounded-lg bg-popover border border-input"
+        style={{
+          width: menuWidth,
+          maxHeight: Math.max(80, Math.min(240, openAbove ? above : below)),
+          left: Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12)),
+          ...(openAbove ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+        }}
       >
         {menuOptions.map((opt, idx) => (
           <button
