@@ -1,0 +1,48 @@
+/* Account popovers share geometry across the platform; other menus keep their own size. */
+.account-menu {
+  box-sizing: border-box;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 4px;
+  border-radius: 8px;
+}
+.account-menu [role="menuitem"],
+.account-menu [role="menuitemradio"] {
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  gap: 8px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.account-menu [role="menuitem"] { padding-left: 8px; padding-right: 8px; }
+.account-menu [role="menuitem"] > svg,
+.account-menu [role="menuitemradio"] > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke-width: 1.6;
+}
+.account-menu__identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+.account-menu__identity > :first-child { font-size: 14px; font-weight: 500; line-height: 20px; }
+.account-menu__identity > :last-child { font-size: 13px; font-weight: 400; line-height: 18px; }
+.account-menu__identity > *,
+.account-menu__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
