@@ -1,43 +1,64 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { VpnDialog } from "@/components/exercises/VpnDialog"
+import { downloadBlob } from "@/lib/downloadBlob"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
 
 const base = { open: true, config: "[Interface]", onClose: vi.fn() }
 
-describe("VpnDialog — connection status and check", () => {
-  it("waits with the crest loader until the handshake is seen", () => {
+describe("VpnDialog — shared connection instructions", () => {
+  it("shows readiness without a waiting loader and opens the instructions", () => {
     render(<VpnDialog {...base} connected={false} />)
-    const status = document.querySelector("[data-vpn]") as HTMLElement
-    expect(status).toHaveAttribute("data-vpn", "waiting")
-    expect(status).toHaveTextContent("admin.exTest.vpnHelp.waiting")
-    expect(status.querySelector(".crest-loader")).not.toBeNull()
-    expect(screen.queryByText("admin.exTest.vpnHelp.connected")).not.toBeInTheDocument()
-  })
-
-  it("shows Connected in the success colour and drops the loader", () => {
-    render(<VpnDialog {...base} connected />)
-    const done = screen.getByText("admin.exTest.vpnHelp.connected")
-    expect(done.className).toContain("emerald")
+    expect(screen.getByRole("status")).toHaveTextContent("Готовий до підключення")
     expect(document.querySelector(".crest-loader")).toBeNull()
+    expect(screen.getByText("Інструкція").closest("details")).toHaveAttribute("open")
   })
 
-  it("opens the tester page in a new tab with a one-line hint, and hides it without an address", () => {
+  it("shows a connected shield and collapses the instructions after a handshake", () => {
+    const { rerender } = render(<VpnDialog {...base} connected={false} />)
+    rerender(<VpnDialog {...base} connected />)
+    expect(screen.getByRole("status")).toHaveAttribute("data-vpn", "connected")
+    expect(screen.getByRole("status")).toHaveTextContent("Підключено")
+    expect(screen.getByText("Інструкція").closest("details")).not.toHaveAttribute("open")
+    fireEvent.click(screen.getByText("Інструкція"))
+    expect(screen.getByText("Інструкція").closest("details")).toHaveAttribute("open")
+  })
+
+  it("preserves unknown connection status separately from disconnected", () => {
+    render(<VpnDialog {...base} connected={null} />)
+    expect(screen.getByRole("status")).toHaveTextContent("VPN доступний")
+    expect(screen.getByText(/Статус зʼєднання поки невідомий/)).toBeInTheDocument()
+  })
+
+  it("offers the official installer, app import and a command for the actual downloaded filename", () => {
+    render(<VpnDialog {...base} connected={false} />)
+    expect(screen.getByRole("link", { name: "WireGuard" })).toHaveAttribute("href", "https://www.wireguard.com/install/")
+    expect(screen.getByText("У застосунку")).toBeInTheDocument()
+    expect(screen.getByText("Або через термінал")).toBeInTheDocument()
+    expect(screen.getByText("sudo wg-quick up ./cybericebox.conf")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Завантажити файл" }))
+    expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "cybericebox.conf")
+  })
+
+  it("offers the probe only when an address is available", () => {
     const { rerender } = render(<VpnDialog {...base} probeUrl="http://10.128.1.1:8088/" />)
-    const link = screen.getByRole("link", { name: "admin.exTest.vpnHelp.check" })
+    const link = screen.getByRole("link", { name: /Перевірте зʼєднання/ })
     expect(link).toHaveAttribute("href", "http://10.128.1.1:8088/")
     expect(link).toHaveAttribute("target", "_blank")
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"))
-    expect(screen.getByText("admin.exTest.vpnHelp.checkHint")).toBeInTheDocument()
+    expect(screen.getByText("ping 10.128.1.1")).toBeInTheDocument()
     rerender(<VpnDialog {...base} />)
-    expect(screen.queryByRole("link", { name: "admin.exTest.vpnHelp.check" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /Перевірте зʼєднання/ })).not.toBeInTheDocument()
   })
 
-  it("keeps the config download button", () => {
+  it("closes from the header and keeps failed downloads visible", () => {
+    vi.mocked(downloadBlob).mockImplementationOnce(() => { throw new Error("download") })
     render(<VpnDialog {...base} />)
-    expect(screen.getByRole("button", { name: "admin.exTest.vpnHelp.downloadButton" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Завантажити файл" }))
+    expect(screen.getByRole("alert")).toHaveTextContent("Не вдалося завантажити")
+    fireEvent.click(screen.getByRole("button", { name: "Закрити" }))
+    expect(base.onClose).toHaveBeenCalled()
   })
 })
