@@ -39,7 +39,7 @@ export const ACCOUNT_MENU_ICONS: Record<AccountLinkKey | "cookies" | "signOut", 
   cookies: Cookie,
   signOut: LogOut,
 }
-export const ACCOUNT_MENU_ICON_PROPS = { size: 16, strokeWidth: 1.6, "aria-hidden": true } as const
+export const ACCOUNT_MENU_ICON_PROPS = { size: 16, strokeWidth: 2, "aria-hidden": true } as const
 
 /** `href` with ?return_to=<returnTo>, so the target app can offer a way back. */
 export function withReturnTo(href: string, returnTo: string): string {
