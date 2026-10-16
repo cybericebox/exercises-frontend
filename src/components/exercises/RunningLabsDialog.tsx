@@ -42,7 +42,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
   const [ending, setEnding] = useState<DeployListItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const othersRunning = useOtherLabsRunning(ending?.DeployID ?? null, items.length)
+  const othersRunning = useOtherLabsRunning(ending?.DeployID ?? null, 1)
   const nameOf = (item: DeployListItem) => names[item.ExerciseID] ?? t("admin.exTest.unknownExercise")
 
   async function end() {

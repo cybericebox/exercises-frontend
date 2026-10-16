@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
 const push = vi.fn()
@@ -8,11 +8,10 @@ vi.mock("@/lib/useExerciseNames", () => ({
   useExerciseNames: () => ({ ex1: "Exercise one", ex2: "Exercise two" }),
   useVariantNumbers: () => ({}),
 }))
-vi.mock("@/lib/useOtherLabsRunning", () => ({ useOtherLabsRunning: () => false }))
-vi.mock("@/api/exercises/deploy", () => ({ destroyDeploy: vi.fn() }))
+vi.mock("@/api/exercises/deploy", () => ({ destroyDeploy: vi.fn(), listDeploys: vi.fn() }))
 
 import { testLabHref } from "@/lib/exerciseRoutes"
-import type { DeployListItem } from "@/api/exercises/deploy"
+import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { RunningLabsDialog } from "./RunningLabsDialog"
 
 function item(id: string, exerciseId: string, kind?: "lab" | "static"): DeployListItem {
@@ -20,6 +19,8 @@ function item(id: string, exerciseId: string, kind?: "lab" | "static"): DeployLi
 }
 
 describe("RunningLabsDialog", () => {
+  beforeEach(() => { vi.mocked(listDeploys).mockResolvedValue([]) })
+
   it("marks only the static test and keeps open and end for both rows", () => {
     render(<RunningLabsDialog open items={[item("d1", "ex1", "lab"), item("d2", "ex2", "static")]} now={Date.parse("2026-10-17T10:30:00Z")} onClose={vi.fn()} onEnded={vi.fn()} />)
     expect(screen.getAllByText("admin.exTest.kindStatic")).toHaveLength(1)
@@ -35,5 +36,22 @@ describe("RunningLabsDialog", () => {
     render(<RunningLabsDialog open items={[item("d2", "ex2", "static")]} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: /admin\.exTest\.endLabNamed/ }))
     expect(screen.getByText("admin.exTest.endDescriptionStatic")).toBeInTheDocument()
+  })
+
+  it("promises the VPN stops when the only other running test is a static one", async () => {
+    const items = [item("d1", "ex1", "lab"), item("d2", "ex2", "static")]
+    vi.mocked(listDeploys).mockResolvedValue(items)
+    render(<RunningLabsDialog open items={items} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
+    fireEvent.click(screen.getAllByRole("button", { name: /admin\.exTest\.endLabNamed/ })[0])
+    expect(await screen.findByText("admin.exTest.endDescription")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.endDescriptionOthers")).not.toBeInTheDocument()
+  })
+
+  it("says the VPN stays when another lab still runs", async () => {
+    const items = [item("d1", "ex1", "lab"), item("d3", "ex2", "lab")]
+    vi.mocked(listDeploys).mockResolvedValue(items)
+    render(<RunningLabsDialog open items={items} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
+    fireEvent.click(screen.getAllByRole("button", { name: /admin\.exTest\.endLabNamed/ })[0])
+    expect(await screen.findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
   })
 })

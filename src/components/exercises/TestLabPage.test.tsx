@@ -725,6 +725,16 @@ describe("TestLabPage — end dialog copy", () => {
     const dialog = await screen.findByRole("dialog")
     expect(await within(dialog).findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
   })
+
+  it("promises the VPN stops when the only other running test is a static one", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([running, { ...running, DeployID: "run-2", Kind: "static" }])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    await waitFor(() => expect(listDeploys).toHaveBeenCalled())
+    expect(within(dialog).getByText("admin.exTest.endDescription")).toBeInTheDocument()
+    expect(within(dialog).queryByText("admin.exTest.endDescriptionOthers")).not.toBeInTheDocument()
+  })
 })
 
 describe("TestLabPage — static test", () => {
