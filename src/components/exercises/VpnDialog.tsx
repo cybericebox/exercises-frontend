@@ -51,7 +51,7 @@ export function VpnDialog({ open, config, connected = null, probeUrl, onClose }:
               </div></li>
               {probeUrl && <li>{tRich("admin.exTest.vpnHelp.checkProbe", {
                 link: <a href={probeUrl} target="_blank" rel="noopener noreferrer">{t("admin.exTest.vpnHelp.check")} <ArrowUpRight aria-hidden="true" /></a>,
-                ping: gateway ? <code>ping {gateway}</code> : null,
+                ping: gateway ? <code>{t("admin.exTest.vpnHelp.pingCommand", { gateway })}</code> : null,
               })}</li>}
             </ol>
             <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.note")}</p>

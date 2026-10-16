@@ -1267,5 +1267,6 @@
   "admin.exTest.vpnHelp.ready": "Ready to connect",
   "admin.exTest.vpnHelp.available": "VPN is available",
   "admin.exTest.vpnHelp.unknown": "The connection status is not yet known.",
-  "admin.exTest.vpnHelp.checkProbe": "{link} or run {ping}."
+  "admin.exTest.vpnHelp.checkProbe": "{link} or run {ping}.",
+  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}"
 }

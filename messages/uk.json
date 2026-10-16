@@ -1267,5 +1267,6 @@
   "admin.exTest.vpnHelp.ready": "Готовий до підключення",
   "admin.exTest.vpnHelp.available": "VPN доступний",
   "admin.exTest.vpnHelp.unknown": "Статус зʼєднання поки невідомий.",
-  "admin.exTest.vpnHelp.checkProbe": "{link} або виконайте {ping}."
+  "admin.exTest.vpnHelp.checkProbe": "{link} або виконайте {ping}.",
+  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}"
 }

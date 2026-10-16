@@ -191,7 +191,7 @@ describe("TestLabPage — bar", () => {
     const check = screen.getByRole("link", { name: "admin.exTest.vpnHelp.check" })
     expect(check).toHaveAttribute("href", "http://10.128.1.1:8088/")
     expect(check).toHaveAttribute("target", "_blank")
-    expect(dialog).toHaveTextContent("ping 10.128.1.1")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.pingCommand 10.128.1.1")
   })
 
   it("keeps VPN as a text button with a shield icon (not wifi), and icon-only end/hint/web buttons", async () => {
