@@ -795,7 +795,7 @@ describe("TestLabPage — static test", () => {
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
     const dialog = await screen.findByRole("dialog")
-    expect(within(dialog).getByText("admin.exTest.endDescription")).toBeInTheDocument()
+    expect(within(dialog).getByText("admin.exTest.endDescriptionStatic")).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endConfirm" }))
     await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("d1"))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
