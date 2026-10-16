@@ -35,7 +35,7 @@ export function formatCountdown(ms: number): string {
 }
 
 /** The lab's countdown, centered in the bar; `fallback` reads instead until the lease is known. */
-export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fallback: string }) {
+export function LabTimer({ expiresAt, fallback, isStatic = false }: { expiresAt: string | null; fallback: string; isStatic?: boolean }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!expiresAt) return
@@ -46,7 +46,7 @@ export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fa
   const left = new Date(expiresAt).getTime() - now
   return left > 0
     ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
-    : <span role="timer" className="text-sm text-white">{t("admin.exTest.timerEnded")}</span>
+    : <span role="timer" className="text-sm text-white">{t(isStatic ? "admin.exTest.timerEndedStatic" : "admin.exTest.timerEnded")}</span>
 }
 
 export type LabBarProps = {

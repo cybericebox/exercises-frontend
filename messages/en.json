@@ -374,6 +374,7 @@
   "admin.exTest.captionStatic": "Task test",
   "admin.exTest.progressLabel": "Solved {done} of {total}",
   "admin.exTest.timerEnded": "Lab time is up",
+  "admin.exTest.timerEndedStatic": "Test time is up",
   "admin.exTest.topologyShow": "Show topology",
   "admin.exTest.topologyHide": "Hide topology",
   "admin.exTest.layoutReset": "Reset layout",

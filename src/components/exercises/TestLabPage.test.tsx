@@ -828,3 +828,17 @@ describe("TestLabPage — static test", () => {
     expect(screen.queryByText("admin.exTest.captionStatic")).not.toBeInTheDocument()
   })
 })
+
+describe("TestLabPage — static test timer", () => {
+  it("says the test time is up on a static test and the lab time on a lab", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] })
+    const soon = new Date(Date.now() + 3000).toISOString()
+    vi.mocked(listDeploys).mockResolvedValue([{ ...running, Kind: "static", ExpiresAt: soon }])
+    vi.mocked(deployStatus).mockResolvedValue({ Ready: true, Phase: "", ExpiresAt: soon })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEndedStatic")
+    vi.useRealTimers()
+  })
+})

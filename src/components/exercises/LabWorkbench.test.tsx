@@ -4,7 +4,7 @@ import type { NormalizedHint } from "@/api/exercises/versions"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
-import { HintList, LabBar, formatCountdown } from "./LabWorkbench"
+import { HintList, LabBar, LabTimer, formatCountdown } from "./LabWorkbench"
 
 const hint = (ID: string, Level: NormalizedHint["Level"]): NormalizedHint => ({ ID, Text: "x", Level })
 const rows = [{ hint: hint("h1", "nudge"), index: 0 }, { hint: hint("h2", "steps"), index: 1 }]
@@ -57,5 +57,17 @@ describe("LabBar back arrow", () => {
   it("has no back link without backHref", () => {
     render(bar())
     expect(screen.queryByRole("link", { name: "admin.exTest.back" })).not.toBeInTheDocument()
+  })
+})
+
+describe("LabTimer at the lease end", () => {
+  const past = new Date(Date.now() - 1000).toISOString()
+  it("says the lab time is up for a lab", () => {
+    render(<LabTimer expiresAt={past} fallback="" />)
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEnded")
+  })
+  it("says the test time is up for a static test", () => {
+    render(<LabTimer expiresAt={past} fallback="" isStatic />)
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEndedStatic")
   })
 })

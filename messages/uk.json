@@ -374,6 +374,7 @@
   "admin.exTest.captionStatic": "Тест завдання",
   "admin.exTest.progressLabel": "Розвʼязано {done} з {total}",
   "admin.exTest.timerEnded": "Час лабораторії вийшов",
+  "admin.exTest.timerEndedStatic": "Час тесту вийшов",
   "admin.exTest.topologyShow": "Показати топологію",
   "admin.exTest.topologyHide": "Сховати топологію",
   "admin.exTest.layoutReset": "Скинути розташування",
