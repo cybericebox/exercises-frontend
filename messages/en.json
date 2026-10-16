@@ -426,6 +426,7 @@
   "admin.exTest.tasksCount": "Tasks · {n}",
   "admin.exTest.solved": "Flag found",
   "admin.exTest.flagTitle": "Answer",
+  "admin.exTest.randomFlagNote": "This subtask has no answer set: it is generated randomly, so it cannot be solved.",
   "admin.exTest.download": "Download",
   "admin.exDeploy.phase.pending": "Lab is waiting to start",
   "admin.exDeploy.phase.provisioning": "Lab is being deployed",

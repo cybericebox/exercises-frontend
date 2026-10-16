@@ -213,11 +213,13 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
 }
 
 /** The chosen task: title, difficulty, description with the lab's values, files, hints, the answer card and the stage links. */
-export function TaskView({ task, values, deployId, flagLinked, solved = false, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
+export function TaskView({ task, values, deployId, flagLinked, randomFlag = false, solved = false, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
   task: NormalizedTask
   values: TaskValues
   deployId: string
   flagLinked: boolean
+  /** A static test whose task has no answer set: the flag is random, so it cannot be solved. */
+  randomFlag?: boolean
   /** The answer was already checked correctly (kept with the deploy). */
   solved?: boolean
   openingKey: string | null
@@ -259,6 +261,7 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
 
     {flagLinked && deployId && <section className="rounded-lg border border-border bg-muted/30 p-4">
       <h3 className="mb-2 text-sm font-semibold text-foreground">{t("admin.exTest.flagTitle")}</h3>
+      {randomFlag && <p role="note" className="mb-2 text-sm text-muted-foreground">{t("admin.exTest.randomFlagNote")}</p>}
       <TestFlagCheck deployId={deployId} taskId={task.ID} taskName={task.Name} solved={solved} onResult={(correct) => { if (correct) onSolved(task.ID) }} />
     </section>}
 

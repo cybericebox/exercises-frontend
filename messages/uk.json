@@ -426,6 +426,7 @@
   "admin.exTest.tasksCount": "Підзавдання · {n}",
   "admin.exTest.solved": "Прапор знайдено",
   "admin.exTest.flagTitle": "Відповідь",
+  "admin.exTest.randomFlagNote": "Для цього підзавдання не задано відповіді: вона створюється випадково, тому розвʼязати його не вийде.",
   "admin.exTest.download": "Завантажити",
   "admin.exDeploy.phase.pending": "Лабораторія очікує запуску",
   "admin.exDeploy.phase.provisioning": "Лабораторія розгортається",

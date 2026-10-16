@@ -725,3 +725,79 @@ describe("TestLabPage — end dialog copy", () => {
     expect(await within(dialog).findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
   })
 })
+
+describe("TestLabPage — static test", () => {
+  const staticTasks = [{ TaskID: "t1", Name: "Login" }, { TaskID: "t2", Name: "Escalate" }]
+  const staticItem: DeployListItem = { ...running, Kind: "static", Tasks: staticTasks }
+  const staticStatus: DeployStatus = { Ready: true, Phase: "", ExpiresAt: inHours(1) }
+  const started = { deploy: null, version: "draft-1", variant: "v1" }
+
+  beforeEach(() => {
+    vi.mocked(deployVariant).mockResolvedValue({ DeployID: "d1", Lab: "", Kind: "static", Tasks: staticTasks })
+    vi.mocked(deployStatus).mockResolvedValue(staticStatus)
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "d1" }])
+  })
+
+  it("shows tasks at once without lab parts", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /notes\.pdf/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.topologyShow/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument()
+    expect(screen.getAllByLabelText(/admin\.exDeploy\.flagInput/)).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskNext" }))
+    expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/admin\.exDeploy\.flagInput/)).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskPrev" }))
+    expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
+  })
+
+  it("checks a flag: wrong keeps the progress, right ticks the task", async () => {
+    vi.mocked(checkDeployFlag).mockResolvedValueOnce({ Correct: false }).mockResolvedValueOnce({ Correct: true })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    const input = await screen.findByLabelText(/admin\.exDeploy\.flagInput/)
+    fireEvent.change(input, { target: { value: "bad" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    expect(await screen.findByText(/admin\.exDeploy\.wrong/)).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.progressLabel 0 2")).toBeInTheDocument()
+    fireEvent.change(input, { target: { value: "good" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    expect(await screen.findByText(/admin\.exDeploy\.correct/)).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.solved")).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
+  })
+
+  it("notes a random flag only on a task without an answer", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    // login has Flag: [] in the fixtures, so give the second one an answer
+    expect(await screen.findByRole("note")).toHaveTextContent("admin.exTest.randomFlagNote")
+  })
+
+  it("does not note a task that has an answer", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ ...version, Variants: [version.Variants[0], { ...version.Variants[1], Tasks: [{ ...login, Flag: ["ICE{x}"] }, second] }] })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.queryByRole("note")).not.toBeInTheDocument()
+  })
+
+  it("attaches from the list to the same ready screen with no loader", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "run-1" }])
+    vi.mocked(deployStatus).mockReturnValue(new Promise(() => undefined))
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
+  })
+
+  it("ends after the danger confirmation and returns to the exercise", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exTest.endDescription")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("d1"))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
+  })
+})
