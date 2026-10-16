@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, LogOut } from "lucide-react"
 
 import { destroyDeploy, type DeployListItem } from "@/api/exercises/deploy"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -72,7 +73,10 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
             const variant = variants[item.DeployID]
             return <li key={item.DeployID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-foreground">{name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-foreground">{name}</span>
+                  {item.Kind === "static" && <Badge tone="muted">{t("admin.exTest.kindStatic")}</Badge>}
+                </div>
                 <div className="text-xs tabular-nums text-muted-foreground">
                   {variant ? t("admin.exTest.runningVariant", { variant, status: item.Expired ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) }) }) : item.Expired ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })}
                 </div>
@@ -97,7 +101,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
       </DialogContent>
     </Dialog>
     <ConfirmDialog open={ending !== null} tone="danger" busy={busy} error={error} title={t("admin.exTest.endTitle")}
-      description={t(othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(ending?.Kind === "static" ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEnding(null)} onConfirm={() => void end()} />
   </>
 }

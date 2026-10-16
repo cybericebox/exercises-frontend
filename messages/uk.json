@@ -363,6 +363,7 @@
   "admin.exTest.endDescription": "Лабораторію буде видалено разом з усім, що в ній змінено. VPN-конфігурація і вебдоступ перестануть працювати.",
   "admin.exTest.endDescriptionOthers": "Лабораторію буде видалено разом з усім, що в ній змінено, і вебдоступ до неї. VPN залишиться: у вас є інші запущені лабораторії.",
   "admin.exTest.endDescriptionStatic": "Тест завершиться: відповіді й прогрес буде видалено.",
+  "admin.exTest.kindStatic": "без лабораторії",
   "admin.exTest.endConfirm": "Завершити",
   "admin.exTest.tasks": "Підзавдання",
   "admin.exTest.noTasks": "У цьому варіанті немає підзавдань",
