@@ -1218,6 +1218,7 @@
   "exercises.res.approvedLine": "{name}: {hint}",
   "exercises.res.presetOption": "{name} · {hint}",
   "admin.exTest.timerCountdown": "{time} · lab available",
+  "admin.exTest.timerCountdownStatic": "{time} · test in progress",
   "admin.exTest.entrySolved": "{name}, flag found",
   "exercises.hints.itemLine": "Hint {n} · {level}",
   "exercises.hints.itemLinePriced": "Hint {n} · {level} · {price}",

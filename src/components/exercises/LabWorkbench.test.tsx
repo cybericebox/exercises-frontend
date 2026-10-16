@@ -60,6 +60,19 @@ describe("LabBar back arrow", () => {
   })
 })
 
+describe("LabTimer countdown", () => {
+  const future = new Date(Date.now() + 3600_000).toISOString()
+  it("names the lab for a lab", () => {
+    render(<LabTimer expiresAt={future} fallback="" />)
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerCountdown")
+    expect(screen.getByRole("timer")).not.toHaveTextContent("timerCountdownStatic")
+  })
+  it("says no lab for a static test", () => {
+    render(<LabTimer expiresAt={future} fallback="" isStatic />)
+    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerCountdownStatic")
+  })
+})
+
 describe("LabTimer at the lease end", () => {
   const past = new Date(Date.now() - 1000).toISOString()
   it("says the lab time is up for a lab", () => {

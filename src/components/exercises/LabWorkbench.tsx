@@ -45,7 +45,7 @@ export function LabTimer({ expiresAt, fallback, isStatic = false }: { expiresAt:
   if (!expiresAt) return fallback ? <span className="text-sm text-white/80">{fallback}</span> : null
   const left = new Date(expiresAt).getTime() - now
   return left > 0
-    ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
+    ? <span role="timer" className="text-sm text-white">{tRich(isStatic ? "admin.exTest.timerCountdownStatic" : "admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
     : <span role="timer" className="text-sm text-white">{t(isStatic ? "admin.exTest.timerEndedStatic" : "admin.exTest.timerEnded")}</span>
 }
 

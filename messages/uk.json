@@ -1218,6 +1218,7 @@
   "exercises.res.approvedLine": "{name}: {hint}",
   "exercises.res.presetOption": "{name} · {hint}",
   "admin.exTest.timerCountdown": "{time} · лабораторія доступна",
+  "admin.exTest.timerCountdownStatic": "{time} · тест триває",
   "admin.exTest.entrySolved": "{name}, прапор знайдено",
   "exercises.hints.itemLine": "Підказка {n} · {level}",
   "exercises.hints.itemLinePriced": "Підказка {n} · {level} · {price}",
