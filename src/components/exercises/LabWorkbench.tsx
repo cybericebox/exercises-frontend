@@ -60,6 +60,8 @@ export type LabBarProps = {
   /** Whether the author's VPN is connected to this lab. */
   vpn?: { connected: boolean }
   onEnd?: () => void
+  /** A static test (no lab): the caption says so. */
+  isStatic?: boolean
   /** Where the back arrow leads (the task's catalog page); no arrow without it. Leaving does not end the test. */
   backHref?: string
 }
@@ -69,7 +71,7 @@ function vpnTooltip(vpn: LabBarProps["vpn"]): string {
 }
 
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
-export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd, backHref }: LabBarProps) {
+export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd, backHref, isStatic = false }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--ib-brand)] px-4 py-3 text-white lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
@@ -80,7 +82,7 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
           </Link>
         </HoverTooltip>}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-xs uppercase tracking-wider text-white/70">{t("admin.exTest.caption")}</span>
+        <span className="text-xs uppercase tracking-wider text-white/70">{t(isStatic ? "admin.exTest.captionStatic" : "admin.exTest.caption")}</span>
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold">{title}</h1>
           <div role="progressbar" className="flex shrink-0 items-center gap-2 text-xs text-white/80"

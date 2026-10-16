@@ -370,6 +370,7 @@
   "admin.exTest.noDescription": "No description",
   "admin.exTest.attachments": "Attachments",
   "admin.exTest.caption": "Lab work",
+  "admin.exTest.captionStatic": "Task test",
   "admin.exTest.progressLabel": "Solved {done} of {total}",
   "admin.exTest.timerEnded": "Lab time is up",
   "admin.exTest.topologyShow": "Show topology",

@@ -813,4 +813,18 @@ describe("TestLabPage — static test", () => {
     await screen.findByRole("heading", { name: "Login" })
     expect(await screen.findByText("admin.exDeploy.phase.ready")).toBeInTheDocument()
   })
+
+  it("captions a static test as a task test, a lab test keeps the lab caption", async () => {
+    const first = render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.getByText("admin.exTest.captionStatic")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.caption")).not.toBeInTheDocument()
+    first.unmount()
+    vi.mocked(listDeploys).mockResolvedValue([running])
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.getByText("admin.exTest.caption")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.captionStatic")).not.toBeInTheDocument()
+  })
 })

@@ -208,7 +208,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const imageNote = isStatic ? null : imageWarningText(status)
 
   return <div className="flex h-dvh flex-col bg-background">
-    <LabBar title={meta.exercise.Name} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
+    <LabBar title={meta.exercise.Name} isStatic={isStatic} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
       center={<LabTimer expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : isStatic ? "" : deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={isStatic ? undefined : () => setTopologyShown(!topologyShown)}
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}

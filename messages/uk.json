@@ -370,6 +370,7 @@
   "admin.exTest.noDescription": "Опис не задано",
   "admin.exTest.attachments": "Вкладення",
   "admin.exTest.caption": "Лабораторна робота",
+  "admin.exTest.captionStatic": "Тест завдання",
   "admin.exTest.progressLabel": "Розвʼязано {done} з {total}",
   "admin.exTest.timerEnded": "Час лабораторії вийшов",
   "admin.exTest.topologyShow": "Показати топологію",
