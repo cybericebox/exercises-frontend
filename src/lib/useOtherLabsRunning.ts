@@ -1,5 +1,6 @@
 /**
  * useOtherLabsRunning — whether the user has more running test labs than the one about to end.
+ * Static tests (no lab) and expired labs do not count: the server destroys the group with the last live lab.
  * The author's labs share one VPN, so the end dialog may only promise «VPN stops» for the last one.
  * It starts from what the caller already knows and is corrected by the full list (the caller's
  * list may be one exercise's only); a failed fetch keeps the first answer.
@@ -14,7 +15,7 @@ export function useOtherLabsRunning(deployId: string | null, knownCount: number)
     if (!deployId) return
     let cancelled = false
     listDeploys().then(
-      (items) => { if (!cancelled) setAnswer({ deployId, others: items.some((item) => item.DeployID !== deployId) }) },
+      (items) => { if (!cancelled) setAnswer({ deployId, others: items.some((item) => item.DeployID !== deployId && item.Kind !== "static" && !item.Expired) }) },
       () => undefined
     )
     return () => { cancelled = true }

@@ -89,6 +89,7 @@ export const CODE_TO_KEY: Record<number, string> = {
   70958: "admin.ex.err.testDeployNoLab",
   70959: "admin.ex.err.testDeployNotReady",
   70963: "admin.ex.err.testDeployActive",
+  70977: "admin.ex.err.testDeployStatic",
   30960: "admin.ex.err.noWebDevice",
   71401: "admin.ex.err.infrastructureUnavailable",
   71405: "admin.ex.err.deployNoPersistence",

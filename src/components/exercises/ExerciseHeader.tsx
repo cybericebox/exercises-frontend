@@ -21,7 +21,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
 export type HeaderPermissions = { write: boolean; publish: boolean; delete: boolean; export: boolean }
 export type HeaderBadge = { kind: ExerciseBadgeKind; label?: string } | { kind: "version"; label: string }
-export type TestVariantOption = { index: number; label: string; disabled: boolean }
+export type TestVariantOption = { index: number; label: string; disabled: boolean; reason?: string }
 
 export type ExerciseHeaderProps = {
   mode: HeaderMode
@@ -151,11 +151,16 @@ function TestMenu({
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t("admin.exPage.action.testMenu")}
         </DropdownMenuLabel>
-        {variants.map((variant) => (
-          <DropdownMenuItem key={variant.index} disabled={variant.disabled} onSelect={() => onTest(variant.index)}>
-            {variant.label}
-          </DropdownMenuItem>
-        ))}
+        {variants.map((variant) => {
+          const item = (
+            <DropdownMenuItem disabled={variant.disabled} onSelect={() => onTest(variant.index)}>
+              {variant.label}
+            </DropdownMenuItem>
+          )
+          return variant.disabled && variant.reason
+            ? <HoverTooltip key={variant.index} text={variant.reason} describe>{item}</HoverTooltip>
+            : <span key={variant.index} className="contents">{item}</span>
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )

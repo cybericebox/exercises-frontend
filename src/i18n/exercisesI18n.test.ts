@@ -54,3 +54,13 @@ describe("admin.ex* i18n parity", () => {
     }
   })
 })
+
+describe("running-tests copy covers static tests too", () => {
+  const keys = ["admin.exTest.runningTitle", "admin.exTest.limitTitle", "admin.exTest.limitDescription", "admin.ex.err.testDeployActive"]
+  it("names tests, not laboratories", () => {
+    for (const key of keys) {
+      expect((uk as Record<string, string>)[key], `uk ${key}`).not.toMatch(/лаборатор/i)
+      expect((en as Record<string, string>)[key], `en ${key}`).not.toMatch(/\blabs?\b/i)
+    }
+  })
+})

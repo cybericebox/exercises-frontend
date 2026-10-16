@@ -254,5 +254,57 @@ describe("useDeployTest", () => {
       await act(async () => { setHidden(false) })
       expect(mocked.deployStatus).toHaveBeenCalledTimes(2)
     })
+
+    it("static attach polls slowly and merges Expired", async () => {
+      mocked.deployStatus
+        .mockResolvedValueOnce({ Phase: "", Ready: true })
+        .mockResolvedValue({ Phase: "", Ready: true, Expired: true, SolvedTaskIDs: ["t1"] })
+      const { result } = renderHook(() => useDeployTest())
+      act(() => result.current.attach("s1", [{ TaskID: "t1", Name: "A" }], "static"))
+      expect(result.current.status?.Ready).toBe(true)
+      expect(result.current.busy).toBe(false)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000) })
+      expect(mocked.deployStatus).toHaveBeenCalledTimes(2)
+      expect(result.current.status?.Expired).toBe(true)
+      expect(result.current.status?.SolvedTaskIDs).toEqual(["t1"])
+      expect(result.current.kind).toBe("static")
+    })
+
+    it("static keeps the last status when a poll fails", async () => {
+      mocked.deployStatus.mockRejectedValue(new Error("boom"))
+      const { result } = renderHook(() => useDeployTest())
+      act(() => result.current.attach("s1", [], "static"))
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(result.current.status?.Ready).toBe(true)
+      expect(result.current.error).toBeNull()
+    })
+  })
+
+  it("static start is ready before any status answer", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d1", Lab: "", Kind: "static", Tasks: [{ TaskID: "t1", Name: "A" }] })
+    mocked.deployStatus.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useDeployTest())
+    await act(async () => {
+      await result.current.start("ex", "ver", "var")
+    })
+    expect(result.current.status?.Ready).toBe(true)
+    expect(result.current.kind).toBe("static")
+    expect(result.current.busy).toBe(false)
+  })
+
+  it("lab start unchanged", async () => {
+    mocked.deployVariant.mockResolvedValue({ DeployID: "d1", Lab: "lab" })
+    mocked.deployStatus.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useDeployTest())
+    await act(async () => {
+      await result.current.start("ex", "ver", "var")
+    })
+    expect(result.current.status).toBeNull()
+    expect(result.current.kind).toBe("lab")
+    expect(result.current.busy).toBe(true)
   })
 })
