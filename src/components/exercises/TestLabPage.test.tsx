@@ -843,7 +843,7 @@ describe("TestLabPage — texts before the kind is known", () => {
 
   it("keeps the lab provisioning text once the start says it is a lab", async () => {
     vi.mocked(deployVariant).mockResolvedValue({ DeployID: "run-1", Lab: "lab", Kind: "lab", Tasks: running.Tasks })
-    vi.mocked(deployStatus).mockResolvedValue({ Ready: false })
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "", Ready: false })
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     expect((await screen.findAllByText("admin.exDeploy.provisioning")).length).toBeGreaterThan(0)
     expect(screen.queryByText("admin.exTest.starting")).not.toBeInTheDocument()
