@@ -117,6 +117,22 @@ describe("exercise editor — W4 rights", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeEnabled()
   })
 
+  it("disables a device-bearing variant in the test menu with the infrastructure reason when the owner event forbids it", async () => {
+    const lab = { ...version.Variants[0], ID: "v2", Index: 2, Topology: { ...version.Variants[0].Topology,
+      Devices: [{ ID: "dev-1", Name: "web", Type: "container", SecurityPreset: "", Image: "i", ResourcePreset: "max", Interfaces: [], EnvVars: [], External: null }] } }
+    vi.mocked(getDraft).mockResolvedValue({ ...version, ID: "draft-1", Status: "draft", Variants: [version.Variants[0], lab] } as Version)
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Scope: "event", OwnerEventID: "ev1", OwnerEventName: "Winter CTF", AccessLevel: "", Permissions: managerRights })
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
+    const items = await screen.findAllByRole("menuitem")
+    expect(items).toHaveLength(2)
+    expect(items[0]).not.toHaveAttribute("aria-disabled", "true")
+    expect(items[1]).toHaveAttribute("aria-disabled", "true")
+    fireEvent.focus(items[1])
+    expect(items[1]).toHaveAccessibleDescription("exercises.infra.blocked")
+  })
+
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
     h.access = adminAccess
     vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })

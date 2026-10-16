@@ -13,9 +13,11 @@ export function testVariantOptions(
   labelOf: (n: number) => string,
 ): TestVariantOption[] {
   const reason = !platform.infraAllowed ? t("exercises.infra.blocked")
-    : platform.laboratories !== true ? t("admin.exPage.action.testNoPlatform") : undefined
+    : platform.laboratories === false ? t("admin.exPage.action.testNoPlatform") : undefined
+  // Still loading (null): a lab variant waits disabled, but claims nothing about the platform.
+  const waiting = platform.laboratories === null
   return variants.map((variant, index) => {
     const lab = variant.Topology.Devices.length > 0
-    return { index, label: labelOf(index + 1), disabled: lab && reason !== undefined, ...(lab && reason ? { reason } : {}) }
+    return { index, label: labelOf(index + 1), disabled: lab && (reason !== undefined || waiting), ...(lab && reason ? { reason } : {}) }
   })
 }

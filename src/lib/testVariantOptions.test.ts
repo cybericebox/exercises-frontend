@@ -28,6 +28,16 @@ describe("testVariantOptions", () => {
     expect(blocked[1].reason).toBe("exercises.infra.blocked")
   })
 
+  it("gives a lab variant no reason while laboratories are still loading", () => {
+    const option = testVariantOptions([stat, lab], { laboratories: null, infraAllowed: true }, label)[1]
+    expect(option.disabled).toBe(true)
+    expect(option.reason).toBeUndefined()
+  })
+
+  it("still names the blocked infrastructure while laboratories are loading", () => {
+    expect(testVariantOptions([lab], { laboratories: null, infraAllowed: false }, label)[0].reason).toBe("exercises.infra.blocked")
+  })
+
   it("enables lab variants when everything is available", () => {
     expect(testVariantOptions([lab], { laboratories: true, infraAllowed: true }, label)[0].disabled).toBe(false)
   })
