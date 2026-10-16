@@ -179,8 +179,8 @@ function ElevationDialog({ exerciseId, issues, config, onPickBlock, flush, onClo
       </ul>
       <div className="space-y-1.5">
         <Label htmlFor="elevation-reason">{t("exercises.res.dialog.reason")}</Label>
-        <Textarea id="elevation-reason" rows={4} value={reason} aria-invalid={tooLong} onChange={(event) => setReason(event.target.value)} />
-        {tooLong && <p role="alert" className="text-xs text-destructive">{t("exercises.res.dialog.reasonTooLong")}</p>}
+        <Textarea id="elevation-reason" rows={4} value={reason} aria-invalid={tooLong} aria-describedby={tooLong ? "elevation-reason-error" : undefined} onChange={(event) => setReason(event.target.value)} />
+        {tooLong && <p id="elevation-reason-error" role="alert" className="text-xs text-destructive">{t("exercises.res.dialog.reasonTooLong")}</p>}
       </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <DialogFooter>

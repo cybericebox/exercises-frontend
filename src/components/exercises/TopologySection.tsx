@@ -466,7 +466,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           <h3 className="truncate text-sm font-semibold">{t("admin.exTopo.deviceSettings")}</h3>
           {settingsName !== null && (renamingKey === settingsTarget ? <div className="mt-1 min-w-0">
             <div className="flex items-center gap-1.5">
-            <Input ref={nameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!nameError}
+            <Input ref={nameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!nameError} aria-describedby={nameError ? `topology-name-${variantIndex}-error` : undefined}
               value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? MAX_DEVICE_NAME_LEN : undefined}
               onChange={(event) => { setNameDraft(event.target.value); setNameError("") }}
               onBlur={commitRename} onKeyDown={(event) => {
@@ -476,7 +476,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
             {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container"
               && <span onMouseDown={(event) => event.preventDefault()}><FieldHelp text={t("admin.exTopo.deviceNameHelp", { max: MAX_DEVICE_NAME_LEN })} /></span>}
             </div>
-            {nameError && <p role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
+            {nameError && <p id={`topology-name-${variantIndex}-error`} role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
           </div> : <HoverTooltip text={t("admin.exTopo.renameDevice")} className="max-w-full">
             <button type="button" disabled={disabled} aria-label={t("admin.exTopo.renameDeviceOf", { name: settingsName })}
               onClick={() => startRename(settingsTarget)}

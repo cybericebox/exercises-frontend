@@ -172,6 +172,20 @@ describe("useExerciseEditor", () => {
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
   })
 
+  it("puts a rejected exercise name on Name and preserves the unsaved draft", async () => {
+    mockUpdate.mockRejectedValueOnce(new ApiError(409, { Status: { Code: 40903 } }))
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Taken name" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.identityForm.getFieldState("Name").error?.message).toBe("admin.ex.err.exists")
+    expect(latest.autosave.hasUnsaved()).toBe(true)
+    expect(latest.identityForm.getValues("Name")).toBe("Taken name")
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it("creates the exercise once the name is valid, then saves the working copy", async () => {
     const onCreated = vi.fn()
     render(<Harness onCreated={onCreated} />)

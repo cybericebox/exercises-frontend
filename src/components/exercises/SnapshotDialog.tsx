@@ -21,8 +21,8 @@ export function SnapshotDialog({ busy, onCancel, onConfirm }: { busy: boolean; o
       </DialogHeader>
       <div className="space-y-1.5">
         <Label htmlFor="snapshot-note">{t("admin.exPage.snapshot.note")}</Label>
-        <Textarea id="snapshot-note" rows={3} value={note} aria-invalid={tooLong} onChange={(event) => setNote(event.target.value)} />
-        {tooLong && <p role="alert" className="text-xs text-destructive">{t("admin.exPage.snapshot.noteTooLong")}</p>}
+        <Textarea id="snapshot-note" rows={3} value={note} aria-invalid={tooLong} aria-describedby={tooLong ? "snapshot-note-error" : undefined} onChange={(event) => setNote(event.target.value)} />
+        {tooLong && <p id="snapshot-note-error" role="alert" className="text-xs text-destructive">{t("admin.exPage.snapshot.noteTooLong")}</p>}
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>{t("admin.exPage.dialog.cancel")}</Button>

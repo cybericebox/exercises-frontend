@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { Braces, ClipboardPaste, Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
@@ -69,6 +69,7 @@ export function FlagInput({
 }) {
   // The task form always supplies this prop. Undefined keeps compatibility
   // with older standalone component consumers.
+  const feedbackId = useId()
   const dynamic = linkedDeviceID === undefined || Boolean(linkedDeviceID)
   const [touched, setTouched] = useState<Set<number>>(new Set())
   const [openInsertIndex, setOpenInsertIndex] = useState<number | null>(null)
@@ -200,7 +201,7 @@ export function FlagInput({
               ref={(node) => { if (node) inputRefs.current.set(index, node); else inputRefs.current.delete(index) }}
               className="h-9 min-w-0 flex-1 border-0 bg-transparent text-sm font-normal placeholder:text-sm focus-visible:border-0 focus-visible:ring-0"
               disabled={disabled} aria-label={t("admin.exTask.flag.titleN", { n: index + 1 })}
-              aria-invalid={Boolean(issue)} onBlur={() => setTouched((current) => new Set(current).add(index))}
+              aria-invalid={Boolean(issue)} aria-describedby={issue || warnings.length ? `${feedbackId}-${index}` : undefined} onBlur={() => setTouched((current) => new Set(current).add(index))}
               onPaste={(event) => handlePaste(event, index)}
               onSelect={() => rememberCursor(index)} onKeyUp={() => rememberCursor(index)} onClick={() => rememberCursor(index)}
               onChange={(event) => update(index, (template ? TEMPLATE_PREFIX : "") + event.target.value)} />
@@ -225,7 +226,7 @@ export function FlagInput({
             {!disabled && <RemoveAction ariaLabel={t("admin.exTask.flag.remove")} onClick={() => { setTouched(new Set()); onChange(value.filter((_, i) => i !== index)) }}
               className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />}
           </div>
-          <p role={issue ? "alert" : warnings.length ? "status" : undefined} className="min-h-5 pt-1 text-xs leading-4">
+          <p id={`${feedbackId}-${index}`} role={issue ? "alert" : warnings.length ? "status" : undefined} className="min-h-5 pt-1 text-xs leading-4">
             {issue && <span className="text-destructive">{warnings.length ? issue.replace(/[.!?…]\s*$/, "") : issue}</span>}
             {issue && warnings.length > 0 && <span className="text-destructive">. </span>}
             {warnings.map((warning, warningIndex) => <span key={warningIndex} className="text-amber-700">{warningIndex > 0 ? " " : ""}{warning}</span>)}

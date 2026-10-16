@@ -33,9 +33,9 @@ export function useEditorValidationFocus() {
   useEffect(() => {
     if (!request) return
     const timer = window.setTimeout(() => {
-      const fields = Array.from(formRef.current?.querySelectorAll<HTMLElement>("[name]") ?? [])
+      const fields = Array.from(formRef.current?.querySelectorAll<HTMLElement>("[name], [data-field-name]") ?? [])
       const visible = (field: HTMLElement) => !field.closest('[data-state="inactive"], [hidden]')
-      const target = fields.find((field) => field.getAttribute("name") === request.path && visible(field))
+      const target = fields.find((field) => (field.getAttribute("name") ?? field.getAttribute("data-field-name")) === request.path && visible(field))
         ?? fields.find((field) => field.getAttribute("aria-invalid") === "true" && visible(field))
       target?.focus()
       setRequest(null)

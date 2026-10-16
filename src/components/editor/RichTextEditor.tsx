@@ -164,6 +164,8 @@ export interface RichTextEditorProps {
   allowAlignment?: boolean;
   /** Accessible name of the editable area. */
   ariaLabel?: string;
+  ariaDescribedBy?: string;
+  fieldName?: string;
   /** Marks the field invalid (validation focus finds it via aria-invalid). */
   invalid?: boolean;
   disabled?: boolean;
@@ -1057,6 +1059,8 @@ export function RichTextEditor({
   minHeightClassName = "min-h-[200px]",
   allowAlignment = true,
   ariaLabel,
+  ariaDescribedBy,
+  fieldName,
   invalid = false,
   disabled = false,
   showVariableNames = false,
@@ -1111,7 +1115,7 @@ export function RichTextEditor({
               <div className="editor-scroll__body">{placeholder ? (
                 <ContentEditable
                   className="px-4 py-3 text-sm text-foreground outline-none"
-                  aria-label={ariaLabel}
+                  aria-label={ariaLabel} aria-describedby={ariaDescribedBy} data-field-name={fieldName}
                   aria-invalid={invalid || undefined}
                   aria-placeholder={placeholder}
                   placeholder={() => (
@@ -1121,7 +1125,7 @@ export function RichTextEditor({
                   )}
                 />
               ) : (
-                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" aria-label={ariaLabel} aria-invalid={invalid || undefined} />
+                <ContentEditable className="px-4 py-3 text-sm text-foreground outline-none" aria-label={ariaLabel} aria-describedby={ariaDescribedBy} data-field-name={fieldName} aria-invalid={invalid || undefined} />
               )}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}

@@ -58,12 +58,27 @@ describe("ImportDialog", () => {
     expect(push).not.toHaveBeenCalled()
   })
 
-  it("highlights the password when the archive cannot be opened", async () => {
+  it("keeps ambiguous archive failures global and offers conditional password guidance", async () => {
     mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20000, Message: "zip: not a valid zip file" } }))
     render(<ImportDialog onClose={vi.fn()} />)
     chooseFile()
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("admin.exImport.passwordNeeded")
-    expect(screen.getByLabelText(/^admin\.exImport\.password/)).toHaveAttribute("aria-invalid", "true")
+    expect(await screen.findByRole("alert")).toHaveTextContent("admin.ex.err.genericWith")
+    expect(screen.getByText("admin.exImport.passwordNeeded")).toBeInTheDocument()
+    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
   })
+
+  it("places a rejected archive size at the file picker instead of the password or footer", async () => {
+    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 21002 } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    const message = await screen.findByRole("alert")
+    const file = screen.getByLabelText(/^admin\.exImport\.file/)
+    expect(file).toHaveAttribute("aria-invalid", "true")
+    expect(file).toHaveAttribute("aria-describedby", message.id)
+    expect(file.parentElement?.parentElement).toContainElement(message)
+    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
+  })
+
 })
