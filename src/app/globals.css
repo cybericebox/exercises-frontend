@@ -3,6 +3,7 @@
 @import '../styles/ds-admin-sidebar.css';
 @import '../styles/ds-error-page.css';
 @import '../styles/ds-service-down.css';
+@import '../styles/ds-modal-motion.css';
 
 .exercise-settings-layout {
 	display: grid;
