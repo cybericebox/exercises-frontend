@@ -4,7 +4,7 @@ import type { NormalizedHint } from "@/api/exercises/versions"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
-import { HintList, formatCountdown } from "./LabWorkbench"
+import { HintList, LabBar, formatCountdown } from "./LabWorkbench"
 
 const hint = (ID: string, Level: NormalizedHint["Level"]): NormalizedHint => ({ ID, Text: "x", Level })
 const rows = [{ hint: hint("h1", "nudge"), index: 0 }, { hint: hint("h2", "steps"), index: 1 }]
@@ -45,5 +45,17 @@ describe("HintList", () => {
     expect(onReveal).not.toHaveBeenCalled()
     fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.hintShowNamed 1" }))
     await waitFor(() => expect(onReveal).toHaveBeenCalledWith("h1"))
+  })
+})
+
+describe("LabBar back arrow", () => {
+  const bar = (backHref?: string) => <LabBar title="T" progress={{ done: 0, total: 1 }} center={null} backHref={backHref} />
+  it("links back to the given page", () => {
+    render(bar("/detail?id=ex-1"))
+    expect(screen.getByRole("link", { name: "admin.exTest.back" })).toHaveAttribute("href", "/detail?id=ex-1")
+  })
+  it("has no back link without backHref", () => {
+    render(bar())
+    expect(screen.queryByRole("link", { name: "admin.exTest.back" })).not.toBeInTheDocument()
   })
 })

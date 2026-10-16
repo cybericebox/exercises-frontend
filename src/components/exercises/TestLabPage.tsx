@@ -203,7 +203,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const imageNote = imageWarningText(status)
 
   return <div className="flex h-dvh flex-col bg-background">
-    <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
+    <LabBar title={meta.exercise.Name} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
       center={<LabTimer expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}

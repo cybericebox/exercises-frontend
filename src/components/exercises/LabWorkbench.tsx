@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
 
 import { exerciseFileURL } from "@/api/exercises/files"
 import type { NormalizedHint, NormalizedTask } from "@/api/exercises/versions"
@@ -59,6 +60,8 @@ export type LabBarProps = {
   /** Whether the author's VPN is connected to this lab. */
   vpn?: { connected: boolean }
   onEnd?: () => void
+  /** Where the back arrow leads (the task's catalog page); no arrow without it. Leaving does not end the test. */
+  backHref?: string
 }
 
 function vpnTooltip(vpn: LabBarProps["vpn"]): string {
@@ -66,11 +69,17 @@ function vpnTooltip(vpn: LabBarProps["vpn"]): string {
 }
 
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
-export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd }: LabBarProps) {
+export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd, backHref }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--ib-brand)] px-4 py-3 text-white lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col gap-1 max-sm:w-full max-lg:flex-1 max-sm:flex-none">
+      <div className="flex min-w-0 items-center gap-3 max-sm:w-full max-lg:flex-1 max-sm:flex-none">
+        {backHref && <HoverTooltip text={t("admin.exTest.back")}>
+          <Link href={backHref} aria-label={t("admin.exTest.back")} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/30 text-white hover:bg-white/10">
+            <ArrowLeft aria-hidden="true" size={16} />
+          </Link>
+        </HoverTooltip>}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-xs uppercase tracking-wider text-white/70">{t("admin.exTest.caption")}</span>
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold">{title}</h1>
@@ -82,6 +91,7 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
             </span>
             <span aria-hidden="true" className="tabular-nums">{progress.done} / {progress.total}</span>
           </div>
+        </div>
         </div>
       </div>
       <div className="flex justify-center max-lg:order-last max-lg:w-full">{center}</div>

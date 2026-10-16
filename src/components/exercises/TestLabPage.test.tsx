@@ -150,10 +150,13 @@ describe("TestLabPage — bar", () => {
     vi.useRealTimers()
   })
 
-  it("is full-screen on its own: no back link to the catalog in the ready page", async () => {
+  it("has a back arrow to the exercise that leaves without ending the test", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByRole("link", { name: /admin\.exTest\.back/ })).not.toBeInTheDocument()
+    const link = screen.getByRole("link", { name: "admin.exTest.back" })
+    expect(link).toHaveAttribute("href", "/detail?id=ex-1")
+    fireEvent.click(link)
+    expect(destroyDeploy).not.toHaveBeenCalled()
   })
 
   it("toggles the topology panel with an aria-pressed button and remembers it", async () => {
