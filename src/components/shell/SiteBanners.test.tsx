@@ -14,7 +14,7 @@ describe("site banners", () => {
   it("renders nothing without banners", async () => {
     api.get.mockResolvedValue([])
     const { container } = render(<SiteBanners />)
-    await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/banners?site=exercises", undefined, { required: false }))
     expect(container).toBeEmptyDOMElement()
   })
 
@@ -46,12 +46,14 @@ describe("site banners", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
 
-  it("shows critical before info", async () => {
-    api.get.mockResolvedValue([banner({ ID: "i", Text: "Інфо" }), banner({ ID: "c", Text: "Критично", Level: "critical" })])
+  it("preserves the authoritative server priority order", async () => {
+    api.get.mockResolvedValue([banner({ ID: "c", Text: "Критично", Level: "critical" }), banner({ ID: "i", Text: "Інфо" })])
     render(<SiteBanners />)
     await screen.findByText("Критично")
     const texts = screen.getAllByText(/Інфо|Критично/).map((el) => el.textContent)
-    expect(texts).toEqual(["Критично", "Інфо"])
+    expect(texts).toEqual(["Критично"])
+    fireEvent.click(screen.getByRole("button", { name: "Ще 1 оголошення" }))
+    expect(screen.getByRole("dialog", { name: "Інші оголошення" })).toHaveTextContent("Інфо")
   })
 
   it("dismiss hides the banner and persists it; only dismissible banners have the button", async () => {
@@ -74,6 +76,37 @@ describe("site banners", () => {
     api.get.mockResolvedValue([banner({ Version: 2 })])
     render(<SiteBanners />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
+  })
+
+  it("refreshes on focus and recovery while retaining the visible banner during failure", async () => {
+    api.get.mockResolvedValueOnce([banner()]).mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce([banner({ Version: 2, Text: "Оновлено" })])
+    render(<SiteBanners />)
+    await screen.findByText("Планові роботи")
+    fireEvent(window, new Event("focus"))
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    expect(screen.getByText("Планові роботи")).toBeInTheDocument()
+    fireEvent(window, new Event("online"))
+    expect(await screen.findByText("Оновлено")).toBeInTheDocument()
+  })
+
+  it("bounds ten announcements, reveals the remaining order, and promotes after dismissal", async () => {
+    api.get.mockResolvedValue(Array.from({ length: 10 }, (_, index) => banner({ ID: `b${index}`, Text: `Announcement ${index}` })))
+    const { container } = render(<SiteBanners />)
+    await screen.findByText("Announcement 0")
+    expect(container.querySelectorAll(".ib-site-banner__text")).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "Ще 9 оголошень" }))
+    const panel = screen.getByRole("dialog", { name: "Інші оголошення" })
+    expect(screen.getByRole("heading", { name: "Інші оголошення" })).toHaveFocus()
+    expect([...panel.querySelectorAll(".ib-site-banner__text")].map((node) => node.textContent)).toEqual(Array.from({ length: 9 }, (_, index) => `Announcement ${index + 1}`))
+    fireEvent.click(panel.querySelector<HTMLButtonElement>(".ib-site-banner__x")!)
+    expect(screen.queryByText("Announcement 1")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Ще 8 оголошень" })).toBeInTheDocument()
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".ib-site-banner__x")!)
+    expect(container).toHaveTextContent("Announcement 2")
+    expect(container).not.toHaveTextContent("Announcement 0")
+    expect(screen.getByRole("button", { name: "Ще 7 оголошень" })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole("heading", { name: "Інші оголошення" }), { key: "Escape" })
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Ще 7 оголошень" })).toHaveFocus())
   })
 
   it("does not throw when storage is unavailable", async () => {

@@ -12,7 +12,7 @@ vi.mock("@/lib/origins", () => ({ mainHost: "cybericebox.local", apiOrigin: "htt
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("./TopBar", () => ({ TopBar: () => <header>top</header> }))
-vi.mock("./SiteBanners", () => ({ SiteBanners: () => null }))
+vi.mock("./SiteBanners", () => ({ SiteBanners: () => <div role="status">announcements</div> }))
 vi.mock("@/api/exercises/access", () => ({ getExerciseAccess: () => Promise.resolve(rights.value) }))
 
 const replace = vi.fn()
@@ -52,6 +52,14 @@ describe("exercises shell", () => {
     expect(await screen.findByRole("link", { name: "exercises.shell.skipToContent" })).toHaveAttribute("href", "#main")
     expect(screen.getByRole("main")).toHaveAttribute("id", "main")
     nav.path = "/"
+  })
+
+  it("places announcements above navigation", async () => {
+    render(<ExercisesShell><span>content</span></ExercisesShell>)
+    await screen.findByText("content")
+    const announcements = screen.getByText("announcements")
+    const navigation = screen.getByText("top")
+    expect(announcements.compareDocumentPosition(navigation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it("renders the page", async () => {
