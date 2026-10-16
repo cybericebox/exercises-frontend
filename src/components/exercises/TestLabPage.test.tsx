@@ -150,10 +150,13 @@ describe("TestLabPage — bar", () => {
     vi.useRealTimers()
   })
 
-  it("is full-screen on its own: no back link to the catalog in the ready page", async () => {
+  it("has a back arrow to the exercise that leaves without ending the test", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByRole("link", { name: /admin\.exTest\.back/ })).not.toBeInTheDocument()
+    const link = screen.getByRole("link", { name: "admin.exTest.back" })
+    expect(link).toHaveAttribute("href", "/detail?id=ex-1")
+    fireEvent.click(link)
+    expect(destroyDeploy).not.toHaveBeenCalled()
   })
 
   it("toggles the topology panel with an aria-pressed button and remembers it", async () => {
@@ -420,7 +423,8 @@ describe("TestLabPage — start and end", () => {
   it("shows the real start failure and starts again on retry", async () => {
     vi.mocked(deployVariant).mockRejectedValueOnce(new ApiError(409, null, "no lab")).mockResolvedValueOnce({ DeployID: "run-1", Lab: "lab", Tasks: [] })
     render(<TestLabPage exerciseId="ex-1" initial={{ deploy: null, version: "draft-1", variant: "v1" }} />)
-    expect(await screen.findByText(/admin\.exDeploy\.failedReason/)).toBeInTheDocument()
+    expect(await screen.findByText(/admin\.exTest\.startFailedReason/)).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exDeploy\.failed/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
     expect(deployVariant).toHaveBeenCalledTimes(2)
@@ -720,5 +724,153 @@ describe("TestLabPage — end dialog copy", () => {
     fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
     const dialog = await screen.findByRole("dialog")
     expect(await within(dialog).findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
+  })
+
+  it("promises the VPN stops when the only other running test is a static one", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([running, { ...running, DeployID: "run-2", Kind: "static" }])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    await waitFor(() => expect(listDeploys).toHaveBeenCalled())
+    expect(within(dialog).getByText("admin.exTest.endDescription")).toBeInTheDocument()
+    expect(within(dialog).queryByText("admin.exTest.endDescriptionOthers")).not.toBeInTheDocument()
+  })
+})
+
+describe("TestLabPage — static test", () => {
+  const staticTasks = [{ TaskID: "t1", Name: "Login" }, { TaskID: "t2", Name: "Escalate" }]
+  const staticItem: DeployListItem = { ...running, Kind: "static", Tasks: staticTasks }
+  const staticStatus: DeployStatus = { Ready: true, Phase: "", ExpiresAt: inHours(1) }
+  const started = { deploy: null, version: "draft-1", variant: "v1" }
+
+  beforeEach(() => {
+    vi.mocked(deployVariant).mockResolvedValue({ DeployID: "d1", Lab: "", Kind: "static", Tasks: staticTasks })
+    vi.mocked(deployStatus).mockResolvedValue(staticStatus)
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "d1" }])
+  })
+
+  it("shows tasks at once without lab parts", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /notes\.pdf/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.topologyShow/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument()
+    expect(screen.getAllByLabelText(/admin\.exDeploy\.flagInput/)).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskNext" }))
+    expect(screen.getByRole("heading", { name: "Escalate" })).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/admin\.exDeploy\.flagInput/)).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskPrev" }))
+    expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument()
+  })
+
+  it("checks a flag: wrong keeps the progress, right ticks the task", async () => {
+    vi.mocked(checkDeployFlag).mockResolvedValueOnce({ Correct: false }).mockResolvedValueOnce({ Correct: true })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    const input = await screen.findByLabelText(/admin\.exDeploy\.flagInput/)
+    fireEvent.change(input, { target: { value: "bad" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    expect(await screen.findByText(/admin\.exDeploy\.wrong/)).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.progressLabel 0 2")).toBeInTheDocument()
+    fireEvent.change(input, { target: { value: "good" } })
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exDeploy\.checkFlag/ }))
+    expect(await screen.findByText(/admin\.exDeploy\.correct/)).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.solved")).toBeInTheDocument()
+    expect(screen.getByLabelText("admin.exTest.progressLabel 1 2")).toBeInTheDocument()
+  })
+
+  it("notes a random flag only on a task without an answer", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    // login has Flag: [] in the fixtures, so give the second one an answer
+    expect(await screen.findByRole("note")).toHaveTextContent("admin.exTest.randomFlagNote")
+  })
+
+  it("does not note a task that has an answer", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ ...version, Variants: [version.Variants[0], { ...version.Variants[1], Tasks: [{ ...login, Flag: ["ICE{x}"] }, second] }] })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.queryByRole("note")).not.toBeInTheDocument()
+  })
+
+  it("attaches from the list to the same ready screen with no loader", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "run-1" }])
+    vi.mocked(deployStatus).mockReturnValue(new Promise(() => undefined))
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
+  })
+
+  it("ends after the danger confirmation and returns to the exercise", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exTest.endDescriptionStatic")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTest.endConfirm" }))
+    await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("d1"))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
+  })
+
+  it("hides the lab status line in the bar, a lab test keeps it", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "d1", ExpiresAt: "" }])
+    const first = render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.queryByText("admin.exDeploy.phase.ready")).not.toBeInTheDocument()
+    first.unmount()
+    vi.mocked(listDeploys).mockResolvedValue([{ ...running, ExpiresAt: "" }])
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(await screen.findByText("admin.exDeploy.phase.ready")).toBeInTheDocument()
+  })
+
+  it("captions a static test as a task test, a lab test keeps the lab caption", async () => {
+    const first = render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.getByText("admin.exTest.captionStatic")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.caption")).not.toBeInTheDocument()
+    first.unmount()
+    vi.mocked(listDeploys).mockResolvedValue([running])
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.getByText("admin.exTest.caption")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exTest.captionStatic")).not.toBeInTheDocument()
+  })
+})
+
+describe("TestLabPage — texts before the kind is known", () => {
+  const started = { deploy: null, version: "draft-1", variant: "v1" }
+
+  it("says the test is starting, with no lab wording, while the start is in flight", async () => {
+    vi.mocked(deployVariant).mockReturnValue(new Promise(() => undefined))
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect((await screen.findAllByText("admin.exTest.starting")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.phase.pending")).not.toBeInTheDocument()
+  })
+
+  it("keeps the lab provisioning text once the start says it is a lab", async () => {
+    vi.mocked(deployVariant).mockResolvedValue({ DeployID: "run-1", Lab: "lab", Kind: "lab", Tasks: running.Tasks })
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "", Ready: false })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect((await screen.findAllByText("admin.exDeploy.provisioning")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exTest.starting")).not.toBeInTheDocument()
+  })
+
+  it("a start that failed before the kind was known reads «could not start the test»", async () => {
+    vi.mocked(deployVariant).mockRejectedValue(new ApiError(500, null, "boom"))
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect(await screen.findByText(/admin\.exTest\.startFailedReason/)).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exDeploy\.failed/)).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.phase.failed")).not.toBeInTheDocument()
+  })
+
+  it("a lab that failed keeps the lab text", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Failed", Ready: false })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exTest\.startFailed/)).not.toBeInTheDocument()
   })
 })

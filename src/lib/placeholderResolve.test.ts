@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { resolvePlaceholder, resolvePlaceholders, taskValues } from "./placeholderResolve"
+import { resolvePlaceholder, resolvePlaceholders, taskValues, UNRESOLVED } from "./placeholderResolve"
 import type { PlaceholderDTO } from "@/api/exercises/versions"
 import type { DeployStatus } from "@/api/exercises/deploy"
 
@@ -114,5 +114,18 @@ describe("taskValues", () => {
 
   it("skips a placeholder without a key", () => {
     expect(Object.keys(taskValues(list, status).variables)).toHaveLength(5)
+  })
+})
+
+describe("taskValues in a static test", () => {
+  it("resolves fixed ips and leaves lab-needing placeholders unresolved", () => {
+    const values = taskValues([
+      { Key: "a", Kind: "ip", IPReference: "static", Octets1to3: "10.0.0", LastOctet: 5 },
+      { Key: "n", Kind: "vpn.subnet" },
+      { Key: "w", Kind: "external.link", DeviceName: "web" },
+    ], { Phase: "Ready", Ready: true })
+    expect(values.variables.a).toBe("10.0.0.5")
+    expect(values.variables.n).toBe(UNRESOLVED)
+    expect(values.variables.w).toBe(UNRESOLVED)
   })
 })

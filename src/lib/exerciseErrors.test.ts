@@ -87,3 +87,9 @@ describe('task description and catalog fallback', () => {
     expect(exerciseErrorMessage(new ApiError(429, { Status: { Code: 70428, Message: 'x' } }, 'x', undefined, 70428))).toBe('error.tooManyRequests')
   })
 })
+
+describe('static test conflict', () => {
+  it('maps the static-test lab-only refusal to its own message', () => {
+    expect(exerciseErrorMessage(apiError(409, 70977, 'static'))).toBe('admin.ex.err.testDeployStatic')
+  })
+})

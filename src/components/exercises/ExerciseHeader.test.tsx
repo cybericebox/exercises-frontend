@@ -81,8 +81,22 @@ describe("ExerciseHeader", () => {
   })
 
   it("disables the test action when blocked, keeping the reason", () => {
-    render(<ExerciseHeader {...makeProps({ testBlocked: true, testBlockedReason: "admin.exPage.action.testNoDevices" })} />)
+    render(<ExerciseHeader {...makeProps({ testBlocked: true, testBlockedReason: "admin.exPage.action.testNoPlatform" })} />)
     expect(screen.getByRole("button", { name: /admin.exPage.action.test/ })).toBeDisabled()
+  })
+
+  it("keeps static variants selectable while a lab variant is disabled with its reason", () => {
+    const props = makeProps({
+      getTestVariants: () => [
+        { index: 0, label: "V1", disabled: false },
+        { index: 1, label: "V2", disabled: true, reason: "admin.exPage.action.testNoPlatform" },
+      ],
+    })
+    render(<ExerciseHeader {...props} />)
+    openMenu("admin.exPage.action.test")
+    expect(screen.getByRole("menuitem", { name: "V2" })).toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(screen.getByRole("menuitem", { name: "V1" }))
+    expect(props.onTest).toHaveBeenCalledWith(0)
   })
 
   it("keeps only History in version view", () => {

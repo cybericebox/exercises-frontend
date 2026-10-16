@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
-import { destroyDeploy, listDeploys, type DeployListItem } from "@/api/exercises/deploy"
+import { destroyDeploy, listDeploys, type DeployListItem, type DeployStatus } from "@/api/exercises/deploy"
 import { getExercise, type Exercise } from "@/api/exercises/catalog"
 import { getVersion, type NormalizedVariant, type VersionResources } from "@/api/exercises/versions"
 import { LabBar, LabTimer, TaskSidebar, TaskView } from "@/components/exercises/LabWorkbench"
@@ -37,6 +37,9 @@ type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state:
 
 /** A deploy the list no longer knows: ended, or its lease ran out. */
 class DeployGoneError extends Error {}
+
+/** What a static test resolves its placeholders against: fixed values only, lab-bound ones stay unresolved. */
+const STATIC_STATUS: DeployStatus = { Phase: "Ready", Ready: true }
 
 const RATIO_DEFAULT = 4 / 9 // task 4 : topology 5
 const clampRatio = (value: number) => Math.min(0.75, Math.max(0.25, value))
@@ -103,7 +106,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         setSelected(variant.Tasks[0]?.ID ?? null)
         setItem(running)
         setLoad({ state: "ready", meta: { exercise, variant, variantNumber: index + 1, versionId, resources: version.Resources } })
-        if (running) attach(running.DeployID, running.Tasks)
+        if (running) attach(running.DeployID, running.Tasks, running.Kind ?? "lab")
         else void start(exerciseId, versionId, variantId)
       } catch (cause) {
         if (!cancelled) setLoad({ state: "error", cause })
@@ -190,22 +193,26 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   // The lease is over but the lab is not removed yet: nothing to work with, only to end.
   const expired = Boolean(status?.Expired || item?.Expired)
   const failed = !expired && (Boolean(deploy.error) || status?.Phase === "Failed" || status?.Phase === "Error")
-  const ready = status?.Ready ?? false
-  const values = ready && status ? taskValues(task?.Placeholders, status) : null
+  // A static test has no lab: it is ready at once. Gate on the kind, never on the polled phase (the server leaves it empty).
+  const isStatic = deploy.kind === "static"
+  const ready = isStatic || (status?.Ready ?? false)
+  const values = isStatic ? taskValues(task?.Placeholders, STATIC_STATUS) : ready && status ? taskValues(task?.Placeholders, status) : null
   const openingKey = deploy.link === "opening" && deploy.linkKey && values
     ? Object.entries(values.external).find(([, target]) => `${target.device}:${target.port}` === deploy.linkKey)?.[0] ?? null
     : null
-  const vpnConfig = status?.VPNConfig ?? ""
-  const phase = deploy.error ? "Failed" : status?.Phase ?? "Pending"
+  const vpnConfig = isStatic ? "" : status?.VPNConfig ?? ""
+  // Until the start answers there is no kind: say nothing about a lab. A static test never talks about one.
+  const neutral = isStatic || !deploy.deployId
+  const phase = deploy.error ? "Failed" : isStatic ? "Ready" : status?.Phase ?? "Pending"
   const index = task ? tasks.indexOf(task) : -1
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
-  const showTopology = topologyShown && ready && !expired
-  const imageNote = imageWarningText(status)
+  const showTopology = !isStatic && topologyShown && ready && !expired
+  const imageNote = isStatic ? null : imageWarningText(status)
 
   return <div className="flex h-dvh flex-col bg-background">
-    <LabBar title={meta.exercise.Name} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
-      center={<LabTimer expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : deployPhaseLabel(phase)} />}
-      topologyShown={topologyShown} onToggleTopology={() => setTopologyShown(!topologyShown)}
+    <LabBar title={meta.exercise.Name} isStatic={isStatic} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
+      center={<LabTimer isStatic={isStatic} expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : isStatic ? "" : !deploy.deployId ? t(deploy.error ? "admin.exTest.startFailed" : "admin.exTest.starting") : deployPhaseLabel(phase)} />}
+      topologyShown={topologyShown} onToggleTopology={isStatic ? undefined : () => setTopologyShown(!topologyShown)}
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
       onEnd={deploy.deployId && !expired ? () => { setEndError(""); setEndOpen(true) } : undefined} />
@@ -226,12 +233,14 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       <NoRoomPanel className="min-h-0 flex-1" error={deploy.errorCause} variant={meta.variant} resources={meta.resources} onRetry={retry} />
     ) : failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
-        message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
+        message={deploy.error
+          ? t(neutral ? "admin.exTest.startFailedReason" : "admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) })
+          : t(neutral ? "admin.exTest.startFailed" : "admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
-          message={queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
+        <LoadingArea className="min-h-0 flex-1" label={t(deploy.deployId ? "admin.exDeploy.provisioning" : "admin.exTest.starting")}
+          message={!deploy.deployId ? t("admin.exTest.starting") : queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
         {failedDevices(status?.Devices).length > 0 && <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[45%] w-full max-w-xl space-y-2 overflow-y-auto bg-background p-4">
           {failedDevices(status?.Devices).map((device) => <div key={device.Name} className="space-y-1">
             <div className="font-mono text-xs text-muted-foreground">{device.Name}</div>
@@ -247,7 +256,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         <div ref={split} className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none lg:flex-row">
           <div className="min-w-0 p-4 lg:flex-[var(--lab-task-flex)] lg:overflow-y-auto lg:p-6" style={{ "--lab-task-flex": showTopology ? `${ratio} 1 0` : "1 1 0" } as CSSProperties}>
             {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
-              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} solved={solvedIds.has(task.ID)} openingKey={openingKey}
+              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} randomFlag={isStatic && task.Flag.length === 0} solved={solvedIds.has(task.ID)} openingKey={openingKey}
               onOpenExternal={(target) => deploy.openLink(target.device, target.port)}
               onSolved={(id) => setSolved((current) => new Set(current).add(id))}
               revealedHints={revealed} onRevealHint={(key) => setRevealed((current) => new Set(current).add(key))}
@@ -279,7 +288,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
 
     <VpnDialog open={vpnOpen && Boolean(vpnConfig)} config={vpnConfig} connected={status?.VPNConnected ?? null} probeUrl={status?.VPNProbeURL} onClose={() => setVpnOpen(false)} />
     <ConfirmDialog open={endOpen} tone="danger" busy={ending} error={endError} title={t("admin.exTest.endTitle")}
-      description={t(othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(isStatic ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEndOpen(false)} onConfirm={() => void endTest()} />
   </div>
 }

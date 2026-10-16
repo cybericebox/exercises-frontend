@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
 
 import { exerciseFileURL } from "@/api/exercises/files"
 import type { NormalizedHint, NormalizedTask } from "@/api/exercises/versions"
@@ -34,18 +35,18 @@ export function formatCountdown(ms: number): string {
 }
 
 /** The lab's countdown, centered in the bar; `fallback` reads instead until the lease is known. */
-export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fallback: string }) {
+export function LabTimer({ expiresAt, fallback, isStatic = false }: { expiresAt: string | null; fallback: string; isStatic?: boolean }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!expiresAt) return
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [expiresAt])
-  if (!expiresAt) return <span className="text-sm text-white/80">{fallback}</span>
+  if (!expiresAt) return fallback ? <span className="text-sm text-white/80">{fallback}</span> : null
   const left = new Date(expiresAt).getTime() - now
   return left > 0
-    ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
-    : <span role="timer" className="text-sm text-white">{t("admin.exTest.timerEnded")}</span>
+    ? <span role="timer" className="text-sm text-white">{tRich(isStatic ? "admin.exTest.timerCountdownStatic" : "admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>
+    : <span role="timer" className="text-sm text-white">{t(isStatic ? "admin.exTest.timerEndedStatic" : "admin.exTest.timerEnded")}</span>
 }
 
 export type LabBarProps = {
@@ -59,6 +60,10 @@ export type LabBarProps = {
   /** Whether the author's VPN is connected to this lab. */
   vpn?: { connected: boolean }
   onEnd?: () => void
+  /** A static test (no lab): the caption says so. */
+  isStatic?: boolean
+  /** Where the back arrow leads (the task's catalog page); no arrow without it. Leaving does not end the test. */
+  backHref?: string
 }
 
 function vpnTooltip(vpn: LabBarProps["vpn"]): string {
@@ -66,12 +71,18 @@ function vpnTooltip(vpn: LabBarProps["vpn"]): string {
 }
 
 /** One bar in brand navy: what is being worked on and how far, the lab clock, and the lab's actions. */
-export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd }: LabBarProps) {
+export function LabBar({ title, progress, center, topologyShown = false, onToggleTopology, onOpenVpn, vpn, onEnd, backHref, isStatic = false }: LabBarProps) {
   const percent = progress.total ? Math.round(progress.done / progress.total * 100) : 0
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--ib-brand)] px-4 py-3 text-white lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col gap-1 max-sm:w-full max-lg:flex-1 max-sm:flex-none">
-        <span className="text-xs uppercase tracking-wider text-white/70">{t("admin.exTest.caption")}</span>
+      <div className="flex min-w-0 items-center gap-3 max-sm:w-full max-lg:flex-1 max-sm:flex-none">
+        {backHref && <HoverTooltip text={t("admin.exTest.back")}>
+          <Link href={backHref} aria-label={t("admin.exTest.back")} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/30 text-white hover:bg-white/10">
+            <ArrowLeft aria-hidden="true" size={16} />
+          </Link>
+        </HoverTooltip>}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-xs uppercase tracking-wider text-white/70">{t(isStatic ? "admin.exTest.captionStatic" : "admin.exTest.caption")}</span>
         <div className="flex min-w-0 items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold">{title}</h1>
           <div role="progressbar" className="flex shrink-0 items-center gap-2 text-xs text-white/80"
@@ -82,6 +93,7 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
             </span>
             <span aria-hidden="true" className="tabular-nums">{progress.done} / {progress.total}</span>
           </div>
+        </div>
         </div>
       </div>
       <div className="flex justify-center max-lg:order-last max-lg:w-full">{center}</div>
@@ -203,11 +215,13 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
 }
 
 /** The chosen task: title, difficulty, description with the lab's values, files, hints, the answer card and the stage links. */
-export function TaskView({ task, values, deployId, flagLinked, solved = false, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
+export function TaskView({ task, values, deployId, flagLinked, randomFlag = false, solved = false, openingKey, onOpenExternal, onSolved, revealedHints, onRevealHint, onUnlockHint, hintCost, prev, next }: {
   task: NormalizedTask
   values: TaskValues
   deployId: string
   flagLinked: boolean
+  /** A static test whose task has no answer set: the flag is random, so it cannot be solved. */
+  randomFlag?: boolean
   /** The answer was already checked correctly (kept with the deploy). */
   solved?: boolean
   openingKey: string | null
@@ -249,6 +263,7 @@ export function TaskView({ task, values, deployId, flagLinked, solved = false, o
 
     {flagLinked && deployId && <section className="rounded-lg border border-border bg-muted/30 p-4">
       <h3 className="mb-2 text-sm font-semibold text-foreground">{t("admin.exTest.flagTitle")}</h3>
+      {randomFlag && <p role="note" className="mb-2 text-sm text-muted-foreground">{t("admin.exTest.randomFlagNote")}</p>}
       <TestFlagCheck deployId={deployId} taskId={task.ID} taskName={task.Name} solved={solved} onResult={(correct) => { if (correct) onSolved(task.ID) }} />
     </section>}
 
