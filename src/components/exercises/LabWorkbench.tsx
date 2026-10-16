@@ -95,8 +95,8 @@ export function LabBar({ title, progress, center, topologyShown = false, onToggl
         {onOpenVpn && <HoverTooltip text={vpnTooltip(vpn)}>
           <Button type="button" variant="outline" size="sm" className={BAR_BUTTON} aria-label={t("admin.exTest.vpnOpen")} aria-describedby="lab-vpn-state" data-vpn={vpn?.connected ? "connected" : "disconnected"} onClick={onOpenVpn}>
             {vpn?.connected
-              ? <ShieldCheck aria-hidden="true" size={16} className="mr-1.5 fill-emerald-400/40 text-emerald-300" />
-              : <Shield aria-hidden="true" size={16} className="mr-1.5 text-white/60" />}
+              ? <ShieldCheck aria-hidden="true" size={20} strokeWidth={2} className="mr-1.5 shrink-0 text-emerald-300" />
+              : <Shield aria-hidden="true" size={20} strokeWidth={2} className="mr-1.5 shrink-0 text-white/60" />}
             {t("admin.exTest.vpnShort")}
             <span id="lab-vpn-state" hidden>{vpnTooltip(vpn)}</span>
           </Button>
