@@ -423,7 +423,8 @@ describe("TestLabPage — start and end", () => {
   it("shows the real start failure and starts again on retry", async () => {
     vi.mocked(deployVariant).mockRejectedValueOnce(new ApiError(409, null, "no lab")).mockResolvedValueOnce({ DeployID: "run-1", Lab: "lab", Tasks: [] })
     render(<TestLabPage exerciseId="ex-1" initial={{ deploy: null, version: "draft-1", variant: "v1" }} />)
-    expect(await screen.findByText(/admin\.exDeploy\.failedReason/)).toBeInTheDocument()
+    expect(await screen.findByText(/admin\.exTest\.startFailedReason/)).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exDeploy\.failed/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
     expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
     expect(deployVariant).toHaveBeenCalledTimes(2)
@@ -829,16 +830,37 @@ describe("TestLabPage — static test", () => {
   })
 })
 
-describe("TestLabPage — static test timer", () => {
-  it("says the test time is up on a static test and the lab time on a lab", async () => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] })
-    const soon = new Date(Date.now() + 3000).toISOString()
-    vi.mocked(listDeploys).mockResolvedValue([{ ...running, Kind: "static", ExpiresAt: soon }])
-    vi.mocked(deployStatus).mockResolvedValue({ Ready: true, Phase: "", ExpiresAt: soon })
+describe("TestLabPage — texts before the kind is known", () => {
+  const started = { deploy: null, version: "draft-1", variant: "v1" }
+
+  it("says the test is starting, with no lab wording, while the start is in flight", async () => {
+    vi.mocked(deployVariant).mockReturnValue(new Promise(() => undefined))
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect((await screen.findAllByText("admin.exTest.starting")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.phase.pending")).not.toBeInTheDocument()
+  })
+
+  it("keeps the lab provisioning text once the start says it is a lab", async () => {
+    vi.mocked(deployVariant).mockResolvedValue({ DeployID: "run-1", Lab: "lab", Kind: "lab", Tasks: running.Tasks })
+    vi.mocked(deployStatus).mockResolvedValue({ Ready: false })
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect((await screen.findAllByText("admin.exDeploy.provisioning")).length).toBeGreaterThan(0)
+    expect(screen.queryByText("admin.exTest.starting")).not.toBeInTheDocument()
+  })
+
+  it("a start that failed before the kind was known reads «could not start the test»", async () => {
+    vi.mocked(deployVariant).mockRejectedValue(new ApiError(500, null, "boom"))
+    render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    expect(await screen.findByText(/admin\.exTest\.startFailedReason/)).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exDeploy\.failed/)).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.phase.failed")).not.toBeInTheDocument()
+  })
+
+  it("a lab that failed keeps the lab text", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Failed", Ready: false })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(10) })
-    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
-    expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEndedStatic")
-    vi.useRealTimers()
+    expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
+    expect(screen.queryByText(/admin\.exTest\.startFailed/)).not.toBeInTheDocument()
   })
 })

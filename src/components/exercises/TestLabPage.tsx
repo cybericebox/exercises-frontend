@@ -201,6 +201,8 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     ? Object.entries(values.external).find(([, target]) => `${target.device}:${target.port}` === deploy.linkKey)?.[0] ?? null
     : null
   const vpnConfig = isStatic ? "" : status?.VPNConfig ?? ""
+  // Until the start answers there is no kind: say nothing about a lab. A static test never talks about one.
+  const neutral = isStatic || !deploy.deployId
   const phase = deploy.error ? "Failed" : isStatic ? "Ready" : status?.Phase ?? "Pending"
   const index = task ? tasks.indexOf(task) : -1
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
@@ -209,7 +211,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
 
   return <div className="flex h-dvh flex-col bg-background">
     <LabBar title={meta.exercise.Name} isStatic={isStatic} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
-      center={<LabTimer isStatic={isStatic} expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : isStatic ? "" : deployPhaseLabel(phase)} />}
+      center={<LabTimer isStatic={isStatic} expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : isStatic ? "" : !deploy.deployId ? t(deploy.error ? "admin.exTest.startFailed" : "admin.exTest.starting") : deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={isStatic ? undefined : () => setTopologyShown(!topologyShown)}
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
@@ -231,12 +233,14 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       <NoRoomPanel className="min-h-0 flex-1" error={deploy.errorCause} variant={meta.variant} resources={meta.resources} onRetry={retry} />
     ) : failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
-        message={deploy.error ? t("admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) }) : t("admin.exDeploy.failed")}
+        message={deploy.error
+          ? t(neutral ? "admin.exTest.startFailedReason" : "admin.exDeploy.failedReason", { reason: exerciseErrorMessage(deploy.errorCause) })
+          : t(neutral ? "admin.exTest.startFailed" : "admin.exDeploy.failed")}
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <LoadingArea className="min-h-0 flex-1" label={t("admin.exDeploy.provisioning")}
-          message={queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
+        <LoadingArea className="min-h-0 flex-1" label={t(deploy.deployId ? "admin.exDeploy.provisioning" : "admin.exTest.starting")}
+          message={!deploy.deployId ? t("admin.exTest.starting") : queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
         {failedDevices(status?.Devices).length > 0 && <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[45%] w-full max-w-xl space-y-2 overflow-y-auto bg-background p-4">
           {failedDevices(status?.Devices).map((device) => <div key={device.Name} className="space-y-1">
             <div className="font-mono text-xs text-muted-foreground">{device.Name}</div>
