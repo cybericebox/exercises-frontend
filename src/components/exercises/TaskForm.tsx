@@ -14,6 +14,7 @@ import { FlagInput } from "./FlagInput"
 import { PlaceholderDialog } from "./PlaceholderDialog"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { HintsEditor } from "./HintsEditor"
+import { richTextHasContent } from "@/lib/hintText"
 import { isValidIPv4, type DraftFormValues, type PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import type { Difficulty } from "@/api/exercises/versions"
 import type { VariableDef } from "@/components/editor/variableUtils"
@@ -32,7 +33,7 @@ export function TaskForm({
   taskIndex: number
   disabled: boolean
 }) {
-  const { control, getValues, setValue } = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue, clearErrors } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}` as const
   // Flag device linking — only devices from THIS variant's topology.
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
@@ -147,10 +148,13 @@ export function TaskForm({
         <Controller
           control={control}
           name={`${base}.Description`}
-          render={({ field }) => (
-            <RichTextEditor value={field.value} onChange={field.onChange} disabled={disabled} variables={variables} unavailableLabels={unavailableLabels}
+          render={({ field, fieldState }) => (
+            <>
+            <RichTextEditor fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={disabled} variables={variables} unavailableLabels={unavailableLabels}
               onInsertVariable={(insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) }}
               onEditVariable={(key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) }} />
+            {fieldState.error?.message && <p id={`task-description-${variantIndex}-${taskIndex}-error`} role="alert" className="text-xs font-medium text-destructive">{fieldState.error.message}</p>}
+            </>
           )}
         />
       </div>

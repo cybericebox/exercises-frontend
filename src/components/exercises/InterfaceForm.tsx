@@ -44,6 +44,8 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
   const destinationError = getFieldState(destinationName, formState).error?.message ?? getFieldState(destinationRefName, formState).error?.message
   const viaError = getFieldState(viaName, formState).error?.message ?? getFieldState(viaRefName, formState).error?.message
 
+  const errorId = `${routesName}-${index}`
+
   return <div data-route-card className="space-y-1 rounded-md border border-border p-2">
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItemN", { n: index + 1 })}</span>
@@ -53,22 +55,23 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
       <FormField control={control} name={destinationName} render={({ field }) => <FormItem className="space-y-1">
         <ExerciseFieldLabel labelKey="admin.exTopo.routeDst" helpKey="admin.exTopo.routeDstHelp" required form />
         <Controller control={control} name={destinationRefName} render={({ field: refField }) => <StaticAddressReference
+          invalid={Boolean(destinationError)} describedBy={destinationError ? `${errorId}-destination` : undefined}
           kind="destination" reference={(refField.value ?? null) as NetworkSubnetRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
-          manualInput={<FormControl><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.1.0.0/16" /></FormControl>}
+          manualInput={<FormControl aria-invalid={Boolean(destinationError)} aria-describedby={destinationError ? `${errorId}-destination` : undefined}><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.1.0.0/16" /></FormControl>}
           onChange={(ref) => { refField.onChange(ref); setValue(destinationName, "", { shouldDirty: true }) }} />} />
+        {typeof destinationError === "string" && <p id={`${errorId}-destination`} role="alert" data-error-slot className="text-xs font-medium leading-4 text-destructive">{t("admin.exTopo.routeDstError", { error: destinationError })}</p>}
       </FormItem>} />
       <FormField control={control} name={viaName} render={({ field }) => <FormItem className="space-y-1">
         <ExerciseFieldLabel labelKey="admin.exTopo.routeVia" helpKey="admin.exTopo.routeViaHelp" required form />
         <Controller control={control} name={viaRefName} render={({ field: refField }) => <StaticAddressReference
+          invalid={Boolean(viaError)} describedBy={viaError ? `${errorId}-via` : undefined}
           kind="via" reference={(refField.value ?? null) as NetworkIPRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
-          manualInput={<FormControl><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
+          manualInput={<FormControl aria-invalid={Boolean(viaError)} aria-describedby={viaError ? `${errorId}-via` : undefined}><Input name={field.name} onBlur={field.onBlur} ref={field.ref} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} className={compact ? "h-9" : undefined} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
           onChange={(ref) => { refField.onChange(ref); setValue(viaName, "", { shouldDirty: true }) }} />} />
+        {typeof viaError === "string" && <p id={`${errorId}-via`} role="alert" data-error-slot className="text-xs font-medium leading-4 text-destructive">{t("admin.exTopo.routeViaError", { error: viaError })}</p>}
       </FormItem>} />
     </div>
-    <div data-error-slot className="min-h-4 text-xs font-medium leading-4 text-destructive" aria-live="polite">
-      {typeof destinationError === "string" && <p>{t("admin.exTopo.routeDstError", { error: destinationError })}</p>}
-      {typeof viaError === "string" && <p>{t("admin.exTopo.routeViaError", { error: viaError })}</p>}
-    </div>
+
   </div>
 }
 
@@ -86,30 +89,37 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
   const gatewayRefName = `${name}.IP.GatewayRef` as const
   const addressRef = useWatch({ control, name: addressRefName }) ?? null
   const dhcpOverlap = addressRef && addressReferenceOverlapsDHCP(addressRef, addressRef.Network === "vpn" ? vpn : internet)
-  const refState = useFormState({ control, name: [addressRefName, gatewayRefName] })
+  const refState = useFormState({ control, name: [addressRefName, gatewayRefName, `${name}.IP.Addresses`, `${name}.IP.Gateway`] })
+  const addressError = getFieldState(`${name}.IP.Addresses`, refState).error?.message
+    ?? getFieldState(`${name}.IP.Addresses.0`, refState).error?.message
+    ?? getFieldState(addressRefName, refState).error?.message
+  const gatewayError = getFieldState(`${name}.IP.Gateway`, refState).error?.message
+    ?? getFieldState(gatewayRefName, refState).error?.message
   const { fields, append, remove } = useFieldArray({ control, name: routesName })
   return (
     <div className={compact ? "space-y-2" : "space-y-4"}>
       <div data-static-ip-grid className={`grid grid-cols-1 ${compact ? "gap-2" : "gap-3"}`}>
-        <FormField control={control} name={`${name}.IP.Addresses`} render={({ field, fieldState }) => (
+        <FormField control={control} name={`${name}.IP.Addresses`} render={({ field }) => (
           <FormItem className={compact ? "space-y-1" : undefined}>
             <ExerciseFieldLabel labelKey="admin.exTopo.addresses" helpKey="admin.exTopo.addressesHelp" required form />
             <Controller control={control} name={addressRefName} render={({ field: refField }) => <StaticAddressReference
+              invalid={Boolean(addressError)} describedBy={addressError ? `${name}-address-error` : undefined}
               kind="address" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
-              manualInput={<FormControl><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>}
+              manualInput={<FormControl aria-invalid={Boolean(addressError)} aria-describedby={addressError ? `${name}-address-error` : undefined}><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Addresses`, ref ? [] : [""], { shouldDirty: true }) }} />} />
             {dhcpOverlap && <p role="note" data-ip-warning className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">{t("admin.exTopo.ref.dhcpOverlap")}</p>}
-            {(fieldState.error || getFieldState(addressRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? fieldState.error?.root?.message ?? getFieldState(addressRefName, refState).error?.message}</p>}
+            {(addressError || !compact) && <p id={`${name}-address-error`} role={addressError ? "alert" : undefined} className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{addressError}</p>}
           </FormItem>
         )} />
-        <FormField control={control} name={`${name}.IP.Gateway`} render={({ field, fieldState }) => (
+        <FormField control={control} name={`${name}.IP.Gateway`} render={({ field }) => (
           <FormItem className={compact ? "space-y-1" : undefined}>
             <ExerciseFieldLabel labelKey="admin.exTopo.gateway" helpKey="admin.exTopo.gatewayHelp" form />
             <Controller control={control} name={gatewayRefName} render={({ field: refField }) => <StaticAddressReference
+              invalid={Boolean(gatewayError)} describedBy={gatewayError ? `${name}-gateway-error` : undefined}
               kind="gateway" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
-              manualInput={<FormControl><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
+              manualInput={<FormControl aria-invalid={Boolean(gatewayError)} aria-describedby={gatewayError ? `${name}-gateway-error` : undefined}><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Gateway`, "", { shouldDirty: true }) }} />} />
-            {(fieldState.error || getFieldState(gatewayRefName, refState).error || !compact) && <p className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{fieldState.error?.message ?? getFieldState(gatewayRefName, refState).error?.message}</p>}
+            {(gatewayError || !compact) && <p id={`${name}-gateway-error`} role={gatewayError ? "alert" : undefined} className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{gatewayError}</p>}
           </FormItem>
         )} />
       </div>

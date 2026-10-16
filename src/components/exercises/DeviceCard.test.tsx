@@ -135,7 +135,7 @@ describe('DeviceCard', () => {
     expect(screen.queryByRole('textbox', { name: 'admin.exTopo.routeDst' })).not.toBeInTheDocument()
   })
 
-  it('keeps a static route and its delete action together in a compact card with error space', () => {
+  it('keeps a valid static route compact without a detached error footer', () => {
     const device = emptyDevice()
     device.Interfaces[0].IP = { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '', Routes: [{ Dst: '10.1.0.0/16', Via: '10.0.0.1' }] }
     render(<Harness device={device} compact />)
@@ -147,7 +147,7 @@ describe('DeviceCard', () => {
     expect(card.querySelector('[data-route-fields]')).toHaveClass('grid-cols-1')
     expect(card.querySelector('[data-route-fields]')).toHaveClass('gap-2')
     expect(within(card as HTMLElement).getByRole('textbox', { name: /admin.exTopo.routeDst/ })).toHaveClass('h-9')
-    expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(1)
+    expect(card.querySelectorAll('[data-error-slot]')).toHaveLength(0)
     expect(card.querySelector('[data-route-fields] p:empty')).not.toBeInTheDocument()
   })
 

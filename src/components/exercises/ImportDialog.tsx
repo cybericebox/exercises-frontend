@@ -14,7 +14,7 @@ import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 
 // 400s of the upload itself (too large, wrong chunk size, damaged file, no name): not a missing password.
@@ -25,6 +25,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [file, setFile] = useState<File | null>(null)
   const [password, setPassword] = useState("")
   const [passwordNeeded, setPasswordNeeded] = useState(false)
+  const [fileError, setFileError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
@@ -36,6 +37,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     setBusy(true)
     setProgress(null)
     setError(null)
+    setFileError(null)
     setPasswordNeeded(false)
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
@@ -49,10 +51,12 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       }
       setImported(result)
     } catch (cause) {
-      // The backend answers any unreadable archive (encrypted without/with a wrong password) with 400.
-      if (cause instanceof ApiError && cause.status === 400 && !UPLOAD_ERROR_CODES.has(cause.code ?? 0)) {
-        setPasswordNeeded(true)
+      // Upload validation identifies the archive. A generic 400 cannot distinguish a corrupt
+      // archive from a missing/wrong password, so it must not mark the password invalid.
+      if (UPLOAD_ERROR_CODES.has(exerciseErrorCode(cause) ?? 0)) {
+        setFileError(exerciseErrorMessage(cause))
       } else {
+        if (cause instanceof ApiError && cause.status === 400) setPasswordNeeded(true)
         setError(exerciseErrorMessage(cause))
       }
     } finally {
@@ -79,10 +83,10 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
-        <Field label={t("admin.exImport.file")} required>
-          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={setFile} />}
+        <Field label={t("admin.exImport.file")} required error={fileError}>
+          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={(next) => { setFile(next); setFileError(null); setPasswordNeeded(false) }} />}
         </Field>
-        <Field label={t("admin.exImport.password")} error={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
+        <Field label={t("admin.exImport.password")} hint={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
           {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
         </Field>
         {busy && progress !== null && (

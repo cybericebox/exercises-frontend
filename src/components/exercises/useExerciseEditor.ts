@@ -8,7 +8,7 @@ import { createExercise, getExercise, updateExercise, updateExerciseKeepalive, t
 import { getDraft, getVersion, isStoredVersionId, saveDraft, saveDraftKeepalive, type Version } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import {
   draftSchema, emptyDraft, identitySchema, toDraftFormValues, toSaveDraftInput,
   type DraftFormValues, type IdentityFormValues,
@@ -224,6 +224,12 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       // otherwise spam identical "not saved" toasts for a single ongoing problem
       // (409 exists, archived, modified server-side, offline, ...).
       const message = exerciseErrorMessage(error)
+      const identityFields: Record<number, keyof IdentityFormValues> = { 40903: "Name", 20908: "Name", 20909: "Description", 20910: "Tags" }
+      const field = identityFields[exerciseErrorCode(error) ?? 0]
+      if (field) {
+        identityForm.setError(field, { type: "server", message })
+        throw error
+      }
       if (lastSaveErrorRef.current !== message) {
         toast.error(message)
         lastSaveErrorRef.current = message

@@ -10,6 +10,8 @@ vi.mock("@/api/events/list", () => ({ listNearestEvents: vi.fn(), listEventOptio
 
 import { setExerciseAccess } from "@/api/exercises/catalog"
 import { listNearestEvents } from "@/api/events/list"
+import { ApiError } from "@/api/client"
+import { toast } from "@/components/ui/toast"
 import { AccessDialog } from "./AccessDialog"
 
 const exercise: Exercise = {
@@ -75,4 +77,19 @@ describe("catalog access Save", () => {
     rerender(<AccessDialog exercise={exercise} onClose={vi.fn()} onSaved={vi.fn()} />)
     expect(screen.getByRole("radio", { name: /exercises.access.level.all/ })).toBeChecked()
   })
+
+  it("puts a rejected access choice at its field group and clears it on correction", async () => {
+    vi.mocked(setExerciseAccess).mockRejectedValueOnce(new ApiError(400, { Status: { Code: 20953 } }))
+    render(<AccessDialog exercise={exercise} onClose={vi.fn()} onSaved={vi.fn()} />)
+    await act(async () => {})
+    fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.none/ }))
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "exercises.access.save" })))
+    const error = screen.getByRole("alert")
+    expect(error).toHaveTextContent("exercises.err.accessInvalid")
+    expect(screen.getByRole("group", { name: "exercises.access.title" })).toHaveAttribute("aria-describedby", error.id)
+    expect(toast.error).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.all/ }))
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
 })

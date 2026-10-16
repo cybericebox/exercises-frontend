@@ -706,7 +706,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
               onDoubleClick={(event) => event.stopPropagation()}>
               <div className="rounded-md border border-border bg-background p-1">
-                <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error}
+                <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error} aria-describedby={editingLabel.error ? `topology-node-${node.key}-error` : undefined}
                   value={editingLabel.draft} maxLength={node.kind === "device" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
                   onBlur={commitNodeRename}
@@ -715,7 +715,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
                     if (event.key === "Enter") { event.preventDefault(); commitNodeRename() }
                     if (event.key === "Escape") { event.preventDefault(); setEditingLabel(null) }
                   }} />
-                {editingLabel.error && <p role="alert" className="text-xs text-destructive">{editingLabel.error}</p>}
+                {editingLabel.error && <p id={`topology-node-${node.key}-error`} role="alert" className="text-xs text-destructive">{editingLabel.error}</p>}
               </div>
             </foreignObject> : <g className="group/label"
               onMouseEnter={(event) => { if (!onNodeRename) return; event.stopPropagation(); showHint(event.currentTarget, t("admin.exTopo.renameOnDoubleClick")) }}

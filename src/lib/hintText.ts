@@ -30,19 +30,19 @@ export function hintTextToState(text: string): LexicalState | null {
   return { root: { children: text.split("\n").map(paragraph), direction: null, format: "", indent: 0, type: "root", version: 1 } }
 }
 
-function hasText(node: unknown): boolean {
-  if (Array.isArray(node)) return node.some(hasText)
+export function richTextHasContent(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(richTextHasContent)
   if (typeof node !== "object" || node === null) return false
   const value = node as Record<string, unknown>
   if (value.type === "text") return typeof value.text === "string" && value.text.trim() !== ""
   if (value.type === "variable") return typeof value.varName === "string" && value.varName !== ""
-  return Object.values(value).some(hasText)
+  return Object.values(value).some(richTextHasContent)
 }
 
 /** True when a stored hint text says something (not blank, not only empty paragraphs). */
 export function hintTextHasContent(text: string): boolean {
   const state = hintTextToState(text)
-  return state !== null && hasText(state)
+  return state !== null && richTextHasContent(state)
 }
 
 // Element nodes keep alignment in a string `format` (text nodes use a number).
@@ -55,5 +55,5 @@ function withoutAlignment(node: unknown): unknown {
 
 /** Stored hint text for an editor state; an editor without text stores "". */
 export function stateToHintText(state: LexicalState | null): string {
-  return state && hasText(state) ? JSON.stringify(withoutAlignment(state)) : ""
+  return state && richTextHasContent(state) ? JSON.stringify(withoutAlignment(state)) : ""
 }

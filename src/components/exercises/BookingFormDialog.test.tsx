@@ -31,4 +31,28 @@ describe("booking date and time", () => {
     expect(onBooked).toHaveBeenCalledWith({ ID: "created" })
     expect(toLocalInput(next.toISOString())).toMatch(/T18:30$/)
   })
+
+  it("places a past start error at the date picker, with no duration error", () => {
+    render(<BookingFormDialog open start="2000-01-01T10:00:00Z" size={size} largestDevice={size} active={0} onCancel={vi.fn()} onBooked={vi.fn()} />)
+    const startControl = screen.getByRole("button", { name: t("exercises.book.start") })
+    expect(startControl).toHaveAttribute("aria-invalid", "true")
+    const error = document.getElementById(startControl.getAttribute("aria-describedby")!)!
+    expect(error).toHaveTextContent(t("exercises.book.limit.past"))
+    expect(startControl.parentElement).toContainElement(error)
+    expect(screen.getByRole("spinbutton")).toHaveAttribute("aria-invalid", "false")
+    fireEvent.click(screen.getByRole("button", { name: t("exercises.book.confirm") }))
+    expect(screen.getAllByRole("alert")).toHaveLength(1)
+    expect(createBooking).not.toHaveBeenCalled()
+  })
+
+  it("puts duration validation at duration and preserves its hint link", () => {
+    render(<BookingFormDialog open start={start.toISOString()} size={size} largestDevice={size} active={0} onCancel={vi.fn()} onBooked={vi.fn()} />)
+    const control = screen.getByRole("spinbutton")
+    fireEvent.change(control, { target: { value: "0" } })
+    expect(control).toHaveAttribute("aria-invalid", "true")
+    expect(control).toHaveAttribute("aria-describedby", "booking-minutes-hint booking-minutes-error")
+    expect(control.parentElement).toContainElement(screen.getByRole("alert"))
+    expect(screen.getByRole("button", { name: t("exercises.book.start") })).toHaveAttribute("aria-invalid", "false")
+  })
+
 })

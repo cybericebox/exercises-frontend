@@ -203,6 +203,7 @@ export function ConnectionList({
                     <FieldHelp text={t("admin.exTopo.endpoint.help")} />
                   </div>
                   <SelectMenu
+                    aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `${name}-${ci}-${side}-error` : undefined}
                     value={epField.value.Kind === "device" && epField.value.DeviceID === ""
                       ? ""
                       : encodeEndpoint(epField.value)}
@@ -213,7 +214,7 @@ export function ConnectionList({
                     options={optionsForEndpoint(ci, side)}
                     className="w-full"
                   />
-                  <p className="min-h-5 text-xs font-medium leading-5 text-destructive">
+                  <p id={`${name}-${ci}-${side}-error`} role={fieldState.error ? "alert" : undefined} className="min-h-5 text-xs font-medium leading-5 text-destructive">
                     {fieldState.error ? fieldState.error.message ?? t("admin.ex.val.endpointDevice") : ""}
                   </p>
                 </div>

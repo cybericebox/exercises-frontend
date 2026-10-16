@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { ERR_ACCESS_INVALID, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { AccessLevelFields, accessValueValid, type AccessValue } from "./AccessLevelFields"
 
 function accessOf(exercise: Exercise): AccessValue {
@@ -37,10 +37,12 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
   const observedRef = useRef(baseline)
   const savingRef = useRef(false)
   const mountedRef = useRef(true)
+  const [accessError, setAccessError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const dirty = !sameAccess(value, baseline)
 
   function change(next: AccessValue) {
+    setAccessError(null)
     valueRef.current = next
     setValue(next)
   }
@@ -67,6 +69,7 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
     if (savingRef.current || !accessValueValid(sent) || sameAccess(sent, baselineRef.current)) return
     savingRef.current = true
     setBusy(true)
+    setAccessError(null)
     try {
       const updated = await setExerciseAccess(exercise.ID, accessInput(sent))
       const acknowledged = accessOf(updated)
@@ -76,7 +79,8 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
       onSaved(updated)
       if (mountedRef.current && sameAccess(valueRef.current, sent)) onClose()
     } catch (error) {
-      toast.error(exerciseErrorMessage(error))
+      if (exerciseErrorCode(error) === ERR_ACCESS_INVALID) setAccessError(exerciseErrorMessage(error))
+      else toast.error(exerciseErrorMessage(error))
     } finally {
       savingRef.current = false
       if (mountedRef.current) setBusy(false)
@@ -90,7 +94,7 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
           <DialogTitle>{t("exercises.access.dialogTitle")}</DialogTitle>
           <DialogDescription>{t("exercises.access.dialogDescription")}</DialogDescription>
         </DialogHeader>
-        <AccessLevelFields value={value} onChange={change} allowOwn={allowOwn} originEventName={originEventName} knownEvents={exercise.AccessEvents} />
+        <AccessLevelFields error={accessError} value={value} onChange={change} allowOwn={allowOwn} originEventName={originEventName} knownEvents={exercise.AccessEvents} />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
           <div className="min-h-10 sm:min-w-24">

@@ -101,21 +101,23 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
           {ranges.map((range, index) => <div key={index} className="flex items-center gap-2">
             <span className="shrink-0 text-xs text-muted-foreground">.</span>
             <Input type="number" min={2} max={254} step={1} value={range.Start} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeStartN", { n: index + 1 })}
+              aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `${rangesName}-error` : undefined}
               className="h-9 min-w-0" onChange={(event) => field.onChange(ranges.map((item, i) => i === index ? { ...item, Start: Number(event.target.value) } : item))} />
             <span aria-hidden="true" className="text-xs text-muted-foreground">—</span>
             <span className="shrink-0 text-xs text-muted-foreground">.</span>
             <Input type="number" min={2} max={254} step={1} value={range.End} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeEndN", { n: index + 1 })}
+              aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `${rangesName}-error` : undefined}
               className="h-9 min-w-0" onChange={(event) => field.onChange(ranges.map((item, i) => i === index ? { ...item, End: Number(event.target.value) } : item))} />
             {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.dhcp.removeRangeN", { n: index + 1 })} onClick={() => field.onChange(ranges.filter((_, i) => i !== index))} className="h-9 w-9 shrink-0" />}
           </div>)}
-          {fieldState.error?.message && <p role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
+          {fieldState.error?.message && <p id={`${rangesName}-error`} role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
         </div>
       }} />}
     {enabled && dhcp && network === "Internet" && <Controller control={control} name={`Variants.${variantIndex}.Topology.Internet.DNS`}
       render={({ field, fieldState }) => <div className="space-y-1 border-t border-border pt-2">
         <div className="flex items-center gap-1.5"><label htmlFor={`internet-dhcp-dns-${variantIndex}`} className="text-xs font-medium">{t("admin.exTopo.dhcp.dns")}</label><FieldHelp text={t("admin.exTopo.dhcp.dnsHelp")} /></div>
-        <Input id={`internet-dhcp-dns-${variantIndex}`} value={field.value ?? ""} onChange={field.onChange} disabled={disabled} placeholder="1.1.1.1" className="h-9" />
-        {fieldState.error?.message && <p role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
+        <Input id={`internet-dhcp-dns-${variantIndex}`} value={field.value ?? ""} onChange={field.onChange} disabled={disabled} placeholder="1.1.1.1" className="h-9" aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `internet-dns-${variantIndex}-error` : undefined} />
+        {fieldState.error?.message && <p id={`internet-dns-${variantIndex}-error`} role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
       </div>} />}
     {enabled && <dl className="space-y-1.5 text-xs leading-5 text-muted-foreground">
       {(["enabled", "disabled"] as const).map((state) => <div key={state} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
