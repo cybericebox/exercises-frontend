@@ -25,12 +25,13 @@ const SEARCH_LIMIT = 20
  * pinned on top. The list block has a fixed height and loads inside it, so
  * the dialog never shifts; events are prefetched when the fields mount.
  */
-export function AccessLevelFields({ value, onChange, allowOwn, originEventName, disabled, knownEvents = [] }: {
+export function AccessLevelFields({ value, onChange, allowOwn, originEventName, disabled, error, knownEvents = [] }: {
   value: AccessValue
   onChange: (value: AccessValue) => void
   allowOwn: boolean
   originEventName?: string
   disabled?: boolean
+  error?: string | null
   /** Names the server already sent (AccessEvents); no lookup needed for them. */
   knownEvents?: { ID: string; Name: string }[]
 }) {
@@ -102,7 +103,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
 
   return (
     <div className="space-y-3">
-      <fieldset className="space-y-2" disabled={disabled}>
+      <fieldset className="space-y-2" disabled={disabled} aria-invalid={Boolean(error)} aria-describedby={error ? "exercise-access-error" : undefined}>
         <legend className="mb-1 text-sm font-medium text-foreground">{t("exercises.access.title")}</legend>
         {levels.map((level) => (
           <label key={level} className="flex cursor-pointer items-start gap-2 text-sm">
@@ -117,6 +118,7 @@ export function AccessLevelFields({ value, onChange, allowOwn, originEventName, 
           </label>
         ))}
       </fieldset>
+      {error && <p id="exercise-access-error" role="alert" className="text-xs font-medium text-destructive">{error}</p>}
       {selecting && (
         <div className="space-y-2">
           <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("exercises.access.search")}

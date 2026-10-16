@@ -10,7 +10,7 @@ import { draftSchema, emptyDevice, emptyDraft, type DraftFormValues } from '@/li
 
 vi.mock('@/api/exercises/flagPolicy', () => ({ getFlagPolicy: vi.fn().mockResolvedValue({ RandomHexLength: 40, RandomBits: 160, WarningBits: 20 }) }))
 
-function Harness({ initial }: { initial?: DraftFormValues }) {
+function Harness({ initial, error = false }: { initial?: DraftFormValues; error?: boolean }) {
   const [draft] = useState(() => {
     const value = initial ? structuredClone(initial) : emptyDraft()
     value.Variants[0].Topology.VPN.Enabled = true
@@ -20,6 +20,7 @@ function Harness({ initial }: { initial?: DraftFormValues }) {
   const placeholders = useWatch({ control: form.control, name: 'Variants.0.Tasks.0.Placeholders' }) ?? []
   const description = useWatch({ control: form.control, name: 'Variants.0.Tasks.0.Description' })
   return <FormProvider {...form}>
+    {error && <button type="button" onClick={() => form.setError("Variants.0.Tasks.0.Description", { message: "Description required" })}>Validate description</button>}
     <TaskForm variantIndex={0} taskIndex={0} disabled={false} />
     <output data-testid="saved-placeholders">{JSON.stringify(placeholders)}</output>
     <output data-testid="saved-description">{JSON.stringify(description)}</output>
@@ -43,6 +44,15 @@ function ConflictHarness() {
 }
 
 describe('TaskForm inline placeholders', () => {
+  it('shows missing description feedback directly beneath the rich text control', async () => {
+    render(<Harness error />)
+    fireEvent.click(screen.getByRole('button', { name: 'Validate description' }))
+    const message = await screen.findByText('Description required')
+    const editor = screen.getByRole('textbox', { name: 'Опис' })
+    expect(editor).toHaveAttribute('aria-invalid', 'true')
+    expect(editor).toHaveAttribute('aria-describedby', message.id)
+    expect(message.previousElementSibling).toContainElement(editor)
+  })
   it('shows the flag target collision beside the environment variable field', async () => {
     render(<ConflictHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }))

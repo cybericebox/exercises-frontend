@@ -12,6 +12,7 @@ import type { EditorPosition } from "@/lib/editorPosition"
 import { ERR_EXERCISE_IN_USE, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
 import { exerciseHref } from "@/lib/exerciseRoutes"
+import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
 import type { ExerciseEditor } from "./useExerciseEditor"
 
@@ -92,10 +93,14 @@ export function useExerciseActions({
   async function publish(): Promise<void> {
     if (!exerciseId) return
     await run(async () => {
-      if (!(await editor.draftForm.trigger())) {
-        const values = editor.draftForm.getValues()
+      const valid = await editor.draftForm.trigger()
+      const values = editor.draftForm.getValues()
+      const missingDescriptions = values.Variants.flatMap((variant, vi) => variant.Tasks.flatMap((task, ti) =>
+        richTextHasContent(task.Description) ? [] : [`Variants.${vi}.Tasks.${ti}.Description` as const]))
+      for (const path of missingDescriptions) editor.draftForm.setError(path, { type: "required", message: t("admin.ex.err.taskDescriptionRequired") })
+      if (!valid || missingDescriptions.length > 0) {
         const parsed = draftSchema.safeParse(values)
-        const issue = parsed.success ? null : parsed.error.issues[0]
+        const issue = parsed.success ? missingDescriptions[0] ? { path: missingDescriptions[0].split(".").map((part) => /^\d+$/.test(part) ? Number(part) : part) } : null : parsed.error.issues[0]
         if (canWrite) setMode("edit")
         setPosition((current) => issue ? positionForDraftIssue(current, values, issue.path) : { ...current, tab: "variants" })
         if (issue) focusField(issue.path)

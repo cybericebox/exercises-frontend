@@ -13,6 +13,7 @@ vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValu
 vi.mock("@/api/exercises/proposals", () => ({ listProposals: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn() }))
 
 import { approveProposal, listProposals, rejectProposal } from "@/api/exercises/proposals"
+import { ApiError } from "@/api/client"
 import { toast } from "@/components/ui/toast"
 import ProposalsPage from "./page"
 
@@ -66,4 +67,20 @@ describe("proposals page", () => {
     expect(screen.getByText("exercises.proposals.forbidden")).toBeInTheDocument()
     expect(listProposals).not.toHaveBeenCalled()
   })
+
+  it("places a taken catalog name beside its input and clears it when edited", async () => {
+    vi.mocked(approveProposal).mockRejectedValue(new ApiError(409, { Status: { Code: 40903 } }))
+    render(<ProposalsPage />)
+    fireEvent.click(await screen.findByRole("button", { name: "exercises.proposals.approve" }))
+    fireEvent.click(screen.getAllByRole("button", { name: "exercises.proposals.approve" }).at(-1)!)
+    const message = await screen.findByText("exercises.err.nameExists")
+    const input = screen.getByLabelText(/^exercises\.proposals\.name/)
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    expect(input).toHaveAttribute("aria-describedby", message.id)
+    expect(input.parentElement).toContainElement(message)
+    expect(toast.error).not.toHaveBeenCalled()
+    fireEvent.change(input, { target: { value: "Another exercise" } })
+    expect(screen.queryByText("exercises.err.nameExists")).not.toBeInTheDocument()
+  })
+
 })

@@ -44,8 +44,8 @@ export function ProposeDialog({ exerciseId, onClose, onProposed }: {
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="proposal-note">{t("exercises.propose.note")}</Label>
-          <Textarea id="proposal-note" rows={4} value={note} aria-invalid={tooLong} onChange={(event) => setNote(event.target.value)} />
-          {tooLong && <p role="alert" className="text-xs text-destructive">{t("exercises.propose.noteTooLong")}</p>}
+          <Textarea id="proposal-note" rows={4} value={note} aria-invalid={tooLong} aria-describedby={tooLong ? "proposal-note-error" : undefined} onChange={(event) => setNote(event.target.value)} />
+          {tooLong && <p id="proposal-note-error" role="alert" className="text-xs text-destructive">{t("exercises.propose.noteTooLong")}</p>}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>

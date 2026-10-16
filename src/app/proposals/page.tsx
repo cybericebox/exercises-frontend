@@ -30,17 +30,24 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
   const [access, setAccess] = useState<AccessValue>({ level: "own", eventIds: [] })
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
-  const nameValid = name.trim().length >= 3
+  const nameValid = name.trim().length >= 3 && name.trim().length <= 50
 
   async function approve() {
+    setNameError(null)
+    setAccessError(null)
     setBusy(true)
     try {
       const approved = await approveProposal(proposal.ID, { Name: name, AccessLevel: access.level, EventIDs: access.eventIds, Note: note })
       onDone(approved)
     } catch (error) {
       // The name is taken in the catalog (a unique-name violation answers 40903).
-      toast.error(exerciseErrorCode(error) === ERR_EXERCISE_EXISTS ? t("exercises.err.nameExists") : exerciseErrorMessage(error))
+      if (exerciseErrorCode(error) === ERR_EXERCISE_EXISTS) setNameError(t("exercises.err.nameExists"))
+      else if (exerciseErrorCode(error) === 20908) setNameError(t("admin.ex.err.nameInvalid"))
+      else if (exerciseErrorCode(error) === 20953) setAccessError(exerciseErrorMessage(error))
+      else toast.error(exerciseErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -54,10 +61,10 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
           <DialogDescription>{t("exercises.proposals.approveDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Field label={t("exercises.proposals.name")} required error={touched && !nameValid ? t("exercises.proposals.nameInvalid") : undefined}>
-            {(control) => <Input {...control} value={name} onChange={(event) => setName(event.target.value)} onBlur={() => setTouched(true)} disabled={busy} />}
+          <Field label={t("exercises.proposals.name")} required error={nameError ?? (touched && !nameValid ? t("admin.ex.err.nameInvalid") : undefined)}>
+            {(control) => <Input {...control} value={name} onChange={(event) => { setName(event.target.value); setNameError(null) }} onBlur={() => setTouched(true)} disabled={busy} />}
           </Field>
-          <AccessLevelFields value={access} onChange={setAccess} allowOwn originEventName={proposal.EventName} disabled={busy} />
+          <AccessLevelFields error={accessError} value={access} onChange={(value) => { setAccess(value); setAccessError(null) }} allowOwn originEventName={proposal.EventName} disabled={busy} />
           <div className="space-y-1.5">
             <Label htmlFor="approve-note">{t("exercises.proposals.decisionNote")}</Label>
             <Textarea id="approve-note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />

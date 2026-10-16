@@ -43,7 +43,7 @@ const exercise: Exercise = {
   ID: "ex-1", Name: "Web 101", Description: "", Tags: [], DraftVersionID: "draft-1", PublishedVersionID: "pub-1",
   ArchivedAt: null, HasChanges: true, CreatedAt: "2026-09-01T10:00:00Z", CreatedBy: null, UpdatedAt: "2026-09-20T10:00:00Z", UpdatedBy: null,
 }
-const task = { ID: "task-1", Name: "Find the flag", Description: null, Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }
+const task = { ID: "task-1", Name: "Find the flag", Description: { root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Find the flag in the lab." }] }] } }, Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }
 const device = {
   ID: "dev-1", Name: "web", Type: "container" as const, SecurityPreset: "" as const, Image: "nginx",
   ResourcePreset: "", Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }, Interfaces: [], EnvVars: [], External: null,
@@ -164,6 +164,14 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.ex.err.modified"))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
+  })
+
+  it("opens the task with a missing description before sending a publish request", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Description: null }] }] })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    expect(await screen.findByRole("tab", { name: "admin.ex.create.tab.variants", selected: true })).toBeInTheDocument()
+    expect(publishDraft).not.toHaveBeenCalled()
   })
 
   it("goes to the invalid task instead of publishing", async () => {

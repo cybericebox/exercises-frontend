@@ -7,7 +7,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 
 type NetworkState = { Enabled: boolean; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
-type Common = { vpn: NetworkState; internet: NetworkState; disabled?: boolean; manualInput?: ReactNode }
+type Common = { invalid?: boolean; describedBy?: string; vpn: NetworkState; internet: NetworkState; disabled?: boolean; manualInput?: ReactNode }
 type HostReferenceProps = Common & {
   kind: "address" | "gateway" | "via"
   reference: NetworkIPRefDTO | null
@@ -55,10 +55,11 @@ export function StaticAddressReference(props: Props) {
 
   return <div className={hostReference ? "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2" : props.manualInput ? "grid grid-cols-[minmax(8rem,0.55fr)_minmax(0,1fr)] items-center gap-2" : ""}>
     <SelectMenu value={selected} onChange={choose} options={options} disabled={disabled}
+      aria-invalid={props.invalid} aria-describedby={props.describedBy}
       ariaLabel={t(`admin.exTopo.ref.choice.${kind}`)} className="h-9 min-w-0 w-full" menuClassName="w-[22rem] max-w-[90vw]" />
     {hostReference && kind !== "destination" && <div className="flex shrink-0 items-center gap-1">
       <Input type="number" min={kind === "address" ? 2 : 1} max={254} step={1}
-        value={hostReference.Host} disabled={disabled} aria-label={t("admin.exTopo.ref.host")}
+        value={hostReference.Host} disabled={disabled} aria-invalid={props.invalid} aria-describedby={props.describedBy} aria-label={t("admin.exTopo.ref.host")}
         onChange={(event) => props.onChange({ Network: hostReference.Network, Host: Number(event.target.value) })}
         className="h-9 w-20" />
       {kind === "address" && <span className={`text-sm font-normal text-foreground ${disabled ? "opacity-50" : ""}`}>/24</span>}

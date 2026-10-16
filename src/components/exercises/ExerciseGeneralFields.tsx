@@ -43,19 +43,19 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
   return <div className="grid w-full gap-x-6 gap-y-3 pt-3 lg:grid-cols-2">
     <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.field.name" helpKey="admin.ex.help.name" htmlFor="exercise-name" required />
-      <Input id="exercise-name" autoFocus={autoFocusName} disabled={disabled} aria-invalid={Boolean(errors.Name)} {...identityForm.register("Name")} />
-      <p role={errors.Name ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{errors.Name?.message}</p>
+      <Input id="exercise-name" autoFocus={autoFocusName} disabled={disabled} aria-invalid={Boolean(errors.Name)} aria-describedby={errors.Name ? "exercise-name-error" : undefined} {...identityForm.register("Name", { onChange: () => { if (errors.Name?.type === "server") identityForm.clearErrors("Name") } })} />
+      <p id="exercise-name-error" role={errors.Name ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{errors.Name?.message}</p>
     </div>
     <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.field.tags" helpKey="admin.ex.field.tagsHelp" htmlFor="exercise-tags" />
-      <TagInput id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} disabled={disabled}
+      <TagInput id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} disabled={disabled} aria-invalid={Boolean(tagErrorMessage)} aria-describedby={tagErrorMessage ? "exercise-tags-error" : undefined}
         draftValue={pendingTag} suggestions={tagSuggestions} onDraftValueChange={setPendingTag} />
-      <p role={tagErrorMessage ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{tagErrorMessage}</p>
+      <p id="exercise-tags-error" role={tagErrorMessage ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{tagErrorMessage}</p>
     </div>
     <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.field.description" helpKey="admin.ex.field.descriptionHelp" htmlFor="exercise-description" />
-      <Textarea id="exercise-description" rows={5} disabled={disabled} aria-invalid={Boolean(errors.Description)} {...identityForm.register("Description")} />
-      <p role={errors.Description ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{errors.Description?.message}</p>
+      <Textarea id="exercise-description" rows={5} disabled={disabled} aria-invalid={Boolean(errors.Description)} aria-describedby={errors.Description ? "exercise-description-error" : undefined} {...identityForm.register("Description", { onChange: () => { if (errors.Description?.type === "server") identityForm.clearErrors("Description") } })} />
+      <p id="exercise-description-error" role={errors.Description ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{errors.Description?.message}</p>
     </div>
     <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" htmlFor="draft-admin-note" />

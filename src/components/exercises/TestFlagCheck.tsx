@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 
 import { checkDeployFlag } from "@/api/exercises/deploy"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ type CheckState = "idle" | "checking" | "correct" | "wrong" | "error"
 
 /** The author types the flag they found and asks the server; the expected value is never shown. */
 export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onResult }: { deployId: string; taskId: string; taskName: string; solved?: boolean; onResult?: (correct: boolean) => void }) {
+  const errorId = useId()
   const [flag, setFlag] = useState("")
   const [state, setState] = useState<CheckState>(solved ? "correct" : "idle")
 
@@ -28,6 +29,8 @@ export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onRe
       <div className="flex items-center gap-2">
         <Input
           value={flag}
+          aria-invalid={state === "wrong"}
+          aria-describedby={state === "wrong" ? errorId : undefined}
           aria-label={t("admin.exDeploy.flagInput", { name: taskName })}
           placeholder={t("admin.exDeploy.flagPlaceholder")}
           autoComplete="off"
@@ -42,7 +45,7 @@ export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onRe
         </Button>
       </div>
       {state === "correct" && <p role="status" className="mt-1 text-xs text-[var(--ib-ok)]">✓ {t("admin.exDeploy.correct")}</p>}
-      {state === "wrong" && <p role="status" className="mt-1 text-xs text-destructive">✗ {t("admin.exDeploy.wrong")}</p>}
+      {state === "wrong" && <p id={errorId} role="alert" className="mt-1 text-xs text-destructive">✗ {t("admin.exDeploy.wrong")}</p>}
       {state === "error" && <p role="status" className="mt-1 text-xs text-destructive">{t("admin.exDeploy.checkFailed")}</p>}
     </div>
   )

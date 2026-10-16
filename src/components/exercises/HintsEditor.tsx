@@ -30,10 +30,10 @@ const levelHelpLines = () => [
  * The hint text as formatted text (the task description editor). Keeps the
  * last editor state so an edit without text (stored as "") does not reset it.
  */
-function HintTextEditor({ text, onChange, disabled, invalid, ariaLabel }: { text: string; onChange: (text: string) => void; disabled: boolean; invalid: boolean; ariaLabel: string }) {
+function HintTextEditor({ text, onChange, disabled, invalid, ariaLabel, describedBy }: { text: string; onChange: (text: string) => void; disabled: boolean; invalid: boolean; ariaLabel: string; describedBy?: string }) {
   const [local, setLocal] = useState<{ text: string; state: LexicalState | null }>({ text: "", state: null })
   const value = local.text === text && local.state ? local.state : hintTextToState(text)
-  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} invalid={invalid} minHeightClassName="min-h-[4.5rem]" allowAlignment={false}
+  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} ariaDescribedBy={describedBy} invalid={invalid} minHeightClassName="min-h-[4.5rem]" allowAlignment={false}
     placeholder={t("exercises.hints.textPlaceholder")}
     onChange={(state) => {
       const next = stateToHintText(state)
@@ -95,11 +95,13 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                     Narrow screens: the level group wraps to its own full-width line. */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <span className="text-sm font-medium leading-5 text-foreground">{title}</span>
-                  <div className="order-last flex w-full items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
+                  <div className="order-last flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
                     <ExerciseFieldLabel labelKey="exercises.hints.levelShort" helpLines={levelHelpLines()} required />
                     <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="h-8 min-w-0 flex-1 sm:w-44 sm:flex-none"
+                      aria-invalid={Boolean(hintErrors?.Level)} aria-describedby={hintErrors?.Level ? `${base}-${hintIndex}-level-error` : undefined}
                       options={levelOptions()}
                       onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
+                    {hintErrors?.Level?.message && <p id={`${base}-${hintIndex}-level-error`} role="alert" className="w-full text-xs text-destructive">{hintErrors.Level.message}</p>}
                   </div>
                   {!disabled && (
                     <span className="ml-auto flex items-center gap-1 sm:ml-0">
@@ -119,11 +121,10 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                     </span>
                   )}
                 </div>
-                {hintErrors?.Level?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Level.message}</p>}
                 <div className="space-y-1.5">
-                  <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} ariaLabel={t("exercises.hints.textAria", { n: hintIndex + 1 })}
+                  <HintTextEditor text={hint.Text} disabled={disabled} invalid={Boolean(hintErrors?.Text)} describedBy={hintErrors?.Text ? `${base}-${hintIndex}-text-error` : undefined} ariaLabel={t("exercises.hints.textAria", { n: hintIndex + 1 })}
                     onChange={(text) => setValue(`${base}.${hintIndex}.Text`, text, { shouldDirty: true, shouldValidate: Boolean(hintErrors?.Text) })} />
-                  {hintErrors?.Text?.message && <p role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
+                  {hintErrors?.Text?.message && <p id={`${base}-${hintIndex}-text-error`} role="alert" className="text-xs text-destructive">{hintErrors.Text.message}</p>}
                 </div>
               </li>
             )

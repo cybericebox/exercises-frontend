@@ -57,7 +57,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
   const limit = bookingLimitError(startIso, Number(minutes), active)
 
   async function submit() {
-    if (limit) { setError(limitMessage(limit)); return }
+    if (limit) return
     setBusy(true)
     setError("")
     try {
@@ -73,19 +73,21 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
     }
   }
 
-  return <ConfirmDialog open={open} busy={busy} error={error} title={t("exercises.book.title")} description={t("exercises.book.description")}
+  return <ConfirmDialog open={open} busy={busy} error={limit === "tooMany" ? limitMessage(limit) : error} title={t("exercises.book.title")} description={t("exercises.book.description")}
     confirmLabel={t("exercises.book.confirm")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
     <div className="grid gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="booking-start">{t("exercises.book.start")}</Label>
-        <DateTimePicker id="booking-start" aria-label={t("exercises.book.start")} value={startValue} onChange={(value) => { setStartValue(value); setError("") }} />
+        <DateTimePicker id="booking-start" aria-label={t("exercises.book.start")} value={startValue} aria-invalid={limit === "past" || limit === "ahead"}
+          aria-describedby={limit === "past" || limit === "ahead" ? "booking-start-error" : undefined} onChange={(value) => { setStartValue(value); setError("") }} />
+        {(limit === "past" || limit === "ahead") && <p id="booking-start-error" role="alert" className="text-xs text-destructive">{limitMessage(limit)}</p>}
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="booking-minutes">{t("exercises.book.minutes")}</Label>
         <Input id="booking-minutes" type="number" inputMode="numeric" min={BOOKING_MIN_MINUTES} max={BOOKING_MAX_MINUTES} step={15} value={minutes}
-          aria-invalid={limit === "duration"} onChange={(event) => { setMinutes(event.target.value); setError("") }} />
-        <p className="text-xs text-muted-foreground">{t("exercises.book.hint", { min: BOOKING_MIN_MINUTES, max: BOOKING_MAX_MINUTES, days: BOOKING_MAX_DAYS_AHEAD, count: BOOKING_MAX_ACTIVE })}</p>
-        {limit && <p role="alert" className="text-xs text-destructive">{limitMessage(limit)}</p>}
+          aria-invalid={limit === "duration"} aria-describedby={limit === "duration" ? "booking-minutes-hint booking-minutes-error" : "booking-minutes-hint"} onChange={(event) => { setMinutes(event.target.value); setError("") }} />
+        <p id="booking-minutes-hint" className="text-xs text-muted-foreground">{t("exercises.book.hint", { min: BOOKING_MIN_MINUTES, max: BOOKING_MAX_MINUTES, days: BOOKING_MAX_DAYS_AHEAD, count: BOOKING_MAX_ACTIVE })}</p>
+        {limit === "duration" && <p id="booking-minutes-error" role="alert" className="text-xs text-destructive">{limitMessage(limit)}</p>}
       </div>
     </div>
   </ConfirmDialog>

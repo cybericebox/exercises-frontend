@@ -20,6 +20,8 @@ export function TagInput({
   draftValue,
   onDraftValueChange,
   suggestions,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
 }: {
   value: string[]
   onChange: (v: string[]) => void
@@ -27,6 +29,8 @@ export function TagInput({
   placeholder?: string
   className?: string
   inputRef?: Ref<HTMLInputElement>
+  "aria-describedby"?: string
+  "aria-invalid"?: boolean
   id?: string
   draftValue?: string
   onDraftValueChange?: (value: string) => void
@@ -71,6 +75,8 @@ export function TagInput({
       ))}
       <input
         id={id}
+        aria-describedby={describedBy}
+        aria-invalid={invalid}
         ref={inputRef}
         value={draft}
         disabled={disabled}

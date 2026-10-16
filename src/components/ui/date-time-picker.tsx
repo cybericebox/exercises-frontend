@@ -151,7 +151,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
   }
 
   return <Popover.Root open={open} onOpenChange={openChange}>
-    <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="dialog" data-invalid={invalid} disabled={disabled} onBlur={onBlur} className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
+    <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="dialog" data-invalid={invalid} aria-invalid={invalid} disabled={disabled} onBlur={onBlur} className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
       <span className={`min-w-0 flex-1 truncate tabular-nums ${chosen ? "" : "text-placeholder"}`}>{chosen ? t("ui.dateTime.value", { date: dateLabel(chosen), time: `${pad(time.hour)}:${pad(time.minute)}` }) : t("ui.dateTime.placeholder")}</span>
       {chosen && <HoverTooltip text={zone} className="shrink-0"><span className="text-xs tabular-nums text-muted-foreground">{offset}</span></HoverTooltip>}
       <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />

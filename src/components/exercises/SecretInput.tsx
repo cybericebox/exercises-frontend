@@ -18,11 +18,19 @@ export function SecretInput({
   hasValue,
   onChange,
   disabled,
+  id,
+  "aria-invalid": invalid,
+  "aria-describedby": describedBy,
+  "aria-labelledby": labelledBy,
 }: {
   value: string
   hasValue: boolean
   onChange: (v: string) => void
   disabled?: boolean
+  id?: string
+  "aria-invalid"?: boolean
+  "aria-describedby"?: string
+  "aria-labelledby"?: string
 }) {
   const [replacing, setReplacing] = useState(false)
   const showStored = hasValue && !replacing && value === ""
@@ -42,6 +50,10 @@ export function SecretInput({
 
   return (
     <PasswordInput
+      id={id}
+      aria-invalid={invalid}
+      aria-describedby={describedBy}
+      aria-labelledby={labelledBy}
       data-testid="secret-value-input"
       autoComplete="new-password"
       value={value}
