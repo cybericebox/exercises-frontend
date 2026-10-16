@@ -258,21 +258,28 @@ describe("exercise page — publishing and history", () => {
     await waitFor(() => expect(restoreVersion).toHaveBeenCalledWith("ex-1", "pub-1"))
   })
 
-  it("disables the test action when the topology has no devices", async () => {
+  it("keeps the test action enabled for a static variant without laboratories", async () => {
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
     render(<Page />)
-    await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled())
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
-    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const test = await screen.findByRole("button", { name: "admin.exPage.action.test" })
+    expect(test).toBeEnabled()
+    fireEvent.keyDown(test, { key: "ArrowDown" })
+    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).not.toHaveAttribute("aria-disabled", "true")
   })
 
-  it("disables the test action when the platform infrastructure is not connected", async () => {
+  it("disables a lab variant when the platform infrastructure is not connected", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+    const test = screen.getByRole("button", { name: "admin.exPage.action.test" })
+    expect(test).toBeEnabled()
+    fireEvent.keyDown(test, { key: "ArrowDown" })
+    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).toHaveAttribute("aria-disabled", "true")
   })
 
   it("opens the testing page for the chosen variant from the header", async () => {

@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useWatch } from "react-hook-form"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
@@ -10,6 +9,7 @@ import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { listVersions, type DeviceOutside, type Version } from "@/api/exercises/versions"
 import { ErrorPage } from "@/components/ErrorPage"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
@@ -211,7 +211,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leave.destination])
 
-  const watchedVariants = useWatch({ control: editor.draftForm.control, name: "Variants" }) ?? []
   const resourceBlocked = Boolean(editor.version?.Resources?.Outside.some((issue) => !issue.Covered))
   // The elevation dialog picks a larger block per device: it is written to that device of the working copy.
   const pickDeviceBlock = useCallback((issue: DeviceOutside, presetId: string) => {
@@ -220,12 +219,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     const deviceIndex = variantIndex < 0 ? -1 : variants[variantIndex].Topology.Devices.findIndex((device) => device.ID === issue.DeviceID)
     if (deviceIndex >= 0) editor.draftForm.setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ResourcePreset`, presetId, { shouldDirty: true })
   }, [editor.draftForm])
+  // A static variant is testable without laboratories; only lab variants depend on the platform.
   const getTestVariants = useCallback((): TestVariantOption[] =>
-    editor.draftForm.getValues("Variants").map((variant, index) => ({
-      index,
-      label: t("admin.exDraft.variantN", { n: index + 1 }),
-      disabled: variant.Topology.Devices.length === 0,
-    })), [editor.draftForm])
+    testVariantOptions(editor.draftForm.getValues("Variants"), { laboratories, infraAllowed }, (n) => t("admin.exDraft.variantN", { n })),
+  [editor.draftForm, laboratories, infraAllowed])
 
   // The testing page: an active lab is reopened, otherwise the page starts one for the chosen variant.
   const openTest = (deployId: string | undefined = activeDeploy?.DeployID, forExercise: string | null = exerciseId) => {
@@ -234,11 +231,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     router.push(testLabHref(forExercise, deployId))
   }
 
-  // Test deploy needs a topology with devices and a connected platform infrastructure.
-  const hasDevices = watchedVariants.some((variant) => variant.Topology.Devices.length > 0)
-  const testBlockedReason = laboratories === null ? "" : !infraAllowed ? t("exercises.infra.blocked")
-    : !laboratories ? t("admin.exPage.action.testNoPlatform") : !hasDevices ? t("admin.exPage.action.testNoDevices") : ""
-  const testBlocked = laboratories === null || testBlockedReason !== ""
 
   const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
@@ -281,8 +273,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
         testAvailable={permissions.write}
-        testBlocked={testBlocked}
-        testBlockedReason={testBlockedReason}
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}

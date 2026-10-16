@@ -108,12 +108,13 @@ describe("exercise editor — W4 rights", () => {
     expect(screen.getByRole("button", { name: "exercises.propose.button" })).toBeDisabled()
   })
 
-  it("replaces the topology and test deploy when the owner event forbids infrastructure", async () => {
+  it("replaces the topology when the owner event forbids infrastructure", async () => {
     vi.mocked(getExercise).mockResolvedValue({ ...base, Scope: "event", OwnerEventID: "ev1", OwnerEventName: "Winter CTF", AccessLevel: "", Permissions: managerRights })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     expect((await screen.findAllByText("exercises.infra.blocked")).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
-    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeDisabled()
+    // The base variant has no devices, so its test needs no infrastructure and stays available.
+    expect(screen.getByRole("button", { name: "admin.exPage.action.test" })).toBeEnabled()
   })
 
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
