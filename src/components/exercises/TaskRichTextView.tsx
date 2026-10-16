@@ -88,12 +88,12 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
         const target = external[name]
         if (target) {
           // Looks like any link; the click opens the tab and mints the proxy link, so href is only a placeholder.
-          return <a key={key} className="break-all text-primary underline underline-offset-2" href="#" target="_blank" rel="noopener noreferrer" data-task-variable={name}
+          return <a key={key} className="inline-block max-w-full align-baseline [overflow-wrap:anywhere] [word-break:normal] text-primary underline underline-offset-2" href="#" target="_blank" rel="noopener noreferrer" data-task-variable={name}
             aria-busy={openingKey === name || undefined}
             onClick={(event) => { event.preventDefault(); if (onOpenExternal && !openingKey) onOpenExternal(target, name) }}>{text}</a>
         }
         const href = variableHref(links[name])
-        if (href) return <a key={key} className="break-all text-primary underline underline-offset-2" href={href} target="_blank" rel="noopener noreferrer" data-task-variable={name}>{text}</a>
+        if (href) return <a key={key} className="inline-block max-w-full align-baseline [overflow-wrap:anywhere] [word-break:normal] text-primary underline underline-offset-2" href={href} target="_blank" rel="noopener noreferrer" data-task-variable={name}>{text}</a>
         const formats = Array.isArray(node.formats) ? node.formats : []
         return <span key={key} data-task-variable={name}
           style={{
