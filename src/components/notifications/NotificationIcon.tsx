@@ -25,6 +25,6 @@ export function NotificationIcon({ icon, tone, accentColor, size = "md" }: { ico
     className={`inline-flex shrink-0 items-center justify-center rounded-md ${size === "sm" ? "h-8 w-8" : "h-10 w-10"}`}
     style={{ color: accent, backgroundColor: `color-mix(in srgb, ${accent} 12%, var(--ib-surface))` }}
   >
-    <Icon className={size === "sm" ? "h-4 w-4" : "h-5 w-5"} strokeWidth={1.8} />
+    <Icon className={size === "sm" ? "h-4 w-4" : "h-5 w-5"} strokeWidth={2} />
   </span>
 }
