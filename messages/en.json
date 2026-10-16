@@ -1268,5 +1268,8 @@
   "admin.exTest.vpnHelp.available": "VPN is available",
   "admin.exTest.vpnHelp.unknown": "The connection status is not yet known.",
   "admin.exTest.vpnHelp.checkProbe": "{link} or run {ping}.",
-  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}"
+  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}",
+  "admin.exTest.vpnHelp.copy.action": "Copy command: {command}",
+  "admin.exTest.vpnHelp.copy.done": "Copied",
+  "admin.exTest.vpnHelp.copy.failed": "Could not copy. Select the command and copy it manually."
 }

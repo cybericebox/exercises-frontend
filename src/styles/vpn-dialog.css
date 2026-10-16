@@ -25,8 +25,22 @@
 .vpn-dialog__steps code{font:var(--ib-fs-13) var(--ib-mono);color:var(--ib-ink)}
 .vpn-dialog__methods{display:grid;gap:var(--ib-3)}
 .vpn-dialog__methods p{margin:var(--ib-1) 0 0}
-.vpn-dialog__command{margin:var(--ib-2) 0 0;padding:var(--ib-3);border:1px solid var(--ib-line);border-radius:var(--ib-r-sm);background:var(--ib-paper);white-space:pre-wrap;overflow-wrap:anywhere}
 .vpn-dialog__note{margin:0;font-size:var(--ib-fs-12);color:var(--ib-dim)}
 .vpn-dialog__foot{display:flex;justify-content:flex-end;gap:var(--ib-2);padding:var(--ib-4) var(--ib-6) var(--ib-5);border-top:1px solid var(--ib-line);flex:none}
 @media(max-width:480px){.vpn-dialog__head{padding:var(--ib-4) var(--ib-4) 0}.vpn-dialog__body{padding:var(--ib-4)}.vpn-dialog__foot{flex-direction:column;align-items:stretch;padding:var(--ib-3) var(--ib-4) var(--ib-4)}}
 @media(prefers-reduced-motion:reduce){.vpn-dialog__instructions summary svg{transition:none}}
+
+/* Copyable VPN commands: a quiet action beside the command; ping remains inline. */
+.vpn-command{position:relative}
+.vpn-command__block{display:flex;align-items:center;gap:var(--ib-2);margin-top:var(--ib-2);padding:var(--ib-2) var(--ib-3);border:1px solid var(--ib-line);border-radius:var(--ib-r-sm);background:var(--ib-paper);min-width:0}
+.vpn-command__block pre{flex:1;min-width:0;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.vpn-command code{font:var(--ib-fs-13)/var(--ib-lh-body) var(--ib-mono);color:var(--ib-ink)}
+.vpn-command__button{display:inline-flex;align-items:center;justify-content:center;gap:var(--ib-1);width:32px;height:32px;flex:none;padding:0;border:0;border-radius:var(--ib-r-sm);background:transparent;color:var(--ib-dim);cursor:pointer;vertical-align:middle}
+.vpn-command__button svg{width:16px;height:16px;flex:none}
+.vpn-command__button--inline{width:auto;height:auto;min-height:28px;padding:0 var(--ib-1);margin:0 calc(-1 * var(--ib-1));color:var(--ib-ink);text-align:left}
+.vpn-command__button--inline code{overflow-wrap:anywhere}
+.vpn-command__button:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
+@media(hover:hover){.vpn-command__button:hover{background:var(--ib-hover);color:var(--ib-action)}}
+.vpn-command__button.is-copied,.vpn-command__button--inline.is-copied code{color:var(--ib-ok)}
+.vpn-command__feedback{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.vpn-command__error{display:block;margin-top:var(--ib-1);font-size:var(--ib-fs-12);color:var(--ib-danger)}

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ArrowUpRight, ChevronDown, Download, Shield, ShieldCheck, X } from "lucide-react"
 
+import { VpnCommand } from "./VpnCommand"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { t } from "@/i18n/t"
@@ -46,12 +47,12 @@ export function VpnDialog({ open, config, connected = null, probeUrl, onClose }:
               <li><div className="vpn-dialog__methods">
                 <div><strong>{t("admin.exTest.vpnHelp.app")}</strong><p>{t("admin.exTest.vpnHelp.import")}</p></div>
                 <div><strong>{t("admin.exTest.vpnHelp.terminal")}</strong><p>{t("admin.exTest.vpnHelp.terminalFolder")}</p>
-                  <pre className="vpn-dialog__command"><code>{t("admin.exTest.vpnHelp.command", { filename: VPN_CONFIG_FILENAME })}</code></pre>
+                  <VpnCommand value={t("admin.exTest.vpnHelp.command", { filename: VPN_CONFIG_FILENAME })} />
                 </div>
               </div></li>
               {probeUrl && <li>{tRich("admin.exTest.vpnHelp.checkProbe", {
                 link: <a href={probeUrl} target="_blank" rel="noopener noreferrer">{t("admin.exTest.vpnHelp.check")} <ArrowUpRight aria-hidden="true" /></a>,
-                ping: gateway ? <code>{t("admin.exTest.vpnHelp.pingCommand", { gateway })}</code> : null,
+                ping: gateway ? <VpnCommand value={t("admin.exTest.vpnHelp.pingCommand", { gateway })} inline /> : null,
               })}</li>}
             </ol>
             <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.note")}</p>

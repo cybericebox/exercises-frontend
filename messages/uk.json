@@ -1268,5 +1268,8 @@
   "admin.exTest.vpnHelp.available": "VPN доступний",
   "admin.exTest.vpnHelp.unknown": "Статус зʼєднання поки невідомий.",
   "admin.exTest.vpnHelp.checkProbe": "{link} або виконайте {ping}.",
-  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}"
+  "admin.exTest.vpnHelp.pingCommand": "ping {gateway}",
+  "admin.exTest.vpnHelp.copy.action": "Скопіювати команду: {command}",
+  "admin.exTest.vpnHelp.copy.done": "Скопійовано",
+  "admin.exTest.vpnHelp.copy.failed": "Не вдалося скопіювати. Виділіть команду та скопіюйте вручну."
 }
