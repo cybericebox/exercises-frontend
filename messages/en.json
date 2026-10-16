@@ -85,6 +85,7 @@
   "admin.ex.err.testDeployNoLab": "The variant has no devices, so there is no laboratory to test",
   "admin.ex.err.testDeployNotReady": "The test laboratory is not ready yet",
   "admin.ex.err.testDeployActive": "The limit of running test labs is reached. End one of them to start a new one.",
+  "admin.ex.err.testDeployStatic": "A static test has no laboratory",
   "admin.ex.err.noWebDevice": "The device has no web address",
   "admin.ex.err.infrastructureUnavailable": "The laboratory is not connected, so a test deploy is unavailable",
   "admin.exPage.date.today": "today at {time}",

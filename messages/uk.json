@@ -85,6 +85,7 @@
   "admin.ex.err.testDeployNoLab": "У варіанті немає пристроїв, тож немає лабораторії для перевірки",
   "admin.ex.err.testDeployNotReady": "Тестова лабораторія ще не готова",
   "admin.ex.err.testDeployActive": "Досягнуто ліміт запущених тестових лабораторій. Завершіть одну з них, щоб запустити нову.",
+  "admin.ex.err.testDeployStatic": "Статичний тест не має лабораторії",
   "admin.ex.err.noWebDevice": "Пристрій не має веб-адреси",
   "admin.ex.err.infrastructureUnavailable": "Лабораторію не підключено, тестове розгортання недоступне",
   "admin.exPage.date.today": "сьогодні о {time}",
