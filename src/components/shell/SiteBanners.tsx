@@ -1,37 +1,59 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import * as Popover from "@radix-ui/react-popover"
 import { X } from "lucide-react"
 import { apiGet } from "@/api/client"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import { BANNER_POLL_MS, bannerHref, bannerLevel, dismissKey, isDismissed, parseBanners, rememberDismissed, sortBanners, type SiteBanner } from "@/lib/siteBanners"
+import { BANNER_POLL_MS, bannerHref, bannerLevel, dismissKey, isDismissed, parseBanners, rememberDismissed, type SiteBanner } from "@/lib/siteBanners"
 import "@/styles/site-banner.css"
 import { keepBrand } from "@/i18n/brand"
 
-// Presentational: the visible banners, most severe first.
-export function SiteBannerList({ banners, onDismiss }: { banners: SiteBanner[]; onDismiss?: (banner: SiteBanner) => void }) {
-  if (banners.length === 0) return null
+type BannerRowProps = { banner: SiteBanner; onDismiss?: (banner: SiteBanner) => void; children?: ReactNode }
+
+function BannerRow({ banner, onDismiss, children }: BannerRowProps) {
+  const href = bannerHref(banner.LinkURL)
   return (
-    <div role="status" aria-label={t("siteBanner.label")}>
-      {banners.map((banner) => {
-        const href = bannerHref(banner.LinkURL)
-        return (
-          <div key={dismissKey(banner)} className={`ib-site-banner ib-site-banner--${bannerLevel(banner.Level)}`}>
-            <p className="ib-site-banner__text">
-              {keepBrand(banner.Text)}
-              {href ? <a className="ib-site-banner__link" href={href}>{keepBrand(banner.LinkLabel || t("siteBanner.more"))}</a> : null}
-            </p>
-            {banner.Dismissible ? (
-              <HoverTooltip text={t("siteBanner.dismiss")}>
-                <button type="button" className="ib-site-banner__x" aria-label={t("siteBanner.dismiss")} onClick={() => onDismiss?.(banner)}>
-                  <X aria-hidden="true" />
-                </button>
-              </HoverTooltip>
-            ) : null}
-          </div>
-        )
-      })}
+    <div className={`ib-site-banner ib-site-banner--${bannerLevel(banner.Level)}`}>
+      <p className="ib-site-banner__text">
+        {keepBrand(banner.Text)}
+        {href ? <a className="ib-site-banner__link" href={href}>{keepBrand(banner.LinkLabel || t("siteBanner.more"))}</a> : null}
+      </p>
+      {children}
+      {banner.Dismissible ? (<HoverTooltip text={t("siteBanner.dismiss")}><button type="button" className="ib-site-banner__x" aria-label={t("siteBanner.dismiss")} onClick={() => onDismiss?.(banner)}>
+          <X aria-hidden="true" />
+        </button></HoverTooltip>) : null}
+    </div>
+  )
+}
+
+// The API order is authoritative. Only the first announcement occupies the page header.
+export function SiteBannerList({ banners, onDismiss }: { banners: SiteBanner[]; onDismiss?: (banner: SiteBanner) => void }) {
+  const titleId = useId()
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  if (banners.length === 0) return null
+  const [primary, ...others] = banners
+  const plural = new Intl.PluralRules("uk").select(others.length)
+  return (
+    <div role="status" aria-label={t("siteBanner.label")} className="ib-site-banners">
+      <Popover.Root modal={false}>
+        <BannerRow banner={primary} onDismiss={onDismiss}>
+          {others.length > 0 ? (
+            <Popover.Trigger asChild>
+              <button type="button" className="ib-site-banner__more">{t(`siteBanner.moreAnnouncements.${plural}`, { count: others.length })}</button>
+            </Popover.Trigger>
+          ) : null}
+        </BannerRow>
+        {others.length > 0 ? (
+          <Popover.Portal>
+            <Popover.Content className="ib-site-banner-panel" side="bottom" align="end" sideOffset={8} collisionPadding={16} aria-labelledby={titleId} onOpenAutoFocus={(event) => { event.preventDefault(); titleRef.current?.focus() }}>
+              <h2 ref={titleRef} id={titleId} tabIndex={-1} className="ib-site-banner-panel__title">{t("siteBanner.others")}</h2>
+              {others.map((banner) => <BannerRow key={dismissKey(banner)} banner={banner} onDismiss={onDismiss} />)}
+            </Popover.Content>
+          </Popover.Portal>
+        ) : null}
+      </Popover.Root>
     </div>
   )
 }
@@ -46,14 +68,22 @@ export function SiteBanners() {
     let active = true
     const refresh = () => {
       if (document.visibilityState === "hidden") return
-      apiGet<unknown>("/api/banners", undefined, { required: false })
-        .then((data) => { if (active) setBanners(sortBanners(parseBanners(data))) })
+      apiGet<unknown>("/api/banners?site=exercises", undefined, { required: false })
+        .then((data) => { if (active) setBanners(parseBanners(data)) })
         .catch(() => { /* ignored on purpose */ })
     }
     refresh()
     const timer = window.setInterval(refresh, BANNER_POLL_MS)
     document.addEventListener("visibilitychange", refresh)
-    return () => { active = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh) }
+    window.addEventListener("focus", refresh)
+    window.addEventListener("online", refresh)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refresh)
+      window.removeEventListener("focus", refresh)
+      window.removeEventListener("online", refresh)
+    }
   }, [])
 
   const visible = banners.filter((banner) => !dismissed.has(dismissKey(banner)) && !isDismissed(banner))
