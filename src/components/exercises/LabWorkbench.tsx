@@ -42,7 +42,7 @@ export function LabTimer({ expiresAt, fallback }: { expiresAt: string | null; fa
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [expiresAt])
-  if (!expiresAt) return <span className="text-sm text-white/80">{fallback}</span>
+  if (!expiresAt) return fallback ? <span className="text-sm text-white/80">{fallback}</span> : null
   const left = new Date(expiresAt).getTime() - now
   return left > 0
     ? <span role="timer" className="text-sm text-white">{tRich("admin.exTest.timerCountdown", { time: <span className="font-mono text-base font-semibold tabular-nums">{formatCountdown(left)}</span> })}</span>

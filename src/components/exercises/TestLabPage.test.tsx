@@ -800,4 +800,17 @@ describe("TestLabPage — static test", () => {
     await waitFor(() => expect(destroyDeploy).toHaveBeenCalledWith("d1"))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1"))
   })
+
+  it("hides the lab status line in the bar, a lab test keeps it", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...staticItem, DeployID: "d1", ExpiresAt: "" }])
+    const first = render(<TestLabPage exerciseId="ex-1" initial={started} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(screen.queryByText("admin.exDeploy.phase.ready")).not.toBeInTheDocument()
+    first.unmount()
+    vi.mocked(listDeploys).mockResolvedValue([{ ...running, ExpiresAt: "" }])
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findByRole("heading", { name: "Login" })
+    expect(await screen.findByText("admin.exDeploy.phase.ready")).toBeInTheDocument()
+  })
 })
