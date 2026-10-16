@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { ApiError } from "@/api/client"
 import { isTerminalPhase } from "@/lib/deployStatus"
-import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus } from "@/api/exercises/deploy"
+import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus, type DeployKind } from "@/api/exercises/deploy"
 
 const POLL_MS = 4000
 /** A ready lab keeps being polled for the VPN state: fast until the VPN connects, slow after. */
@@ -36,6 +36,8 @@ export type DeployTestState = {
   errorCause: unknown
   /** Tasks whose flags the author finds in the lab, known from the start of the deploy. */
   tasks: DeployTask[]
+  /** A static test has no lab: it is ready at once and is polled only for the lease and solved tasks. */
+  kind: DeployKind
   /** The server no longer knows the deploy (404): it was removed, so polling stopped. */
   gone: boolean
   /** true while starting or polling a not-yet-terminal deploy. */
@@ -46,7 +48,10 @@ export type DeployTestState = {
   linkError: unknown
 }
 
-const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], gone: false, busy: false, link: "idle", linkKey: null, linkError: null }
+/** What a static test shows before (and without) any status answer. */
+const STATIC_READY: DeployStatus = { Phase: "Ready", Ready: true }
+
+const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], kind: "lab", gone: false, busy: false, link: "idle", linkKey: null, linkError: null }
 
 export function useDeployTest() {
   const [state, setState] = useState<DeployTestState>(IDLE)
@@ -54,6 +59,7 @@ export function useDeployTest() {
   const activeId = useRef<string | null>(null)
   const requestSequence = useRef(0)
   const readySeen = useRef(false)
+  const kindRef = useRef<DeployKind>("lab")
   const failures = useRef(0)
   /** The deploy whose next poll waits for the tab to become visible again. */
   const parked = useRef<string | null>(null)
@@ -124,7 +130,7 @@ export function useDeployTest() {
       if (readySeen.current) {
         // A ready lab is only polled for the VPN state: a hiccup keeps the last status and tries again, slower each time.
         failures.current += 1
-        schedule(id, Math.min(READY_POLL_MS * 2 ** failures.current, MAX_BACKOFF_MS))
+        schedule(id, Math.min((kindRef.current === "static" ? CONNECTED_POLL_MS : READY_POLL_MS) * 2 ** failures.current, MAX_BACKOFF_MS))
         return
       }
       setState((p) => ({ ...p, error: (e as Error).message, errorCause: e, busy: false }))
@@ -134,9 +140,11 @@ export function useDeployTest() {
     failures.current = 0
     const failed = !s.Ready && isTerminalPhase(s.Phase)
     readySeen.current = s.Ready
-    setState((p) => ({ ...p, status: s, busy: !s.Ready && !failed }))
+    // A static answer only refreshes the lease and solved tasks over the ready screen.
+    const isStatic = kindRef.current === "static"
+    setState((p) => ({ ...p, status: isStatic ? { ...(p.status ?? STATIC_READY), ...s } : s, busy: !s.Ready && !failed }))
     if (!failed && !s.Expired) {
-      schedule(id, s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
+      schedule(id, isStatic ? CONNECTED_POLL_MS : s.Ready ? (s.VPNConnected ? CONNECTED_POLL_MS : READY_POLL_MS) : POLL_MS)
     }
   }, [schedule])
   useEffect(() => { pollRef.current = poll }, [poll])
@@ -166,14 +174,16 @@ export function useDeployTest() {
       const sequence = ++requestSequence.current
       clearTimer()
       readySeen.current = false
+      kindRef.current = "lab"
       const previousId = activeId.current
       activeId.current = null
       if (previousId) void Promise.resolve(destroyDeploy(previousId)).catch(() => {})
       setState({ ...IDLE, busy: true })
       let deployID: string
       let tasks: DeployTask[]
+      let kind: DeployKind
       try {
-        ;({ DeployID: deployID, Tasks: tasks = [] } = await deployVariant(exerciseId, versionId, variantId))
+        ;({ DeployID: deployID, Tasks: tasks = [], Kind: kind = "lab" } = await deployVariant(exerciseId, versionId, variantId))
       } catch (e) {
         if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message, errorCause: e })
         return
@@ -183,7 +193,9 @@ export function useDeployTest() {
         return
       }
       activeId.current = deployID
-      setState((p) => ({ ...p, deployId: deployID, tasks }))
+      kindRef.current = kind
+      readySeen.current = kind === "static"
+      setState((p) => ({ ...p, deployId: deployID, tasks, kind, ...(kind === "static" ? { status: STATIC_READY, busy: false } : {}) }))
       void poll(deployID)
     },
     [poll]
@@ -191,12 +203,14 @@ export function useDeployTest() {
 
   /** Reopen a deploy that is already running: poll it instead of creating a new one. */
   const attach = useCallback(
-    (deployID: string, tasks: DeployTask[]) => {
+    (deployID: string, tasks: DeployTask[], kind: DeployKind = "lab") => {
       ++requestSequence.current
       clearTimer()
-      readySeen.current = false
+      const isStatic = kind === "static"
+      kindRef.current = kind
+      readySeen.current = isStatic
       activeId.current = deployID
-      setState({ ...IDLE, busy: true, deployId: deployID, tasks })
+      setState({ ...IDLE, busy: !isStatic, deployId: deployID, tasks, kind, status: isStatic ? STATIC_READY : null })
       void poll(deployID)
     },
     [poll]

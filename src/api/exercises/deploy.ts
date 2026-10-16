@@ -23,9 +23,13 @@ export type DeployPhase = "Pending" | "Queued" | "Provisioning" | "Ready" | "Fai
 /** A task whose flag the author must find in the lab; the value never reaches the browser. */
 export type DeployTask = { TaskID: string; Name: string }
 
+/** "static": a test without a lab (no devices), ready at once; absent from an old server = "lab". */
+export type DeployKind = "lab" | "static"
+
 export type DeployResponse = {
   DeployID: string
   Lab: string
+  Kind?: DeployKind
   VPNClient?: string
   Tasks?: DeployTask[]
 }
@@ -34,6 +38,7 @@ export type DeployResponse = {
 export type DeployListItem = {
   DeployID: string
   Lab: string
+  Kind?: DeployKind
   ExerciseID: string
   VersionID: string
   VariantID: string
