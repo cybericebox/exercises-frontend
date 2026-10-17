@@ -45,10 +45,11 @@ export function uploadExerciseFile(file: File, onProgress?: (percent: number) =>
 type LookupResult = { Found: boolean; FileID: string; Name: string; Size: number }
 
 /** Hash of the whole file, read in slices so a big file never sits in memory at once. */
-async function hashFile(file: File): Promise<string> {
+async function hashFile(file: File, signal?: AbortSignal): Promise<string> {
   const hasher = sha256.create()
   const SLICE = 4 * 1024 * 1024
   for (let start = 0; start < file.size; start += SLICE) {
+    signal?.throwIfAborted()
     hasher.update(new Uint8Array(await file.slice(start, Math.min(file.size, start + SLICE)).arrayBuffer()))
   }
   return bytesToHex(hasher.digest())
@@ -65,10 +66,17 @@ export async function uploadExerciseAttachment(
   signal?: AbortSignal,
 ): Promise<UploadedFile> {
   if (exerciseId) {
-    const found = await apiPost<LookupResult>(`/api/exercises/${exerciseId}/files/lookup`, { SHA256: await hashFile(file) })
-    if (found.Found) {
-      onProgress?.(100)
-      return { FileID: found.FileID, Name: file.name, Size: found.Size }
+    // The lookup only saves bytes: if it fails for any reason the file is simply uploaded.
+    try {
+      const sum = await hashFile(file, signal)
+      signal?.throwIfAborted()
+      const found = await apiPost<LookupResult>(`/api/exercises/${exerciseId}/files/lookup`, { SHA256: sum })
+      if (found.Found) {
+        onProgress?.(100)
+        return { FileID: found.FileID, Name: file.name, Size: found.Size }
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error
     }
   }
   return uploadExerciseFile(file, onProgress, signal)

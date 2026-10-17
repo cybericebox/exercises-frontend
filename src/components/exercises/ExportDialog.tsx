@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
-import { exportExercises } from "@/api/exercises/archive"
+import { useEffect, useRef, useState, type FormEvent } from "react"
+import { createExport, downloadExport, type StoredExport } from "@/api/exercises/archive"
+import { forgetDownload } from "@/api/exercises/chunkedDownload"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/form-field"
@@ -23,6 +24,14 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
+  // The stored archive of a failed download, for the same selection and options: a retry resumes it.
+  const kept = useRef<{ key: string; stored: StoredExport } | null>(null)
+  function dropKept() {
+    if (kept.current) forgetDownload(kept.current.stored.FileID)
+    kept.current = null
+  }
+  useEffect(() => dropKept, [])
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const missing = includeSecrets && password.trim() === ""
@@ -34,7 +43,12 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
     setProgress(null)
     setError(null)
     try {
-      const archive = await exportExercises({ IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" }, setProgress)
+      const input = { IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" }
+      const key = JSON.stringify(input)
+      if (kept.current && kept.current.key !== key) dropKept()
+      if (!kept.current) kept.current = { key, stored: await createExport(input) }
+      const archive = await downloadExport(kept.current.stored, exerciseIds.length, setProgress)
+      kept.current = null
       downloadBlob(archive.blob, archive.filename)
       toast.success(t("admin.exExport.done"))
       onExported?.()

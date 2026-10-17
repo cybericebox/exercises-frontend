@@ -12,8 +12,8 @@ import { RemoveAction } from "./RemoveAction"
 import { useExerciseId } from "./ExerciseIdContext"
 
 /**
- * AttachmentList — task attachments. Upload: hash lookup on the task, then POST /api/exercises/files
- * (multipart), size limit is enforced by the backend (ErrFileTooLarge →
+ * AttachmentList — task attachments. Upload: a hash lookup on the task (a known file is
+ * attached without sending bytes), else POST /api/exercises/files; size limit is enforced by the backend (ErrFileTooLarge →
  * i18n dictionary). Download: a plain link (cookie-auth). The files
  * themselves don't live in the form — only {FileID, Name}.
  */

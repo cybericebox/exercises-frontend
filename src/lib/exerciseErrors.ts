@@ -9,6 +9,7 @@
  * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
+import { DownloadHashMismatchError } from "@/api/exercises/chunkedDownload"
 import { catalogError, localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 
@@ -128,6 +129,7 @@ export function exerciseErrorCode(e: unknown): number | null {
 
 /** Human-readable (Ukrainian) message for any exercises API error. */
 export function exerciseErrorMessage(e: unknown): string {
+  if (e instanceof DownloadHashMismatchError) return t("admin.exExport.hashMismatch")
   // 429 (request limiter or auth lockout): a wait message from Retry-After, whatever the code.
   if (e instanceof ApiError && e.status === 429) return localizedError(e)
   const code = exerciseErrorCode(e)

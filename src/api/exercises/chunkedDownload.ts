@@ -14,11 +14,24 @@ import { BACKOFF_MS, CHUNK_ATTEMPTS, isTransient } from "@/api/exercises/chunked
 
 const FILES = "/api/exercises/files"
 
+/** The assembled archive does not match the checksum of the stored file. */
+export class DownloadHashMismatchError extends Error {
+  constructor() {
+    super("The downloaded archive does not match its checksum")
+    this.name = "DownloadHashMismatchError"
+  }
+}
+
 type FileMeta = { Name: string; Size: number; ChunkSize: number; Chunks: number; SHA256: string }
 type Options = { sleep?: (ms: number) => Promise<void> }
 
 /** Chunks received so far, by file id. */
 const received = new Map<string, Blob[]>()
+
+/** Drops the chunks kept for a file: the download will not be resumed. */
+export function forgetDownload(fileId: string): void {
+  received.delete(fileId)
+}
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -48,7 +61,6 @@ export async function downloadInChunks(
   const chunks = received.get(fileId) ?? []
   received.set(fileId, chunks)
   const report = () => onProgress?.(meta.Chunks === 0 ? 100 : Math.min(100, Math.floor(chunks.length / meta.Chunks * 100)))
-  onProgress?.(0)
   report()
   while (chunks.length < meta.Chunks) {
     chunks.push(await fetchChunk(fileId, chunks.length, sleep))
@@ -58,7 +70,7 @@ export async function downloadInChunks(
   const hasher = sha256.create()
   for (const chunk of chunks) hasher.update(new Uint8Array(await chunk.arrayBuffer()))
   received.delete(fileId)
-  if (bytesToHex(hasher.digest()) !== meta.SHA256) throw new Error("The downloaded archive does not match its checksum")
+  if (bytesToHex(hasher.digest()) !== meta.SHA256) throw new DownloadHashMismatchError()
   onProgress?.(100)
   return { blob: new Blob(chunks, { type: "application/zip" }), name: meta.Name }
 }

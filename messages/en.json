@@ -151,6 +151,7 @@
   "admin.exExport.submit": "Export",
   "admin.exExport.done": "Archive downloaded",
   "admin.exExport.progress": "Downloading the archive: {percent}%",
+  "admin.exExport.hashMismatch": "The archive was damaged while downloading. Try again.",
   "admin.exImport.button": "Import",
   "admin.exImport.title": "Import exercises",
   "admin.exImport.description": "Choose a .zip archive with one folder per task: each folder holds exercise.yaml or exercise.json with its files next to it, and manifest.json is optional. Import always creates new exercises and never overwrites existing ones.",

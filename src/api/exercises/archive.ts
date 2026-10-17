@@ -21,15 +21,26 @@ export const EXPORT_LIMIT = 100
 export type ExportInput = { IDs: string[]; IncludeSecrets: boolean; Password: string }
 export type ExportedArchive = { blob: Blob; filename: string }
 
-export async function exportExercises(input: ExportInput, onProgress?: (percent: number) => void): Promise<ExportedArchive> {
+export type StoredExport = { FileID: string; Name: string }
+
+/** Step 1: the server builds the archive and keeps it as a stored file. */
+export async function createExport(input: ExportInput): Promise<StoredExport> {
   if (input.IDs.length === 0 || input.IDs.length > EXPORT_LIMIT) {
     throw new RangeError(`export accepts 1..${EXPORT_LIMIT} exercises`)
   }
   const body: ExportInput = input.IncludeSecrets ? input : { IDs: input.IDs, IncludeSecrets: false, Password: "" }
-  const stored = await apiPost<{ FileID: string; Name: string }>(`${BASE}/export`, body)
+  const stored = await apiPost<StoredExport>(`${BASE}/export`, body)
+  return { FileID: stored.FileID, Name: stored.Name }
+}
+
+/** Step 2: the stored archive comes down in chunks; a repeated call for the same file resumes. */
+export async function downloadExport(stored: StoredExport, idCount: number, onProgress?: (percent: number) => void): Promise<ExportedArchive> {
   const { blob, name } = await downloadInChunks(stored.FileID, onProgress)
-  const fallback = input.IDs.length === 1 ? "exercise.cybericebox.zip" : "exercises.cybericebox.zip"
-  return { blob, filename: name || fallback }
+  return { blob, filename: name || stored.Name || (idCount === 1 ? "exercise.cybericebox.zip" : "exercises.cybericebox.zip") }
+}
+
+export async function exportExercises(input: ExportInput, onProgress?: (percent: number) => void): Promise<ExportedArchive> {
+  return downloadExport(await createExport(input), input.IDs.length, onProgress)
 }
 
 /** A ready-to-import example task archive. */

@@ -9,7 +9,7 @@ vi.mock("@/api/client", async (importOriginal) => ({
 }))
 
 import * as client from "@/api/client"
-import { downloadInChunks } from "./chunkedDownload"
+import { DownloadHashMismatchError, downloadInChunks, forgetDownload } from "./chunkedDownload"
 
 const mockGet = vi.mocked(client.apiGet)
 const mockBlob = vi.mocked(client.apiGetBlob)
@@ -72,7 +72,7 @@ describe("downloadInChunks", () => {
   it("rejects a hash mismatch and starts over next time", async () => {
     mockGet.mockResolvedValue(meta("0".repeat(64)))
     serve()
-    await expect(downloadInChunks("f4", undefined, noSleep)).rejects.toThrow()
+    await expect(downloadInChunks("f4", undefined, noSleep)).rejects.toBeInstanceOf(DownloadHashMismatchError)
     mockBlob.mockClear()
     await expect(downloadInChunks("f4", undefined, noSleep)).rejects.toThrow()
     expect(mockBlob).toHaveBeenCalledTimes(4)
@@ -83,5 +83,16 @@ describe("downloadInChunks", () => {
     const result = await downloadInChunks("f5", undefined, noSleep)
     expect(result.blob.size).toBe(0)
     expect(mockBlob).not.toHaveBeenCalled()
+  })
+
+  it("forgetDownload drops the kept chunks", async () => {
+    mockGet.mockResolvedValue(meta())
+    serve(2)
+    await expect(downloadInChunks("f6", undefined, noSleep)).rejects.toBeInstanceOf(client.ApiError)
+    forgetDownload("f6")
+    mockBlob.mockClear()
+    serve()
+    await downloadInChunks("f6", undefined, noSleep)
+    expect(mockBlob).toHaveBeenCalledTimes(4)
   })
 })

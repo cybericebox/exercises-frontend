@@ -141,4 +141,21 @@ describe("uploadExerciseAttachment", () => {
     request.onload?.()
     await promise
   })
+
+  it("still uploads when the lookup is refused", async () => {
+    mockPost.mockRejectedValue(new ApiError(403, null))
+    const promise = uploadExerciseAttachment("e1", new File(["hello"], "notes.pdf"))
+    await vi.waitFor(() => expect(UploadRequest.instances).toHaveLength(1))
+    const request = UploadRequest.instances[0]
+    request.responseText = JSON.stringify({ Status: { Code: 10000, Message: "Success" }, Data: { FileID: FILE_ID, Name: "notes.pdf", Size: 5 } })
+    request.onload?.()
+    await expect(promise).resolves.toMatchObject({ FileID: FILE_ID })
+  })
+
+  it("stops when aborted during the check", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    await expect(uploadExerciseAttachment("e1", new File(["hello"], "notes.pdf"), undefined, controller.signal)).rejects.toBeDefined()
+    expect(UploadRequest.instances).toHaveLength(0)
+  })
 })
