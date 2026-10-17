@@ -430,6 +430,23 @@ describe("TestLabPage — start and end", () => {
     expect(deployVariant).toHaveBeenCalledTimes(2)
   })
 
+  it("a start refused for unavailable images lists them with their reasons", async () => {
+    const images = [
+      { Image: "platform:web@sha256:" + "a".repeat(64), Status: "unavailable", Reason: "not_found" },
+      { Image: "acme/private:1", Status: "unavailable", Reason: "needs_event_secret" },
+    ]
+    const body = { Status: { Code: 72803, Message: "Image unavailable", Context: { images } } }
+    vi.mocked(deployVariant).mockRejectedValueOnce(new ApiError(409, body, "Image unavailable", undefined, 72803))
+    render(<TestLabPage exerciseId="ex-1" initial={{ deploy: null, version: "draft-1", variant: "v1" }} />)
+    expect(await screen.findByText("exercises.image.startRefused")).toBeInTheDocument()
+    const list = screen.getByRole("list", { name: "exercises.image.unavailableList" })
+    expect(within(list).getByText(images[0].Image)).toBeInTheDocument()
+    expect(within(list).getByText("acme/private:1")).toBeInTheDocument()
+    expect(within(list).getByText("exercises.image.reason.not_found")).toBeInTheDocument()
+    expect(within(list).getByText("exercises.image.reason.needs_event_secret")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "error.load.retry" })).toBeInTheDocument()
+  })
+
   it("ends the test only after the danger confirmation, then returns to the exercise", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.end" }))
