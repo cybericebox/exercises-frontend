@@ -90,7 +90,7 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
-  if (!opts.silentOutage && isUnreachableResponse(res.status, res.headers.get("X-Request-ID"))) reportServiceUnavailable()
+  if (!opts.silentOutage && isUnreachableResponse(res.status, res.headers.get("X-Request-ID"), res.headers.get("Retry-After"))) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the

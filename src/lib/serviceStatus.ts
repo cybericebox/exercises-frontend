@@ -1,3 +1,5 @@
+import { isOverloadError } from "@/api/retry"
+
 export type ServiceStatus = "up" | "suspect" | "down"
 
 let status: ServiceStatus = "up"
@@ -44,9 +46,12 @@ export function onServiceRestored(listener: () => void): () => void {
 /**
  * A response that came from the proxy / CDN instead of our backend: 502/503/504 without
  * the X-Request-ID the backend puts on every answer. Any other 5xx is a real backend
- * error (the 500 page); this one means the backend cannot be reached.
+ * error (the 500 page); this one means the backend cannot be reached. An overload answer
+ * (a 503 with Retry-After) never counts, whether or not it carries X-Request-ID.
  */
-export function isUnreachableResponse(status: number, requestId: string | null | undefined): boolean {
+export function isUnreachableResponse(status: number, requestId: string | null | undefined, retryAfter?: string | null): boolean {
+  // A 503 with Retry-After is the overload answer: the service is up, only busy.
+  if (status === 503 && retryAfter != null) return false
   return (status === 502 || status === 503 || status === 504) && !requestId
 }
 
@@ -74,6 +79,7 @@ export function isNetworkOutage(error: unknown, signal?: AbortSignal | null): bo
  * (it carries X-Request-ID) is not one.
  */
 export function isBackendUnreachable(error: unknown): boolean {
+  if (isOverloadError(error)) return false
   if (error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number") {
     const { status, requestId } = error as { status: number; requestId?: string }
     return isUnreachableResponse(status, requestId)
@@ -125,7 +131,7 @@ export async function probeService(origin: string): Promise<boolean> {
     const response = await fetch(`${origin}/api/auth/me`, {
       credentials: "include", cache: "no-store", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     })
-    return !isUnreachableResponse(response.status, response.headers.get("X-Request-ID"))
+    return !isUnreachableResponse(response.status, response.headers.get("X-Request-ID"), response.headers.get("Retry-After"))
   } catch {
     return false
   }
