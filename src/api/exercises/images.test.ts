@@ -185,6 +185,33 @@ describe("uploadImage", () => {
     expect(forgetChunkedUpload.mock.invocationCallOrder[0]).toBeLessThan(uploadChunks.mock.invocationCallOrder[1])
   })
 
+  it("a re-upload shows byte progress again, then goes back to the push stage", async () => {
+    vi.useFakeTimers()
+    serve([L2], { [L2]: { push: ["pushing", "pushing"], status: [{ State: "failed", Reason: "digest_mismatch" }, { State: "present" }] } })
+    const progress = vi.fn()
+    const promise = uploadImage(EXERCISE, file, "app", progress)
+    await vi.advanceTimersByTimeAsync(BLOB_POLL_MS * 2)
+    await expect(promise).resolves.toBe(REFERENCE)
+    const calls = progress.mock.calls.map(([percent, stage]) => `${percent}:${stage}`)
+    const firstPush = calls.indexOf("99:pushing")
+    expect(calls.slice(firstPush + 1)).toEqual(["0:uploading", "50:uploading", "99:uploading", "99:pushing", "100:pushing"])
+  })
+
+  it("a retry of the push whose upload expired uploads the blob again", async () => {
+    vi.useFakeTimers()
+    serve([L2], {
+      [L2]: {
+        push: ["pushing", new ApiError(404, null, "x", undefined, 32818), "present"],
+        status: [{ State: "failed", Reason: "unreachable" }],
+      },
+    })
+    const promise = uploadImage(EXERCISE, file, "app")
+    await vi.advanceTimersByTimeAsync(BLOB_POLL_MS)
+    await expect(promise).resolves.toBe(REFERENCE)
+    expect(uploadChunks).toHaveBeenCalledTimes(2)
+    expect(posts(`${BASE}/blobs`)).toHaveLength(3)
+  })
+
   it("stops after a second digest mismatch, with no image", async () => {
     vi.useFakeTimers()
     serve([L2], { [L2]: { push: ["pushing"], status: [{ State: "failed", Reason: "digest_mismatch" }] } })

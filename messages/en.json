@@ -1329,7 +1329,7 @@
   "admin.exTest.vpnHelp.copy.done": "Copied",
   "admin.exTest.vpnHelp.copy.failed": "Could not copy. Select the command and copy it manually.",
   "exercises.image.upload": "Upload image",
-  "exercises.image.uploadHint": "Or drop an uncompressed archive up to {size} GiB here, made with",
+  "exercises.image.uploadHint": "Or drop an uncompressed archive up to {size} GiB here, made with {command}",
   "exercises.image.command": "docker save -o image.tar",
   "exercises.image.saveFirst": "You can upload an image once the exercise is saved",
   "exercises.image.dropHere": "Release the archive to upload the image",
@@ -1364,5 +1364,7 @@
   "exercises.image.reason.rate_limited": "The image registry limits requests",
   "exercises.image.reason.unknown": "The platform cannot pull this image",
   "exercises.image.startRefused": "The test did not start: some images are unavailable",
-  "exercises.image.unavailableList": "Unavailable images"
+  "exercises.image.unavailableList": "Unavailable images",
+  "exercises.image.percent": "{percent}%",
+  "exercises.image.changedDuringUpload": "The image was changed during the upload, so the uploaded image was not applied"
 }

@@ -1329,7 +1329,7 @@
   "admin.exTest.vpnHelp.copy.done": "Скопійовано",
   "admin.exTest.vpnHelp.copy.failed": "Не вдалося скопіювати. Виділіть команду та скопіюйте вручну.",
   "exercises.image.upload": "Завантажити образ",
-  "exercises.image.uploadHint": "Або перетягніть сюди нестиснений архів до {size} ГіБ, створений командою",
+  "exercises.image.uploadHint": "Або перетягніть сюди нестиснений архів до {size} ГіБ, створений командою {command}",
   "exercises.image.command": "docker save -o image.tar",
   "exercises.image.saveFirst": "Образ можна завантажити після першого збереження завдання",
   "exercises.image.dropHere": "Відпустіть архів, щоб завантажити образ",
@@ -1364,5 +1364,7 @@
   "exercises.image.reason.rate_limited": "Сховище образів обмежило кількість запитів",
   "exercises.image.reason.unknown": "Платформа не може отримати цей образ",
   "exercises.image.startRefused": "Тест не запущено: деякі образи недоступні",
-  "exercises.image.unavailableList": "Недоступні образи"
+  "exercises.image.unavailableList": "Недоступні образи",
+  "exercises.image.percent": "{percent}%",
+  "exercises.image.changedDuringUpload": "Образ змінено під час завантаження, тому завантажений образ не підставлено"
 }

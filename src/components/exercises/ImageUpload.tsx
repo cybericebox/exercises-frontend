@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { Upload } from "lucide-react"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { uploadImage, type ImageUploadStage } from "@/api/exercises/images"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +51,10 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   const [error, setError] = useState<string | null>(null)
   const [failedFile, setFailedFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [dropped, setDropped] = useState(false)
+  // The variant the device is in now: an upload resolves its device by the stable device id, never by the index it started with.
+  const variantRef = useRef(variantIndex)
+  useEffect(() => { variantRef.current = variantIndex }, [variantIndex])
   const canUpload = !disabled && exerciseId !== null
   const uploading = progress !== null
 
@@ -63,13 +68,24 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     setProgress({ percent: 0, stage: "uploading" })
     setError(null)
     setFailedFile(null)
+    setDropped(false)
+    const deviceId = getValues(`${base}.ID`)
+    const before = getValues(`${base}.Image`) ?? ""
     const name = getValues(`${base}.Name`) || file.name.replace(/\.tar$/i, "")
     try {
       const reference = await uploadImage(exerciseId, file, name, (percent, stage) => {
         if (!abort.signal.aborted) setProgress({ percent, stage })
       }, abort.signal)
       if (abort.signal.aborted) return
-      setValue(`${base}.Image`, reference, { shouldDirty: true, shouldValidate: true })
+      const variant = variantRef.current
+      const devices = getValues(`Variants.${variant}.Topology.Devices`) ?? []
+      const index = devices.findIndex((device) => device.ID === deviceId)
+      // The author changed the image (or removed the device) while the upload ran: their change wins.
+      if (index < 0 || (devices[index].Image ?? "") !== before) {
+        setDropped(true)
+        return
+      }
+      setValue(`Variants.${variant}.Topology.Devices.${index}.Image`, reference, { shouldDirty: true, shouldValidate: true })
     } catch (cause) {
       const message = imageUploadErrorMessage(cause, isAdmin)
       if (message && !abort.signal.aborted) {
@@ -96,9 +112,17 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     if (file) void upload(file)
   }
 
+  // The zone always takes the drag, so a dropped archive is never opened by the browser; it says "none" when it cannot upload.
+  function onDragOver(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = canUpload ? "copy" : "none"
+    if (canUpload) setDragging(true)
+  }
+
   function onDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragging(false)
+    if (!canUpload) return
     const file = event.dataTransfer?.files?.[0]
     if (file) void upload(file)
   }
@@ -134,7 +158,7 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     )} />
 
     {!platform && !disabled && !uploading && <div data-testid="image-drop-zone"
-      onDragOver={(event) => { if (!canUpload) return; event.preventDefault(); setDragging(true) }}
+      onDragOver={onDragOver}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       className={`flex min-w-0 flex-col gap-2 rounded-md border border-border p-3 ${dragging ? "bg-muted" : ""}`}>
@@ -148,10 +172,10 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
       {exerciseId === null
         ? <p className="text-xs text-muted-foreground">{t("exercises.image.saveFirst")}</p>
         : <p className="text-xs text-muted-foreground">
-          {dragging ? t("exercises.image.dropHere") : <>
-            <span>{t("exercises.image.uploadHint", { size: MAX_IMAGE_ARCHIVE_GIB })}</span>{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-foreground">{t("exercises.image.command")}</code>
-          </>}
+          {dragging ? t("exercises.image.dropHere") : tRich("exercises.image.uploadHint", {
+            size: MAX_IMAGE_ARCHIVE_GIB,
+            command: <code className="rounded bg-muted px-1 py-0.5 font-mono text-foreground">{t("exercises.image.command")}</code>,
+          })}
         </p>}
     </div>}
 
@@ -161,15 +185,17 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
           ? <span className="flex items-center gap-1.5"><Spinner size="sm" /><span>{t("exercises.image.pushing")}</span></span>
           : <span>{t("exercises.image.uploading")}</span>}
         <span className="flex items-center gap-2">
-          {progress.stage === "uploading" && <span>{`${progress.percent}%`}</span>}
+          {progress.stage === "uploading" && <span>{t("exercises.image.percent", { percent: progress.percent })}</span>}
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={cancel}>{t("exercises.image.cancel")}</Button>
         </span>
       </div>
-      <div role="progressbar" aria-label={t("exercises.image.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}
+      <div role="progressbar" aria-label={t(progress.stage === "pushing" ? "exercises.image.pushing" : "exercises.image.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}
         className="h-1.5 overflow-hidden rounded-full bg-secondary">
         <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress.percent}%` }} />
       </div>
     </div>}
+
+    {dropped && <p className="text-xs text-muted-foreground">{t("exercises.image.changedDuringUpload")}</p>}
 
     {error && <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
       <span>{error}</span>

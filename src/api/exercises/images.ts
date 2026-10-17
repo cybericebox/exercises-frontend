@@ -139,22 +139,38 @@ export async function uploadImage(
     return true
   }
 
-  /** Uploads the blob's missing chunks and hands them over; a lost or broken staged upload is sent again once. */
-  const send = async (entry: Pending, onBytes: (percent: number) => void): Promise<boolean> => {
-    for (;;) {
-      signal?.throwIfAborted()
-      entry.uploadID = await uploadChunks(entry.file, onBytes, signal, { purpose: IMAGE_BLOB_PURPOSE })
-      signal?.throwIfAborted()
-      try {
-        return await push(entry)
-      } catch (error) {
-        const again = hasCode(error, ERR_STAGED_BLOB_NOT_FOUND) || hasCode(error, ERR_BLOB_DIGEST_MISMATCH) || hasCode(error, ERR_BLOB_UPLOAD_NOT_READY)
-        if (!again || entry.reuploaded) throw error
-        entry.reuploaded = true
-        // Not ready = chunks missing: resume them. Otherwise the staged upload is gone or wrong: start anew.
-        if (!hasCode(error, ERR_BLOB_UPLOAD_NOT_READY)) forgetChunkedUpload(entry.file)
-      }
+  /**
+   * Asks for the push; when the staged upload is lost, broken or short of chunks, the blob is uploaded again
+   * (once per blob) and handed over again.
+   */
+  const handOver = async (entry: Pending, onBytes: (percent: number) => void): Promise<boolean> => {
+    try {
+      return await push(entry)
+    } catch (error) {
+      const again = hasCode(error, ERR_STAGED_BLOB_NOT_FOUND) || hasCode(error, ERR_BLOB_DIGEST_MISMATCH) || hasCode(error, ERR_BLOB_UPLOAD_NOT_READY)
+      if (!again || entry.reuploaded) throw error
+      entry.reuploaded = true
+      // Not ready = chunks missing: resume them. Otherwise the staged upload is gone or wrong: start anew.
+      if (!hasCode(error, ERR_BLOB_UPLOAD_NOT_READY)) forgetChunkedUpload(entry.file)
+      return send(entry, onBytes)
     }
+  }
+
+  /** Uploads the blob's missing chunks and hands them over. */
+  const send = async (entry: Pending, onBytes: (percent: number) => void): Promise<boolean> => {
+    signal?.throwIfAborted()
+    entry.uploadID = await uploadChunks(entry.file, onBytes, signal, { purpose: IMAGE_BLOB_PURPOSE })
+    signal?.throwIfAborted()
+    return handOver(entry, onBytes)
+  }
+
+  /** Byte progress of one blob sent again while the others wait for the registry: the stage goes back to uploading. */
+  const resend = (percent: number) => {
+    if (stage !== "uploading") {
+      stage = "uploading"
+      report(0)
+    }
+    report(Math.min(99, Math.floor(percent)))
   }
 
   report(0)
@@ -185,16 +201,20 @@ export async function uploadImage(
         if (status.State === "missing" || (status.State === "failed" && RETRYABLE.has(status.Reason ?? ""))) {
           if (entry.retries >= MAX_PUSH_RETRIES) throw new ImagePushError(status.Reason || "unreachable")
           entry.retries++
-          present = await push(entry)
+          present = await handOver(entry, resend)
         } else if (status.State === "failed" && REUPLOAD.has(status.Reason ?? "")) {
           if (entry.reuploaded) throw new ImagePushError(status.Reason ?? "")
           entry.reuploaded = true
           forgetChunkedUpload(entry.file)
-          present = await send(entry, () => undefined)
+          present = await send(entry, resend)
         } else if (status.State === "failed") {
           throw new ImagePushError(status.Reason || "unreachable")
         } else if (status.State === "present") {
           forgetChunkedUpload(entry.file)
+        }
+        if (stage !== "pushing") {
+          stage = "pushing"
+          report(99)
         }
         if (present) pushing.splice(pushing.indexOf(entry), 1)
       }
