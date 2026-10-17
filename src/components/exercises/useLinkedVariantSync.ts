@@ -37,6 +37,9 @@ export function useLinkedVariantSync(form: UseFormReturn<DraftFormValues>, enabl
       try {
         for (const index of candidates) {
           if (JSON.stringify(synced[index]) !== JSON.stringify(variants[index])) {
+            // Trade-off: a whole-variant setValue regenerates the nested field-array ids of that
+            // variant, which would remount its open subtask form. Acceptable: a base is edited in
+            // its own tab and inactive variant tabs are unmounted.
             form.setValue(`Variants.${index}`, synced[index], { shouldDirty: true })
           }
         }

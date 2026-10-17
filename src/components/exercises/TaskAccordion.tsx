@@ -30,10 +30,19 @@ export function TaskAccordion({
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const rows = useWatch({ control, name }) ?? []
 
+  /**
+   * The other variants, linked ones first. A base update fires the live mirror at once
+   * (useLinkedVariantSync), so a linked variant must already have the change by then;
+   * updating it after its base would apply the add or remove twice.
+   */
+  function otherVariantsLinkedFirst(): number[] {
+    const others = getValues("Variants").flatMap((variant, index) => index === variantIndex ? [] : [{ index, linked: Boolean(variant.LinkedTo) }])
+    return [...others.filter((item) => item.linked), ...others.filter((item) => !item.linked)].map((item) => item.index)
+  }
+
   function addSharedTask() {
     const nextTask = emptyTask()
-    getValues("Variants").forEach((_, index) => {
-      if (index === variantIndex) return
+    otherVariantsLinkedFirst().forEach((index) => {
       const otherName = `Variants.${index}.Tasks` as const
       setValue(otherName, [...getValues(otherName), { ...nextTask }], { shouldDirty: true })
     })
@@ -42,8 +51,7 @@ export function TaskAccordion({
   }
 
   function removeSharedTask(taskIndex: number) {
-    getValues("Variants").forEach((_, index) => {
-      if (index === variantIndex) return
+    otherVariantsLinkedFirst().forEach((index) => {
       const otherName = `Variants.${index}.Tasks` as const
       setValue(otherName, getValues(otherName).filter((__, i) => i !== taskIndex), { shouldDirty: true })
     })
