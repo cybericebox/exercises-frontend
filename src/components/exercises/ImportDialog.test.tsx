@@ -117,7 +117,7 @@ describe("ImportDialog", () => {
     expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
   })
 
-  it.each([20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990])(
+  it.each([20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991])(
     "archive-content errors are not password hints (%i)", async (code) => {
       mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: code } }))
       render(<ImportDialog onClose={vi.fn()} />)

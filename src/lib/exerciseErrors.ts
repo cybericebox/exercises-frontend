@@ -110,11 +110,11 @@ export const CODE_TO_KEY: Record<number, string> = {
 }
 
 /**
- * Archive content problems on import (20978-20990): they name the archive, never a missing password,
- * so the import dialog shows them under the file field.
+ * Archive content problems on import (20978-20991; 20991: over the archive size limits): they name the archive,
+ * never a missing password, so the import dialog shows them under the file field.
  */
 export const ARCHIVE_CONTENT_ERROR_CODES: ReadonlySet<number> = new Set([
-  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990,
+  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991,
 ])
 
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
