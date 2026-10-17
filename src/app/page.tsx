@@ -305,7 +305,7 @@ export default function Page() {
                 <td className={TABLE_CELL}>
                   <span className="flex flex-wrap gap-1">
                     {item.Tags.map((tag) => (
-                      <span key={tag} className="rounded-[4px] bg-secondary/40 px-2 py-0.5 text-xs">{tag}</span>
+                      <span key={tag} className="rounded-[4px] bg-[color-mix(in_srgb,var(--ib-ink)_10%,transparent)] px-2 py-0.5 text-xs">{tag}</span>
                     ))}
                   </span>
                 </td>
