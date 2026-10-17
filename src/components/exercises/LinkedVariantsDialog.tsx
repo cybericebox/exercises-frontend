@@ -68,17 +68,32 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
   const [countError, setCountError] = useState<string | null>(null)
   const [flagErrors, setFlagErrors] = useState<Record<string, string>>({})
   const uploadSeq = useRef(0)
-  const controllers = useRef(new Set<AbortController>())
+  // Running uploads by id, with the cell they belong to, so a dropped row or column can stop its own.
+  const controllers = useRef(new Map<number, { controller: AbortController; rowKey: number; column: number }>())
   const fileInputs = useRef(new Map<string, HTMLInputElement | null>())
 
   // Closing the dialog stops uploads that are still running; their files are left to the media garbage collector.
   useEffect(() => {
     const running = controllers.current
-    return () => { for (const controller of running) controller.abort() }
+    return () => { for (const { controller } of running.values()) controller.abort() }
   }, [])
 
-  const uploading = rows.some((row) => row.cells.some((cell) => cell.uploads.length > 0))
   const columns = base?.Tasks ?? []
+  const shownRows = rows.slice(0, parseCount(countText) ?? rows.length)
+  const uploading = shownRows.some((row) => columns.some((_, column) => (row.cells[column]?.uploads.length ?? 0) > 0))
+
+  function abortUploads(drop: (rowKey: number, column: number) => boolean) {
+    for (const { controller, rowKey, column } of controllers.current.values()) if (drop(rowKey, column)) controller.abort()
+  }
+
+  function changeBase(id: string) {
+    const width = variants.find((variant) => variant.ID === id)?.Tasks.length ?? 0
+    // Cells carry over by position; columns the new base does not have are dropped with their uploads.
+    abortUploads((_, column) => column >= width)
+    setRows((current) => current.map((row) => row.cells.length > width ? { ...row, cells: row.cells.slice(0, width) } : row))
+    setBaseId(id)
+    setFlagErrors({})
+  }
 
   function updateCell(rowKey: number, column: number, change: (cell: Cell) => Cell) {
     setRows((current) => current.map((row) => {
@@ -94,6 +109,8 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
     setCountError(null)
     const count = parseCount(text)
     if (count === null) return
+    const kept = new Set(rows.slice(0, count).map((row) => row.key))
+    abortUploads((rowKey) => !kept.has(rowKey))
     setRows((current) => count <= current.length ? current.slice(0, count) : [...current, ...Array.from({ length: count - current.length }, newRow)])
   }
 
@@ -111,7 +128,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
   async function upload(rowKey: number, column: number, file: File) {
     const id = ++uploadSeq.current
     const controller = new AbortController()
-    controllers.current.add(controller)
+    controllers.current.set(id, { controller, rowKey, column })
     updateCell(rowKey, column, (cell) => ({ ...cell, uploadError: null, uploads: [...cell.uploads, { id, name: file.name, progress: 0 }] }))
     const withoutUpload = (cell: Cell) => cell.uploads.filter((entry) => entry.id !== id)
     try {
@@ -120,10 +137,13 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
       }, controller.signal)
       updateCell(rowKey, column, (cell) => ({ ...cell, uploads: withoutUpload(cell), files: [...cell.files, { FileID: uploaded.FileID, Name: uploaded.Name }] }))
     } catch (error) {
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted) {
+        updateCell(rowKey, column, (cell) => ({ ...cell, uploads: withoutUpload(cell) }))
+        return
+      }
       updateCell(rowKey, column, (cell) => ({ ...cell, uploads: withoutUpload(cell), uploadError: exerciseErrorMessage(error) }))
     } finally {
-      controllers.current.delete(controller)
+      controllers.current.delete(id)
     }
   }
 
@@ -158,7 +178,6 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
     onClose()
   }
 
-  const shownRows = rows.slice(0, parseCount(countText) ?? rows.length)
   const flagLabelId = `${uid}-flag`
   const noteColumnId = `${uid}-note`
   const baseLabelId = `${uid}-base`
@@ -175,7 +194,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
       <div className="flex min-w-48 flex-col gap-1.5">
         <span id={baseLabelId} className="text-sm font-medium text-foreground">{t("admin.exLinked.base")}</span>
         <SelectMenu aria-labelledby={baseLabelId} value={baseId}
-          onChange={(value) => { setBaseId(value); setFlagErrors({}) }}
+          onChange={changeBase}
           options={candidates.map((index) => ({ value: variants[index].ID, label: t("admin.exDraft.variantN", { n: index + 1 }) }))} />
       </div>
       <div className="flex w-32 flex-col gap-1.5">
@@ -189,7 +208,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
     <Table label={t("admin.exLinked.title")} regionClassName="max-h-[50vh] rounded-md border border-border">
       <thead>
         <tr className={TABLE_HEAD_ROW}>
-          <td aria-hidden="true" className={TABLE_HEAD_CELL} />
+          <th scope="col" className={TABLE_HEAD_CELL}><span className="sr-only">{t("admin.exLinked.variant")}</span></th>
           {columns.map((task, column) => <th key={column} scope="col" id={`${uid}-col-${column}`} className={`${TABLE_HEAD_CELL} min-w-56`}>
             {task.Name || t("admin.exTask.numbered", { n: column + 1 })}
           </th>)}
@@ -224,8 +243,8 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
                         onClick={() => updateCell(row.key, column, (current) => ({ ...current, files: current.files.filter((_, i) => i !== index) }))} />
                     </li>)}
                   </ul>}
-                  {cell.uploads.map((entry) => <div key={entry.id} className="space-y-1" aria-live="polite">
-                    <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span className="min-w-0 truncate">{entry.name}</span><span>{entry.progress}%</span></div>
+                  {cell.uploads.map((entry) => <div key={entry.id} className="space-y-1">
+                    <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span className="min-w-0 truncate">{entry.name}</span><span aria-hidden="true">{t("admin.exLinked.uploadProgress", { percent: entry.progress })}</span></div>
                     <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.progress}
                       className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${entry.progress}%` }} /></div>
                   </div>)}

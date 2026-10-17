@@ -464,6 +464,8 @@
   "admin.exLinked.addFile": "Додати файл",
   "admin.exLinked.removeFile": "Прибрати файл {name}",
   "admin.exLinked.create": "Створити",
+  "admin.exLinked.variant": "Варіант",
+  "admin.exLinked.uploadProgress": "{percent}%",
   "admin.exLinked.val.count": "Від 1 до {max}",
   "admin.exLinked.val.flagDuplicate": "Такий прапорець уже є в цьому підзавданні",
   "admin.exDraft.removeBaseVariantDescription": "Варіант {n} — основний для повʼязаних варіантів ({count}). Вони стануть незалежними зі своїм поточним вмістом.",

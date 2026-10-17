@@ -464,6 +464,8 @@
   "admin.exLinked.addFile": "Add file",
   "admin.exLinked.removeFile": "Remove file {name}",
   "admin.exLinked.create": "Create",
+  "admin.exLinked.variant": "Variant",
+  "admin.exLinked.uploadProgress": "{percent}%",
   "admin.exLinked.val.count": "From 1 to {max}",
   "admin.exLinked.val.flagDuplicate": "This flag is already used in this subtask",
   "admin.exDraft.removeBaseVariantDescription": "Variant {n} is the base of {count} linked variants. They become independent with their current content.",

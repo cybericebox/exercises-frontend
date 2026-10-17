@@ -30,10 +30,11 @@ function deferred<T>() {
 function setup(variants: VariantFormValues[] = [base()]) {
   const onCreate = vi.fn()
   const onClose = vi.fn()
-  render(<ExerciseIdContext.Provider value="ex1">
-    <LinkedVariantsDialog open variants={variants} onClose={onClose} onCreate={onCreate} />
-  </ExerciseIdContext.Provider>)
-  return { onCreate, onClose }
+  const tree = (open: boolean) => <ExerciseIdContext.Provider value="ex1">
+    <LinkedVariantsDialog open={open} variants={variants} onClose={onClose} onCreate={onCreate} />
+  </ExerciseIdContext.Provider>
+  const { rerender } = render(tree(true))
+  return { onCreate, onClose, close: () => rerender(tree(false)) }
 }
 
 const variantName = (n: number) => `admin.exDraft.variantN{"n":${n}}`
@@ -242,5 +243,66 @@ describe('LinkedVariantsDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'confirm.cancel' }))
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('a base change drops the columns that are gone and stops their uploads', async () => {
+    setup([base(), { ...emptyVariant(2), ID: 'c', Tasks: [task('x1', 'Other', ['ICE{other}'])] }])
+    const pending = deferred<{ FileID: string; Name: string; Size: number }>()
+    upload.mockReturnValueOnce(pending.promise)
+    await act(async () => pickFile(3, 'Exploit', new File(['x'], 'gone.bin')))
+    expect(createButton()).toHaveAttribute('aria-busy', 'true')
+    const signal = upload.mock.calls[0][3] as AbortSignal
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(2) }))
+    expect(signal.aborted).toBe(true)
+    expect(createButton()).not.toHaveAttribute('aria-busy')
+    expect(createButton()).toBeEnabled()
+    // Back on the first base the dropped column is empty.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(1) }))
+    expect(screen.queryByText('gone.bin')).not.toBeInTheDocument()
+  })
+
+  it('lowering the count stops uploads in the dropped rows', async () => {
+    setup()
+    type(countInput(), '2')
+    const pending = deferred<{ FileID: string; Name: string; Size: number }>()
+    upload.mockReturnValueOnce(pending.promise)
+    await act(async () => pickFile(3, 'Scan', new File(['x'], 'row.bin')))
+    const signal = upload.mock.calls[0][3] as AbortSignal
+    type(countInput(), '1')
+    expect(signal.aborted).toBe(true)
+    expect(createButton()).not.toHaveAttribute('aria-busy')
+  })
+
+  it('shows upload progress through i18n, hidden from screen readers', async () => {
+    setup()
+    upload.mockImplementationOnce((_id: string, _file: File, onProgress: (percent: number) => void) => {
+      onProgress(40)
+      return new Promise(() => {})
+    })
+    await act(async () => pickFile(2, 'Scan', new File(['x'], 'p.bin')))
+    const percent = screen.getByText('admin.exLinked.uploadProgress{"percent":40}')
+    expect(percent).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
+  })
+
+  it('names the variant column header', () => {
+    setup()
+    expect(screen.getByRole('columnheader', { name: 'admin.exLinked.variant' })).toBeInTheDocument()
+  })
+
+  it('closing the dialog during an upload aborts it and appends nothing', async () => {
+    const { onCreate, close } = setup()
+    const pending = deferred<{ FileID: string; Name: string; Size: number }>()
+    upload.mockReturnValueOnce(pending.promise)
+    await act(async () => pickFile(2, 'Scan', new File(['x'], 'late.bin')))
+    const signal = upload.mock.calls[0][3] as AbortSignal
+    fireEvent.click(screen.getByRole('button', { name: 'confirm.cancel' }))
+    close()
+    expect(signal.aborted).toBe(true)
+    await act(async () => { pending.resolve({ FileID: 'late', Name: 'late.bin', Size: 1 }) })
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(screen.queryByText('late.bin')).not.toBeInTheDocument()
   })
 })
