@@ -135,6 +135,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
       const uploaded = await uploadExerciseAttachment(exerciseId, file, (progress) => {
         updateCell(rowKey, column, (cell) => ({ ...cell, uploads: cell.uploads.map((entry) => entry.id === id ? { ...entry, progress } : entry) }))
       }, controller.signal)
+      if (controller.signal.aborted) return
       updateCell(rowKey, column, (cell) => ({ ...cell, uploads: withoutUpload(cell), files: [...cell.files, { FileID: uploaded.FileID, Name: uploaded.Name }] }))
     } catch (error) {
       if (controller.signal.aborted) {

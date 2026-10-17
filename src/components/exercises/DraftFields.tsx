@@ -17,6 +17,8 @@ import { Switch } from "@/components/ui/switch"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useLinkedVariantSync } from "./useLinkedVariantSync"
 import { LinkedVariantsDialog } from "./LinkedVariantsDialog"
+import { VariantStatsDialog } from "./VariantStatsDialog"
+import { Button } from "@/components/ui/button"
 
 type DraftVariantsProps = {
   form: UseFormReturn<DraftFormValues>
@@ -36,6 +38,7 @@ function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked
   const [section, setSection] = useEditorPosition("section")
   const [, setVariant] = useEditorPosition("variant")
   const [linkedOpen, setLinkedOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
   useLinkedVariantSync(form, !disabled)
 
   function appendLinked(created: VariantFormValues[]) {
@@ -54,8 +57,10 @@ function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked
           {t(`admin.exDraft.tab.${value}`)}
         </button>)}
       </div>
+      {exerciseId && <Button type="button" variant="outline" size="sm" onClick={() => setStatsOpen(true)}>{t("admin.exStats.open")}</Button>}
     </>} renderVariant={(variantIndex) => <VariantPanel form={form} variantIndex={variantIndex} section={section}
       disabled={disabled} infrastructureBlocked={infrastructureBlocked} />} />
+    {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     {linkedOpen && <LinkedVariantsHost form={form} onClose={() => setLinkedOpen(false)} onCreate={appendLinked} />}
   </section></ExerciseIdContext.Provider>
 }

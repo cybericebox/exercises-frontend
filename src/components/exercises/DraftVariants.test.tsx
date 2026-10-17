@@ -6,6 +6,8 @@ vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 vi.mock('./TaskAccordion', () => ({ TaskAccordion: ({ linked }: { linked: boolean }) => <h3 data-linked={String(linked)}>Task panel</h3> }))
 vi.mock('./TopologySection', () => ({ TopologySection: ({ disabled }: { disabled: boolean }) => <h3 data-disabled={String(disabled)}>Topology panel</h3> }))
 
+vi.mock('./VariantStatsDialog', () => ({ VariantStatsDialog: ({ exerciseId }: { exerciseId: string }) => <div role="dialog">stats for {exerciseId}</div> }))
+
 import { DraftVariants } from './DraftFields'
 import { emptyDraft, emptyTask, emptyVariant, type DraftFormValues } from '@/lib/exerciseSchemas'
 
@@ -139,5 +141,21 @@ describe('DraftVariants linked variant', () => {
     expect(screen.getAllByRole('tab', { name: /admin\.exDraft\.variantN/ })).toHaveLength(4)
     expect(screen.getByRole('tab', { name: 'admin.exDraft.variantN{"n":3}', selected: true })).toBeInTheDocument()
     expect(screen.getByText('admin.exDraft.linkedTo{"n":1}')).toBeInTheDocument()
+  })
+})
+
+describe('DraftVariants statistics', () => {
+  function StatsHarness({ exerciseId, disabled }: { exerciseId: string | null; disabled: boolean }) {
+    const form = useForm<DraftFormValues>({ defaultValues: emptyDraft() })
+    return <FormProvider {...form}><DraftVariants form={form} disabled={disabled} exerciseId={exerciseId} /></FormProvider>
+  }
+
+  it('the statistics button opens the dialog and is hidden for a new exercise', () => {
+    const { unmount } = render(<StatsHarness exerciseId={null} disabled={false} />)
+    expect(screen.queryByRole('button', { name: 'admin.exStats.open' })).not.toBeInTheDocument()
+    unmount()
+    render(<StatsHarness exerciseId="ex1" disabled />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exStats.open' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('stats for ex1')
   })
 })

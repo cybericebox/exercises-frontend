@@ -263,6 +263,19 @@ describe('LinkedVariantsDialog', () => {
     expect(screen.queryByText('gone.bin')).not.toBeInTheDocument()
   })
 
+  it('an upload that finishes after its column was dropped is not kept', async () => {
+    setup([base(), { ...emptyVariant(2), ID: 'c', Tasks: [task('x1', 'Other', ['ICE{other}'])] }])
+    const pending = deferred<{ FileID: string; Name: string; Size: number }>()
+    upload.mockReturnValueOnce(pending.promise)
+    await act(async () => pickFile(3, 'Exploit', new File(['x'], 'late.bin')))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(2) }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(1) }))
+    await act(async () => pending.resolve({ FileID: 'f1', Name: 'late.bin', Size: 1 }))
+    expect(screen.queryByText('late.bin')).not.toBeInTheDocument()
+  })
+
   it('lowering the count stops uploads in the dropped rows', async () => {
     setup()
     type(countInput(), '2')
