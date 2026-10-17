@@ -192,7 +192,8 @@ export async function uploadImage(
       for (const entry of [...pushing]) {
         let status: BlobState
         try {
-          status = await apiGet<BlobState>(`${base}/blobs/${encodeURIComponent(entry.blob.digest)}`, init)
+          // A failed poll is asked again next round, so it is not reported as a platform outage.
+          status = await apiGet<BlobState>(`${base}/blobs/${encodeURIComponent(entry.blob.digest)}`, init, { silentOutage: true })
         } catch (error) {
           if (isPassing(error) && !signal?.aborted) continue
           throw error

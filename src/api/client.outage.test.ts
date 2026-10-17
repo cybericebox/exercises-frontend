@@ -19,6 +19,15 @@ describe("API outage detection", () => {
     expect(isServiceDown()).toBe(true)
   })
 
+  it("a silent JSON request does not report an outage on a dropped connection or a proxy 502", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network failed")))
+    await expect(apiGet("/api/x", undefined, { silentOutage: true })).rejects.toBeInstanceOf(TypeError)
+    expect(isServiceDown()).toBe(false)
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response("", { status: 502 })))
+    await expect(apiGet("/api/x", undefined, { silentOutage: true })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
+  })
+
   it.each([502, 503, 504])("reports an outage on a proxy HTTP %i without X-Request-ID", async (status) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
     await expect(apiGet("/api/auth/me", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)

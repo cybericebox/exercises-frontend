@@ -158,8 +158,8 @@ async function request<T>(
       },
     })
   } catch (error) {
-    // A caller-initiated abort or timeout is not an outage.
-    if (isNetworkOutage(error, init.signal)) reportServiceUnavailable()
+    // A caller-initiated abort or timeout is not an outage; nor is a request the caller retries on its own.
+    if (!opts.silentOutage && isNetworkOutage(error, init.signal)) reportServiceUnavailable()
     throw error
   }
 

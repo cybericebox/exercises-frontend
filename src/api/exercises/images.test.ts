@@ -269,6 +269,15 @@ describe("uploadImage", () => {
     await expect(promise).resolves.toBe(REFERENCE)
   })
 
+  it("a status poll it retries on its own does not report a platform outage", async () => {
+    vi.useFakeTimers()
+    serve([L2], { [L2]: { push: ["pushing"], status: [{ State: "present" }] } })
+    const promise = uploadImage(EXERCISE, file, "app")
+    await vi.advanceTimersByTimeAsync(BLOB_POLL_MS)
+    await expect(promise).resolves.toBe(REFERENCE)
+    expect(apiGet.mock.calls[0][2]).toEqual({ silentOutage: true })
+  })
+
   it("uploads again once when the server lost the staged upload", async () => {
     serve([L2], { [L2]: { push: [new ApiError(404, null, "x", undefined, 32818), "present"] } })
     await expect(uploadImage(EXERCISE, file, "app")).resolves.toBe(REFERENCE)
