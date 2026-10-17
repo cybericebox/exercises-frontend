@@ -44,7 +44,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [imported, setImported] = useState<Exercise[] | null>(null)
 
   // The wait for a background import stops when the dialog goes away; the job itself keeps running on the server,
-  // and importing the same archive again picks it up.
+  // and importing the same archive again picks it up on the chunked paths only (the multipart path stores a fresh file each time).
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
   // Leaving is allowed while the server works (not while the archive is going up).

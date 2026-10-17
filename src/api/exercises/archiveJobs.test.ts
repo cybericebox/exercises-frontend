@@ -4,7 +4,8 @@ vi.mock("@/api/client", async (original) => ({ ...(await original<typeof import(
 
 import * as client from "@/api/client"
 import { ApiError } from "@/api/client"
-import { JOB_POLL_MS, waitForExportJob, waitForImportJob } from "./archiveJobs"
+import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { JOB_MAX_WAIT_MS, JOB_POLL_MS, waitForExportJob, waitForImportJob } from "./archiveJobs"
 
 const mockGet = vi.mocked(client.apiGet)
 const exercise = { ID: "e1", Name: "One", Description: "", Tags: null, DraftVersionID: null, PublishedVersionID: null, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null }
@@ -70,5 +71,29 @@ describe("archive jobs", () => {
     controller.abort(new DOMException("x", "AbortError"))
     await vi.advanceTimersByTimeAsync(JOB_POLL_MS)
     expect((await caught).name).toBe("AbortError")
+  })
+
+  it("an export that outlasts the wait raises the export-stopped code 70998", async () => {
+    mockGet.mockResolvedValue({ State: "running" })
+    const caught = waitForExportJob("j1").catch((e) => e)
+    await vi.advanceTimersByTimeAsync(JOB_MAX_WAIT_MS + JOB_POLL_MS * 2)
+    expect((await caught).code).toBe(70998)
+  })
+
+  it("an import that outlasts the wait raises the import-stopped code 70995", async () => {
+    mockGet.mockResolvedValue({ State: "running" })
+    const caught = waitForImportJob("j2").catch((e) => e)
+    await vi.advanceTimersByTimeAsync(JOB_MAX_WAIT_MS + JOB_POLL_MS * 2)
+    expect((await caught).code).toBe(70995)
+  })
+
+  it("an internal failure (code 0) is a 500 without the backend's English text", async () => {
+    mockGet.mockResolvedValueOnce({ State: "failed", Error: { Code: 0, Message: "Internal server error" } })
+    const caught = waitForImportJob("j2").catch((e) => e)
+    await vi.advanceTimersByTimeAsync(JOB_POLL_MS)
+    const error = await caught
+    expect(error.status).toBe(500)
+    expect(error.body).toEqual({ Status: { Code: 0 } })
+    expect(exerciseErrorMessage(error)).toBe("Не вдалося виконати операцію")
   })
 })
