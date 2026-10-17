@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { TriangleAlert } from "lucide-react"
 import { t } from "@/i18n/t"
+import { ApiError } from "@/api/client"
 import { checkImages, type ImageAvailability as Availability } from "@/api/exercises/imageCheck"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { imageReasonText } from "@/lib/imageErrors"
@@ -14,7 +15,18 @@ export const CHECK_DEBOUNCE_MS = 600
 /** A check answer is reused this long (switching devices does not ask again). */
 const CACHE_MS = 30_000
 
-const cache = new Map<string, { at: number; results: Availability[] }>()
+// One entry per exercise and variant image list: the in-flight request too, so the N device cards of a variant send one request.
+const cache = new Map<string, { at: number; request: Promise<Availability[]> }>()
+
+function check(key: string, exerciseId: string, images: string[]): Promise<Availability[]> {
+  const hit = cache.get(key)
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.request
+  const request = checkImages(exerciseId, images)
+  cache.set(key, { at: Date.now(), request })
+  // A failed check is not kept: the next change asks again.
+  request.catch(() => { if (cache.get(key)?.request === request) cache.delete(key) })
+  return request
+}
 
 /** Tests start from an empty cache. */
 export function resetImageCheckCache(): void {
@@ -23,41 +35,43 @@ export function resetImageCheckCache(): void {
 
 type Checked = { key: string; results: Availability[] } | { key: string; failed: true }
 
+/** A refused check (the user may not write the exercise) is not a problem to report. */
+const isForbidden = (error: unknown) => error instanceof ApiError && error.status === 403
+
 /**
  * Whether the platform can pull the device's image, before any test lab starts. All images of the variant are
  * checked together (they deploy together, so two keys for one registry show as a conflict); the device shows
  * its own result. Quiet while the image is available or not checked yet; «Образ недоступний» with the reason
  * otherwise.
  */
-export function ImageAvailability({ variantIndex, deviceIndex }: { variantIndex: number; deviceIndex: number }) {
+export function ImageAvailability({ variantIndex, deviceIndex, enabled = true }: {
+  variantIndex: number
+  deviceIndex: number
+  /** False for a user who cannot write the exercise: the check is not asked at all. */
+  enabled?: boolean
+}) {
   const { control } = useFormContext<DraftFormValues>()
   const exerciseId = useExerciseId()
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
   const image = (devices[deviceIndex]?.Image ?? "").trim()
   const images = [...new Set(devices.map((device) => (device?.Image ?? "").trim()).filter(Boolean))]
-  const key = exerciseId && image ? `${exerciseId}\n${images.join("\n")}` : ""
+  const key = enabled && exerciseId && image ? `${exerciseId}\n${images.join("\n")}` : ""
   const [checked, setChecked] = useState<Checked | null>(null)
 
   useEffect(() => {
     if (!key || !exerciseId) return
     const list = key.split("\n").slice(1)
-    const abort = new AbortController()
+    let gone = false
     const timer = setTimeout(() => {
-      const hit = cache.get(key)
-      if (hit && Date.now() - hit.at < CACHE_MS) {
-        setChecked({ key, results: hit.results })
-        return
-      }
-      checkImages(exerciseId, list, abort.signal).then((results) => {
-        cache.set(key, { at: Date.now(), results })
-        if (!abort.signal.aborted) setChecked({ key, results })
-      }, () => {
-        if (!abort.signal.aborted) setChecked({ key, failed: true })
+      check(key, exerciseId, list).then((results) => {
+        if (!gone) setChecked({ key, results })
+      }, (error: unknown) => {
+        if (!gone && !isForbidden(error)) setChecked({ key, failed: true })
       })
     }, CHECK_DEBOUNCE_MS)
     return () => {
+      gone = true
       clearTimeout(timer)
-      abort.abort()
     }
   }, [key, exerciseId])
 

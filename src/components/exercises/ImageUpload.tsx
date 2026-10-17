@@ -1,21 +1,21 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
-import { uploadImage, type ImageUploadStage } from "@/api/exercises/images"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { MAX_IMAGE_ARCHIVE_GIB, imageUploadErrorMessage } from "@/lib/imageErrors"
+import { MAX_IMAGE_ARCHIVE_GIB } from "@/lib/imageErrors"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { useExerciseId } from "./ExerciseIdContext"
 import { ImageAvailability } from "./ImageAvailability"
+import { useDeviceImageUpload, useImageUploads } from "./ImageUploads"
 
 const PLATFORM_REF = /^platform:([a-z0-9]+(?:[._-][a-z0-9]+)*)@(sha256:[0-9a-f]{64})$/
 
@@ -24,8 +24,6 @@ export function parsePlatformRef(image: string): { name: string; digest: string 
   const match = PLATFORM_REF.exec(image.trim())
   return match ? { name: match[1], digest: match[2] } : null
 }
-
-type Progress = { percent: number; stage: ImageUploadStage }
 
 /**
  * The device image: a reference typed by the author, or an image uploaded from a `docker save` archive (dropped
@@ -39,77 +37,36 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   disabled: boolean
   compact?: boolean
 }) {
-  const { control, getValues, setValue } = useFormContext<DraftFormValues>()
+  const form = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue } = form
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const image = useWatch({ control, name: `${base}.Image` }) ?? ""
+  const deviceId = useWatch({ control, name: `${base}.ID` }) ?? ""
   const exerciseId = useExerciseId()
   const isAdmin = useExerciseAccess().access?.IsAdmin ?? false
   const platform = parsePlatformRef(image)
   const fileRef = useRef<HTMLInputElement | null>(null)
-  const controller = useRef<AbortController | null>(null)
-  const [progress, setProgress] = useState<Progress | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [failedFile, setFailedFile] = useState<File | null>(null)
+  // The upload lives in the editor's store, keyed by the device id: collapsing the section or switching panels does not stop it.
+  const { store, canWrite } = useImageUploads()
+  const { progress, error, failedFile, dropped } = useDeviceImageUpload(store, deviceId)
   const [dragging, setDragging] = useState(false)
-  const [dropped, setDropped] = useState(false)
-  // The variant the device is in now: an upload resolves its device by the stable device id, never by the index it started with.
-  const variantRef = useRef(variantIndex)
-  useEffect(() => { variantRef.current = variantIndex }, [variantIndex])
   const canUpload = !disabled && exerciseId !== null
   const uploading = progress !== null
 
-  // Leaving the device stops the upload; the uploaded chunks stay and a new drop of the archive resumes.
-  useEffect(() => () => controller.current?.abort(), [])
-
-  async function upload(file: File) {
+  function upload(file: File) {
     if (!canUpload || uploading || exerciseId === null) return
-    const abort = new AbortController()
-    controller.current = abort
-    setProgress({ percent: 0, stage: "uploading" })
-    setError(null)
-    setFailedFile(null)
-    setDropped(false)
-    const deviceId = getValues(`${base}.ID`)
-    const before = getValues(`${base}.Image`) ?? ""
-    const name = getValues(`${base}.Name`) || file.name.replace(/\.tar$/i, "")
-    try {
-      const reference = await uploadImage(exerciseId, file, name, (percent, stage) => {
-        if (!abort.signal.aborted) setProgress({ percent, stage })
-      }, abort.signal)
-      if (abort.signal.aborted) return
-      const variant = variantRef.current
-      const devices = getValues(`Variants.${variant}.Topology.Devices`) ?? []
-      const index = devices.findIndex((device) => device.ID === deviceId)
-      // The author changed the image (or removed the device) while the upload ran: their change wins.
-      if (index < 0 || (devices[index].Image ?? "") !== before) {
-        setDropped(true)
-        return
-      }
-      setValue(`Variants.${variant}.Topology.Devices.${index}.Image`, reference, { shouldDirty: true, shouldValidate: true })
-    } catch (cause) {
-      const message = imageUploadErrorMessage(cause, isAdmin)
-      if (message && !abort.signal.aborted) {
-        setError(message)
-        setFailedFile(file)
-      }
-    } finally {
-      if (controller.current === abort) {
-        controller.current = null
-        setProgress(null)
-      }
-    }
+    const variantId = getValues(`Variants.${variantIndex}.ID`) ?? ""
+    void store.start({ deviceId, variantId, file, exerciseId, isAdmin, form })
   }
 
   function cancel() {
-    controller.current?.abort()
-    controller.current = null
-    setProgress(null)
+    store.cancel(deviceId)
   }
 
   function onPicked(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = "" // the same archive can be picked again
-    if (file) void upload(file)
+    if (file) upload(file)
   }
 
   // The zone always takes the drag, so a dropped archive is never opened by the browser; it says "none" when it cannot upload.
@@ -124,7 +81,7 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     setDragging(false)
     if (!canUpload) return
     const file = event.dataTransfer?.files?.[0]
-    if (file) void upload(file)
+    if (file) upload(file)
   }
 
   const fileInput = <input ref={fileRef} data-testid="image-file-input" type="file" accept=".tar,application/x-tar" aria-hidden="true" tabIndex={-1}
@@ -199,9 +156,9 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
 
     {error && <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
       <span>{error}</span>
-      {failedFile && canUpload && <button type="button" className="underline" onClick={() => { void upload(failedFile) }}>{t("admin.exFiles.retry")}</button>}
+      {failedFile && canUpload && <button type="button" className="underline" onClick={() => upload(failedFile)}>{t("admin.exFiles.retry")}</button>}
     </div>}
 
-    <ImageAvailability variantIndex={variantIndex} deviceIndex={deviceIndex} />
+    <ImageAvailability variantIndex={variantIndex} deviceIndex={deviceIndex} enabled={canWrite} />
   </div>
 }

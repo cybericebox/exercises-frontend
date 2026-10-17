@@ -14,6 +14,7 @@ import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
+import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
@@ -338,6 +339,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       <Card className="flex flex-1 flex-col">
         <CardContent className="flex flex-1 flex-col pt-5">
           <Form {...editor.draftForm}>
+            {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
+            <ImageUploadsProvider canWrite={permissions.write && !readOnly}>
             <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-1 flex-col gap-5">
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
@@ -349,6 +352,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
+            </ImageUploadsProvider>
           </Form>
         </CardContent>
       </Card>

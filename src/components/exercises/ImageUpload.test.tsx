@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { useState } from "react"
 import { FormProvider, useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form"
 
 const h = vi.hoisted(() => ({ uploadImage: vi.fn(), access: { access: null as null | { IsAdmin: boolean }, loading: false } }))
@@ -22,6 +23,7 @@ import { ImageArchiveError } from "@/lib/imageArchive"
 import { emptyDevice, emptyDraft, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseIdProvider } from "./ExerciseIdContext"
 import { DeviceImageField } from "./ImageUpload"
+import { ImageUploadsProvider } from "./ImageUploads"
 
 const REF = `platform:web@sha256:${"ab12cd34ef56".repeat(5)}abcd`
 
@@ -61,6 +63,19 @@ function TwoDevicesBody() {
     <DeviceImageField key={fields[index].id} variantIndex={0} deviceIndex={index} disabled={false} />
     <output data-testid="devices">{JSON.stringify(devices.map((device) => ({ Name: device.Name, Image: device.Image })))}</output>
   </>
+}
+
+/** The editor: the uploads live above the card, which the author can collapse (unmount) and open again. */
+function Collapsible() {
+  const draft = emptyDraft()
+  draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: "web", Image: "" }]
+  const form = useForm<DraftFormValues>({ defaultValues: draft })
+  const [open, setOpen] = useState(true)
+  return <ExerciseIdProvider value="ex-1"><FormProvider {...form}><ImageUploadsProvider canWrite>
+    <button type="button" onClick={() => setOpen((value) => !value)}>toggle</button>
+    {open && <DeviceImageField variantIndex={0} deviceIndex={0} disabled={false} />}
+    <ImageValue />
+  </ImageUploadsProvider></FormProvider></ExerciseIdProvider>
 }
 
 const archive = () => new File([new Uint8Array([1, 2, 3])], "image.tar", { type: "application/x-tar" })
@@ -203,5 +218,50 @@ describe("DeviceImageField", () => {
     render(<Harness exerciseId={null} />)
     expect(screen.getByRole("button", { name: "exercises.image.upload" })).toBeDisabled()
     expect(screen.getByText("exercises.image.saveFirst")).toBeInTheDocument()
+  })
+
+  it("collapsing the image section mid-upload keeps the upload running and the reference lands", async () => {
+    let finish: (ref: string) => void = () => undefined
+    let report: (percent: number, stage: string) => void = () => undefined
+    h.uploadImage.mockImplementation((_id: string, _file: File, _name: string, onProgress: typeof report) => {
+      report = onProgress
+      return new Promise<string>((resolve) => { finish = resolve })
+    })
+    render(<Collapsible />)
+    drop(archive())
+    await waitFor(() => expect(h.uploadImage).toHaveBeenCalled())
+    const signal = h.uploadImage.mock.calls[0][4] as AbortSignal
+    fireEvent.click(screen.getByRole("button", { name: "toggle" }))
+    expect(screen.queryByTestId("image-drop-zone")).not.toBeInTheDocument()
+    expect(signal.aborted).toBe(false)
+    act(() => report(60, "uploading"))
+    // Opened again mid-upload: the card shows the running upload, not a fresh drop zone.
+    fireEvent.click(screen.getByRole("button", { name: "toggle" }))
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "60")
+    fireEvent.click(screen.getByRole("button", { name: "toggle" }))
+    await act(async () => finish(REF))
+    expect(signal.aborted).toBe(false)
+    expect(screen.getByTestId("image")).toHaveTextContent(REF)
+  })
+
+  it("leaving the editor stops a running upload", async () => {
+    h.uploadImage.mockImplementation(() => new Promise<string>(() => undefined))
+    const { unmount } = render(<Collapsible />)
+    drop(archive())
+    await waitFor(() => expect(h.uploadImage).toHaveBeenCalled())
+    const signal = h.uploadImage.mock.calls[0][4] as AbortSignal
+    unmount()
+    expect(signal.aborted).toBe(true)
+  })
+
+  it("«Скасувати» stops the upload", async () => {
+    h.uploadImage.mockImplementation(() => new Promise<string>(() => undefined))
+    render(<Collapsible />)
+    drop(archive())
+    await waitFor(() => expect(h.uploadImage).toHaveBeenCalled())
+    const signal = h.uploadImage.mock.calls[0][4] as AbortSignal
+    fireEvent.click(screen.getByRole("button", { name: "exercises.image.cancel" }))
+    expect(signal.aborted).toBe(true)
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
   })
 })

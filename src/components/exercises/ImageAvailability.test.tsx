@@ -10,6 +10,7 @@ vi.mock("@/api/exercises/imageCheck", async (original) => ({
   checkImages: (...args: unknown[]) => h.checkImages(...args),
 }))
 
+import { ApiError } from "@/api/client"
 import { emptyDevice, emptyDraft, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseIdProvider } from "./ExerciseIdContext"
 import { CHECK_DEBOUNCE_MS, ImageAvailability, resetImageCheckCache } from "./ImageAvailability"
@@ -19,13 +20,13 @@ function ImageInput() {
   return <input aria-label="image" {...register("Variants.0.Topology.Devices.0.Image")} />
 }
 
-function Harness({ images, exerciseId = "ex-1" as string | null }: { images: string[]; exerciseId?: string | null }) {
+function Harness({ images, exerciseId = "ex-1" as string | null, enabled, all = false }: { images: string[]; exerciseId?: string | null; enabled?: boolean; all?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = images.map((image, i) => ({ ...emptyDevice(), Name: `d${i}`, Image: image }))
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return <ExerciseIdProvider value={exerciseId}><FormProvider {...form}>
     <ImageInput />
-    <ImageAvailability variantIndex={0} deviceIndex={0} />
+    {(all ? images : [images[0]]).map((_, i) => <ImageAvailability key={i} variantIndex={0} deviceIndex={i} enabled={enabled} />)}
   </FormProvider></ExerciseIdProvider>
 }
 
@@ -56,7 +57,7 @@ describe("ImageAvailability", () => {
     ])
     render(<Harness images={["ghcr.io/a/x:1", "ghcr.io/b/y:1"]} />)
     await settle()
-    expect(h.checkImages).toHaveBeenCalledWith("ex-1", ["ghcr.io/a/x:1", "ghcr.io/b/y:1"], expect.any(AbortSignal))
+    expect(h.checkImages).toHaveBeenCalledWith("ex-1", ["ghcr.io/a/x:1", "ghcr.io/b/y:1"])
     expect(screen.getByText("exercises.image.reason.credential_conflict")).toBeInTheDocument()
   })
 
@@ -88,5 +89,37 @@ describe("ImageAvailability", () => {
     render(<Harness images={["nginx:1"]} exerciseId={null} />)
     await settle()
     expect(h.checkImages).not.toHaveBeenCalled()
+  })
+
+  it("a user who cannot write asks nothing", async () => {
+    render(<Harness images={["acme/private:1"]} enabled={false} />)
+    await settle()
+    expect(h.checkImages).not.toHaveBeenCalled()
+    expect(screen.queryByText("exercises.image.checkFailed")).not.toBeInTheDocument()
+  })
+
+  it("a refused check (403) says nothing", async () => {
+    h.checkImages.mockRejectedValue(new ApiError(403, null, "forbidden"))
+    render(<Harness images={["acme/private:1"]} />)
+    await settle()
+    expect(h.checkImages).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText("exercises.image.checkFailed")).not.toBeInTheDocument()
+  })
+
+  it("any other failed check says so", async () => {
+    h.checkImages.mockRejectedValue(new ApiError(500, null, "boom"))
+    render(<Harness images={["acme/private:1"]} />)
+    await settle()
+    expect(screen.getByText("exercises.image.checkFailed")).toBeInTheDocument()
+  })
+
+  it("the device cards of one variant share one check", async () => {
+    let answer: (value: unknown) => void = () => undefined
+    h.checkImages.mockImplementation(() => new Promise((resolve) => { answer = resolve }))
+    render(<Harness images={["a:1", "b:1", "c:1"]} all />)
+    await settle()
+    expect(h.checkImages).toHaveBeenCalledTimes(1)
+    await act(async () => answer([{ Image: "b:1", Status: "unavailable", Reason: "not_found" }, { Image: "a:1", Status: "available" }, { Image: "c:1", Status: "available" }]))
+    expect(screen.getAllByText("exercises.image.unavailable")).toHaveLength(1)
   })
 })
