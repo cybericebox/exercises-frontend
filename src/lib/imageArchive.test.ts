@@ -85,14 +85,24 @@ function dataOffset(entries: Entry[], name: string): number {
   throw new Error(name)
 }
 
-function ociEntries(index: unknown, extra: Entry[] = []): Entry[] {
+/** Rewrites a header block in place and fixes its checksum. */
+function rewriteHeader(raw: Uint8Array, at: number, change: (h: Uint8Array) => void): void {
+  const h = raw.subarray(at, at + BLOCK)
+  change(h)
+  h.set(enc.encode("        "), 148)
+  let sum = 0
+  for (const b of h) sum += b
+  h.set(enc.encode(sum.toString(8).padStart(6, "0") + "\0 "), 148)
+}
+
+function ociEntries(index: unknown, extra: Entry[] = [], layer1Size = 1024): Entry[] {
   const config = json({ architecture: "amd64", os: "linux", rootfs: { type: "layers", diff_ids: [] } })
   const manifest = json({
     schemaVersion: 2,
     mediaType: OCI_MANIFEST,
     config: { mediaType: OCI_CONFIG, digest: `sha256:${HEX_CONFIG}`, size: config.length },
     layers: [
-      { mediaType: LAYER_TAR, digest: `sha256:${HEX_L1}`, size: 1024 },
+      { mediaType: LAYER_TAR, digest: `sha256:${HEX_L1}`, size: layer1Size },
       { mediaType: "application/vnd.oci.image.layer.v1.tar+gzip", digest: `sha256:${HEX_L2}`, size: 700 },
     ],
   })
@@ -251,6 +261,53 @@ describe("readImageArchive", () => {
     raw.set(zero, layerHeader)
     const archive = await readImageArchive(fileOf(raw))
     expect(archive.layers[0].size).toBe(512)
+  })
+
+  it("refuses an OCI blob whose tar entry size differs from its descriptor", async () => {
+    const entries = ociEntries({ schemaVersion: 2, manifests: [manifestDescriptor] }, [], 1000)
+    await expect(readImageArchive(fileOf(tar(entries)))).rejects.toMatchObject({ code: "noImage" })
+  })
+
+  it("refuses a PAX size that is not a plain decimal number", async () => {
+    const entries: Entry[] = [
+      { name: "PaxHeaders/x", data: enc.encode(paxRecord("size", "5e2")), type: "x" },
+      { name: "l/layer.tar", data: bytes(512, 1) },
+    ]
+    await expect(readImageArchive(fileOf(tar(entries)))).rejects.toMatchObject({ code: "notTar" })
+  })
+
+  it("reads a base-256 size field", async () => {
+    const config = json({ architecture: "amd64", os: "linux", rootfs: { diff_ids: [`sha256:${HEX_L1}`] } })
+    const entries: Entry[] = [
+      { name: "l/layer.tar", data: bytes(512, 1) },
+      { name: `${HEX_CONFIG}.json`, data: config },
+      { name: "manifest.json", data: json([{ Config: `${HEX_CONFIG}.json`, Layers: ["l/layer.tar"] }]) },
+    ]
+    const raw = tar(entries)
+    rewriteHeader(raw, 0, (h) => {
+      h.fill(0, 124, 136)
+      h[124] = 0x80
+      h[134] = 0x02 // 512 big-endian in the last two bytes
+      h[135] = 0x00
+    })
+    const archive = await readImageArchive(fileOf(raw))
+    expect(archive.layers[0]).toMatchObject({ offset: BLOCK, size: 512 })
+  })
+
+  it("ignores the prefix field of an old GNU header (magic \"ustar  \\0\")", async () => {
+    const config = json({ architecture: "amd64", os: "linux", rootfs: { diff_ids: [`sha256:${HEX_L1}`] } })
+    const entries: Entry[] = [
+      { name: "l/layer.tar", data: bytes(512, 1), prefix: "junk" },
+      { name: `${HEX_CONFIG}.json`, data: config },
+      { name: "manifest.json", data: json([{ Config: `${HEX_CONFIG}.json`, Layers: ["l/layer.tar"] }]) },
+    ]
+    const raw = tar(entries)
+    rewriteHeader(raw, 0, (h) => h.set(enc.encode("ustar  \0"), 257))
+    const archive = await readImageArchive(fileOf(raw))
+    expect(archive.layers[0]).toMatchObject({ offset: BLOCK, size: 512 })
+    // The same header with the POSIX magic uses the prefix, so the layer is not found.
+    const posix = tar(entries)
+    await expect(readImageArchive(fileOf(posix))).rejects.toMatchObject({ code: "noImage" })
   })
 
   it("reads GNU long names", async () => {

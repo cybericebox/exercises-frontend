@@ -87,6 +87,12 @@ function validChecksum(block: Uint8Array): boolean {
   return sum === expected
 }
 
+const POSIX_MAGIC = [0x75, 0x73, 0x74, 0x61, 0x72, 0x00, 0x30, 0x30] // "ustar\0" "00"
+
+function isPosixUstar(block: Uint8Array): boolean {
+  return POSIX_MAGIC.every((b, i) => block[257 + i] === b)
+}
+
 /** PAX records: "<length> <key>=<value>\n". */
 function paxRecords(data: Uint8Array): Map<string, string> {
   const records = new Map<string, string>()
@@ -134,7 +140,11 @@ async function listEntries(file: File): Promise<Map<string, TarEntry>> {
     if (!validChecksum(block)) throw new ImageArchiveError("notTar")
     const type = String.fromCharCode(block[156] || 0x30)
     let size = tarNumber(block, 124, 12)
-    if (pax?.has("size")) size = Number(pax.get("size"))
+    const paxSize = pax?.get("size")
+    if (paxSize !== undefined) {
+      if (!/^\d+$/.test(paxSize)) throw new ImageArchiveError("notTar")
+      size = Number(paxSize)
+    }
     if (!Number.isFinite(size) || size < 0) throw new ImageArchiveError("notTar")
     const dataStart = at + BLOCK
     const dataEnd = dataStart + size
@@ -152,8 +162,9 @@ async function listEntries(file: File): Promise<Map<string, TarEntry>> {
     if (type === "g") continue // Global PAX header: nothing in it matters here.
 
     let name = cString(block, 0, 100)
-    const ustar = cString(block, 257, 6).startsWith("ustar")
-    const prefix = ustar ? cString(block, 345, 155) : ""
+    // The prefix field exists only in POSIX ustar headers ("ustar\0" + "00"); old GNU headers ("ustar  \0") use
+    // those bytes for other data.
+    const prefix = isPosixUstar(block) ? cString(block, 345, 155) : ""
     if (prefix) name = `${prefix}/${name}`
     if (longName !== null) name = longName
     if (pax?.has("path")) name = pax.get("path")!
@@ -219,7 +230,7 @@ function blobEntry(archive: Archive, descriptor: Descriptor | undefined, fallbac
   const digest = descriptor?.digest
   if (typeof digest !== "string" || !HEX_DIGEST.test(digest)) throw new ImageArchiveError("noImage")
   const entry = archive.find(blobPath(digest))
-  if (!entry) throw new ImageArchiveError("noImage")
+  if (!entry || (typeof descriptor?.size === "number" && descriptor.size !== entry.size)) throw new ImageArchiveError("noImage")
   return { digest, size: entry.size, mediaType: descriptor?.mediaType || fallbackType, offset: entry.offset }
 }
 
