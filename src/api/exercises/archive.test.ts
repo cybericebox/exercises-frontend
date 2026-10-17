@@ -6,9 +6,10 @@ vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn() }))
 import * as client from "@/api/client"
 import { uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
-import { EXPORT_LIMIT, exportExercises, importExercises } from "./archive"
+import { EXPORT_LIMIT, downloadImportExample, exportExercises, importExercises } from "./archive"
 
 const mockBlob = vi.mocked(client.apiPostBlob)
+const mockGetBlob = vi.mocked(client.apiGetBlob)
 const mockMultipart = vi.mocked(client.apiPostMultipart)
 const mockPost = vi.mocked(client.apiPost)
 const mockChunks = vi.mocked(uploadInChunks)
@@ -29,6 +30,19 @@ describe("exercise archive client", () => {
     const result = await exportExercises({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" })
     expect(mockBlob).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" })
     expect(result.filename).toBe("exercises.cybericebox.zip")
+  })
+
+  it("downloads the import example with the server file name", async () => {
+    const blob = new Blob(["zip"])
+    mockGetBlob.mockResolvedValueOnce({ blob, filename: "example-task.cybericebox.zip" })
+    const result = await downloadImportExample()
+    expect(mockGetBlob).toHaveBeenCalledWith("/api/exercises/import/example")
+    expect(result).toEqual({ blob, filename: "example-task.cybericebox.zip" })
+  })
+
+  it("falls back to example-task.cybericebox.zip", async () => {
+    mockGetBlob.mockResolvedValueOnce({ blob: new Blob(["zip"]), filename: null })
+    expect((await downloadImportExample()).filename).toBe("example-task.cybericebox.zip")
   })
 
   it("rejects an empty or oversized selection before calling the API", async () => {

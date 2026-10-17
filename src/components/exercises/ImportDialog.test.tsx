@@ -6,14 +6,18 @@ import type { Exercise } from "@/api/exercises/catalog"
 const push = vi.fn()
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
-vi.mock("@/api/exercises/archive", () => ({ importExercises: vi.fn() }))
+vi.mock("@/api/exercises/archive", () => ({ importExercises: vi.fn(), downloadImportExample: vi.fn() }))
+vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
-import { importExercises } from "@/api/exercises/archive"
+import { downloadImportExample, importExercises } from "@/api/exercises/archive"
+import { downloadBlob } from "@/lib/downloadBlob"
 import { ImportDialog } from "./ImportDialog"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const mockImport = vi.mocked(importExercises)
+const mockExample = vi.mocked(downloadImportExample)
+const mockSave = vi.mocked(downloadBlob)
 const imported = (id: string, name: string): Exercise => ({
   ...OWNERSHIP,
   ID: id, Name: name, Description: "", Tags: [], DraftVersionID: null, PublishedVersionID: null, ArchivedAt: null,
@@ -81,4 +85,46 @@ describe("ImportDialog", () => {
     expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
   })
 
+  it("shows the example button and downloads on click", async () => {
+    const blob = new Blob(["zip"])
+    mockExample.mockResolvedValue({ blob, filename: "example-task.cybericebox.zip" })
+    render(<ImportDialog onClose={vi.fn()} />)
+    expect(screen.getByText("admin.exImport.exampleHint")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
+    await waitFor(() => expect(mockSave).toHaveBeenCalledWith(blob, "example-task.cybericebox.zip"))
+  })
+
+  it("keeps the button busy only while loading and the file form usable", async () => {
+    let resolve: (value: { blob: Blob; filename: string }) => void = () => undefined
+    mockExample.mockReturnValue(new Promise((r) => { resolve = r }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    const button = screen.getByRole("button", { name: "admin.exImport.example" })
+    fireEvent.click(button)
+    await waitFor(() => expect(button).toHaveAttribute("aria-busy", "true"))
+    chooseFile()
+    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
+    expect(screen.getByLabelText(/^admin\.exImport\.password/)).toBeEnabled()
+    resolve({ blob: new Blob(["zip"]), filename: "e.zip" })
+    await waitFor(() => expect(button).not.toHaveAttribute("aria-busy"))
+  })
+
+  it("shows the localized error on failure without marking the password", async () => {
+    mockExample.mockRejectedValue(new ApiError(500, { Status: { Code: 20000 } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("admin.exImport.exampleError")
+    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
+  })
+
+  it.each([20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990])(
+    "archive-content errors are not password hints (%i)", async (code) => {
+      mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: code } }))
+      render(<ImportDialog onClose={vi.fn()} />)
+      chooseFile()
+      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+      const message = await screen.findByRole("alert")
+      expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
+      expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
+    })
 })

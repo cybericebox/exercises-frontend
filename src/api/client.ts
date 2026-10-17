@@ -227,6 +227,20 @@ export async function apiPostBlob(path: string, body: unknown, opts: ApiOptions 
   return { blob: await res.blob(), filename: filenameFromContentDisposition(res.headers.get("Content-Disposition")) }
 }
 
+// apiGetBlob — GET a binary body (e.g. application/zip); mirrors apiPostBlob.
+export async function apiGetBlob(path: string, opts: ApiOptions = {}): Promise<BlobResponse> {
+  const url = `${BASE_URL}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, { method: "GET", credentials: "include" })
+  } catch (error) {
+    if (isNetworkOutage(error)) reportServiceUnavailable()
+    throw error
+  }
+  if (!res.ok) return finishRequest<never>(res, opts)
+  return { blob: await res.blob(), filename: filenameFromContentDisposition(res.headers.get("Content-Disposition")) }
+}
+
 /** Browsers reject keepalive bodies above 64 KiB; keep a margin for headers. */
 export const KEEPALIVE_BODY_LIMIT = 60_000
 

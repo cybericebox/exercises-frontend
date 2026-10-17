@@ -108,6 +108,14 @@ export const CODE_TO_KEY: Record<number, string> = {
   71003: "admin.ex.err.storageNotConfigured",
 }
 
+/**
+ * Archive content problems on import (20978-20990): they name the archive, never a missing password,
+ * so the import dialog shows them under the file field.
+ */
+export const ARCHIVE_CONTENT_ERROR_CODES: ReadonlySet<number> = new Set([
+  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990,
+])
+
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
 
 /** FullCode from the error body, or null (not an ApiError / no envelope). */

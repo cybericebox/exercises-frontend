@@ -2,11 +2,12 @@
  * archive.ts — portable exercise archives (.cybericebox.zip).
  *
  * Routes: POST /api/exercises/export (JSON → application/zip),
+ *         GET  /api/exercises/import/example (application/zip),
  *         POST /api/exercises/import (multipart: archive, password?),
  *         POST /api/exercises/import/uploaded (JSON: FileID, Password) for an archive that went up in chunks.
  * Import never overwrites: every archive creates new exercises.
  */
-import { apiPost, apiPostBlob, apiPostMultipart } from "@/api/client"
+import { apiGetBlob, apiPost, apiPostBlob, apiPostMultipart } from "@/api/client"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import { uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
@@ -27,6 +28,12 @@ export async function exportExercises(input: ExportInput): Promise<ExportedArchi
   const { blob, filename } = await apiPostBlob(`${BASE}/export`, body)
   const fallback = input.IDs.length === 1 ? "exercise.cybericebox.zip" : "exercises.cybericebox.zip"
   return { blob, filename: filename ?? fallback }
+}
+
+/** A ready-to-import example task archive. */
+export async function downloadImportExample(): Promise<ExportedArchive> {
+  const { blob, filename } = await apiGetBlob(`${BASE}/import/example`)
+  return { blob, filename: filename ?? "example-task.cybericebox.zip" }
 }
 
 export async function importExercises(file: File, password: string, onProgress?: (percent: number) => void): Promise<Exercise[]> {
