@@ -39,6 +39,22 @@ describe("ImportDialog", () => {
     expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeDisabled()
   })
 
+  it("keeps the how-to closed by default and shows four steps when opened", () => {
+    const { container } = render(<ImportDialog onClose={vi.fn()} />)
+    const details = container.ownerDocument.querySelector("details")!
+    expect(details).not.toHaveAttribute("open")
+    expect(details.querySelector("summary")).toHaveTextContent("admin.exImport.howTo")
+    fireEvent.click(details.querySelector("summary")!)
+    details.open = true
+    expect(details.querySelectorAll("ol > li")).toHaveLength(4)
+    for (const n of [1, 2, 3, 4]) expect(screen.getByText(new RegExp(`admin\\.exImport\\.step${n}`))).toBeInTheDocument()
+  })
+
+  it("labels the example button with visible text", () => {
+    render(<ImportDialog onClose={vi.fn()} />)
+    expect(screen.getByRole("button", { name: "admin.exImport.example" })).toHaveTextContent("admin.exImport.example")
+  })
+
   it("opens the only imported exercise", async () => {
     mockImport.mockResolvedValue([imported("e9", "Web 101")])
     const onClose = vi.fn()

@@ -1,6 +1,6 @@
 "use client"
 
-import { Download } from "lucide-react"
+import { ChevronDown, Download } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -13,15 +13,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
-import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { tRich } from "@/i18n/tRich"
 import { downloadBlob } from "@/lib/downloadBlob"
 import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
+import "@/styles/import-howto.css"
 
 // 400s of the upload itself (too large, wrong chunk size, damaged file, no name): not a missing password.
 const UPLOAD_ERROR_CODES = new Set([21002, 21008, 21010, 21011])
+
+// File names shown in the how-to steps (identifiers of the archive format, not translatable text).
+const MANIFEST = "exercise.yaml"
+const FILES_DIR = "files/"
+const ZIP_EXT = ".zip"
 
 export function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported?: () => void }) {
   const router = useRouter()
@@ -115,15 +121,23 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       </> : <form noValidate onSubmit={(event) => void submit(event)} className="space-y-4">
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
-          <DialogDescription className="flex items-center gap-1">
-            {t("admin.exImport.description")}
-            <HoverTooltip text={t("admin.exImport.example")}>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 [&>*]:mr-0" busy={exampleBusy} aria-label={t("admin.exImport.example")} onClick={() => void downloadExample()}>
-                {!exampleBusy && <Download aria-hidden="true" className="h-4 w-4" />}
-              </Button>
-            </HoverTooltip>
-          </DialogDescription>
+          <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
+        <div className="import-howto">
+          <details className="import-howto__details">
+            <summary>{t("admin.exImport.howTo")}<ChevronDown aria-hidden="true" /></summary>
+            <ol className="import-howto__steps">
+              <li>{t("admin.exImport.step1")}</li>
+              <li>{tRich("admin.exImport.step2", { file: <code>{MANIFEST}</code> })}</li>
+              <li>{tRich("admin.exImport.step3", { dir: <code>{FILES_DIR}</code>, file: <code>{MANIFEST}</code> })}</li>
+              <li>{tRich("admin.exImport.step4", { zip: <code>{ZIP_EXT}</code> })}</li>
+            </ol>
+          </details>
+          <Button type="button" variant="ghost" size="sm" className="import-howto__example" busy={exampleBusy} onClick={() => void downloadExample()}>
+            {!exampleBusy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}
+            {t("admin.exImport.example")}
+          </Button>
+        </div>
         <Field label={t("admin.exImport.file")} required error={fileError}>
           {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
         </Field>
