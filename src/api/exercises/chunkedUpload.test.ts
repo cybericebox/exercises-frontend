@@ -4,7 +4,7 @@ import { bytesToHex } from "@noble/hashes/utils.js"
 import { ApiError } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
 import { chunkedUploadKey } from "@/lib/storageKeys"
-import { abandonChunkedUpload, uploadInChunks } from "./chunkedUpload"
+import { abandonChunkedUpload, forgetChunkedUpload, uploadChunks, uploadInChunks } from "./chunkedUpload"
 import { uploadExerciseFile } from "./files"
 
 const UPLOAD_ID = "11111111-2222-3333-4444-555555555555"
@@ -197,6 +197,36 @@ describe("chunked upload", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${apiOrigin}/api/exercises/uploads/${UPLOAD_ID}`)
     expect(fetchMock.mock.calls[0][1].method).toBe("DELETE")
     expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBeNull()
+  })
+
+  it("uploadChunks sends every chunk, never completes, and keeps the upload id for a resume", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(status(0)))
+    const progress = vi.fn()
+    const promise = uploadChunks(bigFile(), progress, undefined, { ...noSleep, purpose: "image-blob" })
+    await answerChunks([ok(status(1)), ok(status(2)), ok(status(3))])
+    await expect(promise).resolves.toBe(UPLOAD_ID)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toMatchObject({ Purpose: "image-blob" })
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/complete"))).toBe(false)
+    expect(progress).toHaveBeenLastCalledWith(100)
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBe(UPLOAD_ID)
+  })
+
+  it("uploadChunks of a fully sent upload sends nothing and reads no chunk", async () => {
+    window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), UPLOAD_ID)
+    fetchMock.mockResolvedValueOnce(jsonResponse(status(3)))
+    const file = bigFile()
+    const slice = vi.spyOn(file, "slice")
+    await expect(uploadChunks(file, undefined, undefined, noSleep)).resolves.toBe(UPLOAD_ID)
+    expect(ChunkRequest.instances).toHaveLength(0)
+    expect(slice).not.toHaveBeenCalled()
+  })
+
+  it("forgetChunkedUpload drops the stored id without asking the server", () => {
+    window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), UPLOAD_ID)
+    forgetChunkedUpload(bigFile())
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it("an aborted upload stops the running chunk and fails", async () => {

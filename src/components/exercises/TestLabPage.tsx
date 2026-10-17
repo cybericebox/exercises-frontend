@@ -20,6 +20,8 @@ import { deployPhaseLabel } from "@/lib/deployStatus"
 import { DeviceFailure } from "@/components/exercises/DeviceLiveInfo"
 import { failedDevices, imageWarningText, queueLine } from "@/lib/deviceLive"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { unavailableImagesOf, type ImageAvailability } from "@/api/exercises/imageCheck"
+import { imageReasonText } from "@/lib/imageErrors"
 import { exerciseHref, testLabHref } from "@/lib/exerciseRoutes"
 import { VpnDialog } from "@/components/exercises/VpnDialog"
 import { LAB_SIDEBAR_COLLAPSED_KEY, LAB_TOPOLOGY_SHOWN_KEY, LAB_TOPOLOGY_WIDTH_KEY, pruneLayouts, removeLayout } from "@/lib/labLayout"
@@ -208,6 +210,8 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
   const showTopology = !isStatic && topologyShown && ready && !expired
   const imageNote = isStatic ? null : imageWarningText(status)
+  // A start refused because some images cannot be pulled (409 72803): which ones, and why.
+  const unavailableImages = deploy.error ? unavailableImagesOf(deploy.errorCause) : null
 
   return <div className="flex h-dvh flex-col bg-background">
     <LabBar title={meta.exercise.Name} isStatic={isStatic} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
@@ -231,6 +235,9 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       </div>
     ) : failed && isNoTestLabRoom(deploy.errorCause) ? (
       <NoRoomPanel className="min-h-0 flex-1" error={deploy.errorCause} variant={meta.variant} resources={meta.resources} onRetry={retry} />
+    ) : failed && unavailableImages ? (
+      <LoadError className="min-h-0 flex-1" error={deploy.errorCause} message={t("exercises.image.startRefused")} onRetry={retry}
+        details={<UnavailableImages images={unavailableImages} />} />
     ) : failed ? (
       <LoadError className="min-h-0 flex-1" error={deploy.errorCause}
         message={deploy.error
@@ -291,4 +298,15 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
       description={t(isStatic ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEndOpen(false)} onConfirm={() => void endTest()} />
   </div>
+}
+
+/** The images a test start could not pull, each with its reason. */
+function UnavailableImages({ images }: { images: ImageAvailability[] }) {
+  if (images.length === 0) return null
+  return <ul aria-label={t("exercises.image.unavailableList")} className="w-full max-w-xl space-y-2 text-left">
+    {images.map((item) => <li key={item.Image} className="min-w-0 rounded-md border border-border px-3 py-2">
+      <code className="block break-all font-mono text-xs text-foreground">{item.Image}</code>
+      <span className="text-xs text-muted-foreground">{imageReasonText(item.Reason)}</span>
+    </li>)}
+  </ul>
 }

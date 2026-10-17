@@ -12,6 +12,7 @@ import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
 import { InterfaceForm } from "./InterfaceForm"
+import { DeviceImageField } from "./ImageUpload"
 import { SecretInput } from "./SecretInput"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { RemoveAction } from "./RemoveAction"
@@ -79,13 +80,7 @@ export function DeviceCard({
             {t("admin.exTopo.imageAndSecurity")}
           </button>
           {expanded.image && <div data-device-basic-grid className={`grid min-w-0 ${compact ? "grid-cols-1 gap-2" : "grid-cols-1 gap-3"}`}>
-          <FormField control={control} name={`${base}.Image`} render={({ field, fieldState }) => (
-            <FormItem className={compact ? "space-y-1" : undefined}>
-              <ExerciseFieldLabel labelKey="admin.exTopo.image" helpKey="admin.exTopo.imageHelp" form />
-              <FormControl><Input {...field} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")} /></FormControl>
-              {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
-            </FormItem>
-          )} />
+          <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />
           <FormField control={control} name={`${base}.SecurityPreset`} render={({ field, fieldState }) => (
             <FormItem className={compact ? "space-y-1" : undefined}>
               <ExerciseFieldLabel labelKey="admin.exTopo.securityPreset" helpKey="admin.exTopo.securityPresetHelp" form />

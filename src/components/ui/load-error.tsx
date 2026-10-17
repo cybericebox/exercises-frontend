@@ -20,7 +20,7 @@ export function errorCode(error: unknown): number | undefined {
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
  * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
  */
-export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className, actions }: {
+export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className, actions, details }: {
   message?: string
   onRetry?: () => void
   error?: unknown
@@ -28,12 +28,15 @@ export function LoadError({ message = t("error.load.title"), onRetry, error, com
   className?: string
   /** Extra buttons next to «Спробувати ще раз» (a way around the failure). */
   actions?: React.ReactNode
+  /** What exactly failed, under the title (e.g. the images a deploy could not pull). */
+  details?: React.ReactNode
 }) {
   const code = errorCode(error)
   return (
     <div data-load-error role="alert" className={cn("flex w-full flex-col items-center justify-center px-4 text-center", compact ? "min-h-24 gap-2 py-4" : "min-h-40 gap-3 py-8", className)}>
       <TriangleAlert size={compact ? 20 : 24} className="text-destructive" aria-hidden />
       <p className="text-sm font-medium text-foreground">{message}</p>
+      {details}
       <p className={cn("max-w-sm text-muted-foreground", compact ? "text-xs" : "text-sm")}>{t("error.load.body")}</p>
       {code !== undefined && <p className="font-mono text-xs text-muted-foreground">{t("error.load.code", { code })}</p>}
       {(onRetry || actions) && <div className="flex flex-wrap items-center justify-center gap-2">

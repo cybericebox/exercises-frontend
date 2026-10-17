@@ -13,6 +13,7 @@ import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
+import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
@@ -250,7 +251,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : null
 
-  return <DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
+  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
       className="flex min-h-full min-w-0 w-full flex-col gap-4">
       <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
@@ -380,5 +381,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider>
+  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }
