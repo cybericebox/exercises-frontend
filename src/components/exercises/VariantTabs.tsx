@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useFieldArray, useFormContext } from "react-hook-form"
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { ChevronDown, Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -31,12 +31,12 @@ export function VariantTabs({
   /** Opens the bulk linked-variants dialog; the menu item is hidden without it. */
   onAddLinked?: () => void
 }) {
-  const { control, getValues, setValue, watch } = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const { fields, append, remove } = useFieldArray({ control, name: "Variants" })
   const [selected, setSelected] = useEditorPosition("variant")
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const active = Math.min(selected, Math.max(fields.length - 1, 0))
-  const variants = watch("Variants")
+  const variants = useWatch({ control, name: "Variants" })
   const canLink = baseCandidates(variants).length > 0
   const pendingBaseId = pendingRemoval !== null ? variants[pendingRemoval]?.ID ?? "" : ""
   const pendingDependents = pendingRemoval !== null ? dependentsOf(variants, pendingBaseId).length : 0
@@ -92,8 +92,11 @@ export function VariantTabs({
               <DropdownMenuItem onSelect={addCopy}>{t("admin.exDraft.copyVariant", { n: active + 1 })}</DropdownMenuItem>
               {onAddLinked && (canLink
                 ? <DropdownMenuItem onSelect={onAddLinked}>{t("admin.exDraft.addLinkedVariants")}</DropdownMenuItem>
-                : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right">
-                  <div><DropdownMenuItem disabled>{t("admin.exDraft.addLinkedVariants")}</DropdownMenuItem></div>
+                // Not `disabled`: Radix would drop it from keyboard focus, and the reason must stay reachable.
+                : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right" describe="always">
+                  <DropdownMenuItem aria-disabled="true" className="opacity-50" onSelect={(event) => event.preventDefault()}>
+                    {t("admin.exDraft.addLinkedVariants")}
+                  </DropdownMenuItem>
                 </HoverTooltip>)}
             </DropdownMenuContent>
           </DropdownMenu>

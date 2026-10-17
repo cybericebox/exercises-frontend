@@ -5,6 +5,7 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form'
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { VariantTabs } from './VariantTabs'
+import { useLinkedVariantSync } from './useLinkedVariantSync'
 import { emptyDraft, emptyTask, emptyVariant, type DraftFormValues } from '@/lib/exerciseSchemas'
 
 function openMenu() {
@@ -17,7 +18,7 @@ function addEmpty() {
   fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exDraft.addEmptyVariant' }))
 }
 
-function Harness({ prepare, onAddLinked }: { prepare?: (draft: DraftFormValues) => void; onAddLinked?: () => void } = {}) {
+function Harness({ prepare, onAddLinked, sync = false }: { prepare?: (draft: DraftFormValues) => void; onAddLinked?: () => void; sync?: boolean } = {}) {
   const draft = emptyDraft()
   draft.Variants[0].Tasks = [
     { ...emptyTask(), ID: 'a', Name: 'First task', Difficulty: 'medium', Flag: ['ICE{secret}'] },
@@ -25,6 +26,7 @@ function Harness({ prepare, onAddLinked }: { prepare?: (draft: DraftFormValues) 
   ]
   prepare?.(draft)
   const form = useForm<DraftFormValues>({ defaultValues: draft })
+  useLinkedVariantSync(form, sync)
   const variants = useWatch({ control: form.control, name: 'Variants' })
   return <FormProvider {...form}>
     <VariantTabs disabled={false} onAddLinked={onAddLinked} renderVariant={(index) => <div>Variant content {index}</div>} />
@@ -98,6 +100,11 @@ describe('VariantTabs', () => {
     openMenu()
     const item = screen.getByRole('menuitem', { name: 'admin.exDraft.addLinkedVariants' })
     expect(item).toHaveAttribute('aria-disabled', 'true')
+    item.focus()
+    expect(item).toHaveFocus()
+    const reason = item.getAttribute('aria-describedby')
+    expect(reason).toBeTruthy()
+    expect(document.getElementById(reason as string)).toHaveTextContent('admin.exDraft.linkedNeedsSavedBase')
     fireEvent.click(item)
     expect(onAddLinked).not.toHaveBeenCalled()
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
@@ -130,5 +137,46 @@ describe('VariantTabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.removeVariant' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('admin.exDraft.removeVariantNDescription')
     expect(screen.getByRole('dialog')).not.toHaveTextContent('admin.exDraft.removeBaseVariantDescription')
+  })
+
+  it('hides the linked item when onAddLinked is absent', () => {
+    render(<Harness />)
+    openMenu()
+    expect(screen.queryByRole('menuitem', { name: 'admin.exDraft.addLinkedVariants' })).not.toBeInTheDocument()
+  })
+
+  it('editing the copy leaves the source unchanged', () => {
+    function Editor() {
+      const form = useForm<DraftFormValues>({ defaultValues: emptyDraft() })
+      const variants = useWatch({ control: form.control, name: 'Variants' })
+      return <FormProvider {...form}>
+        <VariantTabs disabled={false} renderVariant={() => null} />
+        <button type="button" onClick={() => form.setValue('Variants.1.Tasks.0.Flag', ['changed'])}>edit</button>
+        <output data-testid="v">{JSON.stringify(variants)}</output>
+      </FormProvider>
+    }
+    render(<Editor />)
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exDraft.copyVariant' }))
+    fireEvent.click(screen.getByText('edit'))
+    const variants = JSON.parse(screen.getByTestId('v').textContent ?? '[]') as DraftFormValues['Variants']
+    expect(variants).toHaveLength(2)
+    expect(variants[0].Tasks[0].Flag).toEqual([])
+    expect(variants[1].Tasks[0].Flag).toEqual(['changed'])
+  })
+
+  it('with the sync mounted, removing a base keeps the dependent intact and independent', () => {
+    render(<Harness sync prepare={(draft) => {
+      const base = draft.Variants[0]
+      base.ID = 'base'
+      draft.Variants.push({ ...emptyVariant(2), ID: 'l1', LinkedTo: 'base', Tasks: base.Tasks.map((task) => ({ ...task })) })
+    }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.removeVariant' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.removeVariantConfirm' }))
+    const variants = JSON.parse(screen.getByTestId('variants-json').textContent ?? '[]') as DraftFormValues['Variants']
+    expect(variants).toHaveLength(1)
+    expect(variants[0].ID).toBe('l1')
+    expect(variants[0].LinkedTo).toBe('')
+    expect(variants[0].Tasks.map((task) => task.Name)).toEqual(['First task', 'Second task'])
   })
 })
