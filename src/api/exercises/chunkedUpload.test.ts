@@ -98,6 +98,16 @@ describe("chunked upload", () => {
     expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBeNull()
   })
 
+  it("sends the purpose with the start request when given", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(status(0)))
+      .mockResolvedValueOnce(jsonResponse({ FileID: FILE_ID, Name: "big.bin", Size: 10 }))
+    const promise = uploadInChunks(bigFile(), undefined, undefined, { ...noSleep, purpose: "image-blob" })
+    await answerChunks([ok(status(1)), ok(status(2)), ok(status(3))])
+    await promise
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({ Name: "big.bin", ContentType: "application/octet-stream", Size: 10, Purpose: "image-blob" })
+  })
+
   it("resumes from the first chunk the server does not have, still hashing the chunks it has", async () => {
     const file = bigFile()
     window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), UPLOAD_ID)

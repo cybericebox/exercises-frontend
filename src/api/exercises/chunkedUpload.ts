@@ -38,7 +38,12 @@ type UploadStatus = {
   ExpiresAt: string
 }
 
-type Options = { sleep?: (ms: number) => Promise<void>; restarts?: number }
+type Options = {
+  sleep?: (ms: number) => Promise<void>
+  restarts?: number
+  /** What the file is for, sent with the start request: "image-blob" lets the server take a file up to the image limit. */
+  purpose?: string
+}
 
 /** How many times an upload that fell out of step with the server starts over from the server status. */
 const MAX_RESTARTS = 3
@@ -71,7 +76,7 @@ export function isTransient(error: unknown): boolean {
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-async function openUpload(file: File, key: string): Promise<UploadStatus> {
+async function openUpload(file: File, key: string, purpose: string | undefined): Promise<UploadStatus> {
   const stored = readStored(key)
   if (stored) {
     try {
@@ -82,7 +87,9 @@ async function openUpload(file: File, key: string): Promise<UploadStatus> {
       writeStored(key, null)
     }
   }
-  const started = await apiPost<UploadStatus>(UPLOADS, { Name: file.name, ContentType: file.type, Size: file.size })
+  const started = await apiPost<UploadStatus>(UPLOADS, {
+    Name: file.name, ContentType: file.type, Size: file.size, ...(purpose ? { Purpose: purpose } : {}),
+  })
   writeStored(key, started.UploadID)
   return started
 }
@@ -126,7 +133,7 @@ export async function uploadInChunks(
   const report = (sent: number) => onProgress?.(Math.min(99, Math.floor(sent / file.size * 100)))
   onProgress?.(0)
 
-  let upload = await openUpload(file, key)
+  let upload = await openUpload(file, key, options.purpose)
   // The hash of the whole file is computed on the way: chunks the server already has are read from the local
   // file again, only to feed the hash.
   const hasher = sha256.create()
