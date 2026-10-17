@@ -90,6 +90,18 @@ describe("syncLinkedVariants", () => {
     expect(out[1].Tasks[0].Name).toBe("A")
   })
 
+  it("unlinks a missing base first, so a variant linked to it can still be rebuilt (A to B, B to gone)", () => {
+    const a = variant("a", 1, [task("t1", "A", ["fa"])], "b")
+    const b = variant("b", 2, [task("t1", "B")], "gone")
+    const out = syncLinkedVariants([a, b])
+    expect(out[1].LinkedTo).toBe("")
+    expect(out[0].LinkedTo).toBe("b")
+    expect(out[0].Tasks[0].Name).toBe("B")
+    expect(out[0].Tasks[0].Flag).toEqual(["fa"])
+    expect(syncLinkedVariants(out)).toEqual(out)
+    expect(syncLinkedVariants(syncLinkedVariants([a, b]))).toEqual(out)
+  })
+
   it("does not mutate its input", () => {
     const base = variant("b", 1, [task("t1", "Base")])
     const linked = variant("l", 2, [task("t1", "Old", ["x"])], "b")
@@ -161,6 +173,11 @@ describe("linkedFlagConflicts", () => {
     const linked = variant("l", 2, [task("t1", "One", ["same", "template:x"]), task("t2", "Two", ["v", ""])], "b")
     const indep = variant("i", 3, [task("t1", "One", ["same"]), task("t2", "Two", ["u"])])
     expect(linkedFlagConflicts([base, linked, indep])).toEqual([{ variantIndex: 1, taskIndex: 0 }])
+  })
+  it("skips empty flag values shared by a base and a linked variant", () => {
+    const base = variant("b", 1, [task("t1", "One", [""])])
+    const linked = variant("l", 2, [task("t1", "One", [""])], "b")
+    expect(linkedFlagConflicts([base, linked])).toEqual([])
   })
   it("does not report a repeat inside one variant and reports each later linked variant", () => {
     const base = variant("b", 1, [task("t1", "One", ["x", "x"])])

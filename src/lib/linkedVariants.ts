@@ -38,14 +38,18 @@ function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; 
   return rebuilt
 }
 
-/** Rebuilds every linked variant from its base; a missing base unlinks the variant. */
+/**
+ * Rebuilds every linked variant from its base. Like the backend, it first unlinks every variant
+ * whose base is missing, then checks self/chain links and rebuilds against that resolved list.
+ */
 export function syncLinkedVariants(variants: VariantFormValues[]): VariantFormValues[] {
-  const baseOf = (variant: VariantFormValues) => (variant.LinkedTo ? variants.find((v) => v.ID !== "" && v.ID === variant.LinkedTo) : undefined)
-  return variants.map((variant, index) => {
+  const findBase = (id: string) => variants.find((v) => v.ID !== "" && v.ID === id)
+  const resolved = variants.map((variant) => (variant.LinkedTo && !findBase(variant.LinkedTo) ? { ...variant, LinkedTo: "" } : variant))
+  const resolvedBase = (id: string) => resolved.find((v) => v.ID !== "" && v.ID === id)
+  return resolved.map((variant, index) => {
     if (!variant.LinkedTo) return variant
-    const base = baseOf(variant)
-    if (!base) return { ...variant, LinkedTo: "" }
-    if (variants.indexOf(base) === index || base.LinkedTo) return variant
+    const base = resolvedBase(variant.LinkedTo)
+    if (!base || resolved.indexOf(base) === index || base.LinkedTo) return variant
     return inheritFrom(base, variant)
   })
 }

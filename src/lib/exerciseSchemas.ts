@@ -468,7 +468,7 @@ export const draftSchema = z
   })
   .superRefine((draft, ctx) => {
     // Owner rule: within a base and its linked variants a fixed flag may not repeat per subtask.
-    for (const { variantIndex, taskIndex } of linkedFlagConflicts(draft.Variants as VariantFormValues[])) {
+    for (const { variantIndex, taskIndex } of linkedFlagConflicts(draft.Variants)) {
       ctx.addIssue({ code: "custom", path: ["Variants", variantIndex, "Tasks", taskIndex, "Flag"], message: t("admin.ex.val.linkedFlagDuplicate") })
     }
     // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
