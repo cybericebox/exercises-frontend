@@ -39,7 +39,7 @@ const exercise: Exercise = {
 const created: Exercise = { ...exercise, ID: "new-exercise", Name: "Buffer overflow", DraftVersionID: null }
 const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
@@ -89,6 +89,9 @@ describe("useExerciseEditor", () => {
     await act(async () => {})
     vi.useFakeTimers()
     act(() => latest.draftForm.setValue("AdminNote", "temporary note"))
+    // Settle the change check: the edit is marked, so the save reaches the payload comparison.
+    await act(async () => {})
+    expect(latest.autosave.hasUnsaved()).toBe(true)
     act(() => latest.draftForm.setValue("AdminNote", ""))
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockSaveDraft).not.toHaveBeenCalled()
@@ -128,13 +131,29 @@ describe("useExerciseEditor", () => {
     expect(latest.autosave.hasUnsaved()).toBe(false)
   })
 
+  it("flushes an edit made in the same tick as the unmount", async () => {
+    const { unmount } = render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => {
+      latest.draftForm.setValue("AdminNote", "last words")
+      unmount()
+    })
+    await act(async () => {})
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "last words" }))
+  })
+
   it("uses the same canonical payload for no-op pagehide and subsequent drain", async () => {
     render(<Harness exerciseId="ex-1" />)
     await screen.findByDisplayValue("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
-    act(() => latest.draftForm.setValue("AdminNote", "temporary"))
-    act(() => latest.draftForm.setValue("AdminNote", ""))
+    // The form sees a change the canonical payload does not (Index is renumbered by position).
+    // A key-order-only edit cannot be used here: react-hook-form drops a deep-equal setValue.
+    act(() => latest.draftForm.setValue("Variants.0.Index", 7))
+    await act(async () => {})
+    expect(latest.autosave.hasUnsaved()).toBe(true)
     act(() => window.dispatchEvent(new Event("pagehide")))
     expect(saveDraftKeepalive).not.toHaveBeenCalled()
     await act(async () => { await latest.autosave.flush() })

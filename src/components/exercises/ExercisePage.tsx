@@ -345,7 +345,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 {infraAllowed && <ResourcesPanel exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
                   config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
                   flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
-                <DraftVariants form={editor.draftForm} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
+                <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
           </Form>

@@ -53,6 +53,15 @@ describe("exercise pending buffer", () => {
     expect(readPendingChanges(key)).toBeNull()
   })
 
+  it("restores a buffer written before linked variants with LinkedTo empty", () => {
+    const key = pendingBufferKey("u1", "e1")
+    writePendingChanges(key, identity, emptyDraft())
+    const entry = JSON.parse(storage.get(key)!)
+    delete entry.draft.Variants[0].LinkedTo
+    storage.set(key, JSON.stringify(entry))
+    expect(readPendingChanges(key)?.draft.Variants[0].LinkedTo).toBe("")
+  })
+
   it("clears an entry", () => {
     const key = pendingBufferKey("u1", "e1")
     writePendingChanges(key, identity, emptyDraft())

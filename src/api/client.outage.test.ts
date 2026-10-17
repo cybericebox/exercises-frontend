@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { apiGet, apiPost, ApiError } from "./client"
+import { apiGet, apiGetBlob, apiPost, ApiError } from "./client"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
 
 afterEach(() => {
@@ -8,6 +8,17 @@ afterEach(() => {
 })
 
 describe("API outage detection", () => {
+  it("a silent blob request does not report an outage on a dropped connection or a proxy 502", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network failed")))
+    await expect(apiGetBlob("/api/x", { silentOutage: true })).rejects.toBeInstanceOf(TypeError)
+    expect(isServiceDown()).toBe(false)
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response("", { status: 502 })))
+    await expect(apiGetBlob("/api/x", { silentOutage: true })).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(false)
+    await expect(apiGetBlob("/api/x")).rejects.toBeInstanceOf(ApiError)
+    expect(isServiceDown()).toBe(true)
+  })
+
   it.each([502, 503, 504])("reports an outage on a proxy HTTP %i without X-Request-ID", async (status) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
     await expect(apiGet("/api/auth/me", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)

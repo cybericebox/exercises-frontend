@@ -42,7 +42,7 @@ const created: Exercise = {
 }
 const savedVersion: Version = {
   ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", LinkedTo: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
     LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }

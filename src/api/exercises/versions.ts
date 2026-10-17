@@ -147,6 +147,10 @@ export type VariantDTO = {
   ID?: string
   Index: number // decorative number; identity = ID
   Note?: string
+  /** Base variant id (same version); sent and returned only for a linked variant. */
+  LinkedTo?: string
+  /** Request-only: the stored variant this new one is a copy of (the server uses it for unsaved variants). */
+  CopyOf?: string
   Tasks: TaskDTO[]
   Topology: TopologyDTO
 }
@@ -226,6 +230,7 @@ export type NormalizedVariant = {
   ID: string
   Index: number
   Note: string
+  LinkedTo: string // "" = not linked
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
 }
@@ -340,6 +345,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     ID: raw.ID ?? "",
     Index: raw.Index,
     Note: raw.Note ?? "",
+    LinkedTo: raw.LinkedTo ?? "",
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
   }

@@ -25,6 +25,20 @@ describe("serverIdUpdates", () => {
     ])
   })
 
+  it("lists linked variants' ids before their base's", () => {
+    const form = emptyDraft()
+    form.Variants[0].ID = "base"
+    form.Variants[0].Tasks[0].ID = ""
+    form.Variants.push({ ...structuredClone(form.Variants[0]), ID: "linked", Index: 2, LinkedTo: "base" })
+    const sent = capturedDraftIds(form)
+    const saved = savedFrom(form, { variant: "base", tasks: ["t1"] })
+    saved.Variants[1].Tasks[0].ID = "t1"
+    expect(serverIdUpdates(sent, saved, form)).toEqual([
+      { path: "Variants.1.Tasks.0.ID", value: "t1" },
+      { path: "Variants.0.Tasks.0.ID", value: "t1" },
+    ])
+  })
+
   it("adopts nothing when the form structure changed while saving (task count changed)", () => {
     const form = emptyDraft()
     const sent = capturedDraftIds(form)

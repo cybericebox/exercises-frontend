@@ -77,7 +77,12 @@ export function readPendingChanges(key: string): PendingChanges | null {
     const value: unknown = JSON.parse(raw)
     if (!isRecord(value) || value.version !== 1 || !isIdentity(value.identity) || !isDraft(value.draft) ||
       typeof value.updatedAt !== "number") return null
-    return { version: 1, identity: value.identity, draft: value.draft, updatedAt: value.updatedAt }
+    // Buffers written before linked variants carry no LinkedTo.
+    const draft: DraftFormValues = {
+      ...value.draft,
+      Variants: value.draft.Variants.map((variant) => ({ ...variant, LinkedTo: variant.LinkedTo ?? "" })),
+    }
+    return { version: 1, identity: value.identity, draft, updatedAt: value.updatedAt }
   } catch {
     return null
   }

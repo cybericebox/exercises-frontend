@@ -16,7 +16,7 @@ vi.mock('@/components/editor/RichTextEditor', () => ({
   default: () => <div data-testid="rich-text-editor" />,
 }))
 vi.mock('@/api/exercises/files', () => ({
-  uploadExerciseFile: vi.fn(),
+  uploadExerciseAttachment: vi.fn(),
   exerciseFileURL: (id: string) => `/api/exercises/files/${id}`,
 }))
 vi.mock('@/api/exercises/flagPolicy', () => ({
@@ -24,11 +24,12 @@ vi.mock('@/api/exercises/flagPolicy', () => ({
 }))
 
 import { TaskAccordion } from './TaskAccordion'
+import { useLinkedVariantSync } from './useLinkedVariantSync'
 import { draftSchema, emptyDevice, emptyDraft, emptyTask, emptyVariant, type DraftFormValues, type TaskFormValues } from '@/lib/exerciseSchemas'
-import { uploadExerciseFile } from '@/api/exercises/files'
+import { uploadExerciseAttachment } from '@/api/exercises/files'
 import { getFlagPolicy } from '@/api/exercises/flagPolicy'
 
-function Harness({ tasks, otherTasks, disabled = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean }) {
+function Harness({ tasks, otherTasks, disabled = false, linked = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean; linked?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Tasks = tasks
   if (otherTasks) {
@@ -40,7 +41,7 @@ function Harness({ tasks, otherTasks, disabled = false }: { tasks: TaskFormValue
   const variants = useWatch({ control: form.control, name: 'Variants' })
   return (
     <FormProvider {...form}>
-      <TaskAccordion variantIndex={0} disabled={disabled} />
+      <TaskAccordion variantIndex={0} disabled={disabled} linked={linked} />
       <output data-testid="variant-tasks">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Name)))}</output>
       <output data-testid="variant-difficulty">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Difficulty)))}</output>
       <output data-testid="variant-files">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Attachments)))}</output>
@@ -61,7 +62,7 @@ function InvalidFlagLinkHarness() {
   draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
   const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
   return <FormProvider {...form}>
-    <TaskAccordion variantIndex={0} disabled={false} />
+    <TaskAccordion variantIndex={0} disabled={false} linked={false} />
     <button type="button" onClick={() => { void form.trigger() }}>Validate draft</button>
   </FormProvider>
 }
@@ -76,10 +77,15 @@ function NamedDeviceHarness() {
   draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
   draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
   const form = useForm<DraftFormValues>({ defaultValues: draft })
-  return <FormProvider {...form}><TaskAccordion variantIndex={0} disabled={false} /></FormProvider>
+  return <FormProvider {...form}><TaskAccordion variantIndex={0} disabled={false} linked={false} /></FormProvider>
 }
 
 describe('TaskAccordion', () => {
+  it('a linked variant cannot add or remove subtasks', () => {
+    render(<Harness tasks={[task('first'), task('second')]} linked />)
+    expect(screen.queryByRole('button', { name: 'admin.exTask.add' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.exTask.remove' })).not.toBeInTheDocument()
+  })
   it('places the task heading and add action inside the task list column', () => {
     render(<Harness tasks={[task('first')]} />)
     const navigation = screen.getByRole('navigation', { name: 'admin.exDraft.tasks.title' })
@@ -161,7 +167,7 @@ describe('TaskAccordion', () => {
   })
 
   it('drops a file onto the selected stage rather than its neighbor', async () => {
-    vi.mocked(uploadExerciseFile).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
+    vi.mocked(uploadExerciseAttachment).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
     render(<Harness tasks={[task('first'), task('second')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'second' }))
     const file = new File(['x'], 'image.png', { type: 'image/png' })
@@ -214,5 +220,42 @@ describe('TaskAccordion', () => {
     render(<InvalidFlagLinkHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'Validate draft' }))
     expect(await screen.findByText('admin.ex.val.deviceFlagVarRequired')).toBeInTheDocument()
+  })
+})
+
+function LinkedOrderHarness() {
+  const stage = (id: string, flag: string): TaskFormValues => ({ ...emptyTask(), ID: id, Name: id, Flag: [flag] })
+  const form = useForm<DraftFormValues>({
+    defaultValues: {
+      AdminNote: '',
+      Variants: [
+        { ...emptyVariant(1), ID: 'b', Tasks: [stage('t1', 'B1'), stage('t2', 'B2'), stage('t3', 'B3')] },
+        { ...emptyVariant(2), ID: 'l', LinkedTo: 'b', Tasks: [stage('t1', 'L1'), stage('t2', 'L2'), stage('t3', 'L3')] },
+        { ...emptyVariant(3), ID: 'c', Tasks: [stage('t1', 'C1'), stage('t2', 'C2'), stage('t3', 'C3')] },
+      ],
+    },
+  })
+  useLinkedVariantSync(form, true)
+  const variants = useWatch({ control: form.control, name: 'Variants' })
+  return <FormProvider {...form}>
+    <TaskAccordion variantIndex={2} disabled={false} linked={false} />
+    <output data-testid="linked-order">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => `${item.ID}:${item.Flag.join(',')}`)))}</output>
+  </FormProvider>
+}
+
+describe('TaskAccordion with a linked variant', () => {
+  it('adding and removing from an independent variant keeps the linked variant in step with its base', async () => {
+    render(<LinkedOrderHarness />)
+    const read = () => JSON.parse(screen.getByTestId('linked-order').textContent ?? '[]') as string[][]
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.add' }))
+    await waitFor(() => expect(read()[2]).toHaveLength(4))
+    expect(read()[0]).toHaveLength(4)
+    expect(read()[1]).toEqual(['t1:L1', 't2:L2', 't3:L3', ':'])
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'admin.exTask.remove' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.removeConfirm' }))
+    await waitFor(() => expect(read()[2]).toHaveLength(3))
+    expect(read()[0]).toEqual(['t2:B2', 't3:B3', ':'])
+    expect(read()[1]).toEqual(['t2:L2', 't3:L3', ':'])
   })
 })

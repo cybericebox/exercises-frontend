@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
-import { exportExercises } from "@/api/exercises/archive"
+import { useEffect, useRef, useState, type FormEvent } from "react"
+import { createExport, downloadExport, type StoredExport } from "@/api/exercises/archive"
+import { ApiError } from "@/api/client"
+import { forgetDownload } from "@/api/exercises/chunkedDownload"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/form-field"
@@ -18,9 +20,18 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [confirm, setConfirm] = useState("")
   const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+
+  // The stored archive of a failed download, for the same selection and options: a retry resumes it.
+  const kept = useRef<{ key: string; stored: StoredExport } | null>(null)
+  function dropKept() {
+    if (kept.current) forgetDownload(kept.current.stored.FileID)
+    kept.current = null
+  }
+  useEffect(() => dropKept, [])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -30,17 +41,26 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
     setConfirmError(mismatch ? t("admin.exExport.mismatch") : null)
     if (missing || mismatch) return
     setBusy(true)
+    setProgress(null)
     setError(null)
     try {
-      const archive = await exportExercises({ IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" })
+      const input = { IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" }
+      const key = JSON.stringify(input)
+      if (kept.current && kept.current.key !== key) dropKept()
+      if (!kept.current) kept.current = { key, stored: await createExport(input) }
+      const archive = await downloadExport(kept.current.stored, exerciseIds.length, setProgress)
+      kept.current = null
       downloadBlob(archive.blob, archive.filename)
       toast.success(t("admin.exExport.done"))
       onExported?.()
       onClose()
     } catch (cause) {
+      // A client error (the stored archive expired: 404) never gets better: the next try starts a fresh export.
+      if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500 && cause.status !== 429 && cause.status !== 408) dropKept()
       setError(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
+      setProgress(null)
     }
   }
 
@@ -71,6 +91,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
+          {progress !== null && <span aria-live="polite" className="mr-auto self-center text-xs text-muted-foreground">{t("admin.exExport.progress", { percent: progress })}</span>}
           <Button type="submit" disabled={busy}>{t("admin.exExport.submit")}</Button>
         </DialogFooter>
       </form>
