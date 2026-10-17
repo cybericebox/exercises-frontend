@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
+import { ApiError } from "@/api/client"
 import { ToastProvider, toast } from "./toast"
+import { toastApiError } from "./toastApiError"
 
 function Actions() {
   return <>
@@ -37,5 +39,24 @@ describe("ToastProvider", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("offers «Спробувати ще раз» on an overload error and runs the retry once", () => {
+    const retry = vi.fn()
+    render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, undefined, undefined, undefined, undefined, 1), retry)}>Go</button></ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Go" }))
+    fireEvent.click(screen.getByRole("button", { name: "Спробувати ще раз" }))
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("has no retry button for a plain error or without a handler", () => {
+    render(<ToastProvider>
+      <button onClick={() => toastApiError(new ApiError(500, undefined), vi.fn())}>Plain</button>
+      <button onClick={() => toastApiError(new ApiError(503, undefined, undefined, undefined, undefined, 1))}>NoHandler</button>
+    </ToastProvider>)
+    fireEvent.click(screen.getByRole("button", { name: "Plain" }))
+    fireEvent.click(screen.getByRole("button", { name: "NoHandler" }))
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).not.toBeInTheDocument()
   })
 })

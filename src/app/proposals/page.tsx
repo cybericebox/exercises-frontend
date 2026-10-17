@@ -18,6 +18,7 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
+import { toastApiError } from "@/components/ui/toastApiError"
 import { t } from "@/i18n/t"
 import { ERR_EXERCISE_EXISTS, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
@@ -47,7 +48,7 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
       if (exerciseErrorCode(error) === ERR_EXERCISE_EXISTS) setNameError(t("exercises.err.nameExists"))
       else if (exerciseErrorCode(error) === 20908) setNameError(t("admin.ex.err.nameInvalid"))
       else if (exerciseErrorCode(error) === 20953) setAccessError(exerciseErrorMessage(error))
-      else toast.error(exerciseErrorMessage(error))
+      else toastApiError(error, () => void approve())
     } finally {
       setBusy(false)
     }

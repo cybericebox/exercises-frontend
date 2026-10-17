@@ -1,10 +1,63 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { apiGet, apiGetBlob, apiPost, ApiError } from "./client"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
+import { isOverloadError } from "./retry"
 
 afterEach(() => {
   vi.unstubAllGlobals()
   reportServiceAvailable()
+})
+
+const overload = () => new Response("", { status: 503, headers: { "Retry-After": "1" } })
+
+describe("API overload retry", () => {
+  it("does not report an outage on a 503 that a retry recovers from", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn().mockImplementationOnce(async () => overload()).mockImplementation(async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } }))
+      vi.stubGlobal("fetch", fetchMock)
+      const pending = apiGet("/api/x")
+      await vi.advanceTimersByTimeAsync(5000)
+      await pending
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(isServiceDown()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("reports the outage only on the final 503, after the retries", async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn().mockImplementation(async () => overload())
+      vi.stubGlobal("fetch", fetchMock)
+      const pending = apiGet("/api/x").catch((e: unknown) => e)
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(await pending).toBeInstanceOf(ApiError)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+      expect(isServiceDown()).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not retry a mutation, a bare 503 or retry: false", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => overload())
+    vi.stubGlobal("fetch", fetchMock)
+    await expect(apiPost("/api/x", {})).rejects.toBeInstanceOf(ApiError)
+    await expect(apiGet("/api/x", undefined, { retry: false })).rejects.toBeInstanceOf(ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    fetchMock.mockClear()
+    fetchMock.mockImplementation(async () => new Response("", { status: 503 }))
+    await expect(apiGet("/api/x")).rejects.toBeInstanceOf(ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(["1", "0", new Date(Date.now() - 60_000).toUTCString()])("keeps Retry-After %s on the error so it is an overload error", async (header) => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response("", { status: 503, headers: { "Retry-After": header } })))
+    const error = await apiGet("/api/x", undefined, { retry: false }).catch((e: unknown) => e)
+    expect(isOverloadError(error)).toBe(true)
+  })
 })
 
 describe("API outage detection", () => {
@@ -53,8 +106,8 @@ describe("API outage detection", () => {
   })
 
   it.each([400, 401, 403, 404, 429])("does not report an outage on HTTP %i", async (status) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status })))
-    await expect(apiGet("/api/x", undefined, { required: false })).rejects.toBeInstanceOf(ApiError)
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response("", { status })))
+    await expect(apiGet("/api/x", undefined, { required: false, retry: false })).rejects.toBeInstanceOf(ApiError)
     expect(isServiceDown()).toBe(false)
   })
 

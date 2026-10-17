@@ -7,6 +7,8 @@
   "role.event.moderator": "Moderator",
   "role.event.observer": "Observer",
   "confirm.cancel": "Cancel",
+  "error.overloaded": "The server is overloaded, try again in a few seconds",
+  "error.overloaded.retry": "Try again",
   "error.tooManyRequests": "Too many requests. Try again in a moment.",
   "error.tooManyRequests.wait": "Too many requests. Try again in {seconds} s.",
   "error.generic": "Something went wrong",

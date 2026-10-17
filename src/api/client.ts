@@ -6,6 +6,7 @@
 
 import { apiOrigin, idOrigin } from "@/lib/origins"
 import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
+import { fetchWithOverloadRetry, parseRetryAfterSeconds } from "./retry"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
 const BASE_URL = apiOrigin
 
@@ -20,7 +21,7 @@ export class ApiError extends Error {
     // Stable numeric FullCode from the envelope (Status.Code). This — not the
     // English message — is the i18n key callers localize against (see i18n/apiError).
     public readonly code?: number,
-    // Seconds from the Retry-After header of a 429 (rate limit / lockout), when sent.
+    // Seconds from the Retry-After header of any answer (0 when it says now), undefined when absent.
     public readonly retryAfterSeconds?: number,
     // X-Request-ID of the failed response: the key of the platform error journal entry (needs the header exposed by CORS).
     public readonly requestId?: string
@@ -28,13 +29,6 @@ export class ApiError extends Error {
     super(message ?? `API error ${status}`)
     this.name = "ApiError"
   }
-}
-
-// Retry-After of a 429, in whole seconds (the backend sends delta-seconds, >= 1).
-export function parseRetryAfter(header: string | null): number | undefined {
-  if (!header) return undefined
-  const seconds = Number(header)
-  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined
 }
 
 // ApiOptions controls cross-cutting request behavior.
@@ -46,7 +40,10 @@ export function parseRetryAfter(header: string | null): number | undefined {
 //       The 401 is thrown as ApiError so the caller can handle it.
 //   silentOutage: true — a dropped connection or a proxy 5xx is only thrown, not
 //       reported as a platform outage (a request the caller retries on its own).
-export type ApiOptions = { required?: boolean; silentOutage?: boolean }
+//   retry (default true) — a GET answered 429/503-with-Retry-After is tried again
+//       with backoff (api/retry); the promise stays pending meanwhile. Mutations
+//       never repeat. retry: false returns the first answer (chunked downloads).
+export type ApiOptions = { required?: boolean; silentOutage?: boolean; retry?: boolean }
 
 // portless strips the port from a URL and forces https:, matching the backend's
 // expectations for return_to (port-free, https-only). Returns the input unchanged
@@ -131,7 +128,7 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
       envelope?.Status?.Message,
       res.headers.get("X-Sign-In-URL") ?? undefined,
       envelope?.Status?.Code,
-      parseRetryAfter(res.headers.get("Retry-After")),
+      parseRetryAfterSeconds(res.headers.get("Retry-After")),
       res.headers.get("X-Request-ID") ?? undefined
     )
   }
@@ -147,16 +144,21 @@ async function request<T>(
 ): Promise<T> {
   const url = `${BASE_URL}${path}`
 
+  const doFetch = () => fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  })
+
   let res: Response
   try {
-    res = await fetch(url, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
-    })
+    // Only the final answer reaches finishRequest, so a retried 503 never reports an outage.
+    res = (opts.retry ?? true)
+      ? await fetchWithOverloadRetry(doFetch, { method: init.method ?? "GET", signal: init.signal })
+      : await doFetch()
   } catch (error) {
     // A caller-initiated abort or timeout is not an outage; nor is a request the caller retries on its own.
     if (!opts.silentOutage && isNetworkOutage(error, init.signal)) reportServiceUnavailable()
@@ -234,7 +236,8 @@ export async function apiGetBlob(path: string, opts: ApiOptions = {}): Promise<B
   const url = `${BASE_URL}${path}`
   let res: Response
   try {
-    res = await fetch(url, { method: "GET", credentials: "include" })
+    const doFetch = () => fetch(url, { method: "GET", credentials: "include" })
+    res = (opts.retry ?? true) ? await fetchWithOverloadRetry(doFetch, { method: "GET" }) : await doFetch()
   } catch (error) {
     if (!opts.silentOutage && isNetworkOutage(error)) reportServiceUnavailable()
     throw error
