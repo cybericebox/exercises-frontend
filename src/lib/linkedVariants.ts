@@ -81,12 +81,12 @@ export function newLinkedVariant(base: VariantFormValues, index: number, own: { 
 }
 
 /** Indexes of variants a new link may point to: saved and not linked themselves. */
-export function baseCandidates(variants: VariantFormValues[]): number[] {
+export function baseCandidates(variants: Pick<VariantFormValues, "ID" | "LinkedTo">[]): number[] {
   return variants.flatMap((variant, index) => (variant.ID && !variant.LinkedTo ? [index] : []))
 }
 
 /** Indexes of the variants linked to the given base id. */
-export function dependentsOf(variants: VariantFormValues[], baseId: string): number[] {
+export function dependentsOf(variants: Pick<VariantFormValues, "LinkedTo">[], baseId: string): number[] {
   if (!baseId) return []
   return variants.flatMap((variant, index) => (variant.LinkedTo === baseId ? [index] : []))
 }

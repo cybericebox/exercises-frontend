@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ApiError } from "@/api/client"
@@ -119,6 +119,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const lastSignatureRef = useRef("")
   const lastSaveErrorRef = useRef<string | null>(null)
   const loadStartedRef = useRef(false)
+  // Runs the change check a burst of edits is still waiting for (see the watch effect below).
+  const checkPendingRef = useRef<() => void>(() => undefined)
   // Guards a create/save that keeps running after unmount (the autosave queue's
   // unmount-flush lets an in-flight save finish so nothing is lost) from firing
   // onCreated / setExercise for a hook instance nothing is listening to anymore —
@@ -372,17 +374,36 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   useEffect(() => {
     if (!editable || loadState !== "ready") return
     lastSignatureRef.current = signature()
-    const onChange = () => {
-      if (suppressRef.current) return
+    // One check per burst of synchronous changes: a keystroke in a base variant is followed by
+    // one mirror write per linked variant (useLinkedVariantSync); the whole-form signature is
+    // computed once for all of them, after the burst.
+    let scheduled = false
+    let active = true
+    const check = () => {
+      scheduled = false
+      if (!active) return
       const next = signature()
       if (next === lastSignatureRef.current) return
       lastSignatureRef.current = next
       autosave.markChanged()
     }
+    const onChange = () => {
+      if (suppressRef.current || scheduled) return
+      scheduled = true
+      queueMicrotask(check)
+    }
+    checkPendingRef.current = () => { if (scheduled) check() }
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
     const identityWatch = identityForm.watch(onChange)
     const draftWatch = draftForm.watch(onChange)
-    return () => { identityWatch.unsubscribe(); draftWatch.unsubscribe() }
+    return () => {
+      // A change still waiting for its check is not dropped by a re-subscription.
+      if (scheduled) check()
+      active = false
+      checkPendingRef.current = () => undefined
+      identityWatch.unsubscribe()
+      draftWatch.unsubscribe()
+    }
     // autosave.markChanged is a useCallback with a fixed dependency chain (stable across
     // renders) even though the `autosave` object it hangs off is re-memoized on every
     // status change; depending on the whole object would resubscribe watch on every
@@ -413,7 +434,14 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
 
   const getDraftVersionId = useCallback(() => draftVersionIdRef.current, [])
 
+  // An edit made in the same tick as a flush (or an unsaved check) is counted before it.
+  const editorAutosave = useMemo<ExerciseAutosave>(() => ({
+    ...autosave,
+    flush: () => { checkPendingRef.current(); return autosave.flush() },
+    hasUnsaved: () => { checkPendingRef.current(); return autosave.hasUnsaved() },
+  }), [autosave])
+
   return {
-    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation,
   }
 }

@@ -1,6 +1,7 @@
+import { useLayoutEffect } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { FormProvider, useForm, useWatch } from 'react-hook-form'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { FormProvider, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
@@ -34,7 +35,25 @@ function Harness({ prepare, onAddLinked, sync = false }: { prepare?: (draft: Dra
   </FormProvider>
 }
 
+function QuietHarness({ formRef, renderVariant }: { formRef: { current: UseFormReturn<DraftFormValues> | null }; renderVariant: (index: number) => React.ReactNode }) {
+  const form = useForm<DraftFormValues>({ defaultValues: emptyDraft() })
+  useLayoutEffect(() => { formRef.current = form })
+  return <FormProvider {...form}>
+    <VariantTabs disabled={false} onAddLinked={() => undefined} renderVariant={renderVariant} />
+  </FormProvider>
+}
+
 describe('VariantTabs', () => {
+  it('does not re-render on a keystroke inside a variant', () => {
+    const formRef: { current: UseFormReturn<DraftFormValues> | null } = { current: null }
+    const renderVariant = vi.fn((index: number) => <div>Variant content {index}</div>)
+    render(<QuietHarness formRef={formRef} renderVariant={renderVariant} />)
+    const before = renderVariant.mock.calls.length
+    act(() => formRef.current?.setValue('Variants.0.Tasks.0.Name', 'Typed', { shouldDirty: true }))
+    act(() => formRef.current?.setValue('Variants.0.Note', 'Typed note', { shouldDirty: true }))
+    expect(renderVariant).toHaveBeenCalledTimes(before)
+  })
+
   it('a new variant inherits the canonical task structure without copying secret flags', () => {
     render(<Harness />)
     addEmpty()

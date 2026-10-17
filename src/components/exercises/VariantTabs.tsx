@@ -36,10 +36,11 @@ export function VariantTabs({
   const [selected, setSelected] = useEditorPosition("variant")
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const active = Math.min(selected, Math.max(fields.length - 1, 0))
-  const variants = useWatch({ control, name: "Variants" })
-  const canLink = baseCandidates(variants).length > 0
-  const pendingBaseId = pendingRemoval !== null ? variants[pendingRemoval]?.ID ?? "" : ""
-  const pendingDependents = pendingRemoval !== null ? dependentsOf(variants, pendingBaseId).length : 0
+  // Only the link structure: a keystroke inside a variant leaves it equal, so no re-render.
+  const links = useWatch({ control, name: "Variants", compute: (variants) => variants.map((variant) => ({ ID: variant.ID, LinkedTo: variant.LinkedTo })) })
+  const canLink = baseCandidates(links).length > 0
+  const pendingBaseId = pendingRemoval !== null ? links[pendingRemoval]?.ID ?? "" : ""
+  const pendingDependents = pendingRemoval !== null ? dependentsOf(links, pendingBaseId).length : 0
 
   function addVariant() {
     const variant = emptyVariant(fields.length + 1)
