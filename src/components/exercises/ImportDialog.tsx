@@ -15,7 +15,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { downloadBlob } from "@/lib/downloadBlob"
-import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 
 // 400s of the upload itself (too large, wrong chunk size, damaged file, no name): not a missing password.
@@ -70,7 +70,8 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       // Upload and archive-content validation identify the archive. A generic 400 cannot distinguish a corrupt
       // archive from a missing/wrong password, so it must not mark the password invalid.
       const code = exerciseErrorCode(cause) ?? 0
-      if (ARCHIVE_CONTENT_ERROR_CODES.has(code)) {
+      // A publish-gate refusal of a version imported as published names its archive path ("field") too.
+      if (ARCHIVE_CONTENT_ERROR_CODES.has(code) || errorContext(cause).field) {
         setFileError(archiveErrorMessage(cause))
       } else if (UPLOAD_ERROR_CODES.has(code)) {
         setFileError(exerciseErrorMessage(cause))

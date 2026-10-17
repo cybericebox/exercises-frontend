@@ -145,6 +145,22 @@ describe("ImportDialog", () => {
     expect(alert).toHaveTextContent("Login")
   })
 
+  // A published version refused by the publish gate (presets, elevations, content): the backend names the version
+  // (and the device) in "field"; it belongs to the archive, not to the password.
+  it("shows a publish-gate refusal with its archive path at the file picker", async () => {
+    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20966, Context: {
+      field: "versions[1]", devices: "web: 32 blocks (500m / 2147483648)", variant: "",
+    } } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    const message = await screen.findByRole("alert")
+    expect(message).toHaveTextContent("versions[1]")
+    expect(message).toHaveTextContent("web: 32 blocks")
+    expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
+    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
+  })
+
   it("shows the plain message without a context", async () => {
     mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20982 } }))
     render(<ImportDialog onClose={vi.fn()} />)
