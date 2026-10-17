@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/api/client")
-vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn() }))
+vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn(), uploadChunks: vi.fn(), forgetChunkedUpload: vi.fn() }))
+vi.mock("@/api/exercises/archiveJobs", () => ({ waitForExportJob: vi.fn(), waitForImportJob: vi.fn() }))
 vi.mock("@/api/exercises/chunkedDownload", () => ({ downloadInChunks: vi.fn() }))
 
 import * as client from "@/api/client"
-import { uploadInChunks } from "@/api/exercises/chunkedUpload"
+import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercises/chunkedUpload"
+import { waitForExportJob, waitForImportJob } from "@/api/exercises/archiveJobs"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
-import { EXPORT_LIMIT, downloadImportExample, exportExercises, importExercises } from "./archive"
+import { ARCHIVE_UPLOAD_PURPOSE, MAX_PLAIN_ARCHIVE_BYTES, EXPORT_LIMIT, downloadImportExample, exportExercises, importExercises } from "./archive"
 
 const mockExportPost = vi.mocked(client.apiPost)
 const mockDownload = vi.mocked(downloadInChunks)
@@ -16,6 +18,10 @@ const mockGetBlob = vi.mocked(client.apiGetBlob)
 const mockMultipart = vi.mocked(client.apiPostMultipart)
 const mockPost = vi.mocked(client.apiPost)
 const mockChunks = vi.mocked(uploadInChunks)
+const mockUploadChunks = vi.mocked(uploadChunks)
+const mockForget = vi.mocked(forgetChunkedUpload)
+const mockExportJob = vi.mocked(waitForExportJob)
+const mockImportJob = vi.mocked(waitForImportJob)
 
 describe("exercise archive client", () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -91,5 +97,86 @@ describe("exercise archive client", () => {
     expect(mockChunks).toHaveBeenCalledWith(big, progress)
     expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/uploaded", { FileID: "f1", Password: "pw" })
     expect(mockMultipart).not.toHaveBeenCalled()
+  })
+
+  it("exports with images as a job: start, wait, then the chunked download", async () => {
+    mockExportPost.mockResolvedValueOnce({ JobID: "j1" })
+    mockExportJob.mockResolvedValueOnce({ FileID: "f2", Name: "img.cybericebox.zip" })
+    mockDownload.mockResolvedValueOnce({ blob: new Blob(["zip"]), name: "img.cybericebox.zip" })
+    const stage = vi.fn()
+    const result = await exportExercises({ IDs: ["e1"], IncludeSecrets: false, Password: "", IncludeImages: true }, undefined, stage)
+    expect(mockExportPost).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1"], IncludeSecrets: false, Password: "", IncludeImages: true })
+    expect(stage).toHaveBeenCalledWith("working")
+    expect(mockExportJob).toHaveBeenCalledWith("j1", undefined)
+    expect(mockDownload).toHaveBeenCalledWith("f2", undefined)
+    expect(result.filename).toBe("img.cybericebox.zip")
+  })
+
+  it("does not send IncludeImages when it is off", async () => {
+    mockExportPost.mockResolvedValueOnce(stored)
+    mockDownload.mockResolvedValueOnce({ blob: new Blob(["zip"]), name: "x.zip" })
+    await exportExercises({ IDs: ["e1"], IncludeSecrets: false, Password: "", IncludeImages: false })
+    expect(mockExportPost).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1"], IncludeSecrets: false, Password: "" })
+    expect(mockExportJob).not.toHaveBeenCalled()
+  })
+
+  it("waits for the import job when a small archive names images", async () => {
+    mockMultipart.mockResolvedValueOnce({ JobID: "j3" })
+    mockImportJob.mockResolvedValueOnce([])
+    const stage = vi.fn()
+    await importExercises(new File(["zip"], "a.zip"), "", undefined, stage)
+    expect(mockImportJob).toHaveBeenCalledWith("j3", undefined)
+    expect(stage).toHaveBeenCalledWith("working")
+  })
+
+  it("waits for the import job of a chunk-uploaded archive", async () => {
+    mockChunks.mockResolvedValueOnce({ FileID: "f1", Name: "big.zip", Size: SINGLE_REQUEST_MAX + 1 })
+    mockPost.mockResolvedValueOnce({ JobID: "j4" })
+    mockImportJob.mockResolvedValueOnce([])
+    const big = new File(["zip"], "big.zip")
+    Object.defineProperty(big, "size", { value: SINGLE_REQUEST_MAX + 1 })
+    await importExercises(big, "pw")
+    expect(mockImportJob).toHaveBeenCalledWith("j4", undefined)
+  })
+
+  it("sends an archive over 512 MiB as an exercise-archive upload and imports by upload id", async () => {
+    mockUploadChunks.mockResolvedValueOnce("u1")
+    mockPost.mockResolvedValueOnce({ JobID: "j5" })
+    mockImportJob.mockResolvedValueOnce([])
+    const huge = new File(["zip"], "huge.zip")
+    Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
+    const progress = vi.fn()
+    const stage = vi.fn()
+    await importExercises(huge, "pw", progress, stage)
+    expect(mockUploadChunks).toHaveBeenCalledWith(huge, progress, undefined, { purpose: ARCHIVE_UPLOAD_PURPOSE })
+    expect(stage.mock.calls.map((c) => c[0])).toEqual(["uploading", "working"])
+    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/upload", { UploadID: "u1", Password: "pw" })
+    expect(mockImportJob).toHaveBeenCalledWith("j5", undefined)
+    expect(mockChunks).not.toHaveBeenCalled()
+    expect(mockForget).toHaveBeenCalledWith(huge)
+  })
+
+  it("a large archive without images is imported at once from the upload", async () => {
+    mockUploadChunks.mockResolvedValueOnce("u1")
+    mockPost.mockResolvedValueOnce([])
+    const huge = new File(["zip"], "huge.zip")
+    Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
+    expect(await importExercises(huge, "")).toEqual([])
+    expect(mockImportJob).not.toHaveBeenCalled()
+    expect(mockForget).toHaveBeenCalledWith(huge)
+  })
+
+  it("keeps the upload for a retry when the import fails, and forgets one the server no longer has", async () => {
+    mockUploadChunks.mockResolvedValue("u1")
+    const huge = new File(["zip"], "huge.zip")
+    Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
+    const registry = Object.assign(new client.ApiError(409, null), { code: 72801 })
+    mockPost.mockRejectedValueOnce(registry)
+    await expect(importExercises(huge, "")).rejects.toBe(registry)
+    expect(mockForget).not.toHaveBeenCalled()
+    const gone = Object.assign(new client.ApiError(404, null), { code: 31006 })
+    mockPost.mockRejectedValueOnce(gone)
+    await expect(importExercises(huge, "")).rejects.toBe(gone)
+    expect(mockForget).toHaveBeenCalledWith(huge)
   })
 })

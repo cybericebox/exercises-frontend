@@ -1,11 +1,11 @@
 "use client"
 
 import { ChevronDown, Download } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ApiError } from "@/api/client"
-import { downloadImportExample, importExercises } from "@/api/exercises/archive"
+import { downloadImportExample, importExercises, type ArchiveStage } from "@/api/exercises/archive"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
+import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
@@ -38,8 +39,20 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
+  const [stage, setStage] = useState<ArchiveStage | null>(null)
   const [exampleBusy, setExampleBusy] = useState(false)
   const [imported, setImported] = useState<Exercise[] | null>(null)
+
+  // The wait for a background import stops when the dialog goes away; the job itself keeps running on the server,
+  // and importing the same archive again picks it up.
+  const waiting = useRef<AbortController | null>(null)
+  useEffect(() => () => waiting.current?.abort(), [])
+  // Leaving is allowed while the server works (not while the archive is going up).
+  const canLeave = !busy || stage === "working"
+  function leave() {
+    waiting.current?.abort()
+    onClose()
+  }
 
   async function downloadExample() {
     setExampleBusy(true)
@@ -75,9 +88,12 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     setError(null)
     setFileError(null)
     setPasswordNeeded(false)
+    setStage(null)
+    const controller = new AbortController()
+    waiting.current = controller
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
-      const result = await importExercises(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined)
+      const result = await importExercises(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined, setStage, controller.signal)
       toast.success(t("admin.exImport.done", { count: result.length }))
       onImported?.()
       if (result.length === 1) {
@@ -87,6 +103,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       }
       setImported(result)
     } catch (cause) {
+      if (controller.signal.aborted) return
       // Upload and archive-content validation identify the archive. A generic 400 cannot distinguish a corrupt
       // archive from a missing/wrong password, so it must not mark the password invalid.
       const code = exerciseErrorCode(cause) ?? 0
@@ -102,10 +119,11 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     } finally {
       setBusy(false)
       setProgress(null)
+      setStage(null)
     }
   }
 
-  return <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose() }}>
+  return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
     <DialogContent>
       {imported ? <>
         <DialogHeader>
@@ -141,10 +159,14 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
         <Field label={t("admin.exImport.file")} required error={fileError}>
           {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
         </Field>
+        <p className="-mt-2 text-xs text-muted-foreground">{t("admin.exImport.imagesHint")}</p>
         <Field label={t("admin.exImport.password")} hint={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
           {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
         </Field>
-        {busy && progress !== null && (
+        {busy && stage === "working" && (
+          <LoadingArea compact message={t("admin.exImport.working")} />
+        )}
+        {busy && stage !== "working" && progress !== null && (
           <div className="space-y-1.5" aria-live="polite">
             <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress}%</span></div>
             <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>
@@ -152,8 +174,8 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
         )}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
-          <Button type="submit" disabled={busy || !file}>{t("admin.exImport.submit")}</Button>
+          <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
+          <Button type="submit" busy={busy} disabled={busy || !file}>{t("admin.exImport.submit")}</Button>
         </DialogFooter>
       </form>}
     </DialogContent>

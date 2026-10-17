@@ -64,7 +64,7 @@ describe("ImportDialog", () => {
     fireEvent.change(screen.getByLabelText(/^admin\.exImport\.password/), { target: { value: "pw" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
-    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined)
+    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined, expect.any(Function), expect.any(AbortSignal))
     expect(onImported).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
@@ -201,5 +201,79 @@ describe("ImportDialog", () => {
     render(<ImportDialog onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
     expect(await screen.findByRole("alert")).not.toHaveTextContent("admin.exImport.exampleError")
+  })
+
+  it("says archives can carry images", () => {
+    render(<ImportDialog onClose={vi.fn()} />)
+    expect(screen.getByText("admin.exImport.imagesHint")).toBeInTheDocument()
+  })
+
+  it("shows the crest loader while the server imports the images and leaves the form usable to cancel", async () => {
+    let finish: (value: Exercise[]) => void = () => undefined
+    mockImport.mockImplementation((_file, _password, _progress, onStage) => {
+      onStage?.("working")
+      return new Promise((resolve) => { finish = resolve })
+    })
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect((await screen.findAllByText("admin.exImport.working")).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
+    expect(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" })).toBeEnabled()
+    finish([imported("e1", "One"), imported("e2", "Two")])
+    expect(await screen.findByRole("link", { name: "Two" })).toBeInTheDocument()
+    expect(screen.queryAllByText("admin.exImport.working")).toHaveLength(0)
+  })
+
+  it("stops waiting for the job when the dialog is closed", async () => {
+    let signal: AbortSignal | undefined
+    mockImport.mockImplementation((_file, _password, _progress, onStage, abort) => {
+      signal = abort
+      onStage?.("working")
+      return new Promise(() => undefined)
+    })
+    const onClose = vi.fn()
+    render(<ImportDialog onClose={onClose} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    await screen.findAllByText("admin.exImport.working")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" }))
+    expect(signal?.aborted).toBe(true)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("shows the progress of a large archive upload", async () => {
+    mockImport.mockImplementation(async (_file, _password, onProgress, onStage) => {
+      onStage?.("uploading")
+      onProgress?.(40)
+      return new Promise(() => undefined)
+    })
+    render(<ImportDialog onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
+      target: { files: [Object.defineProperty(new File(["zip"], "big.zip"), "size", { value: 600 * 1024 * 1024 })] },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect(await screen.findByRole("progressbar")).toHaveAttribute("aria-valuenow", "40")
+  })
+
+  it("shows an unreadable image file at the file picker with its reason", async () => {
+    mockImport.mockRejectedValue(new ApiError(409, { Status: { Code: 22829, Context: { file: "images/web.tar", reason: "gzip" } } }, undefined, undefined, 22829))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    const message = await screen.findByRole("alert")
+    expect(message).toHaveTextContent("images/web.tar")
+    expect(message).toHaveTextContent("admin.exImport.imageReason.gzip")
+    expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
+    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
+  })
+
+  it.each([72801, 72802, 70993, 70994, 70995, 30992])("a job or registry refusal (%i) is shown as a plain error, not a password hint", async (code) => {
+    mockImport.mockRejectedValue(new ApiError(409, { Status: { Code: code } }, undefined, undefined, code))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect(await screen.findByRole("alert")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
   })
 })

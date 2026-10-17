@@ -17,6 +17,7 @@ import {
   ERR_EXERCISE_ARCHIVED,
   ERR_EXERCISE_IN_USE,
   archiveErrorDetail,
+  ARCHIVE_CONTENT_ERROR_CODES,
 } from './exerciseErrors'
 
 function apiError(status: number, code: number, message: string): ApiError {
@@ -104,5 +105,26 @@ describe('archiveErrorDetail', () => {
   })
   it('names a plain variant as is', () => {
     expect(archiveErrorDetail(withContext({ variant: '2' }))).toBe('2')
+  })
+})
+
+describe('archiveErrorDetail image reasons', () => {
+  function image(code: number, context: Record<string, string>): ApiError {
+    return new ApiError(409, { Status: { Code: code, Message: 'm', Context: context } }, 'm')
+  }
+  it('translates the reason an image file was refused for', () => {
+    expect(archiveErrorDetail(image(22829, { file: 'images/web.tar', reason: 'no_amd64' }))).toBe('images/web.tar, admin.exImport.imageReason.no_amd64')
+  })
+  it('translates a registry reason of an export', () => {
+    expect(archiveErrorDetail(image(72830, { device: 'web', reason: 'unreachable' }))).toBe('web, exercises.image.reason.unreachable')
+  })
+  it('keeps an unknown reason as it is', () => {
+    expect(archiveErrorDetail(image(22829, { reason: 'zzz' }))).toBe('zzz')
+  })
+})
+
+describe('image archive error codes', () => {
+  it('shows an unreadable image file under the archive field', () => {
+    expect(ARCHIVE_CONTENT_ERROR_CODES.has(22829)).toBe(true)
   })
 })
