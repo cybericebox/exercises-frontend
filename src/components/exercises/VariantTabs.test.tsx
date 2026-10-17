@@ -105,14 +105,19 @@ describe('VariantTabs', () => {
     const reason = item.getAttribute('aria-describedby')
     expect(reason).toBeTruthy()
     expect(document.getElementById(reason as string)).toHaveTextContent('admin.exDraft.linkedNeedsSavedBase')
+    // The reason wrapper spans the menu, so the item's highlight does too.
+    expect(item.parentElement).toHaveClass('w-full')
     fireEvent.click(item)
+    fireEvent.keyDown(item, { key: 'Enter' })
+    fireEvent.keyDown(item, { key: ' ' })
     expect(onAddLinked).not.toHaveBeenCalled()
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
     fireEvent.click(screen.getByText('save'))
     openMenu()
     const enabled = screen.getByRole('menuitem', { name: 'admin.exDraft.addLinkedVariants' })
     expect(enabled).not.toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(enabled)
+    // The same keys do select the enabled item, so the check above is not vacuous.
+    fireEvent.keyDown(enabled, { key: 'Enter' })
     expect(onAddLinked).toHaveBeenCalledTimes(1)
   })
 

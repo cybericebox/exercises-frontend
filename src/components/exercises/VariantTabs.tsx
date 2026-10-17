@@ -93,7 +93,7 @@ export function VariantTabs({
               {onAddLinked && (canLink
                 ? <DropdownMenuItem onSelect={onAddLinked}>{t("admin.exDraft.addLinkedVariants")}</DropdownMenuItem>
                 // Not `disabled`: Radix would drop it from keyboard focus, and the reason must stay reachable.
-                : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right" describe="always">
+                : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right" describe="always" className="w-full">
                   <DropdownMenuItem aria-disabled="true" className="opacity-50" onSelect={(event) => event.preventDefault()}>
                     {t("admin.exDraft.addLinkedVariants")}
                   </DropdownMenuItem>

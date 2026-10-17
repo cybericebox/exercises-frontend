@@ -9,26 +9,44 @@ import { TaskAccordion } from "./TaskAccordion"
 import { TopologySection } from "./TopologySection"
 import { Textarea } from "@/components/ui/textarea"
 import { FieldHelp } from "@/components/ui/field-help"
-import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { useEditorPosition } from "./EditorPosition"
+import type { DraftFormValues, VariantFormValues } from "@/lib/exerciseSchemas"
+import { SharedEditorPosition, useEditorPosition } from "./EditorPosition"
 import { InfrastructureBlockedNote } from "./EventBanners"
 import { ExerciseIdContext } from "./ExerciseIdContext"
 import { Switch } from "@/components/ui/switch"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useLinkedVariantSync } from "./useLinkedVariantSync"
+import { LinkedVariantsDialog } from "./LinkedVariantsDialog"
 
-export function DraftVariants({ form, disabled, exerciseId, infrastructureBlocked = false }: {
+type DraftVariantsProps = {
   form: UseFormReturn<DraftFormValues>
   disabled: boolean
   /** The saved exercise the attachments belong to; null until the first save. */
   exerciseId: string | null
   /** The owner event forbids lab infrastructure: the topology editor is replaced by a note. */
   infrastructureBlocked?: boolean
-}) {
+}
+
+export function DraftVariants(props: DraftVariantsProps) {
+  // The bulk dialog selects the variants it adds, so this editor and its tabs share one position.
+  return <SharedEditorPosition><DraftVariantsEditor {...props} /></SharedEditorPosition>
+}
+
+function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked = false }: DraftVariantsProps) {
   const [section, setSection] = useEditorPosition("section")
+  const [, setVariant] = useEditorPosition("variant")
+  const [linkedOpen, setLinkedOpen] = useState(false)
   useLinkedVariantSync(form, !disabled)
+
+  function appendLinked(created: VariantFormValues[]) {
+    const current = form.getValues("Variants")
+    // At once in the form; the autosave queue saves it.
+    form.setValue("Variants", [...current, ...created], { shouldDirty: true })
+    setVariant(current.length)
+  }
+
   return <ExerciseIdContext.Provider value={exerciseId}><section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
-    <VariantTabs disabled={disabled} toolbar={() => <>
+    <VariantTabs disabled={disabled} onAddLinked={() => setLinkedOpen(true)} toolbar={() => <>
       <div role="tablist" aria-label={t("admin.exDraft.sections")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
         {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value}
           onClick={() => setSection(value)}
@@ -38,7 +56,18 @@ export function DraftVariants({ form, disabled, exerciseId, infrastructureBlocke
       </div>
     </>} renderVariant={(variantIndex) => <VariantPanel form={form} variantIndex={variantIndex} section={section}
       disabled={disabled} infrastructureBlocked={infrastructureBlocked} />} />
+    {linkedOpen && <LinkedVariantsHost form={form} onClose={() => setLinkedOpen(false)} onCreate={appendLinked} />}
   </section></ExerciseIdContext.Provider>
+}
+
+/** Mounted only while the dialog is open, so watching every variant costs nothing the rest of the time. */
+function LinkedVariantsHost({ form, onClose, onCreate }: {
+  form: UseFormReturn<DraftFormValues>
+  onClose: () => void
+  onCreate: (created: VariantFormValues[]) => void
+}) {
+  const variants = useWatch({ control: form.control, name: "Variants" })
+  return <LinkedVariantsDialog open variants={variants} onClose={onClose} onCreate={onCreate} />
 }
 
 /** One variant: its note, the link to a base (if any) and the selected section. */

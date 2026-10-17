@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}${JSON.stringify(vars)}` : key }))
@@ -109,5 +109,35 @@ describe('DraftVariants linked variant', () => {
     const input = screen.getByRole('textbox', { name: 'admin.exDraft.variantNote' })
     expect(input).toBeEnabled()
     expect(input).toHaveValue('own note')
+  })
+
+  it('bulk dialog appends linked variants and selects the first new one', async () => {
+    function BulkHarness() {
+      const form = useForm<DraftFormValues>({ defaultValues: linkedDraft() })
+      const variants = useWatch({ control: form.control, name: 'Variants' })
+      return <FormProvider {...form}>
+        <DraftVariants form={form} disabled={false} exerciseId="ex1" />
+        <output data-testid="variants-json">{JSON.stringify(variants)}</output>
+      </FormProvider>
+    }
+    render(<BulkHarness />)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exDraft.addVariant' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exDraft.addLinkedVariants' }))
+    const dialog = await screen.findByRole('dialog', { name: 'admin.exLinked.title' })
+    fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'admin.exLinked.count' }), { target: { value: '2' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'admin.exDraft.variantN{"n":3} Scan admin.exLinked.flag' }), { target: { value: 'ICE{third}' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'admin.exLinked.create' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const variants = JSON.parse(screen.getByTestId('variants-json').textContent ?? '[]') as DraftFormValues['Variants']
+    expect(variants.map((variant) => ({ ID: variant.ID, Index: variant.Index, LinkedTo: variant.LinkedTo, Flag: variant.Tasks[0].Flag }))).toEqual([
+      { ID: 'b', Index: 1, LinkedTo: '', Flag: ['ICE{base}'] },
+      { ID: 'l', Index: 2, LinkedTo: 'b', Flag: ['ICE{own}'] },
+      { ID: '', Index: 3, LinkedTo: 'b', Flag: ['ICE{third}'] },
+      { ID: '', Index: 4, LinkedTo: 'b', Flag: [] },
+    ])
+    expect(variants[2].Tasks[0].Description).toEqual({ text: 'base text' })
+    expect(screen.getAllByRole('tab', { name: /admin\.exDraft\.variantN/ })).toHaveLength(4)
+    expect(screen.getByRole('tab', { name: 'admin.exDraft.variantN{"n":3}', selected: true })).toBeInTheDocument()
+    expect(screen.getByText('admin.exDraft.linkedTo{"n":1}')).toBeInTheDocument()
   })
 })
