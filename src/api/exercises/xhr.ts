@@ -46,7 +46,7 @@ export function sendXhr<T>(method: string, path: string, options: XhrOptions = {
     }
     request.onload = () => {
       done()
-      if (isUnreachableResponse(request.status, request.getResponseHeader("X-Request-ID"))) reportServiceUnavailable()
+      if (isUnreachableResponse(request.status, request.getResponseHeader("X-Request-ID"), request.getResponseHeader("Retry-After"))) reportServiceUnavailable()
       if (request.status === 401) {
         redirectRequiredAuth(request.getResponseHeader("X-Sign-In-URL"))
         return
