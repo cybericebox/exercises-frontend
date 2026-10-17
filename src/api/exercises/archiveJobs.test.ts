@@ -20,7 +20,7 @@ describe("archive jobs", () => {
     const result = waitForExportJob("j1")
     await vi.advanceTimersByTimeAsync(JOB_POLL_MS * 2)
     expect(await result).toEqual({ FileID: "f1", Name: "a.cybericebox.zip" })
-    expect(mockGet).toHaveBeenCalledWith("/api/exercises/export/jobs/j1", undefined, { silentOutage: true })
+    expect(mockGet).toHaveBeenCalledWith("/api/exercises/export/jobs/j1", { signal: undefined }, { silentOutage: true })
   })
 
   it("turns a failed export into an ApiError with the job's code and context", async () => {
@@ -45,7 +45,7 @@ describe("archive jobs", () => {
     const done = await result
     expect(done).toHaveLength(1)
     expect(done[0]).toMatchObject({ ID: "e1", Tags: [] })
-    expect(mockGet).toHaveBeenCalledWith("/api/exercises/import/jobs/j2", undefined, { silentOutage: true })
+    expect(mockGet).toHaveBeenCalledWith("/api/exercises/import/jobs/j2", { signal: undefined }, { silentOutage: true })
   })
 
   it("stops on a refused poll (job not found)", async () => {

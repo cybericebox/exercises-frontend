@@ -48,7 +48,8 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
   // Leaving is allowed while the server works (not while the archive is going up).
-  const canLeave = !busy || stage === "working"
+  const working = busy && stage === "working"
+  const canLeave = !busy || working
   function leave() {
     waiting.current?.abort()
     onClose()
@@ -141,38 +142,40 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
-        <div className="import-howto">
-          <details className="import-howto__details">
-            <summary>{t("admin.exImport.howTo")}<ChevronDown aria-hidden="true" /></summary>
-            <ol className="import-howto__steps">
-              <li>{t("admin.exImport.step1")}</li>
-              <li>{tRich("admin.exImport.step2", { file: <code>{MANIFEST}</code> })}</li>
-              <li>{tRich("admin.exImport.step3", { dir: <code>{FILES_DIR}</code>, file: <code>{MANIFEST}</code> })}</li>
-              <li>{tRich("admin.exImport.step4", { zip: <code>{ZIP_EXT}</code> })}</li>
-            </ol>
-          </details>
-          <Button type="button" variant="ghost" size="sm" className="import-howto__example" busy={exampleBusy} onClick={() => void downloadExample()}>
-            {!exampleBusy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}
-            {t("admin.exImport.example")}
-          </Button>
-        </div>
-        <Field label={t("admin.exImport.file")} required error={fileError}>
-          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
-        </Field>
-        <p className="-mt-2 text-xs text-muted-foreground">{t("admin.exImport.imagesHint")}</p>
-        <Field label={t("admin.exImport.password")} hint={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
-          {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
-        </Field>
-        {busy && stage === "working" && (
-          <LoadingArea compact message={t("admin.exImport.working")} />
-        )}
-        {busy && stage !== "working" && progress !== null && (
-          <div className="space-y-1.5" aria-live="polite">
-            <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress}%</span></div>
-            <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>
+        <div className="relative space-y-4">
+          <div className={working ? "invisible space-y-4" : "space-y-4"}>
+          <div className="import-howto">
+            <details className="import-howto__details">
+              <summary>{t("admin.exImport.howTo")}<ChevronDown aria-hidden="true" /></summary>
+              <ol className="import-howto__steps">
+                <li>{t("admin.exImport.step1")}</li>
+                <li>{tRich("admin.exImport.step2", { file: <code>{MANIFEST}</code> })}</li>
+                <li>{tRich("admin.exImport.step3", { dir: <code>{FILES_DIR}</code>, file: <code>{MANIFEST}</code> })}</li>
+                <li>{tRich("admin.exImport.step4", { zip: <code>{ZIP_EXT}</code> })}</li>
+              </ol>
+            </details>
+            <Button type="button" variant="ghost" size="sm" className="import-howto__example" busy={exampleBusy} onClick={() => void downloadExample()}>
+              {!exampleBusy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}
+              {t("admin.exImport.example")}
+            </Button>
           </div>
-        )}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <Field label={t("admin.exImport.file")} required error={fileError}>
+            {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
+          </Field>
+          <p className="-mt-2 text-xs text-muted-foreground">{t("admin.exImport.imagesHint")}</p>
+          <Field label={t("admin.exImport.password")} hint={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
+            {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
+          </Field>
+          {busy && stage !== "working" && progress !== null && (
+            <div className="space-y-1.5" aria-live="polite">
+              <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress}%</span></div>
+              <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>
+            </div>
+          )}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          </div>
+          {working && <div className="absolute inset-0 flex items-center justify-center"><LoadingArea compact message={t("admin.exImport.working")} /></div>}
+        </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
           <Button type="submit" busy={busy} disabled={busy || !file}>{t("admin.exImport.submit")}</Button>

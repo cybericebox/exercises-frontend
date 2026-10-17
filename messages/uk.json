@@ -187,6 +187,8 @@
   "admin.exImport.imageReason.no_amd64": "образ має бути для linux/amd64",
   "admin.exImport.imageReason.too_large": "образ завеликий",
   "admin.exImport.imageReason.digest_mismatch": "вміст образу не збігається з його контрольною сумою",
+  "admin.exImport.imageReason.invalid_image": "образ у сховищі пошкоджений або не підходить",
+  "admin.exImport.imageReason.upload_missing": "образ втрачено у сховищі",
   "admin.exPage.toast.pendingRestored": "Відновлено незбережені зміни",
   "admin.exPage.meta.published": "Опубліковано {date}",
   "admin.exPage.revert.title": "Скасувати зміни?",

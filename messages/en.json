@@ -187,6 +187,8 @@
   "admin.exImport.imageReason.no_amd64": "the image must be for linux/amd64",
   "admin.exImport.imageReason.too_large": "the image is too large",
   "admin.exImport.imageReason.digest_mismatch": "the image content does not match its checksum",
+  "admin.exImport.imageReason.invalid_image": "the image in the registry is damaged or unsuitable",
+  "admin.exImport.imageReason.upload_missing": "the image is missing from the registry",
   "admin.exPage.toast.pendingRestored": "Unsaved changes restored",
   "admin.exPage.meta.published": "Published {date}",
   "admin.exPage.revert.title": "Discard changes?",

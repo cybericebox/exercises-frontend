@@ -118,8 +118,12 @@ describe('archiveErrorDetail image reasons', () => {
   it('translates a registry reason of an export', () => {
     expect(archiveErrorDetail(image(72830, { device: 'web', reason: 'unreachable' }))).toBe('web, exercises.image.reason.unreachable')
   })
-  it('keeps an unknown reason as it is', () => {
-    expect(archiveErrorDetail(image(22829, { reason: 'zzz' }))).toBe('zzz')
+  it('translates the export reasons invalid_image and upload_missing', () => {
+    expect(archiveErrorDetail(image(72830, { reason: 'invalid_image' }))).toBe('admin.exImport.imageReason.invalid_image')
+    expect(archiveErrorDetail(image(72830, { reason: 'upload_missing' }))).toBe('admin.exImport.imageReason.upload_missing')
+  })
+  it('falls back to the generic image reason for an unknown one', () => {
+    expect(archiveErrorDetail(image(72830, { reason: 'zzz' }))).toBe('exercises.image.reason.unknown')
   })
 })
 

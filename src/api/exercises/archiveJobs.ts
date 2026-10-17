@@ -58,7 +58,7 @@ async function pollJob<T extends { State: string }>(path: string, signal?: Abort
     await wait(JOB_POLL_MS, signal)
     let job: T & { Error?: JobError }
     try {
-      job = await apiGet<T & { Error?: JobError }>(path, undefined, { silentOutage: true })
+      job = await apiGet<T & { Error?: JobError }>(path, { signal }, { silentOutage: true })
     } catch (error) {
       if (isPassing(error) && !signal?.aborted && Date.now() < deadline) continue
       throw error

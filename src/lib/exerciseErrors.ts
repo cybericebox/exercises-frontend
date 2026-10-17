@@ -161,13 +161,13 @@ export function errorContext(e: unknown): Record<string, string> {
 }
 
 /** Why an image file was refused (22829) and why the registry did not give an image up (72830). */
-const IMAGE_FILE_REASONS = new Set(["gzip", "not_tar", "no_image", "multi_image", "no_amd64", "too_large", "digest_mismatch"])
+const IMAGE_FILE_REASONS = new Set(["gzip", "not_tar", "no_image", "multi_image", "no_amd64", "too_large", "digest_mismatch", "invalid_image", "upload_missing"])
 const REGISTRY_REASONS = new Set(["needs_event_secret", "credential_conflict", "not_configured", "unreachable", "unauthorized", "not_found", "invalid_reference", "rate_limited"])
 
 function reasonText(reason: string): string {
   if (IMAGE_FILE_REASONS.has(reason)) return t(`admin.exImport.imageReason.${reason}`)
   if (REGISTRY_REASONS.has(reason)) return t(`exercises.image.reason.${reason}`)
-  return reason
+  return t("exercises.image.reason.unknown")
 }
 
 /** Which file, field, key... an archive error is about, from its context; "" when it has none. */

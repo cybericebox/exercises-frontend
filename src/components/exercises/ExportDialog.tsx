@@ -39,7 +39,8 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   // The wait for an export with images stops when the dialog goes away; the server finishes the job on its own.
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
-  const canLeave = !busy || stage === "working"
+  const working = busy && stage === "working"
+  const canLeave = !busy || working
   function leave() {
     waiting.current?.abort()
     onClose()
@@ -63,6 +64,8 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
       const key = JSON.stringify(input)
       if (kept.current && kept.current.key !== key) dropKept()
       if (!kept.current) kept.current = { key, stored: await createExport(input, setStage, controller.signal) }
+      // The archive is ready: the chunked download follows and is not cancelled by leaving.
+      setStage(null)
       const archive = await downloadExport(kept.current.stored, exerciseIds.length, setProgress)
       kept.current = null
       downloadBlob(archive.blob, archive.filename)
@@ -88,34 +91,36 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
           <DialogTitle>{t("admin.exExport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exExport.description")}</DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-foreground">{t("admin.exExport.count", { count: exerciseIds.length })}</p>
-        <div className="flex items-start gap-3">
-          <Switch id="export-secrets" checked={includeSecrets} onCheckedChange={setIncludeSecrets} aria-label={t("admin.exExport.secrets")} />
-          <div>
-            <label htmlFor="export-secrets" className="text-sm font-medium text-foreground">{t("admin.exExport.secrets")}</label>
-            <p className="text-xs text-muted-foreground">{t("admin.exExport.secretsHint")}</p>
+        <div className="relative space-y-4">
+          <div className={working ? "invisible space-y-4" : "space-y-4"}>
+          <p className="text-sm text-foreground">{t("admin.exExport.count", { count: exerciseIds.length })}</p>
+          <div className="flex items-start gap-3">
+            <Switch id="export-secrets" checked={includeSecrets} onCheckedChange={setIncludeSecrets} aria-label={t("admin.exExport.secrets")} />
+            <div>
+              <label htmlFor="export-secrets" className="text-sm font-medium text-foreground">{t("admin.exExport.secrets")}</label>
+              <p className="text-xs text-muted-foreground">{t("admin.exExport.secretsHint")}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <Switch id="export-images" checked={includeImages} onCheckedChange={setIncludeImages} disabled={busy} aria-label={t("admin.exExport.images")} />
-          <div>
-            <label htmlFor="export-images" className="text-sm font-medium text-foreground">{t("admin.exExport.images")}</label>
-            <p className="text-xs text-muted-foreground">{t("admin.exExport.imagesHint")}</p>
+          <div className="flex items-start gap-3">
+            <Switch id="export-images" checked={includeImages} onCheckedChange={setIncludeImages} disabled={busy} aria-label={t("admin.exExport.images")} />
+            <div>
+              <label htmlFor="export-images" className="text-sm font-medium text-foreground">{t("admin.exExport.images")}</label>
+              <p className="text-xs text-muted-foreground">{t("admin.exExport.imagesHint")}</p>
+            </div>
           </div>
+          {includeSecrets && <div className="space-y-3">
+            <Field label={t("admin.exExport.password")} required error={passwordError}>
+              {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(null) }} />}
+            </Field>
+            <Field label={t("admin.exExport.confirm")} required error={confirmError}>
+              {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setConfirmError(null) }} />}
+            </Field>
+            <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
+          </div>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          </div>
+          {working && <div className="absolute inset-0 flex items-center justify-center"><LoadingArea compact message={t("admin.exExport.working")} /></div>}
         </div>
-        {includeSecrets && <div className="space-y-3">
-          <Field label={t("admin.exExport.password")} required error={passwordError}>
-            {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(null) }} />}
-          </Field>
-          <Field label={t("admin.exExport.confirm")} required error={confirmError}>
-            {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setConfirmError(null) }} />}
-          </Field>
-          <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
-        </div>}
-        {busy && stage === "working" && (
-          <LoadingArea compact message={t("admin.exExport.working")} />
-        )}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
           {progress !== null && <span aria-live="polite" className="mr-auto self-center text-xs text-muted-foreground">{t("admin.exExport.progress", { percent: progress })}</span>}

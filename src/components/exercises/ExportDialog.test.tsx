@@ -190,4 +190,18 @@ describe("ExportDialog", () => {
     // The message carries the device and the translated reason (the test translator prints keys only).
     expect(alert).toHaveTextContent("admin.exImport.errDetail")
   })
+
+  it("leaves the preparing stage once the archive is ready: the download cannot be cancelled", async () => {
+    mockCreate.mockImplementation(async (_input, onStage) => {
+      onStage?.("working")
+      return { FileID: "f1", Name: "x.zip" }
+    })
+    mockDownload.mockReturnValue(new Promise(() => undefined))
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    await waitFor(() => expect(mockDownload).toHaveBeenCalled())
+    expect(screen.queryAllByText("admin.exExport.working")).toHaveLength(0)
+    expect(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" })).toBeDisabled()
+  })
 })
