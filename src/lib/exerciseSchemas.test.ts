@@ -836,7 +836,7 @@ function loadedVersion(): Version {
     Variants: [{
       ID: 'var1',
       Index: 1,
-      Note: '',
+      Note: '', LinkedTo: '',
       Tasks: [{
         ID: 'task1',
         Name: 'Find the flag',
@@ -1029,5 +1029,39 @@ describe('toSaveDraftInput', () => {
   it('has no flag-regeneration switch in drafts or save requests', () => {
     expect(emptyDraft()).not.toHaveProperty('RegenerateFlagsOnPublish')
     expect(toSaveDraftInput(emptyDraft())).not.toHaveProperty('RegenerateFlagsOnPublish')
+  })
+})
+
+describe('linked variants in the form model', () => {
+  it('toSaveDraftInput sends LinkedTo and CopyOf only when set', () => {
+    const draft = validDraft()
+    draft.Variants.push({ ...emptyVariant(2), ID: 'v2', LinkedTo: 'base-id', CopyOf: 'src-id' })
+    const [plain, linked] = toSaveDraftInput(draft).Variants
+    expect(plain).not.toHaveProperty('LinkedTo')
+    expect(plain).not.toHaveProperty('CopyOf')
+    expect(linked.LinkedTo).toBe('base-id')
+    expect(linked.CopyOf).toBe('src-id')
+  })
+  it('toDraftFormValues reads LinkedTo', () => {
+    const version = loadedVersion()
+    version.Variants[0].LinkedTo = 'base-id'
+    const values = toDraftFormValues(version)
+    expect(values.Variants[0].LinkedTo).toBe('base-id')
+    expect(emptyVariant(1).LinkedTo).toBe('')
+  })
+  it('draftSchema flags a duplicate flag in a linked variant at its Flag path', () => {
+    const draft = validDraft()
+    draft.Variants[0].ID = 'b'
+    draft.Variants[0].Tasks[0].Flag = ['ICE{same}']
+    const linked = emptyVariant(2)
+    linked.ID = 'l'
+    linked.LinkedTo = 'b'
+    linked.Tasks[0].Name = 'Find the flag'
+    linked.Tasks[0].Flag = ['ICE{same}']
+    draft.Variants.push(linked)
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    const issue = !result.success && result.error.issues.find((i) => i.message === 'admin.ex.val.linkedFlagDuplicate')
+    expect(issue && issue.path).toEqual(['Variants', 1, 'Tasks', 0, 'Flag'])
   })
 })

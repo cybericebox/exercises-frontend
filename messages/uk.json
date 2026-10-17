@@ -787,6 +787,7 @@
   "admin.exTask.deviceFlagVarHelp": "Назва змінної оточення, до якої потрапить прапор у вибраному пристрої.",
   "admin.ex.val.deviceFlagVarRequired": "Вкажіть змінну оточення для прапора.",
   "admin.ex.val.deviceFlagVarConflict": "Ця змінна вже зайнята звичайною змінною оточення або прапором іншого підзавдання.",
+  "admin.ex.val.linkedFlagDuplicate": "Такий прапорець уже є в іншому повʼязаному варіанті",
   "admin.ex.val.linkedDeviceUnavailable": "Оберіть контейнер з топології цього варіанта.",
   "admin.exFiles.title": "Вкладення",
   "admin.exFiles.upload": "Завантажити файл",

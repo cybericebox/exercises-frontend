@@ -12,6 +12,7 @@ import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
+import { linkedFlagConflicts } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
 import { hintTextHasContent } from "@/lib/hintText"
 import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
@@ -104,6 +105,8 @@ export type PlaceholderFormValues = {
 }
 export type TaskFormValues = Omit<NormalizedTask, "Placeholders"> & { Placeholders: PlaceholderFormValues[] }
 export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
+  /** Form-only: the stored variant this unsaved one was copied from; sent only when set. */
+  CopyOf?: string
   Topology: TopologyFormValues
   Tasks: TaskFormValues[]
 }
@@ -452,6 +455,8 @@ const variantSchema = z.object({
   ID: z.string(),
   Index: z.number().int(),
   Note: z.string(),
+  LinkedTo: z.string(),
+  CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
 })
@@ -462,6 +467,10 @@ export const draftSchema = z
     Variants: z.array(variantSchema).min(1, t("admin.ex.val.variantRequired")),
   })
   .superRefine((draft, ctx) => {
+    // Owner rule: within a base and its linked variants a fixed flag may not repeat per subtask.
+    for (const { variantIndex, taskIndex } of linkedFlagConflicts(draft.Variants as VariantFormValues[])) {
+      ctx.addIssue({ code: "custom", path: ["Variants", variantIndex, "Tasks", taskIndex, "Flag"], message: t("admin.ex.val.linkedFlagDuplicate") })
+    }
     // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
     const expected = draft.Variants[0]?.Tasks.length ?? 0
     draft.Variants.forEach((variant, i) => {
@@ -570,6 +579,7 @@ export function emptyVariant(index: number): VariantFormValues {
     ID: "",
     Index: index,
     Note: "",
+    LinkedTo: "",
     Tasks: [emptyTask()],
     Topology: {
       VPN: { Enabled: false, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] },
@@ -596,6 +606,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       ID: v.ID,
       Index: v.Index,
       Note: v.Note ?? "",
+      LinkedTo: v.LinkedTo ?? "",
       Tasks: v.Tasks.map((task, ti) => ({
         ...task,
         Placeholders: task.Placeholders.map((p, pi) => ({
@@ -740,6 +751,8 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     ...(v.ID ? { ID: v.ID } : {}),
     Index: i + 1,
     ...(v.Note ? { Note: v.Note } : {}),
+    ...(v.LinkedTo ? { LinkedTo: v.LinkedTo } : {}),
+    ...(v.CopyOf ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
   }))
