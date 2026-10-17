@@ -1,0 +1,13 @@
+/* Import dialog: "how to prepare" disclosure with the example download at the end of the row. */
+.import-howto{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--ib-2, 8px) var(--ib-4, 16px)}
+.import-howto__details{flex:1 1 auto;min-width:0}
+.import-howto__details summary{display:flex;align-items:center;gap:var(--ib-2, 8px);min-height:32px;list-style:none;cursor:pointer;font-size:14px;font-weight:600;line-height:1.4}
+.import-howto__details summary::-webkit-details-marker{display:none}
+.import-howto__details summary::marker{content:""}
+.import-howto__details summary:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+.import-howto__details summary svg{width:18px;height:18px;flex:none;opacity:.6;transition:transform .15s ease}
+.import-howto__details[open] summary svg{transform:rotate(180deg)}
+.import-howto__steps{list-style:decimal;margin:8px 0 0;padding-left:20px;display:grid;gap:8px;font-size:14px;line-height:1.5;text-wrap:pretty}
+.import-howto__steps code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.import-howto__example{flex:none;margin-left:auto}
+@media(prefers-reduced-motion:reduce){.import-howto__details summary svg{transition:none}}
