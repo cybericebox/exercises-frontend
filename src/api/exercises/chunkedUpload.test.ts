@@ -108,6 +108,14 @@ describe("chunked upload", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({ Name: "big.bin", ContentType: "application/octet-stream", Size: 10, Purpose: "image-blob" })
   })
 
+  it("an image-blob start refused with 72801 (registry not configured) fails with that code, no chunk is sent", async () => {
+    fetchMock.mockResolvedValueOnce(errorResponse(409, 72801))
+    const error = await uploadChunks(bigFile(), undefined, undefined, { ...noSleep, purpose: "image-blob" }).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).code).toBe(72801)
+    expect(ChunkRequest.instances).toHaveLength(0)
+  })
+
   it("resumes from the first chunk the server does not have, still hashing the chunks it has", async () => {
     const file = bigFile()
     window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), UPLOAD_ID)

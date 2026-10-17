@@ -149,6 +149,24 @@ describe("DeviceImageField", () => {
     expect(screen.getByTestId("image")).toHaveTextContent("nginx:1")
   })
 
+  it("a refusal at the upload start (72801) reads like the blobs refusal, for admins too", async () => {
+    h.access.access = { IsAdmin: true }
+    const body = { Status: { Code: 72801, Message: "x" } }
+    h.uploadImage.mockRejectedValue(new ApiError(409, body, "x", undefined, 72801))
+    render(<Harness />)
+    drop(archive())
+    expect(await screen.findByRole("alert")).toHaveTextContent("exercises.image.refusedReason exercises.image.reason.not_configured")
+  })
+
+  it("a refusal at the upload start (72801) shows the plain refusal to others", async () => {
+    const body = { Status: { Code: 72801, Message: "x" } }
+    h.uploadImage.mockRejectedValue(new ApiError(409, body, "x", undefined, 72801))
+    render(<Harness image="nginx:1" />)
+    drop(archive())
+    expect(await screen.findByRole("alert")).toHaveTextContent("exercises.image.refused")
+    expect(screen.getByRole("alert")).not.toHaveTextContent("not_configured")
+  })
+
   it("an admin also sees the reason of a refusal", async () => {
     h.access.access = { IsAdmin: true }
     const body = { Status: { Code: 72802, Message: "x", Context: { reason: "rate_limited" } } }
