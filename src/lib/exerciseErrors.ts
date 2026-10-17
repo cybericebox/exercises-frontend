@@ -167,7 +167,7 @@ export function archiveErrorDetail(e: unknown): string {
   if (c.file) parts.push(c.file)
   if (c.field) parts.push(c.field)
   if (c.key) parts.push(c.task ? t("admin.exImport.errKeyInTask", { key: c.key, task: c.task }) : c.key)
-  if (c.variant) parts.push(c.linked_to ? `${c.variant} → ${c.linked_to}` : c.variant)
+  if (c.variant) parts.push(c.linked_to ? t("admin.exImport.errLinkedVariant", { variant: c.variant, linked_to: c.linked_to }) : c.variant)
   if (c.device) parts.push(c.device)
   if (c.expected) parts.push(c.expected)
   if (c.reason) parts.push(c.reason)

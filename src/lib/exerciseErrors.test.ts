@@ -16,6 +16,7 @@ import {
   ERR_DRAFT_ALREADY_EXISTS,
   ERR_EXERCISE_ARCHIVED,
   ERR_EXERCISE_IN_USE,
+  archiveErrorDetail,
 } from './exerciseErrors'
 
 function apiError(status: number, code: number, message: string): ApiError {
@@ -91,5 +92,17 @@ describe('task description and catalog fallback', () => {
 describe('static test conflict', () => {
   it('maps the static-test lab-only refusal to its own message', () => {
     expect(exerciseErrorMessage(apiError(409, 70977, 'static'))).toBe('admin.ex.err.testDeployStatic')
+  })
+})
+
+describe('archiveErrorDetail', () => {
+  function withContext(context: Record<string, string>): ApiError {
+    return new ApiError(422, { Status: { Code: 20987, Message: 'bad link', Context: context } }, 'bad link')
+  }
+  it('names a linked variant and its base through i18n', () => {
+    expect(archiveErrorDetail(withContext({ variant: '2', linked_to: '1' }))).toBe('admin.exImport.errLinkedVariant 2 1')
+  })
+  it('names a plain variant as is', () => {
+    expect(archiveErrorDetail(withContext({ variant: '2' }))).toBe('2')
   })
 })

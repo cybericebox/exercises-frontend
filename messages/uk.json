@@ -160,6 +160,7 @@
   "admin.exImport.exampleError": "Не вдалося завантажити приклад. Спробуйте ще раз.",
   "admin.exImport.errDetail": "{message}: {detail}",
   "admin.exImport.errKeyInTask": "{key} у «{task}»",
+  "admin.exImport.errLinkedVariant": "варіант {variant} → {linked_to}",
   "admin.exImport.file": "Архів",
   "admin.exImport.chooseFile": "Вибрати файл",
   "admin.exImport.noFile": "Файл не вибрано",
