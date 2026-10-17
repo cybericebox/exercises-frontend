@@ -1,5 +1,6 @@
 "use client"
 
+import { Download } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -12,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { downloadBlob } from "@/lib/downloadBlob"
@@ -45,6 +47,18 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     } finally {
       setExampleBusy(false)
     }
+  }
+
+  // A dropped file skips the picker's accept filter, so the extension is checked here for both.
+  function chooseFile(next: File | null) {
+    setPasswordNeeded(false)
+    if (next && !next.name.toLowerCase().endsWith(".zip")) {
+      setFile(null)
+      setFileError(t("admin.exImport.notZip"))
+      return
+    }
+    setFile(next)
+    setFileError(null)
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -101,14 +115,17 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       </> : <form noValidate onSubmit={(event) => void submit(event)} className="space-y-4">
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
-          <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
+          <DialogDescription className="flex items-center gap-1">
+            {t("admin.exImport.description")}
+            <HoverTooltip text={t("admin.exImport.example")}>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 [&>*]:mr-0" busy={exampleBusy} aria-label={t("admin.exImport.example")} onClick={() => void downloadExample()}>
+                {!exampleBusy && <Download aria-hidden="true" className="h-4 w-4" />}
+              </Button>
+            </HoverTooltip>
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" variant="outline" size="sm" busy={exampleBusy} onClick={() => void downloadExample()}>{t("admin.exImport.example")}</Button>
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t("admin.exImport.exampleHint")}</p>
-        </div>
         <Field label={t("admin.exImport.file")} required error={fileError}>
-          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={(next) => { setFile(next); setFileError(null); setPasswordNeeded(false) }} />}
+          {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
         </Field>
         <Field label={t("admin.exImport.password")} hint={passwordNeeded ? t("admin.exImport.passwordNeeded") : undefined}>
           {(control) => <PasswordInput {...control} autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />}
