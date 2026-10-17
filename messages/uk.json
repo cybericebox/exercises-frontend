@@ -150,6 +150,7 @@
   "admin.exExport.mismatch": "Паролі не збігаються.",
   "admin.exExport.submit": "Експортувати",
   "admin.exExport.done": "Архів завантажено",
+  "admin.exExport.progress": "Завантаження архіву: {percent}%",
   "admin.exImport.button": "Імпорт",
   "admin.exImport.title": "Імпорт завдань",
   "admin.exImport.description": "Оберіть архів .zip з папками завдань: в кожній папці exercise.yaml або exercise.json, файли поруч, а manifest.json необовʼязковий. Імпорт завжди створює нові завдання й ніколи не перезаписує наявні.",

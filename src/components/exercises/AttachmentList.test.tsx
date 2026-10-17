@@ -7,30 +7,34 @@ import { useForm, FormProvider } from 'react-hook-form'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 vi.mock('@/api/exercises/files', () => ({
-  uploadExerciseFile: vi.fn(),
+  uploadExerciseAttachment: vi.fn(),
   exerciseFileURL: (id: string) => `/api/exercises/files/${id}`,
 }))
 vi.mock('@/lib/exerciseErrors', () => ({
   exerciseErrorMessage: () => 'admin.ex.err.fileTooLarge',
 }))
 
-import { uploadExerciseFile } from '@/api/exercises/files'
+import { uploadExerciseAttachment } from '@/api/exercises/files'
+import { ExerciseIdContext } from './ExerciseIdContext'
 import { AttachmentList } from './AttachmentList'
 import { emptyDraft, type DraftFormValues } from '@/lib/exerciseSchemas'
 
-const mockUpload = vi.mocked(uploadExerciseFile)
+const mockUpload = vi.mocked(uploadExerciseAttachment)
 
 function Harness({
   attachments = [] as { FileID: string; Name: string }[],
   disabled = false,
+  exerciseId = null as string | null,
 }) {
   const draft = emptyDraft()
   draft.Variants[0].Tasks[0].Attachments = attachments
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
-    <FormProvider {...form}>
-      <AttachmentList variantIndex={0} taskIndex={0} disabled={disabled} />
-    </FormProvider>
+    <ExerciseIdContext.Provider value={exerciseId}>
+      <FormProvider {...form}>
+        <AttachmentList variantIndex={0} taskIndex={0} disabled={disabled} />
+      </FormProvider>
+    </ExerciseIdContext.Provider>
   )
 }
 
@@ -57,12 +61,12 @@ describe('AttachmentList', () => {
     const file = new File(['x'], 'dump.bin')
     fireEvent.change(input, { target: { files: [file] } })
     await waitFor(() => expect(screen.getByText('dump.bin')).toBeInTheDocument())
-    expect(mockUpload).toHaveBeenCalledWith(file, expect.any(Function))
+    expect(mockUpload).toHaveBeenCalledWith(null, file, expect.any(Function))
   })
 
   it('shows a determinate upload bar and percent while sending', async () => {
     let complete!: (value: { FileID: string; Name: string; Size: number }) => void
-    mockUpload.mockImplementation((_file, onProgress) => {
+    mockUpload.mockImplementation((_id, _file, onProgress) => {
       onProgress?.(42)
       return new Promise((resolve) => { complete = resolve })
     })
@@ -99,5 +103,22 @@ describe('AttachmentList', () => {
     expect(screen.queryByRole('button', { name: 'admin.exFiles.remove' })).not.toBeInTheDocument()
     // The download link is still rendered so existing files stay reachable.
     expect(screen.getByText('a.pdf').closest('a')).toHaveAttribute('href', '/api/exercises/files/f1')
+  })
+
+  it('a known file is attached without an upload', async () => {
+    mockUpload.mockResolvedValue({ FileID: 'known', Name: 'again.bin', Size: 10 })
+    render(<Harness exerciseId="e1" />)
+    const file = new File(['x'], 'again.bin')
+    fireEvent.change(screen.getByTestId('attachment-file-input'), { target: { files: [file] } })
+    await waitFor(() => expect(screen.getByText('again.bin')).toBeInTheDocument())
+    expect(mockUpload).toHaveBeenCalledWith('e1', file, expect.any(Function))
+  })
+
+  it('other rows stay enabled while one uploads', async () => {
+    mockUpload.mockImplementation(() => new Promise(() => undefined))
+    render(<Harness attachments={[{ FileID: 'f1', Name: 'a.pdf' }]} />)
+    fireEvent.change(screen.getByTestId('attachment-file-input'), { target: { files: [new File(['x'], 'slow.bin')] } })
+    await screen.findByRole('progressbar')
+    expect(screen.getByRole('button', { name: 'admin.exFiles.remove' })).toBeEnabled()
   })
 })

@@ -13,7 +13,7 @@ function Harness() {
   const draft = emptyDraft()
   draft.Variants[0].Note = 'A long private note for the variant'
   const form = useForm<DraftFormValues>({ defaultValues: draft })
-  return <FormProvider {...form}><DraftVariants form={form} disabled={false} /></FormProvider>
+  return <FormProvider {...form}><DraftVariants form={form} disabled={false} exerciseId={null} /></FormProvider>
 }
 
 describe('DraftVariants layout', () => {

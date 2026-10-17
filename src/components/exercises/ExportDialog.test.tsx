@@ -24,7 +24,7 @@ describe("ExportDialog", () => {
     expect(screen.queryByLabelText(/^admin\.exExport\.password/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     await waitFor(() => expect(downloadBlob).toHaveBeenCalledWith(blob, "web.cybericebox.zip"))
-    expect(mockExport).toHaveBeenCalledWith({ IDs: ["e1"], IncludeSecrets: false, Password: "" })
+    expect(mockExport).toHaveBeenCalledWith({ IDs: ["e1"], IncludeSecrets: false, Password: "" }, expect.any(Function))
     expect(onExported).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
@@ -57,7 +57,7 @@ describe("ExportDialog", () => {
     expect(mockExport).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText(/^admin\.exExport\.confirm/), { target: { value: "s3cret" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
-    await waitFor(() => expect(mockExport).toHaveBeenCalledWith({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" }))
+    await waitFor(() => expect(mockExport).toHaveBeenCalledWith({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" }, expect.any(Function)))
   })
 
   it("keeps the dialog open with the error when the export fails", async () => {
@@ -67,5 +67,18 @@ describe("ExportDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.ex.err.generic")
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it("shows download progress", async () => {
+    let finish!: (value: { blob: Blob; filename: string }) => void
+    mockExport.mockImplementation((_input, onProgress) => {
+      onProgress?.(42)
+      return new Promise((resolve) => { finish = resolve })
+    })
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    expect(await screen.findByText("admin.exExport.progress")).toBeInTheDocument()
+    finish({ blob: new Blob(["zip"]), filename: "x.zip" })
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled())
   })
 })

@@ -4,6 +4,9 @@
  * A file up to SINGLE_REQUEST_MAX goes up in one multipart request; a larger one goes up in chunks (chunkedUpload.ts):
  * a request body is limited to 100 MB at the edge, and an interrupted chunked upload resumes.
  */
+import { sha256 } from "@noble/hashes/sha2.js"
+import { bytesToHex } from "@noble/hashes/utils.js"
+import { apiPost } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
 import { uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { sendXhr } from "@/api/exercises/xhr"
@@ -37,4 +40,36 @@ export function uploadExerciseFile(file: File, onProgress?: (percent: number) =>
     onProgress?.(100)
     return uploaded
   })
+}
+
+type LookupResult = { Found: boolean; FileID: string; Name: string; Size: number }
+
+/** Hash of the whole file, read in slices so a big file never sits in memory at once. */
+async function hashFile(file: File): Promise<string> {
+  const hasher = sha256.create()
+  const SLICE = 4 * 1024 * 1024
+  for (let start = 0; start < file.size; start += SLICE) {
+    hasher.update(new Uint8Array(await file.slice(start, Math.min(file.size, start + SLICE)).arrayBuffer()))
+  }
+  return bytesToHex(hasher.digest())
+}
+
+/**
+ * Attaches a file to a task. With an exercise id the file is hashed first and the task is asked whether it already
+ * holds those bytes (POST /api/exercises/:id/files/lookup): then nothing is sent. A new file goes up as usual.
+ */
+export async function uploadExerciseAttachment(
+  exerciseId: string | null,
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<UploadedFile> {
+  if (exerciseId) {
+    const found = await apiPost<LookupResult>(`/api/exercises/${exerciseId}/files/lookup`, { SHA256: await hashFile(file) })
+    if (found.Found) {
+      onProgress?.(100)
+      return { FileID: found.FileID, Name: file.name, Size: found.Size }
+    }
+  }
+  return uploadExerciseFile(file, onProgress, signal)
 }

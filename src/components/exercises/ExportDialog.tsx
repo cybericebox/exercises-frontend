@@ -18,6 +18,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
   const [confirm, setConfirm] = useState("")
   const [shown, setShown] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
@@ -30,9 +31,10 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
     setConfirmError(mismatch ? t("admin.exExport.mismatch") : null)
     if (missing || mismatch) return
     setBusy(true)
+    setProgress(null)
     setError(null)
     try {
-      const archive = await exportExercises({ IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" })
+      const archive = await exportExercises({ IDs: exerciseIds, IncludeSecrets: includeSecrets, Password: includeSecrets ? password : "" }, setProgress)
       downloadBlob(archive.blob, archive.filename)
       toast.success(t("admin.exExport.done"))
       onExported?.()
@@ -41,6 +43,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
       setError(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)
+      setProgress(null)
     }
   }
 
@@ -71,6 +74,7 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
+          {progress !== null && <span aria-live="polite" className="mr-auto self-center text-xs text-muted-foreground">{t("admin.exExport.progress", { percent: progress })}</span>}
           <Button type="submit" disabled={busy}>{t("admin.exExport.submit")}</Button>
         </DialogFooter>
       </form>

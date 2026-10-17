@@ -23,8 +23,8 @@ const ERR_UPLOAD_NOT_FOUND = 31006
 const ERR_CHUNK_OUT_OF_ORDER = 71007
 
 /** A chunk is sent this many times before the upload gives up (the file stays resumable). */
-const CHUNK_ATTEMPTS = 4
-const BACKOFF_MS = 1000
+export const CHUNK_ATTEMPTS = 4
+export const BACKOFF_MS = 1000
 
 type UploadStatus = {
   UploadID: string
@@ -63,7 +63,7 @@ function isApiError(error: unknown, code: number): boolean {
 }
 
 /** Worth sending the chunk again: the connection failed or the server could not take it right now. */
-function isTransient(error: unknown): boolean {
+export function isTransient(error: unknown): boolean {
   if (!(error instanceof ApiError)) return false
   if (error.body === null && error.status === 0) return error.message !== "Upload aborted"
   return error.status === 429 || error.status >= 500

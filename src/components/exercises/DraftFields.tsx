@@ -11,15 +11,18 @@ import { FieldHelp } from "@/components/ui/field-help"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { useEditorPosition } from "./EditorPosition"
 import { InfrastructureBlockedNote } from "./EventBanners"
+import { ExerciseIdContext } from "./ExerciseIdContext"
 
-export function DraftVariants({ form, disabled, infrastructureBlocked = false }: {
+export function DraftVariants({ form, disabled, exerciseId, infrastructureBlocked = false }: {
   form: UseFormReturn<DraftFormValues>
   disabled: boolean
+  /** The saved exercise the attachments belong to; null until the first save. */
+  exerciseId: string | null
   /** The owner event forbids lab infrastructure: the topology editor is replaced by a note. */
   infrastructureBlocked?: boolean
 }) {
   const [section, setSection] = useEditorPosition("section")
-  return <section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
+  return <ExerciseIdContext.Provider value={exerciseId}><section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
     <VariantTabs disabled={disabled} toolbar={() => <>
       <div role="tablist" aria-label={t("admin.exDraft.sections")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
         {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value}
@@ -48,6 +51,6 @@ export function DraftVariants({ form, disabled, infrastructureBlocked = false }:
           : <TopologySection variantIndex={variantIndex} disabled={disabled} />}
       </div>
     </div>} />
-  </section>
+  </section></ExerciseIdContext.Provider>
 }
 

@@ -5,13 +5,14 @@ import { useFieldArray, useFormContext } from "react-hook-form"
 import { Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { uploadExerciseFile, exerciseFileURL } from "@/api/exercises/files"
+import { uploadExerciseAttachment, exerciseFileURL } from "@/api/exercises/files"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { RemoveAction } from "./RemoveAction"
+import { useExerciseId } from "./ExerciseIdContext"
 
 /**
- * AttachmentList — task attachments. Upload: POST /api/exercises/files
+ * AttachmentList — task attachments. Upload: hash lookup on the task, then POST /api/exercises/files
  * (multipart), size limit is enforced by the backend (ErrFileTooLarge →
  * i18n dictionary). Download: a plain link (cookie-auth). The files
  * themselves don't live in the form — only {FileID, Name}.
@@ -30,6 +31,7 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Tasks.${taskIndex}.Attachments` as const
   const { fields, remove } = useFieldArray({ control, name })
+  const exerciseId = useExerciseId()
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
@@ -43,7 +45,7 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
     setError(null)
     setFailedFile(null)
     try {
-      const uploaded = await uploadExerciseFile(file, setProgress)
+      const uploaded = await uploadExerciseAttachment(exerciseId, file, setProgress)
       setValue(name, [...getValues(name), { FileID: uploaded.FileID, Name: uploaded.Name }], { shouldDirty: true })
     } catch (err) {
       setError(exerciseErrorMessage(err))

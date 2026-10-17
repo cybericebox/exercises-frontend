@@ -16,7 +16,7 @@ vi.mock('@/components/editor/RichTextEditor', () => ({
   default: () => <div data-testid="rich-text-editor" />,
 }))
 vi.mock('@/api/exercises/files', () => ({
-  uploadExerciseFile: vi.fn(),
+  uploadExerciseAttachment: vi.fn(),
   exerciseFileURL: (id: string) => `/api/exercises/files/${id}`,
 }))
 vi.mock('@/api/exercises/flagPolicy', () => ({
@@ -25,7 +25,7 @@ vi.mock('@/api/exercises/flagPolicy', () => ({
 
 import { TaskAccordion } from './TaskAccordion'
 import { draftSchema, emptyDevice, emptyDraft, emptyTask, emptyVariant, type DraftFormValues, type TaskFormValues } from '@/lib/exerciseSchemas'
-import { uploadExerciseFile } from '@/api/exercises/files'
+import { uploadExerciseAttachment } from '@/api/exercises/files'
 import { getFlagPolicy } from '@/api/exercises/flagPolicy'
 
 function Harness({ tasks, otherTasks, disabled = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean }) {
@@ -161,7 +161,7 @@ describe('TaskAccordion', () => {
   })
 
   it('drops a file onto the selected stage rather than its neighbor', async () => {
-    vi.mocked(uploadExerciseFile).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
+    vi.mocked(uploadExerciseAttachment).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
     render(<Harness tasks={[task('first'), task('second')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'second' }))
     const file = new File(['x'], 'image.png', { type: 'image/png' })

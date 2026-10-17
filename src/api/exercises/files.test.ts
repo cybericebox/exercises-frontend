@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "@/api/client"
 import { apiOrigin } from "@/lib/origins"
 import { isServiceDown, reportServiceAvailable } from "@/lib/serviceStatus"
-import { uploadExerciseFile, exerciseFileURL } from "./files"
+import * as client from "@/api/client"
+import { uploadExerciseAttachment, uploadExerciseFile, exerciseFileURL } from "./files"
+
+vi.mock("@/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/client")>()),
+  apiPost: vi.fn(),
+}))
+const mockPost = vi.mocked(client.apiPost)
 
 const FILE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
@@ -96,5 +103,42 @@ describe("exercise file upload", () => {
 describe("exerciseFileURL", () => {
   it("builds the cookie-authenticated download URL", () => {
     expect(exerciseFileURL(FILE_ID)).toBe(`${apiOrigin}/api/exercises/files/${FILE_ID}`)
+  })
+})
+
+describe("uploadExerciseAttachment", () => {
+  const HELLO_SHA = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+  beforeEach(() => { UploadRequest.instances = []; vi.stubGlobal("XMLHttpRequest", UploadRequest); mockPost.mockReset() })
+  afterEach(() => { vi.unstubAllGlobals(); reportServiceAvailable() })
+
+  it("skips the bytes when the task already holds the hash", async () => {
+    mockPost.mockResolvedValue({ Found: true, FileID: FILE_ID, Name: "stored.pdf", Size: 5 })
+    const file = new File(["hello"], "notes.pdf")
+    const progress = vi.fn()
+    await expect(uploadExerciseAttachment("e1", file, progress)).resolves.toEqual({ FileID: FILE_ID, Name: "notes.pdf", Size: 5 })
+    expect(mockPost).toHaveBeenCalledWith("/api/exercises/e1/files/lookup", { SHA256: HELLO_SHA })
+    expect(UploadRequest.instances).toHaveLength(0)
+    expect(progress).toHaveBeenLastCalledWith(100)
+  })
+
+  it("uploads the file when the hash is new", async () => {
+    mockPost.mockResolvedValue({ Found: false, FileID: "", Name: "", Size: 0 })
+    const promise = uploadExerciseAttachment("e1", new File(["hello"], "notes.pdf"))
+    await vi.waitFor(() => expect(UploadRequest.instances).toHaveLength(1))
+    const request = UploadRequest.instances[0]
+    expect(request.open).toHaveBeenCalledWith("POST", `${apiOrigin}/api/exercises/files`)
+    request.responseText = JSON.stringify({ Status: { Code: 10000, Message: "Success" }, Data: { FileID: FILE_ID, Name: "notes.pdf", Size: 5 } })
+    request.onload?.()
+    await expect(promise).resolves.toEqual({ FileID: FILE_ID, Name: "notes.pdf", Size: 5 })
+  })
+
+  it("does not ask without an exercise id", async () => {
+    const promise = uploadExerciseAttachment(null, new File(["hello"], "notes.pdf"))
+    await vi.waitFor(() => expect(UploadRequest.instances).toHaveLength(1))
+    expect(mockPost).not.toHaveBeenCalled()
+    const request = UploadRequest.instances[0]
+    request.responseText = JSON.stringify({ Status: { Code: 10000, Message: "Success" }, Data: { FileID: FILE_ID, Name: "notes.pdf", Size: 5 } })
+    request.onload?.()
+    await promise
   })
 })
