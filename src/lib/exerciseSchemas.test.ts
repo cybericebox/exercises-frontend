@@ -1035,12 +1035,17 @@ describe('toSaveDraftInput', () => {
 describe('linked variants in the form model', () => {
   it('toSaveDraftInput sends LinkedTo and CopyOf only when set', () => {
     const draft = validDraft()
-    draft.Variants.push({ ...emptyVariant(2), ID: 'v2', LinkedTo: 'base-id', CopyOf: 'src-id' })
+    draft.Variants.push({ ...emptyVariant(2), ID: '', LinkedTo: 'base-id', CopyOf: 'src-id' })
     const [plain, linked] = toSaveDraftInput(draft).Variants
     expect(plain).not.toHaveProperty('LinkedTo')
     expect(plain).not.toHaveProperty('CopyOf')
     expect(linked.LinkedTo).toBe('base-id')
     expect(linked.CopyOf).toBe('src-id')
+  })
+  it('toSaveDraftInput drops CopyOf once the copy is saved, so its payload matches the stored one', () => {
+    const draft = validDraft()
+    draft.Variants.push({ ...emptyVariant(2), ID: 'v2', CopyOf: 'src-id' })
+    expect(toSaveDraftInput(draft).Variants[1]).not.toHaveProperty('CopyOf')
   })
   it('toDraftFormValues reads LinkedTo', () => {
     const version = loadedVersion()

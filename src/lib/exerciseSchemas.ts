@@ -753,7 +753,8 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     Index: i + 1,
     ...(v.Note ? { Note: v.Note } : {}),
     ...(v.LinkedTo ? { LinkedTo: v.LinkedTo } : {}),
-    ...(v.CopyOf ? { CopyOf: v.CopyOf } : {}),
+    // CopyOf is for a new variant only: once saved it has its own stored secrets.
+    ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
   }))
