@@ -57,6 +57,17 @@ describe("downloadInChunks", () => {
     expect(mockBlob.mock.calls.map((call) => call[0])).toEqual([2, 3].map((i) => `/api/exercises/files/f2/chunks/${i}`))
   })
 
+  it("keeps retried chunk failures silent and lets only the last attempt report an outage", async () => {
+    mockGet.mockResolvedValue(meta())
+    mockBlob.mockRejectedValue(new TypeError("network failed"))
+    await expect(downloadInChunks("f-silent", undefined, noSleep)).rejects.toBeInstanceOf(TypeError)
+    forgetDownload("f-silent")
+    const options = mockBlob.mock.calls.map((call) => call[1])
+    expect(options.length).toBeGreaterThan(1)
+    expect(options.slice(0, -1).every((option) => option?.silentOutage === true)).toBe(true)
+    expect(options.at(-1)?.silentOutage).toBe(false)
+  })
+
   it("retries a transient chunk failure", async () => {
     mockGet.mockResolvedValue(meta())
     let failures = 1

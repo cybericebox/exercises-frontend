@@ -44,7 +44,9 @@ export function parseRetryAfter(header: string | null): number | undefined {
 //       runs on the caller.
 //   required: false — opt out (e.g. fetchMe, which treats 401 as "anonymous").
 //       The 401 is thrown as ApiError so the caller can handle it.
-export type ApiOptions = { required?: boolean }
+//   silentOutage: true — a dropped connection or a proxy 5xx is only thrown, not
+//       reported as a platform outage (a request the caller retries on its own).
+export type ApiOptions = { required?: boolean; silentOutage?: boolean }
 
 // portless strips the port from a URL and forces https:, matching the backend's
 // expectations for return_to (port-free, https-only). Returns the input unchanged
@@ -91,7 +93,7 @@ export function redirectRequiredAuth(signInUrl: string | null): void {
 // unwrap into ApiError/Data. Split out so the multipart path can skip the
 // JSON-only fetch() call above without duplicating this logic.
 async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
-  if (isUnreachableResponse(res.status, res.headers.get("X-Request-ID"))) reportServiceUnavailable()
+  if (!opts.silentOutage && isUnreachableResponse(res.status, res.headers.get("X-Request-ID"))) reportServiceUnavailable()
 
   // Centralized auth handling: required (default true) → write cib_return_to cookie
   // and redirect to sign-in. Returning a never-resolving promise stops the
@@ -234,7 +236,7 @@ export async function apiGetBlob(path: string, opts: ApiOptions = {}): Promise<B
   try {
     res = await fetch(url, { method: "GET", credentials: "include" })
   } catch (error) {
-    if (isNetworkOutage(error)) reportServiceUnavailable()
+    if (!opts.silentOutage && isNetworkOutage(error)) reportServiceUnavailable()
     throw error
   }
   if (!res.ok) return finishRequest<never>(res, opts)

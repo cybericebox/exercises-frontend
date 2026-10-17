@@ -43,7 +43,8 @@ function retryable(error: unknown): boolean {
 async function fetchChunk(fileId: string, index: number, sleep: (ms: number) => Promise<void>): Promise<Blob> {
   for (let attempt = 1; ; attempt++) {
     try {
-      return (await apiGetBlob(`${FILES}/${fileId}/chunks/${index}`)).blob
+      // A failure that will be retried is not an outage yet; the last attempt reports it.
+      return (await apiGetBlob(`${FILES}/${fileId}/chunks/${index}`, { silentOutage: attempt < CHUNK_ATTEMPTS })).blob
     } catch (error) {
       if (attempt >= CHUNK_ATTEMPTS || !retryable(error)) throw error
       await sleep(BACKOFF_MS * 2 ** (attempt - 1))
