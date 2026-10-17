@@ -193,7 +193,7 @@ export async function uploadImage(
         let status: BlobState
         try {
           // A failed poll is asked again next round, so it is not reported as a platform outage.
-          status = await apiGet<BlobState>(`${base}/blobs/${encodeURIComponent(entry.blob.digest)}`, init, { silentOutage: true })
+          status = await apiGet<BlobState>(`${base}/blobs/${encodeURIComponent(entry.blob.digest)}`, init, { silentOutage: true, retry: false })
         } catch (error) {
           if (isPassing(error) && !signal?.aborted) continue
           throw error

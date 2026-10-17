@@ -19,3 +19,19 @@ describe("localizedError on a 429", () => {
     expect(localizedError(apiErr(429, 70428))).toBe(t("error.tooManyRequests"))
   })
 })
+
+describe("localizedError on a 503", () => {
+  it("answers an overload 503 (Retry-After) with the overloaded message", () => {
+    expect(localizedError(apiErr(503, undefined, 1))).toBe(t("error.overloaded"))
+    expect(localizedError(apiErr(503, undefined, 0))).toBe(t("error.overloaded"))
+  })
+
+  it("keeps the generic message for a bare 503", () => {
+    expect(localizedError(apiErr(503, undefined))).toBe(t("error.generic"))
+  })
+
+  it("has the exact copy for the overloaded keys", () => {
+    expect(t("error.overloaded")).toBe("Сервер перевантажений, спробуйте за кілька секунд")
+    expect(t("error.overloaded.retry")).toBe("Спробувати ще раз")
+  })
+})
