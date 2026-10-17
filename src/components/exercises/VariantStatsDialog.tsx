@@ -13,7 +13,11 @@ import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 
 const BLOCK = "min-h-64"
 
-/** Subtasks are matched by position; a column is named by the first variant that has it. */
+/**
+ * Subtasks are matched by position. Every variant of a published version has the same task ids in the same order,
+ * so position maps correctly; it is also the only key for legacy snapshots with nil task ids.
+ * A column is named by the first variant that has it.
+ */
 function subtaskColumns(version: VariantStats): string[] {
   const names: string[] = []
   for (const variant of version.Variants) {

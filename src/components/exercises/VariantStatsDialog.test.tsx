@@ -14,7 +14,7 @@ const stats: VariantStats[] = [
     VersionID: 'v2', Status: 'published', CreatedAt: '2026-09-20T10:00:00Z', PublishedAt: '2026-09-21T09:00:00Z',
     Variants: [
       { VariantID: 'a', Number: 1, Issued: 5, Solved: 3, Tasks: [{ TaskID: 't1', Name: 'Scan', Solved: 4 }, { TaskID: 't2', Name: 'Exploit', Solved: 3 }] },
-      { VariantID: 'b', Number: 2, Issued: 0, Solved: 0, Tasks: [{ TaskID: 't3', Name: 'Scan', Solved: 0 }] },
+      { VariantID: 'b', Number: 2, Issued: 0, Solved: 0, Tasks: [{ TaskID: 't1', Name: 'Scan', Solved: 0 }] },
     ],
   },
   {
@@ -50,7 +50,7 @@ describe('VariantStatsDialog', () => {
     vi.mocked(getVariantStats).mockResolvedValueOnce([])
     open()
     expect(await screen.findByText('admin.exStats.loadError')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /error\.load\.retry|retry/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
     expect(await screen.findByText('admin.exStats.empty')).toBeInTheDocument()
     expect(getVariantStats).toHaveBeenCalledTimes(2)
   })
