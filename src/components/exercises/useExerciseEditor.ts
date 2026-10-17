@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ApiError } from "@/api/client"
@@ -17,6 +17,7 @@ import {
   clearPendingChanges, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
 } from "@/lib/exercisePendingBuffer"
 import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
+import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
 import { useExerciseAutosave, type ExerciseAutosave } from "./useExerciseAutosave"
 
 export type ExerciseLoadState = "loading" | "ready" | "notFound" | "error"
@@ -210,8 +211,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
         const updates = serverIdUpdates(sent, saved, draftForm.getValues())
         if (updates.length > 0) {
+          // An edit still waiting for its check is marked first: the baseline reset below must not swallow it.
+          checkPendingRef.current()
           suppressRef.current = true
-          for (const update of updates) draftForm.setValue(update.path, update.value)
+          // Linked variants already hold the same ids as their base: no mirror pass while writing.
+          withLinkedMirrorMuted(draftForm.control, () => {
+            for (const update of updates) draftForm.setValue(update.path, update.value)
+          })
           suppressRef.current = false
           lastSignatureRef.current = signature()
         }
@@ -410,6 +416,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // "pending"/"saving"/"saved" transition for no behavioral benefit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editable, loadState, identityForm, draftForm, signature, autosave.markChanged])
+
+  // On unmount, layout cleanups run before every passive one, so an edit still waiting for its
+  // check is marked before the autosave hook's unmount flush looks for unsaved changes.
+  useLayoutEffect(() => () => checkPendingRef.current(), [])
 
   const reloadWorkingCopy = useCallback(async () => {
     const id = exerciseIdRef.current

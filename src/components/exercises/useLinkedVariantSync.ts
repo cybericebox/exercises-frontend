@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import type { UseFormReturn } from "react-hook-form"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { dependentsOf, syncLinkedVariants } from "@/lib/linkedVariants"
+import { isLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
 
 const VARIANT_PATH = /^Variants\.(\d+)(?:\.|$)/
 
@@ -19,7 +20,7 @@ export function useLinkedVariantSync(form: UseFormReturn<DraftFormValues>, enabl
     if (!enabled) return
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
     const subscription = form.watch((_, { name }) => {
-      if (applying.current || !name) return
+      if (applying.current || !name || isLinkedMirrorMuted(form.control)) return
       const variants = form.getValues("Variants")
       let candidates: number[]
       if (name === "Variants") {
@@ -39,8 +40,8 @@ export function useLinkedVariantSync(form: UseFormReturn<DraftFormValues>, enabl
           if (JSON.stringify(synced[index]) !== JSON.stringify(variants[index])) {
             // Trade-off: a whole-variant setValue regenerates the nested field-array ids of that
             // variant, which would remount its open subtask form. Acceptable: a base is edited in
-            // its own tab and inactive variant tabs are unmounted. Server ids after a save are
-            // written to linked variants first (serverIdUpdates), so they never get here.
+            // its own tab and inactive variant tabs are unmounted. Server ids adopted after a save
+            // do not get here: the editor writes them with the mirror muted (linkedMirrorMute).
             form.setValue(`Variants.${index}`, synced[index], { shouldDirty: true })
           }
         }
