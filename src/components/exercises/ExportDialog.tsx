@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { createExport, downloadExport, type StoredExport } from "@/api/exercises/archive"
+import { ApiError } from "@/api/client"
 import { forgetDownload } from "@/api/exercises/chunkedDownload"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -54,6 +55,8 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
       onExported?.()
       onClose()
     } catch (cause) {
+      // A client error (the stored archive expired: 404) never gets better: the next try starts a fresh export.
+      if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500 && cause.status !== 429 && cause.status !== 408) dropKept()
       setError(exerciseErrorMessage(cause))
     } finally {
       setBusy(false)

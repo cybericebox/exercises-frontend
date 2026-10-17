@@ -8,6 +8,7 @@ vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 import { createExport, downloadExport } from "@/api/exercises/archive"
+import { ApiError } from "@/api/client"
 import { forgetDownload } from "@/api/exercises/chunkedDownload"
 import { downloadBlob } from "@/lib/downloadBlob"
 import { ExportDialog } from "./ExportDialog"
@@ -125,5 +126,18 @@ describe("ExportDialog", () => {
     expect(forgetDownload).not.toHaveBeenCalled()
     unmount()
     expect(forgetDownload).toHaveBeenCalledWith("file-1")
+  })
+
+  it("starts a fresh export when the stored archive has expired", async () => {
+    mockDownload.mockRejectedValueOnce(new ApiError(404, null))
+    mockDownload.mockResolvedValueOnce({ blob: new Blob(["zip"]), filename: "x.zip" })
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    await screen.findByRole("alert")
+    expect(forgetDownload).toHaveBeenCalledWith("file-1")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled())
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(mockDownload.mock.calls.map((call) => call[0].FileID)).toEqual(["file-1", "file-2"])
   })
 })
