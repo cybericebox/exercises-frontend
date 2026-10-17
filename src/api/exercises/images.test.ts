@@ -275,7 +275,7 @@ describe("uploadImage", () => {
     const promise = uploadImage(EXERCISE, file, "app")
     await vi.advanceTimersByTimeAsync(BLOB_POLL_MS)
     await expect(promise).resolves.toBe(REFERENCE)
-    expect(apiGet.mock.calls[0][2]).toEqual({ silentOutage: true })
+    expect(apiGet.mock.calls[0][2]).toEqual({ silentOutage: true, retry: false })
   })
 
   it("uploads again once when the server lost the staged upload", async () => {

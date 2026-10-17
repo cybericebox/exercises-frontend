@@ -5,6 +5,7 @@ import { setExerciseAccess, type AccessInput, type Exercise } from "@/api/exerci
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/toast"
+import { toastApiError } from "@/components/ui/toastApiError"
 import { t } from "@/i18n/t"
 import { ERR_ACCESS_INVALID, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { AccessLevelFields, accessValueValid, type AccessValue } from "./AccessLevelFields"
@@ -80,7 +81,7 @@ export function AccessDialog({ exercise, originEventName, onClose, onSaved }: {
       if (mountedRef.current && sameAccess(valueRef.current, sent)) onClose()
     } catch (error) {
       if (exerciseErrorCode(error) === ERR_ACCESS_INVALID) setAccessError(exerciseErrorMessage(error))
-      else toast.error(exerciseErrorMessage(error))
+      else toastApiError(error, () => void save())
     } finally {
       savingRef.current = false
       if (mountedRef.current) setBusy(false)

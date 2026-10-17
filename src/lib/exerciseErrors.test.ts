@@ -43,6 +43,13 @@ describe('exerciseErrorMessage', () => {
     expect(exerciseErrorMessage(apiError(400, 21002, 'x'))).toBe('admin.ex.err.fileTooLarge')
   })
 
+  it('answers an overload 503 with the overloaded text, a bare 503 with the generic one', () => {
+    const overload = new ApiError(503, undefined, undefined, undefined, undefined, 1)
+    expect(exerciseErrorMessage(overload)).toBe('error.overloaded')
+    expect(exerciseErrorMessage(new ApiError(503, undefined))).toBe('admin.ex.err.generic')
+    expect(exerciseErrorMessage(new ApiError(500, undefined, undefined, undefined, undefined, 1))).toBe('admin.ex.err.generic')
+  })
+
   it('falls back to generic + backend Status.Message for unknown codes', () => {
     expect(exerciseErrorMessage(apiError(500, 42, 'weird backend fact')))
       .toBe('admin.ex.err.genericWith weird backend fact')

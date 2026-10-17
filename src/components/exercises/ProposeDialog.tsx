@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
+import { toastApiError } from "@/components/ui/toastApiError"
 import { t } from "@/i18n/t"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 
 export const PROPOSAL_NOTE_LIMIT = 2000
 
@@ -29,7 +29,7 @@ export function ProposeDialog({ exerciseId, onClose, onProposed }: {
       toast.success(t("exercises.propose.sent"))
       onProposed(proposal)
     } catch (error) {
-      toast.error(exerciseErrorMessage(error))
+      toastApiError(error, () => void submit())
     } finally {
       setBusy(false)
     }
