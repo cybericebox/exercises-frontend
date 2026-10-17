@@ -468,8 +468,9 @@ export const draftSchema = z
   })
   .superRefine((draft, ctx) => {
     // Owner rule: within a base and its linked variants a fixed flag may not repeat per subtask.
-    for (const { variantIndex, taskIndex } of linkedFlagConflicts(draft.Variants)) {
-      ctx.addIssue({ code: "custom", path: ["Variants", variantIndex, "Tasks", taskIndex, "Flag"], message: t("admin.ex.val.linkedFlagDuplicate") })
+    // The issue sits on the repeated flag itself: FlagInput shows per-flag errors only.
+    for (const { variantIndex, taskIndex, flagIndex } of linkedFlagConflicts(draft.Variants)) {
+      ctx.addIssue({ code: "custom", path: ["Variants", variantIndex, "Tasks", taskIndex, "Flag", flagIndex], message: t("admin.ex.val.linkedFlagDuplicate") })
     }
     // Domain invariant ErrTaskCountMismatch: every variant has the same number of tasks.
     const expected = draft.Variants[0]?.Tasks.length ?? 0

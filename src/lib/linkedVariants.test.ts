@@ -172,7 +172,7 @@ describe("linkedFlagConflicts", () => {
     const base = variant("b", 1, [task("t1", "One", ["same", "template:x"]), task("t2", "Two", ["u"])])
     const linked = variant("l", 2, [task("t1", "One", ["same", "template:x"]), task("t2", "Two", ["v", ""])], "b")
     const indep = variant("i", 3, [task("t1", "One", ["same"]), task("t2", "Two", ["u"])])
-    expect(linkedFlagConflicts([base, linked, indep])).toEqual([{ variantIndex: 1, taskIndex: 0 }])
+    expect(linkedFlagConflicts([base, linked, indep])).toEqual([{ variantIndex: 1, taskIndex: 0, flagIndex: 0 }])
   })
   it("skips empty flag values shared by a base and a linked variant", () => {
     const base = variant("b", 1, [task("t1", "One", [""])])
@@ -182,7 +182,7 @@ describe("linkedFlagConflicts", () => {
   it("does not report a repeat inside one variant and reports each later linked variant", () => {
     const base = variant("b", 1, [task("t1", "One", ["x", "x"])])
     const l1 = variant("l1", 2, [task("t1", "One", ["y"])], "b")
-    const l2 = variant("l2", 3, [task("t1", "One", ["y"])], "b")
-    expect(linkedFlagConflicts([base, l1, l2])).toEqual([{ variantIndex: 2, taskIndex: 0 }])
+    const l2 = variant("l2", 3, [task("t1", "One", ["z", "y"])], "b")
+    expect(linkedFlagConflicts([base, l1, l2])).toEqual([{ variantIndex: 2, taskIndex: 0, flagIndex: 1 }])
   })
 })

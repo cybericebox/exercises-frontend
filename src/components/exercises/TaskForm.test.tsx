@@ -43,7 +43,40 @@ function ConflictHarness() {
   </FormProvider>
 }
 
+function LinkedFlagHarness() {
+  const [draft] = useState(() => {
+    const value = emptyDraft()
+    value.Variants[0].ID = 'base'
+    value.Variants[0].Tasks[0].ID = 't1'
+    value.Variants[0].Tasks[0].Flag = ['ICE{base}']
+    const linked = (id: string, index: number) => {
+      const variant = structuredClone(value.Variants[0])
+      variant.ID = id
+      variant.Index = index
+      variant.LinkedTo = 'base'
+      variant.Tasks[0].Flag = ['ICE{same}']
+      return variant
+    }
+    value.Variants.push(linked('l1', 2), linked('l2', 3))
+    return value
+  })
+  const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
+  return <FormProvider {...form}>
+    <form noValidate onSubmit={form.handleSubmit(() => {})}>
+      <TaskForm variantIndex={2} taskIndex={0} disabled={false} linked />
+      <button type="submit">Validate</button>
+    </form>
+  </FormProvider>
+}
+
 describe('TaskForm inline placeholders', () => {
+  it('shows a flag repeated in another linked variant under that flag', async () => {
+    render(<LinkedFlagHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+    const message = await screen.findByText('Такий прапорець уже є в іншому повʼязаному варіанті')
+    expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toHaveAccessibleDescription(message.textContent ?? '')
+  })
+
   it('shows missing description feedback directly beneath the rich text control', async () => {
     render(<Harness error />)
     fireEvent.click(screen.getByRole('button', { name: 'Validate description' }))

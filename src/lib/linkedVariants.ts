@@ -93,10 +93,11 @@ export function dependentsOf(variants: VariantFormValues[], baseId: string): num
 
 /**
  * Duplicate fixed flags inside a group (a base plus its linked variants), compared per task
- * position. Templates and empty values are skipped; every occurrence after the first is reported.
+ * position. Templates and empty values are skipped; every variant repeating a flag of an earlier
+ * one is reported once per task, at the index of its first repeated flag.
  */
-export function linkedFlagConflicts(variants: VariantFormValues[]): { variantIndex: number; taskIndex: number }[] {
-  const conflicts: { variantIndex: number; taskIndex: number }[] = []
+export function linkedFlagConflicts(variants: VariantFormValues[]): { variantIndex: number; taskIndex: number; flagIndex: number }[] {
+  const conflicts: { variantIndex: number; taskIndex: number; flagIndex: number }[] = []
   variants.forEach((base, baseIndex) => {
     if (base.LinkedTo || !base.ID) return
     const group = [baseIndex, ...dependentsOf(variants, base.ID)]
@@ -106,15 +107,15 @@ export function linkedFlagConflicts(variants: VariantFormValues[]): { variantInd
       const reported = new Set<number>()
       for (const variantIndex of group) {
         const flags = variants[variantIndex].Tasks[taskIndex]?.Flag ?? []
-        for (const value of flags) {
-          if (!value || value.startsWith(TEMPLATE_PREFIX)) continue
+        flags.forEach((value, flagIndex) => {
+          if (!value || value.startsWith(TEMPLATE_PREFIX)) return
           const previous = owner.get(value)
           if (previous !== undefined && previous !== variantIndex && !reported.has(variantIndex)) {
             reported.add(variantIndex)
-            conflicts.push({ variantIndex, taskIndex })
+            conflicts.push({ variantIndex, taskIndex, flagIndex })
           }
           owner.set(value, variantIndex)
-        }
+        })
       }
     })
   })

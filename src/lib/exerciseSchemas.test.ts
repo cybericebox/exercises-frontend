@@ -1049,7 +1049,7 @@ describe('linked variants in the form model', () => {
     expect(values.Variants[0].LinkedTo).toBe('base-id')
     expect(emptyVariant(1).LinkedTo).toBe('')
   })
-  it('draftSchema flags a duplicate flag in a linked variant at its Flag path', () => {
+  it('draftSchema flags a duplicate flag in a linked variant at the repeated flag', () => {
     const draft = validDraft()
     draft.Variants[0].ID = 'b'
     draft.Variants[0].Tasks[0].Flag = ['ICE{same}']
@@ -1057,11 +1057,11 @@ describe('linked variants in the form model', () => {
     linked.ID = 'l'
     linked.LinkedTo = 'b'
     linked.Tasks[0].Name = 'Find the flag'
-    linked.Tasks[0].Flag = ['ICE{same}']
+    linked.Tasks[0].Flag = ['ICE{own}', 'ICE{same}']
     draft.Variants.push(linked)
     const result = draftSchema.safeParse(draft)
     expect(result.success).toBe(false)
     const issue = !result.success && result.error.issues.find((i) => i.message === 'admin.ex.val.linkedFlagDuplicate')
-    expect(issue && issue.path).toEqual(['Variants', 1, 'Tasks', 0, 'Flag'])
+    expect(issue && issue.path).toEqual(['Variants', 1, 'Tasks', 0, 'Flag', 1])
   })
 })
