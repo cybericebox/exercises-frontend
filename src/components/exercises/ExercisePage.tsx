@@ -13,6 +13,8 @@ import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { DraftVariants } from "@/components/exercises/DraftFields"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
+import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
+import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
@@ -250,7 +252,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : null
 
-  return <DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
+  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
     <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
       className="flex min-h-full min-w-0 w-full flex-col gap-4">
       <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
@@ -337,6 +339,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       <Card className="flex flex-1 flex-col">
         <CardContent className="flex flex-1 flex-col pt-5">
           <Form {...editor.draftForm}>
+            {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
+            <ImageUploadsProvider canWrite={permissions.write && !readOnly}>
             <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-1 flex-col gap-5">
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
@@ -348,6 +352,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
               </TabsContent>
             </form>
+            </ImageUploadsProvider>
           </Form>
         </CardContent>
       </Card>
@@ -380,5 +385,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider>
+  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }

@@ -110,11 +110,11 @@ export const CODE_TO_KEY: Record<number, string> = {
 }
 
 /**
- * Archive content problems on import (20978-20991; 20991: over the archive size limits): they name the archive,
+ * Archive content problems on import (20978-20991; 20991: over the archive size limits; 22829: an image file that cannot be imported): they name the archive,
  * never a missing password, so the import dialog shows them under the file field.
  */
 export const ARCHIVE_CONTENT_ERROR_CODES: ReadonlySet<number> = new Set([
-  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991,
+  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991, 22829,
 ])
 
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
@@ -160,6 +160,16 @@ export function errorContext(e: unknown): Record<string, string> {
   return out
 }
 
+/** Why an image file was refused (22829) and why the registry did not give an image up (72830). */
+const IMAGE_FILE_REASONS = new Set(["gzip", "not_tar", "no_image", "multi_image", "no_amd64", "too_large", "digest_mismatch", "invalid_image", "upload_missing"])
+const REGISTRY_REASONS = new Set(["needs_event_secret", "credential_conflict", "not_configured", "unreachable", "unauthorized", "not_found", "invalid_reference", "rate_limited"])
+
+function reasonText(reason: string): string {
+  if (IMAGE_FILE_REASONS.has(reason)) return t(`admin.exImport.imageReason.${reason}`)
+  if (REGISTRY_REASONS.has(reason)) return t(`exercises.image.reason.${reason}`)
+  return t("exercises.image.reason.unknown")
+}
+
 /** Which file, field, key... an archive error is about, from its context; "" when it has none. */
 export function archiveErrorDetail(e: unknown): string {
   const c = errorContext(e)
@@ -171,7 +181,7 @@ export function archiveErrorDetail(e: unknown): string {
   if (c.device) parts.push(c.device)
   if (c.devices) parts.push(c.devices)
   if (c.expected) parts.push(c.expected)
-  if (c.reason) parts.push(c.reason)
+  if (c.reason) parts.push(reasonText(c.reason))
   return parts.join(", ")
 }
 

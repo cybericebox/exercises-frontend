@@ -33,7 +33,7 @@ describe("ExportDialog", () => {
     expect(screen.queryByLabelText(/^admin\.exExport\.password/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     await waitFor(() => expect(downloadBlob).toHaveBeenCalledWith(blob, "web.cybericebox.zip"))
-    expect(mockCreate).toHaveBeenCalledWith({ IDs: ["e1"], IncludeSecrets: false, Password: "" })
+    expect(mockCreate).toHaveBeenCalledWith({ IDs: ["e1"], IncludeSecrets: false, Password: "" }, expect.any(Function), expect.any(AbortSignal))
     expect(onExported).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
@@ -66,7 +66,7 @@ describe("ExportDialog", () => {
     expect(mockCreate).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText(/^admin\.exExport\.confirm/), { target: { value: "s3cret" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledWith({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" }))
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledWith({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" }, expect.any(Function), expect.any(AbortSignal)))
   })
 
   it("keeps the dialog open with the error when the export fails", async () => {
@@ -139,5 +139,69 @@ describe("ExportDialog", () => {
     await waitFor(() => expect(downloadBlob).toHaveBeenCalled())
     expect(mockCreate).toHaveBeenCalledTimes(2)
     expect(mockDownload.mock.calls.map((call) => call[0].FileID)).toEqual(["file-1", "file-2"])
+  })
+
+  it("has the images switch off by default and says the archive becomes large", () => {
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    expect(screen.getByRole("switch", { name: "admin.exExport.images" })).not.toBeChecked()
+    expect(screen.getByText("admin.exExport.imagesHint")).toBeInTheDocument()
+  })
+
+  it("asks for the images and shows the crest loader while the server prepares the archive", async () => {
+    let finish: (value: { FileID: string; Name: string }) => void = () => undefined
+    mockCreate.mockImplementation((_input, onStage) => {
+      onStage?.("working")
+      return new Promise((resolve) => { finish = resolve })
+    })
+    mockDownload.mockResolvedValue({ blob: new Blob(["zip"]), filename: "img.zip" })
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    expect((await screen.findAllByText("admin.exExport.working")).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
+    expect(mockCreate).toHaveBeenCalledWith({ IDs: ["e1"], IncludeSecrets: false, Password: "", IncludeImages: true }, expect.any(Function), expect.any(AbortSignal))
+    finish({ FileID: "f9", Name: "img.zip" })
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled())
+  })
+
+  it("lets the user leave while the images are prepared and stops waiting", async () => {
+    let signal: AbortSignal | undefined
+    mockCreate.mockImplementation((_input, onStage, abort) => {
+      signal = abort
+      onStage?.("working")
+      return new Promise(() => undefined)
+    })
+    const onClose = vi.fn()
+    render(<ExportDialog exerciseIds={["e1"]} onClose={onClose} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    await screen.findAllByText("admin.exExport.working")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" }))
+    expect(signal?.aborted).toBe(true)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("explains an export that cannot read an image from the registry", async () => {
+    mockCreate.mockRejectedValue(new ApiError(409, { Status: { Code: 72830, Context: { device: "web", reason: "unreachable" } } }, undefined, undefined, 72830))
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    const alert = await screen.findByRole("alert")
+    // The message carries the device and the translated reason (the test translator prints keys only).
+    expect(alert).toHaveTextContent("admin.exImport.errDetail")
+  })
+
+  it("leaves the preparing stage once the archive is ready: the download cannot be cancelled", async () => {
+    mockCreate.mockImplementation(async (_input, onStage) => {
+      onStage?.("working")
+      return { FileID: "f1", Name: "x.zip" }
+    })
+    mockDownload.mockReturnValue(new Promise(() => undefined))
+    render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
+    await waitFor(() => expect(mockDownload).toHaveBeenCalled())
+    expect(screen.queryAllByText("admin.exExport.working")).toHaveLength(0)
+    expect(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" })).toBeDisabled()
   })
 })

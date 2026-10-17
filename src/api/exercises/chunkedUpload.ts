@@ -6,6 +6,7 @@
  *   GET    /api/exercises/uploads/:id                   status: how many chunks the server holds
  *   PUT    /api/exercises/uploads/:id/chunks/:index     one raw chunk
  *   POST   /api/exercises/uploads/:id/complete          assemble; the backend checks the size and the sha256
+ * (uploadChunks stops before complete: an image blob is pushed to the registry from its chunks instead.)
  * An interrupted upload continues from the first chunk the server does not have: the upload id is kept in the
  * browser, keyed by the file, and a repeated call asks the server where it stands.
  */
@@ -38,7 +39,12 @@ type UploadStatus = {
   ExpiresAt: string
 }
 
-type Options = { sleep?: (ms: number) => Promise<void>; restarts?: number }
+type Options = {
+  sleep?: (ms: number) => Promise<void>
+  restarts?: number
+  /** What the file is for, sent with the start request: "image-blob" lets the server take a file up to the image limit. */
+  purpose?: string
+}
 
 /** How many times an upload that fell out of step with the server starts over from the server status. */
 const MAX_RESTARTS = 3
@@ -71,7 +77,7 @@ export function isTransient(error: unknown): boolean {
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-async function openUpload(file: File, key: string): Promise<UploadStatus> {
+async function openUpload(file: File, key: string, purpose: string | undefined): Promise<UploadStatus> {
   const stored = readStored(key)
   if (stored) {
     try {
@@ -82,7 +88,9 @@ async function openUpload(file: File, key: string): Promise<UploadStatus> {
       writeStored(key, null)
     }
   }
-  const started = await apiPost<UploadStatus>(UPLOADS, { Name: file.name, ContentType: file.type, Size: file.size })
+  const started = await apiPost<UploadStatus>(UPLOADS, {
+    Name: file.name, ContentType: file.type, Size: file.size, ...(purpose ? { Purpose: purpose } : {}),
+  })
   writeStored(key, started.UploadID)
   return started
 }
@@ -111,6 +119,56 @@ async function sendChunk(
   }
 }
 
+type Sent = { upload: UploadStatus; key: string; hasher: ReturnType<typeof sha256.create> | null }
+
+/**
+ * Sends every chunk the server does not hold yet. With `hash`, the sha256 of the whole file is computed on the
+ * way (chunks the server already has are read again, only to feed the hash); without it, those chunks are not read.
+ */
+async function sendChunks(
+  file: File,
+  onProgress: ((percent: number) => void) | undefined,
+  signal: AbortSignal | undefined,
+  options: Options,
+  hash: boolean,
+): Promise<Sent> {
+  const sleep = options.sleep ?? defaultSleep
+  const key = fileKey(file)
+  const report = (sent: number) => onProgress?.(Math.min(99, Math.floor(sent / file.size * 100)))
+  onProgress?.(0)
+
+  let upload = await openUpload(file, key, options.purpose)
+  const hasher = hash ? sha256.create() : null
+  let received = upload.ChunksReceived
+  for (let index = 0; index < upload.Chunks; index++) {
+    const start = index * upload.ChunkSize
+    const end = Math.min(file.size, start + upload.ChunkSize)
+    if (index < received && !hasher) {
+      report(end)
+      continue
+    }
+    const chunk = file.slice(start, end)
+    hasher?.update(new Uint8Array(await chunk.arrayBuffer()))
+    if (index < received) {
+      report(end)
+      continue
+    }
+    try {
+      upload = await sendChunk(upload, index, chunk, (loaded) => report(start + loaded), signal, sleep)
+    } catch (error) {
+      if (isApiError(error, ERR_CHUNK_OUT_OF_ORDER) && (options.restarts ?? 0) < MAX_RESTARTS) {
+        // Another tab or a lost answer: ask where the server stands, and start the whole loop over from there.
+        return sendChunks(file, onProgress, signal, { ...options, restarts: (options.restarts ?? 0) + 1 }, hash)
+      }
+      if (isApiError(error, ERR_UPLOAD_NOT_FOUND)) writeStored(key, null)
+      throw error
+    }
+    received = Math.max(received, upload.ChunksReceived)
+    report(end)
+  }
+  return { upload, key, hasher }
+}
+
 /**
  * Uploads the file in chunks and resolves with the stored file. Progress is 0–100 and stays below 100 until the
  * server has assembled and checked the file. A failed upload keeps its id: calling again resumes it.
@@ -121,40 +179,9 @@ export async function uploadInChunks(
   signal?: AbortSignal,
   options: Options = {},
 ): Promise<UploadedFile> {
-  const sleep = options.sleep ?? defaultSleep
-  const key = fileKey(file)
-  const report = (sent: number) => onProgress?.(Math.min(99, Math.floor(sent / file.size * 100)))
-  onProgress?.(0)
-
-  let upload = await openUpload(file, key)
-  // The hash of the whole file is computed on the way: chunks the server already has are read from the local
-  // file again, only to feed the hash.
-  const hasher = sha256.create()
-  let received = upload.ChunksReceived
-  for (let index = 0; index < upload.Chunks; index++) {
-    const start = index * upload.ChunkSize
-    const chunk = file.slice(start, Math.min(file.size, start + upload.ChunkSize))
-    hasher.update(new Uint8Array(await chunk.arrayBuffer()))
-    if (index < received) {
-      report(start + chunk.size)
-      continue
-    }
-    try {
-      upload = await sendChunk(upload, index, chunk, (loaded) => report(start + loaded), signal, sleep)
-    } catch (error) {
-      if (isApiError(error, ERR_CHUNK_OUT_OF_ORDER) && (options.restarts ?? 0) < MAX_RESTARTS) {
-        // Another tab or a lost answer: ask where the server stands, and start the whole loop over from there.
-        return uploadInChunks(file, onProgress, signal, { ...options, restarts: (options.restarts ?? 0) + 1 })
-      }
-      if (isApiError(error, ERR_UPLOAD_NOT_FOUND)) writeStored(key, null)
-      throw error
-    }
-    received = Math.max(received, upload.ChunksReceived)
-    report(start + chunk.size)
-  }
-
+  const { upload, key, hasher } = await sendChunks(file, onProgress, signal, options, true)
   try {
-    const stored = await apiPost<UploadedFile>(`${UPLOADS}/${upload.UploadID}/complete`, { SHA256: bytesToHex(hasher.digest()) })
+    const stored = await apiPost<UploadedFile>(`${UPLOADS}/${upload.UploadID}/complete`, { SHA256: hasher ? bytesToHex(hasher.digest()) : "" })
     writeStored(key, null)
     onProgress?.(100)
     return stored
@@ -163,6 +190,27 @@ export async function uploadInChunks(
     if (error instanceof ApiError && (error.status === 400 || error.status === 404)) writeStored(key, null)
     throw error
   }
+}
+
+/**
+ * Sends every chunk of the file and resolves with the upload id, without completing the upload: the caller hands
+ * the upload to another endpoint (an image blob is pushed to the registry from its chunks). The id stays in the
+ * browser, so a repeated call resumes, or finds every chunk sent and sends nothing; forgetChunkedUpload drops it.
+ */
+export async function uploadChunks(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+  options: Options = {},
+): Promise<string> {
+  const { upload } = await sendChunks(file, onProgress, signal, options, false)
+  onProgress?.(100)
+  return upload.UploadID
+}
+
+/** Forgets the stored upload id of the file (the server is not asked): the next upload of the file starts anew. */
+export function forgetChunkedUpload(file: File): void {
+  writeStored(fileKey(file), null)
 }
 
 /** Gives up an upload: the server drops it with its chunks and the browser forgets it. */
