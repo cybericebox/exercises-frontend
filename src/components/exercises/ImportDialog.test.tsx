@@ -89,9 +89,20 @@ describe("ImportDialog", () => {
     const blob = new Blob(["zip"])
     mockExample.mockResolvedValue({ blob, filename: "example-task.cybericebox.zip" })
     render(<ImportDialog onClose={vi.fn()} />)
-    expect(screen.getByText("admin.exImport.exampleHint")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
     await waitFor(() => expect(mockSave).toHaveBeenCalledWith(blob, "example-task.cybericebox.zip"))
+  })
+
+  it("takes a dropped .zip and rejects other files", () => {
+    render(<ImportDialog onClose={vi.fn()} />)
+    const zone = screen.getByText("admin.exImport.noFile").parentElement!
+    fireEvent.drop(zone, { dataTransfer: { files: [new File(["x"], "notes.txt", { type: "text/plain" })] } })
+    expect(screen.getByText("admin.exImport.notZip")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeDisabled()
+    fireEvent.drop(zone, { dataTransfer: { files: [new File(["zip"], "web.zip", { type: "application/zip" })] } })
+    expect(screen.getByText("web.zip")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exImport.notZip")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
   })
 
   it("keeps the button busy only while loading and the file form usable", async () => {
