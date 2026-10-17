@@ -16,7 +16,7 @@ export function errorCode(error: unknown): number | undefined {
 
 /**
  * The only load-error state inside a page or block: the ErrorScreen warning mark at block
- * scale, a title (the context message), one line of help and «Спробувати ще раз». Same
+ * scale, a title (the context message), one line of help and «Спробувати ще раз» (compact too). Same
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
  * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
  */
@@ -34,7 +34,7 @@ export function LoadError({ message = t("error.load.title"), onRetry, error, com
     <div data-load-error role="alert" className={cn("flex w-full flex-col items-center justify-center px-4 text-center", compact ? "min-h-24 gap-2 py-4" : "min-h-40 gap-3 py-8", className)}>
       <TriangleAlert size={compact ? 20 : 24} className="text-destructive" aria-hidden />
       <p className="text-sm font-medium text-foreground">{message}</p>
-      {!compact && <p className="max-w-sm text-sm text-muted-foreground">{t("error.load.body")}</p>}
+      <p className={cn("max-w-sm text-muted-foreground", compact ? "text-xs" : "text-sm")}>{t("error.load.body")}</p>
       {code !== undefined && <p className="font-mono text-xs text-muted-foreground">{t("error.load.code", { code })}</p>}
       {(onRetry || actions) && <div className="flex flex-wrap items-center justify-center gap-2">
         {actions}
