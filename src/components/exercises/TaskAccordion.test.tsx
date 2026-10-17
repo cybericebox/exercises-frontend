@@ -28,7 +28,7 @@ import { draftSchema, emptyDevice, emptyDraft, emptyTask, emptyVariant, type Dra
 import { uploadExerciseAttachment } from '@/api/exercises/files'
 import { getFlagPolicy } from '@/api/exercises/flagPolicy'
 
-function Harness({ tasks, otherTasks, disabled = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean }) {
+function Harness({ tasks, otherTasks, disabled = false, linked = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean; linked?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Tasks = tasks
   if (otherTasks) {
@@ -40,7 +40,7 @@ function Harness({ tasks, otherTasks, disabled = false }: { tasks: TaskFormValue
   const variants = useWatch({ control: form.control, name: 'Variants' })
   return (
     <FormProvider {...form}>
-      <TaskAccordion variantIndex={0} disabled={disabled} />
+      <TaskAccordion variantIndex={0} disabled={disabled} linked={linked} />
       <output data-testid="variant-tasks">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Name)))}</output>
       <output data-testid="variant-difficulty">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Difficulty)))}</output>
       <output data-testid="variant-files">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => item.Attachments)))}</output>
@@ -61,7 +61,7 @@ function InvalidFlagLinkHarness() {
   draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
   const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
   return <FormProvider {...form}>
-    <TaskAccordion variantIndex={0} disabled={false} />
+    <TaskAccordion variantIndex={0} disabled={false} linked={false} />
     <button type="button" onClick={() => { void form.trigger() }}>Validate draft</button>
   </FormProvider>
 }
@@ -76,10 +76,15 @@ function NamedDeviceHarness() {
   draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
   draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
   const form = useForm<DraftFormValues>({ defaultValues: draft })
-  return <FormProvider {...form}><TaskAccordion variantIndex={0} disabled={false} /></FormProvider>
+  return <FormProvider {...form}><TaskAccordion variantIndex={0} disabled={false} linked={false} /></FormProvider>
 }
 
 describe('TaskAccordion', () => {
+  it('a linked variant cannot add or remove subtasks', () => {
+    render(<Harness tasks={[task('first'), task('second')]} linked />)
+    expect(screen.queryByRole('button', { name: 'admin.exTask.add' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.exTask.remove' })).not.toBeInTheDocument()
+  })
   it('places the task heading and add action inside the task list column', () => {
     render(<Harness tasks={[task('first')]} />)
     const navigation = screen.getByRole('navigation', { name: 'admin.exDraft.tasks.title' })

@@ -16,9 +16,12 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 export function TaskAccordion({
   variantIndex,
   disabled,
+  linked,
 }: {
   variantIndex: number
   disabled: boolean
+  /** A linked variant takes its subtasks from the base: no adding or removing here. */
+  linked: boolean
 }) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Tasks` as const
@@ -56,7 +59,7 @@ export function TaskAccordion({
         <nav aria-label={t("admin.exDraft.tasks.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
           <div className="mb-2 flex items-center justify-between border-b border-border px-2 pb-2">
             <h3 className="text-sm font-semibold text-foreground">{t("admin.exDraft.tasks.title")}</h3>
-            {!disabled && <HoverTooltip text={t("admin.exTask.add")}>
+            {!disabled && !linked && <HoverTooltip text={t("admin.exTask.add")}>
               <Button type="button" variant="ghost" size="icon" aria-label={t("admin.exTask.add")}
                 className="h-7 w-7" onClick={addSharedTask}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -70,14 +73,14 @@ export function TaskAccordion({
                 className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${activeIndex === ti ? "font-medium text-accent-foreground" : "text-muted-foreground"}`}>
                 {rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 })}
               </button>
-              {!disabled && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")}
+              {!disabled && !linked && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")}
                 className="mr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
                 onClick={() => setPendingRemoval(ti)} />}
             </div>
           ))}
         </nav>
         {fields[activeIndex] && <div key={fields[activeIndex].id} className="min-w-0 rounded-md border border-border p-4 lg:min-h-[calc(100dvh-16rem)]">
-          <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} />
+          <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} linked={linked} />
         </div>}
       </div>
       <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
