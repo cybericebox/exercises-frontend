@@ -141,3 +141,40 @@ export function exerciseErrorMessage(e: unknown): string {
   }
   return t("admin.ex.err.generic")
 }
+
+type ContextBody = { Status?: { Context?: Record<string, unknown> } }
+
+/** The backend's public error context (Status.Context), or an empty object. */
+export function errorContext(e: unknown): Record<string, string> {
+  if (!(e instanceof ApiError)) return {}
+  const raw = (e.body as ContextBody | null | undefined)?.Status?.Context
+  const out: Record<string, string> = {}
+  if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw)) {
+      if (typeof value === "string" && value !== "") out[key] = value
+      else if (typeof value === "number") out[key] = String(value)
+    }
+  }
+  return out
+}
+
+/** Which file, field, key... an archive error is about, from its context; "" when it has none. */
+export function archiveErrorDetail(e: unknown): string {
+  const c = errorContext(e)
+  const parts: string[] = []
+  if (c.file) parts.push(c.file)
+  if (c.field) parts.push(c.field)
+  if (c.key) parts.push(c.task ? t("admin.exImport.errKeyInTask", { key: c.key, task: c.task }) : c.key)
+  if (c.variant) parts.push(c.linked_to ? `${c.variant} → ${c.linked_to}` : c.variant)
+  if (c.device) parts.push(c.device)
+  if (c.expected) parts.push(c.expected)
+  if (c.reason) parts.push(c.reason)
+  return parts.join(", ")
+}
+
+/** The inline message for an archive-content error: the catalog text plus its context, when there is one. */
+export function archiveErrorMessage(e: unknown): string {
+  const message = exerciseErrorMessage(e)
+  const detail = archiveErrorDetail(e)
+  return detail ? t("admin.exImport.errDetail", { message, detail }) : message
+}

@@ -4,7 +4,7 @@ import { ApiError } from "@/api/client"
 import type { Exercise } from "@/api/exercises/catalog"
 
 const push = vi.fn()
-vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
 vi.mock("@/api/exercises/archive", () => ({ importExercises: vi.fn(), downloadImportExample: vi.fn() }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
@@ -109,7 +109,7 @@ describe("ImportDialog", () => {
   })
 
   it("shows the localized error on failure without marking the password", async () => {
-    mockExample.mockRejectedValue(new ApiError(500, { Status: { Code: 20000 } }))
+    mockExample.mockRejectedValue(new Error("network"))
     render(<ImportDialog onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.exImport.exampleError")
@@ -127,4 +127,36 @@ describe("ImportDialog", () => {
       expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
       expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
     })
+  it("shows the file named in the error context inline", async () => {
+    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20982, Context: { file: "web/a.png" } } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("web/a.png")
+  })
+
+  it("shows the placeholder key and task of a 20984", async () => {
+    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20984, Context: { key: "ip", task: "Login" } } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent("admin.exImport.errKeyInTask")
+    expect(alert).toHaveTextContent("Login")
+  })
+
+  it("shows the plain message without a context", async () => {
+    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20982 } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect(await screen.findByRole("alert")).not.toHaveTextContent("admin.exImport.errDetail")
+  })
+
+  it("uses the coded message when the example download is refused", async () => {
+    mockExample.mockRejectedValue(new ApiError(403, { Status: { Code: 20000, Message: "no" } }))
+    render(<ImportDialog onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
+    expect(await screen.findByRole("alert")).not.toHaveTextContent("admin.exImport.exampleError")
+  })
 })
