@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ApiError } from "@/api/client"
-import { importExercises } from "@/api/exercises/archive"
+import { downloadImportExample, importExercises } from "@/api/exercises/archive"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,8 @@ import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { downloadBlob } from "@/lib/downloadBlob"
+import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 
 // 400s of the upload itself (too large, wrong chunk size, damaged file, no name): not a missing password.
@@ -29,7 +30,22 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
+  const [exampleBusy, setExampleBusy] = useState(false)
   const [imported, setImported] = useState<Exercise[] | null>(null)
+
+  async function downloadExample() {
+    setExampleBusy(true)
+    setError(null)
+    try {
+      const { blob, filename } = await downloadImportExample()
+      downloadBlob(blob, filename)
+    } catch (cause) {
+      // 401/403 and other coded errors speak for themselves; the generic text covers the rest.
+      setError(exerciseErrorCode(cause) !== null ? exerciseErrorMessage(cause) : t("admin.exImport.exampleError"))
+    } finally {
+      setExampleBusy(false)
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -51,9 +67,13 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       }
       setImported(result)
     } catch (cause) {
-      // Upload validation identifies the archive. A generic 400 cannot distinguish a corrupt
+      // Upload and archive-content validation identify the archive. A generic 400 cannot distinguish a corrupt
       // archive from a missing/wrong password, so it must not mark the password invalid.
-      if (UPLOAD_ERROR_CODES.has(exerciseErrorCode(cause) ?? 0)) {
+      const code = exerciseErrorCode(cause) ?? 0
+      // A publish-gate refusal of a version imported as published names its archive path ("field") too.
+      if (ARCHIVE_CONTENT_ERROR_CODES.has(code) || errorContext(cause).field) {
+        setFileError(archiveErrorMessage(cause))
+      } else if (UPLOAD_ERROR_CODES.has(code)) {
         setFileError(exerciseErrorMessage(cause))
       } else {
         if (cause instanceof ApiError && cause.status === 400) setPasswordNeeded(true)
@@ -83,6 +103,10 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <DialogTitle>{t("admin.exImport.title")}</DialogTitle>
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" variant="outline" size="sm" busy={exampleBusy} onClick={() => void downloadExample()}>{t("admin.exImport.example")}</Button>
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t("admin.exImport.exampleHint")}</p>
+        </div>
         <Field label={t("admin.exImport.file")} required error={fileError}>
           {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={(next) => { setFile(next); setFileError(null); setPasswordNeeded(false) }} />}
         </Field>

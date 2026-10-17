@@ -28,10 +28,13 @@ export function TaskForm({
   variantIndex,
   taskIndex,
   disabled,
+  linked,
 }: {
   variantIndex: number
   taskIndex: number
   disabled: boolean
+  /** A linked variant: only the flag and the files are its own; the rest comes from the base. */
+  linked: boolean
 }) {
   const { control, getValues, setValue, clearErrors } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}` as const
@@ -75,6 +78,7 @@ export function TaskForm({
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
   const [policyError, setPolicyError] = useState<{ cause: unknown } | null>(null)
   const [policyRetry, setPolicyRetry] = useState(0)
+  const inheritedDisabled = disabled || linked
 
   useEffect(() => {
     let current = true
@@ -109,7 +113,7 @@ export function TaskForm({
         <FormField control={control} name={`${base}.Name`} render={({ field }) => (
           <FormItem className="min-w-0 w-full sm:min-w-56 sm:flex-1 space-y-1">
             <ExerciseFieldLabel labelKey="admin.exTask.name" helpKey="admin.exTask.nameHelp" required form />
-            <FormControl><Input {...field} required disabled={disabled} onChange={(event) => {
+            <FormControl><Input {...field} required disabled={inheritedDisabled} onChange={(event) => {
               field.onChange(event)
               getValues("Variants").forEach((_, index) => {
                 if (index !== variantIndex) setValue(`Variants.${index}.Tasks.${taskIndex}.Name`, event.target.value, { shouldDirty: true })
@@ -132,7 +136,7 @@ export function TaskForm({
                     }
                   })
                 }}
-                disabled={disabled}
+                disabled={inheritedDisabled}
                 options={DIFFICULTIES.map((d) => ({ value: d, label: t(`admin.ex.difficulty.${d}`) }))}
                 className="w-full"
               />
@@ -150,7 +154,7 @@ export function TaskForm({
           name={`${base}.Description`}
           render={({ field, fieldState }) => (
             <>
-            <RichTextEditor fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={disabled} variables={variables} unavailableLabels={unavailableLabels}
+            <RichTextEditor fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
               onInsertVariable={(insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) }}
               onEditVariable={(key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) }} />
             {fieldState.error?.message && <p id={`task-description-${variantIndex}-${taskIndex}-error`} role="alert" className="text-xs font-medium text-destructive">{fieldState.error.message}</p>}
@@ -184,7 +188,7 @@ export function TaskForm({
       />
       </section>
 
-      <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
+      <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={inheritedDisabled} />
 
       {(linkable.length > 0 || linkedDeviceID) && <section className="space-y-3 border-t border-border pt-3">
         <h4 className="text-sm font-semibold text-foreground">{t("admin.exTask.flagDelivery")}</h4>
@@ -199,7 +203,7 @@ export function TaskForm({
                   field.onChange(value)
                   if (!value) setValue(`${base}.DeviceFlagVar`, "", { shouldDirty: true })
                 }}
-                disabled={disabled}
+                disabled={inheritedDisabled}
                 options={[
                   { value: "", label: t("admin.exTask.linkedDevice.none") },
                   ...(missingLinkedDevice ? [{ value: linkedDeviceID, label: t("admin.exPh.missing"), unavailable: true }] : []),
@@ -215,7 +219,7 @@ export function TaskForm({
         {linkedDeviceID && <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
           <FormItem className="w-full max-w-xs flex-1">
             <ExerciseFieldLabel labelKey="admin.exTask.deviceFlagVar" helpKey="admin.exTask.deviceFlagVarHelp" required form />
-            <FormControl><Input {...field} disabled={disabled} placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
+            <FormControl><Input {...field} disabled={inheritedDisabled} placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
             <FormMessage className="min-h-5 leading-5" />
           </FormItem>
         )} />}

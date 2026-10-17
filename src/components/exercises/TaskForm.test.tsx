@@ -10,7 +10,7 @@ import { draftSchema, emptyDevice, emptyDraft, type DraftFormValues } from '@/li
 
 vi.mock('@/api/exercises/flagPolicy', () => ({ getFlagPolicy: vi.fn().mockResolvedValue({ RandomHexLength: 40, RandomBits: 160, WarningBits: 20 }) }))
 
-function Harness({ initial, error = false }: { initial?: DraftFormValues; error?: boolean }) {
+function Harness({ initial, error = false, linked = false }: { initial?: DraftFormValues; error?: boolean; linked?: boolean }) {
   const [draft] = useState(() => {
     const value = initial ? structuredClone(initial) : emptyDraft()
     value.Variants[0].Topology.VPN.Enabled = true
@@ -21,7 +21,7 @@ function Harness({ initial, error = false }: { initial?: DraftFormValues; error?
   const description = useWatch({ control: form.control, name: 'Variants.0.Tasks.0.Description' })
   return <FormProvider {...form}>
     {error && <button type="button" onClick={() => form.setError("Variants.0.Tasks.0.Description", { message: "Description required" })}>Validate description</button>}
-    <TaskForm variantIndex={0} taskIndex={0} disabled={false} />
+    <TaskForm variantIndex={0} taskIndex={0} disabled={false} linked={linked} />
     <output data-testid="saved-placeholders">{JSON.stringify(placeholders)}</output>
     <output data-testid="saved-description">{JSON.stringify(description)}</output>
   </FormProvider>
@@ -37,13 +37,46 @@ function ConflictHarness() {
   const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
   return <FormProvider {...form}>
     <form noValidate onSubmit={form.handleSubmit(() => {})}>
-      <TaskForm variantIndex={0} taskIndex={0} disabled={false} />
+      <TaskForm variantIndex={0} taskIndex={0} disabled={false} linked={false} />
+      <button type="submit">Validate</button>
+    </form>
+  </FormProvider>
+}
+
+function LinkedFlagHarness() {
+  const [draft] = useState(() => {
+    const value = emptyDraft()
+    value.Variants[0].ID = 'base'
+    value.Variants[0].Tasks[0].ID = 't1'
+    value.Variants[0].Tasks[0].Flag = ['ICE{base}']
+    const linked = (id: string, index: number) => {
+      const variant = structuredClone(value.Variants[0])
+      variant.ID = id
+      variant.Index = index
+      variant.LinkedTo = 'base'
+      variant.Tasks[0].Flag = ['ICE{same}']
+      return variant
+    }
+    value.Variants.push(linked('l1', 2), linked('l2', 3))
+    return value
+  })
+  const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
+  return <FormProvider {...form}>
+    <form noValidate onSubmit={form.handleSubmit(() => {})}>
+      <TaskForm variantIndex={2} taskIndex={0} disabled={false} linked />
       <button type="submit">Validate</button>
     </form>
   </FormProvider>
 }
 
 describe('TaskForm inline placeholders', () => {
+  it('shows a flag repeated in another linked variant under that flag', async () => {
+    render(<LinkedFlagHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+    const message = await screen.findByText('Такий прапорець уже є в іншому повʼязаному варіанті')
+    expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toHaveAccessibleDescription(message.textContent ?? '')
+  })
+
   it('shows missing description feedback directly beneath the rich text control', async () => {
     render(<Harness error />)
     fireEvent.click(screen.getByRole('button', { name: 'Validate description' }))
@@ -156,5 +189,30 @@ describe('TaskForm inline placeholders', () => {
     initial.Variants[0].Tasks[0].Description = editor.getEditorState().toJSON() as unknown as Record<string, unknown>
     render(<Harness initial={initial} />)
     expect(await screen.findByText('https://web-01-k3x.labs.example.com')).toBeInTheDocument()
+  })
+
+  it('a linked task keeps only flag and files editable', async () => {
+    const initial = emptyDraft()
+    const device = { ...emptyDevice(), Name: 'web' }
+    initial.Variants[0].Topology.Devices = [device]
+    initial.Variants[0].Tasks[0].Name = 'Scan'
+    initial.Variants[0].Tasks[0].Flag = ['ICE{own}']
+    initial.Variants[0].Tasks[0].LinkedDeviceID = device.ID
+    initial.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
+    initial.Variants[0].Tasks[0].Hints = [{ ID: 'h1', Text: 'Look closer', Level: 'nudge' }]
+    render(<Harness initial={initial} linked />)
+    expect(screen.getByDisplayValue('Scan')).toBeDisabled()
+    expect(screen.getByDisplayValue('FLAG')).toBeDisabled()
+    const zone = screen.getByTestId('task-drop-zone')
+    expect(within(zone).getByRole('button', { name: /^Складність/ })).toBeDisabled()
+    expect(within(zone).getByRole('button', { name: /^Пристрій прапора/ })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: 'Опис' })).toHaveAttribute('contenteditable', 'false')
+    expect(screen.queryByRole('button', { name: 'Вставити підстановку' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Додати підказку' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Видалити підказку' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Рівень підказки' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: 'Текст підказки 1' })).toHaveAttribute('contenteditable', 'false')
+    expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Завантажити файл' })).toBeEnabled()
   })
 })

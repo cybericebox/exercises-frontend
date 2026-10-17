@@ -9,6 +9,7 @@
  * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
+import { DownloadHashMismatchError } from "@/api/exercises/chunkedDownload"
 import { catalogError, localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 
@@ -108,6 +109,14 @@ export const CODE_TO_KEY: Record<number, string> = {
   71003: "admin.ex.err.storageNotConfigured",
 }
 
+/**
+ * Archive content problems on import (20978-20991; 20991: over the archive size limits): they name the archive,
+ * never a missing password, so the import dialog shows them under the file field.
+ */
+export const ARCHIVE_CONTENT_ERROR_CODES: ReadonlySet<number> = new Set([
+  20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991,
+])
+
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
 
 /** FullCode from the error body, or null (not an ApiError / no envelope). */
@@ -120,6 +129,7 @@ export function exerciseErrorCode(e: unknown): number | null {
 
 /** Human-readable (Ukrainian) message for any exercises API error. */
 export function exerciseErrorMessage(e: unknown): string {
+  if (e instanceof DownloadHashMismatchError) return t("admin.exExport.hashMismatch")
   // 429 (request limiter or auth lockout): a wait message from Retry-After, whatever the code.
   if (e instanceof ApiError && e.status === 429) return localizedError(e)
   const code = exerciseErrorCode(e)
@@ -132,4 +142,42 @@ export function exerciseErrorMessage(e: unknown): string {
     if (message) return t("admin.ex.err.genericWith", { message })
   }
   return t("admin.ex.err.generic")
+}
+
+type ContextBody = { Status?: { Context?: Record<string, unknown> } }
+
+/** The backend's public error context (Status.Context), or an empty object. */
+export function errorContext(e: unknown): Record<string, string> {
+  if (!(e instanceof ApiError)) return {}
+  const raw = (e.body as ContextBody | null | undefined)?.Status?.Context
+  const out: Record<string, string> = {}
+  if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw)) {
+      if (typeof value === "string" && value !== "") out[key] = value
+      else if (typeof value === "number") out[key] = String(value)
+    }
+  }
+  return out
+}
+
+/** Which file, field, key... an archive error is about, from its context; "" when it has none. */
+export function archiveErrorDetail(e: unknown): string {
+  const c = errorContext(e)
+  const parts: string[] = []
+  if (c.file) parts.push(c.file)
+  if (c.field) parts.push(c.field)
+  if (c.key) parts.push(c.task ? t("admin.exImport.errKeyInTask", { key: c.key, task: c.task }) : c.key)
+  if (c.variant) parts.push(c.linked_to ? t("admin.exImport.errLinkedVariant", { variant: c.variant, linked_to: c.linked_to }) : c.variant)
+  if (c.device) parts.push(c.device)
+  if (c.devices) parts.push(c.devices)
+  if (c.expected) parts.push(c.expected)
+  if (c.reason) parts.push(c.reason)
+  return parts.join(", ")
+}
+
+/** The inline message for an archive-content error: the catalog text plus its context, when there is one. */
+export function archiveErrorMessage(e: unknown): string {
+  const message = exerciseErrorMessage(e)
+  const detail = archiveErrorDetail(e)
+  return detail ? t("admin.exImport.errDetail", { message, detail }) : message
 }

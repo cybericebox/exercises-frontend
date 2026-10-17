@@ -51,7 +51,7 @@ const device = {
 
 const workingCopy: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "2026-09-20T10:00:00Z", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", Tasks: [task],
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", LinkedTo: "", Tasks: [task],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 const withDevice: Version = {

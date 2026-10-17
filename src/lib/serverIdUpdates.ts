@@ -35,6 +35,10 @@ export function capturedDraftIds(form: DraftFormValues): CapturedDraftIds {
  * ID sequence catches that: the shifted item's current ID no longer matches what was sent at
  * that position, so nothing is adopted — the next autosave sends the items again and the IDs
  * are adopted from that response instead. Existing (non-empty) IDs are never touched.
+ *
+ * Linked variants come first: writing a base id fires the live mirror (useLinkedVariantSync),
+ * and a linked variant that already holds the same ids (the daemon deep-copies the base) has
+ * nothing to change, so its open subtask form is not remounted.
  */
 export function serverIdUpdates(sent: CapturedDraftIds, saved: Version, form: DraftFormValues): IdUpdate[] {
   if (form.Variants.length !== sent.variantIds.length || form.Variants.length !== saved.Variants.length) return []
@@ -43,8 +47,10 @@ export function serverIdUpdates(sent: CapturedDraftIds, saved: Version, form: Dr
     variant.Tasks.length !== sent.taskIds[vi].length || variant.Tasks.length !== saved.Variants[vi].Tasks.length)) return []
   if (form.Variants.some((variant, vi) => variant.Tasks.some((task, ti) => task.ID !== sent.taskIds[vi][ti]))) return []
 
-  const updates: IdUpdate[] = []
+  const linkedUpdates: IdUpdate[] = []
+  const otherUpdates: IdUpdate[] = []
   form.Variants.forEach((variant, vi) => {
+    const updates = variant.LinkedTo ? linkedUpdates : otherUpdates
     const savedVariant = saved.Variants[vi]
     if (!variant.ID && savedVariant.ID) updates.push({ path: `Variants.${vi}.ID`, value: savedVariant.ID })
     variant.Tasks.forEach((task, ti) => {
@@ -63,5 +69,5 @@ export function serverIdUpdates(sent: CapturedDraftIds, saved: Version, form: Dr
       })
     })
   })
-  return updates
+  return [...linkedUpdates, ...otherUpdates]
 }

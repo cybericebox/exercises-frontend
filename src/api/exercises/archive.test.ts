@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/api/client")
 vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn() }))
+vi.mock("@/api/exercises/chunkedDownload", () => ({ downloadInChunks: vi.fn() }))
 
 import * as client from "@/api/client"
 import { uploadInChunks } from "@/api/exercises/chunkedUpload"
+import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
-import { EXPORT_LIMIT, exportExercises, importExercises } from "./archive"
+import { EXPORT_LIMIT, downloadImportExample, exportExercises, importExercises } from "./archive"
 
-const mockBlob = vi.mocked(client.apiPostBlob)
+const mockExportPost = vi.mocked(client.apiPost)
+const mockDownload = vi.mocked(downloadInChunks)
+const mockGetBlob = vi.mocked(client.apiGetBlob)
 const mockMultipart = vi.mocked(client.apiPostMultipart)
 const mockPost = vi.mocked(client.apiPost)
 const mockChunks = vi.mocked(uploadInChunks)
@@ -16,26 +20,45 @@ const mockChunks = vi.mocked(uploadInChunks)
 describe("exercise archive client", () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it("exports without secrets by default and keeps the server file name", async () => {
+  const stored = { FileID: "f1", Name: "web-101.cybericebox.zip", Size: 3, ChunkSize: 3, Chunks: 1 }
+
+  it("export downloads the stored archive in chunks", async () => {
     const blob = new Blob(["zip"])
-    mockBlob.mockResolvedValueOnce({ blob, filename: "web-101.cybericebox.zip" })
-    const result = await exportExercises({ IDs: ["e1"], IncludeSecrets: false, Password: "ignored" })
-    expect(mockBlob).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1"], IncludeSecrets: false, Password: "" })
+    mockExportPost.mockResolvedValueOnce(stored)
+    mockDownload.mockResolvedValueOnce({ blob, name: "web-101.cybericebox.zip" })
+    const progress = vi.fn()
+    const result = await exportExercises({ IDs: ["e1"], IncludeSecrets: false, Password: "ignored" }, progress)
+    expect(mockExportPost).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1"], IncludeSecrets: false, Password: "" })
+    expect(mockDownload).toHaveBeenCalledWith("f1", progress)
     expect(result).toEqual({ blob, filename: "web-101.cybericebox.zip" })
   })
 
   it("sends the password only with secrets and falls back to a bundle name", async () => {
-    mockBlob.mockResolvedValueOnce({ blob: new Blob(["zip"]), filename: null })
+    mockExportPost.mockResolvedValueOnce({ ...stored, Name: "" })
+    mockDownload.mockResolvedValueOnce({ blob: new Blob(["zip"]), name: "" })
     const result = await exportExercises({ IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" })
-    expect(mockBlob).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" })
+    expect(mockExportPost).toHaveBeenCalledWith("/api/exercises/export", { IDs: ["e1", "e2"], IncludeSecrets: true, Password: "s3cret" })
     expect(result.filename).toBe("exercises.cybericebox.zip")
+  })
+
+  it("downloads the import example with the server file name", async () => {
+    const blob = new Blob(["zip"])
+    mockGetBlob.mockResolvedValueOnce({ blob, filename: "example-task.cybericebox.zip" })
+    const result = await downloadImportExample()
+    expect(mockGetBlob).toHaveBeenCalledWith("/api/exercises/import/example")
+    expect(result).toEqual({ blob, filename: "example-task.cybericebox.zip" })
+  })
+
+  it("falls back to example-task.cybericebox.zip", async () => {
+    mockGetBlob.mockResolvedValueOnce({ blob: new Blob(["zip"]), filename: null })
+    expect((await downloadImportExample()).filename).toBe("example-task.cybericebox.zip")
   })
 
   it("rejects an empty or oversized selection before calling the API", async () => {
     await expect(exportExercises({ IDs: [], IncludeSecrets: false, Password: "" })).rejects.toBeInstanceOf(RangeError)
     const tooMany = Array.from({ length: EXPORT_LIMIT + 1 }, (_, i) => `e${i}`)
     await expect(exportExercises({ IDs: tooMany, IncludeSecrets: false, Password: "" })).rejects.toBeInstanceOf(RangeError)
-    expect(mockBlob).not.toHaveBeenCalled()
+    expect(mockExportPost).not.toHaveBeenCalled()
   })
 
   it("imports an archive as multipart with the optional password", async () => {

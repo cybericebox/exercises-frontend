@@ -14,6 +14,14 @@ export function EditorPositionProvider({ position, onChange, children }: Positio
   return <PositionContext.Provider value={{ position, onChange }}>{children}</PositionContext.Provider>
 }
 
+/** Shares one in-memory position between the parts of an editor that has no persisted position. */
+export function SharedEditorPosition({ children }: { children: React.ReactNode }) {
+  const context = useContext(PositionContext)
+  const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
+  if (context) return <>{children}</>
+  return <EditorPositionProvider position={position} onChange={(key, value) => setPosition((current) => ({ ...current, [key]: value }))}>{children}</EditorPositionProvider>
+}
+
 /** Existing draft editors remain self-contained; the new editor opts into persistence. */
 export function useEditorPosition<K extends keyof EditorPosition>(key: K): [EditorPosition[K], (value: EditorPosition[K]) => void] {
   const context = useContext(PositionContext)

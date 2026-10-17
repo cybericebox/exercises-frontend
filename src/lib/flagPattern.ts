@@ -1,5 +1,7 @@
 /** The UI mirror of the server's deliberately small flag-template grammar. */
 const PREFIX = "template:"
+/** Mirror of the server flagpattern.TemplatePrefix. */
+export const TEMPLATE_PREFIX = PREFIX
 const FLAG_RE = /^ICE\{[^\p{White_Space}\p{Cc}{}]+\}$/u
 const DIGITS = "0123456789"
 const LOWER = "abcdefghijklmnopqrstuvwxyz"

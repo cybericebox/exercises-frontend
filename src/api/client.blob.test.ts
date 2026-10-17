@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { apiOrigin } from "@/lib/origins"
-import { ApiError, apiKeepalive, apiPostBlob, filenameFromContentDisposition } from "./client"
+import { ApiError, apiKeepalive, apiGetBlob, apiPostBlob, filenameFromContentDisposition } from "./client"
 
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -36,6 +36,25 @@ describe("apiPostBlob", () => {
     const error = await apiPostBlob("/api/exercises/export", {}).catch((cause: unknown) => cause)
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).code).toBe(20000)
+  })
+})
+
+describe("apiGetBlob", () => {
+  it("apiGetBlob returns blob and filename; a 403 throws ApiError", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("zip", {
+      status: 200,
+      headers: { "Content-Disposition": "attachment; filename=example-task.cybericebox.zip", "Content-Type": "application/zip" },
+    })).mockResolvedValueOnce(new Response(JSON.stringify({ Status: { Code: 60000 } }), {
+      status: 403, headers: { "Content-Type": "application/json" },
+    }))
+    vi.stubGlobal("fetch", fetchMock)
+    const result = await apiGetBlob("/api/exercises/import/example")
+    expect(result.filename).toBe("example-task.cybericebox.zip")
+    expect(result.blob.size).toBe(3)
+    expect(fetchMock).toHaveBeenCalledWith(`${apiOrigin}/api/exercises/import/example`, expect.objectContaining({ method: "GET", credentials: "include" }))
+    const error = await apiGetBlob("/api/exercises/import/example").catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(403)
   })
 })
 
