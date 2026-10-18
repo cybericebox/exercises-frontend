@@ -18,7 +18,8 @@ import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { deployPhaseLabel } from "@/lib/deployStatus"
 import { DeviceFailure } from "@/components/exercises/DeviceLiveInfo"
-import { failedDevices, imageWarningText, queueLine } from "@/lib/deviceLive"
+import { failedDevices, imageWarningText, startingNote } from "@/lib/deviceLive"
+import { useLongWait } from "@/lib/useLabWaitStage"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { unavailableImagesOf, type ImageAvailability } from "@/api/exercises/imageCheck"
 import { imageReasonText } from "@/lib/imageErrors"
@@ -62,6 +63,15 @@ function usePersisted<T>(key: string, initial: T, parse: (raw: string) => T | nu
  * with the lab clock and actions, the task sidebar, the chosen task exactly as a
  * participant sees it (this lab's values, hints, a flag check) and a read-only topology.
  */
+// The lab is starting: one calm line, plus a second one after 30 s. Mounted only while starting, so the wait counts
+// from when the page first saw it. The second line is always laid out, so showing it moves nothing.
+function StartingLoader({ started, status }: { started: boolean; status: DeployStatus | null | undefined }) {
+  const longWait = useLongWait(status)
+  const message = t(started ? "admin.exDeploy.starting" : "admin.exTest.starting")
+  return <LoadingArea className="min-h-0 flex-1" label={message} message={message}
+    note={started ? startingNote(status?.Queue, true) ?? undefined : undefined} noteShown={longWait} />
+}
+
 export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: string; initial: TestLabInitial }) {
   const router = useRouter()
   // What the page opened with; the address changes under it once the lab exists.
@@ -246,8 +256,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         onRetry={deploy.deployId ? undefined : retry} />
     ) : !ready ? (
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <LoadingArea className="min-h-0 flex-1" label={t(deploy.deployId ? "admin.exDeploy.provisioning" : "admin.exTest.starting")}
-          message={!deploy.deployId ? t("admin.exTest.starting") : queueLine(status?.Queue) ?? (status?.Phase ? deployPhaseLabel(status.Phase) : t("admin.exDeploy.provisioning"))} />
+        <StartingLoader started={Boolean(deploy.deployId)} status={status} />
         {failedDevices(status?.Devices).length > 0 && <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[45%] w-full max-w-xl space-y-2 overflow-y-auto bg-background p-4">
           {failedDevices(status?.Devices).map((device) => <div key={device.Name} className="space-y-1">
             <div className="font-mono text-xs text-muted-foreground">{device.Name}</div>
