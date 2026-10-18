@@ -2,15 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/api/client")
 vi.mock("@/api/exercises/chunkedUpload", () => ({ uploadInChunks: vi.fn(), uploadChunks: vi.fn(), forgetChunkedUpload: vi.fn() }))
-vi.mock("@/api/exercises/archiveJobs", () => ({ waitForExportJob: vi.fn(), waitForImportJob: vi.fn() }))
+vi.mock("@/api/exercises/archiveJobs", () => ({ waitForExportJob: vi.fn() }))
 vi.mock("@/api/exercises/chunkedDownload", () => ({ downloadInChunks: vi.fn() }))
 
 import * as client from "@/api/client"
 import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercises/chunkedUpload"
-import { waitForExportJob, waitForImportJob } from "@/api/exercises/archiveJobs"
+import { waitForExportJob } from "@/api/exercises/archiveJobs"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
-import { ARCHIVE_UPLOAD_PURPOSE, MAX_PLAIN_ARCHIVE_BYTES, EXPORT_LIMIT, downloadImportExample, exportExercises, importExercises } from "./archive"
+import { ARCHIVE_UPLOAD_PURPOSE, MAX_PLAIN_ARCHIVE_BYTES, EXPORT_LIMIT, downloadImportExample, exportExercises, startImport } from "./archive"
 
 const mockExportPost = vi.mocked(client.apiPost)
 const mockDownload = vi.mocked(downloadInChunks)
@@ -21,7 +21,6 @@ const mockChunks = vi.mocked(uploadInChunks)
 const mockUploadChunks = vi.mocked(uploadChunks)
 const mockForget = vi.mocked(forgetChunkedUpload)
 const mockExportJob = vi.mocked(waitForExportJob)
-const mockImportJob = vi.mocked(waitForImportJob)
 
 describe("exercise archive client", () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -73,17 +72,18 @@ describe("exercise archive client", () => {
       CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null,
     }])
     const file = new File(["zip"], "a.zip", { type: "application/zip" })
-    const result = await importExercises(file, "pw")
+    const result = await startImport(file, "pw")
     const [path, form] = mockMultipart.mock.calls[0]
     expect(path).toBe("/api/exercises/import")
     expect((form as FormData).get("archive")).toBeInstanceOf(File)
     expect((form as FormData).get("password")).toBe("pw")
-    expect(result[0]).toMatchObject({ ID: "e9", Tags: [], ArchivedAt: null, HasChanges: false })
+    expect(result.kind).toBe("done")
+    expect(result.kind === "done" && result.exercises[0]).toMatchObject({ ID: "e9", Tags: [], ArchivedAt: null, HasChanges: false })
   })
 
   it("omits an empty password", async () => {
     mockMultipart.mockResolvedValueOnce([])
-    await importExercises(new File(["zip"], "a.zip"), "")
+    await startImport(new File(["zip"], "a.zip"), "")
     expect((mockMultipart.mock.calls[0][1] as FormData).has("password")).toBe(false)
   })
 
@@ -93,7 +93,7 @@ describe("exercise archive client", () => {
     const big = new File(["zip"], "big.zip")
     Object.defineProperty(big, "size", { value: SINGLE_REQUEST_MAX + 1 })
     const progress = vi.fn()
-    await importExercises(big, "pw", progress)
+    await startImport(big, "pw", progress)
     expect(mockChunks).toHaveBeenCalledWith(big, progress)
     expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/uploaded", { FileID: "f1", Password: "pw" })
     expect(mockMultipart).not.toHaveBeenCalled()
@@ -120,40 +120,35 @@ describe("exercise archive client", () => {
     expect(mockExportJob).not.toHaveBeenCalled()
   })
 
-  it("waits for the import job when a small archive names images", async () => {
+  it("returns the job without waiting when a small archive names images", async () => {
     mockMultipart.mockResolvedValueOnce({ JobID: "j3" })
-    mockImportJob.mockResolvedValueOnce([])
     const stage = vi.fn()
-    await importExercises(new File(["zip"], "a.zip"), "", undefined, stage)
-    expect(mockImportJob).toHaveBeenCalledWith("j3", undefined)
-    expect(stage).toHaveBeenCalledWith("working")
+    expect(await startImport(new File(["zip"], "a.zip"), "", undefined, stage)).toEqual({ kind: "job", jobID: "j3" })
+    expect(stage).not.toHaveBeenCalled()
   })
 
-  it("waits for the import job of a chunk-uploaded archive", async () => {
+  it("returns the job of a chunk-uploaded archive", async () => {
     mockChunks.mockResolvedValueOnce({ FileID: "f1", Name: "big.zip", Size: SINGLE_REQUEST_MAX + 1 })
     mockPost.mockResolvedValueOnce({ JobID: "j4" })
-    mockImportJob.mockResolvedValueOnce([])
     const big = new File(["zip"], "big.zip")
     Object.defineProperty(big, "size", { value: SINGLE_REQUEST_MAX + 1 })
-    await importExercises(big, "pw")
-    expect(mockImportJob).toHaveBeenCalledWith("j4", undefined)
+    expect(await startImport(big, "pw")).toEqual({ kind: "job", jobID: "j4" })
   })
 
   it("sends an archive over 512 MiB as an exercise-archive upload and imports by upload id", async () => {
     mockUploadChunks.mockResolvedValueOnce("u1")
     mockPost.mockResolvedValueOnce({ JobID: "j5" })
-    mockImportJob.mockResolvedValueOnce([])
     const huge = new File(["zip"], "huge.zip")
     Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
     const progress = vi.fn()
     const stage = vi.fn()
-    await importExercises(huge, "pw", progress, stage)
+    expect(await startImport(huge, "pw", progress, stage)).toEqual({ kind: "job", jobID: "j5" })
     expect(mockUploadChunks).toHaveBeenCalledWith(huge, progress, undefined, { purpose: ARCHIVE_UPLOAD_PURPOSE })
-    expect(stage.mock.calls.map((c) => c[0])).toEqual(["uploading", "working"])
+    expect(stage.mock.calls.map((c) => c[0])).toEqual(["uploading"])
     expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/upload", { UploadID: "u1", Password: "pw" })
-    expect(mockImportJob).toHaveBeenCalledWith("j5", undefined)
     expect(mockChunks).not.toHaveBeenCalled()
-    expect(mockForget).toHaveBeenCalledWith(huge)
+    // The upload stays for a failed job to run again from it.
+    expect(mockForget).not.toHaveBeenCalled()
   })
 
   it("a large archive without images is imported at once from the upload", async () => {
@@ -161,8 +156,7 @@ describe("exercise archive client", () => {
     mockPost.mockResolvedValueOnce([])
     const huge = new File(["zip"], "huge.zip")
     Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
-    expect(await importExercises(huge, "")).toEqual([])
-    expect(mockImportJob).not.toHaveBeenCalled()
+    expect(await startImport(huge, "")).toEqual({ kind: "done", exercises: [] })
     expect(mockForget).toHaveBeenCalledWith(huge)
   })
 
@@ -172,11 +166,11 @@ describe("exercise archive client", () => {
     Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
     const registry = Object.assign(new client.ApiError(409, null), { code: 72801 })
     mockPost.mockRejectedValueOnce(registry)
-    await expect(importExercises(huge, "")).rejects.toBe(registry)
+    await expect(startImport(huge, "")).rejects.toBe(registry)
     expect(mockForget).not.toHaveBeenCalled()
     const gone = Object.assign(new client.ApiError(404, null), { code: 31006 })
     mockPost.mockRejectedValueOnce(gone)
-    await expect(importExercises(huge, "")).rejects.toBe(gone)
+    await expect(startImport(huge, "")).rejects.toBe(gone)
     expect(mockForget).toHaveBeenCalledWith(huge)
   })
 })

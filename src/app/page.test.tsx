@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { helpButton } from '@/test/help'
+import { ApiError } from '@/api/client'
 
 // Mutable permission state for the create link.
 const h = vi.hoisted(() => ({ canWrite: true, canExport: true, userId: 'editor-1', push: vi.fn(), access: null as unknown }))
@@ -31,9 +32,13 @@ vi.mock('@/components/shell/AccessContext', () => ({ useExerciseAccess: () => ({
 vi.mock('@/components/exercises/ExportDialog', () => ({
   ExportDialog: ({ exerciseIds }: { exerciseIds: string[] }) => <div data-testid="export-dialog">{exerciseIds.join(',')}</div>,
 }))
-vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: () => <div data-testid="import-dialog" /> }))
+vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: ({ jobId }: { jobId?: string }) => <div data-testid="import-dialog">{jobId ?? ''}</div> }))
+vi.mock('@/api/exercises/archiveJobs', () => ({ getImportJob: vi.fn(), JOB_POLL_MS: 5, isPassing: () => false }))
+vi.mock('@/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 import { getExercise, listExercisesPage, listExerciseTags } from '@/api/exercises/catalog'
+import { getImportJob } from '@/api/exercises/archiveJobs'
+import { IMPORT_JOBS_KEY, resetImportJobsForTests } from '@/lib/importJobs'
 import Page from './page'
 import { OWNERSHIP } from '@/test/exerciseFixtures'
 
@@ -479,5 +484,59 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     expect(screen.queryByRole('button', { name: 'admin.ex.create.button' })).not.toBeInTheDocument()
+  })
+})
+
+describe('exercises catalog — background imports', () => {
+  const running = { state: 'running' as const, stage: 'tasks' as const, imagesDone: 0, imagesTotal: 0, tasksDone: 5, tasksTotal: 12, bytesPushed: 0, bytesTotal: 0, exercises: [] }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    resetImportJobsForTests()
+    h.access = null
+    mockList.mockReset()
+    h.canWrite = true
+    h.canExport = true
+    mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
+  })
+
+  it('shows an indicator for an import resumed after a reload and reopens the dialog on it', async () => {
+    localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
+    vi.mocked(getImportJob).mockResolvedValue(running)
+    render(<Page />)
+    const chip = await screen.findByRole('button', { name: /admin\.exImport\.indicator/ })
+    fireEvent.click(chip)
+    expect(screen.getByTestId('import-dialog')).toHaveTextContent('j1')
+    // The rest of the catalog stays usable meanwhile.
+    expect(screen.getByRole('button', { name: 'admin.exImport.button' })).toBeEnabled()
+    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+  })
+
+  it('refreshes the list without clearing it when an import ends', async () => {
+    localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
+    vi.mocked(getImportJob).mockResolvedValue({ ...running, state: 'done', stage: 'done', exercises: [] })
+    render(<Page />)
+    await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /admin\.exImport\.indicator/ })).not.toBeInTheDocument()
+  })
+
+  it('shows a failed import with its details button', async () => {
+    localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j2']))
+    vi.mocked(getImportJob).mockResolvedValue({ ...running, state: 'failed', stage: 'failed', error: new ApiError(409, null) })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.exImport.details' }))
+    expect(screen.getByTestId('import-dialog')).toHaveTextContent('j2')
+  })
+
+  it('shows no indicator to someone who cannot import', async () => {
+    h.canWrite = false
+    h.canExport = false
+    localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
+    vi.mocked(getImportJob).mockResolvedValue(running)
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(screen.queryByRole('button', { name: /admin\.exImport\.indicator/ })).not.toBeInTheDocument()
   })
 })
