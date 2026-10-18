@@ -184,6 +184,16 @@ describe("TestLabPage — bar", () => {
     expect(await blob.text()).toBe(readyStatus.VPNConfig)
   })
 
+  it("shows the up and down VPN commands with the filename and both reminder lines", async () => {
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exTest.vpnOpen" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.command cybericebox.conf")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.downCommand cybericebox.conf")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.keepFile")
+    expect(dialog).toHaveTextContent("admin.exTest.vpnHelp.reminder")
+  })
+
   it("shows readiness and offers the tester page when the status has its address", async () => {
     vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, VPNConnected: false, VPNProbeURL: "http://10.128.1.1:8088/" })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
