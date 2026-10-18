@@ -282,7 +282,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
             <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
             {mode === "new" && (
               <Button asChild variant="outline">
-                <Link href="/" onClick={props.onCancelNew}>
+                <Link href="/" data-allow-leave onClick={props.onCancelNew}>
                   {t("admin.ex.create.cancel")}
                 </Link>
               </Button>

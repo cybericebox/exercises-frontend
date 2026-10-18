@@ -14,6 +14,7 @@ import { defaultFilters, filtersFromSearch, filtersToSearch, loadCatalogPage, ty
 import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
 import { AccessCell, StatusCell } from "@/components/exercises/catalog/CatalogCells"
 import { EventMultiSelect } from "@/components/exercises/catalog/EventMultiSelect"
+import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
 import { TagFilter } from "@/components/exercises/catalog/TagFilter"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
@@ -74,7 +75,7 @@ export default function Page() {
   const [importOpen, setImportOpen] = useState(false)
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
-  const { can } = useRole()
+  const { can, me } = useRole()
   const { access: loadedAccess } = useExerciseAccess()
   const access = loadedAccess ?? accessFromRbac(can)
   const isAdmin = access.IsAdmin
@@ -256,6 +257,8 @@ export default function Page() {
           {atLimit && <span className="text-xs text-muted-foreground">{t("admin.ex.selection.limit")}</span>}
         </div>
       )}
+
+      {canWrite && <BrowserDraftRow userId={me?.ID ?? null} />}
 
       <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem]">
         <thead>

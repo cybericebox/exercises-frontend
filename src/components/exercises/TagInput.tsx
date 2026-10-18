@@ -62,7 +62,7 @@ export function TagInput({
       {value.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-0.5 rounded-full bg-secondary/40 py-0 pl-2 pr-0.5 text-sm text-foreground"
+          className="inline-flex items-center gap-0.5 rounded-[4px] bg-border py-0 pl-2 pr-0.5 text-sm text-foreground"
         >
           {tag}
           {disabled ? <span className="pr-1.5" /> : (

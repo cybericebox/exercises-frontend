@@ -53,7 +53,7 @@ export function TagFilter({ value, onChange, className }: {
     <div className="relative min-w-0">
       <div className={cn("flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]", className)}>
         {value.map((tag) => (
-          <span key={tag} className="inline-flex items-center gap-0.5 rounded-full bg-secondary/40 py-0 pl-2 pr-0.5 text-sm text-foreground">
+          <span key={tag} className="inline-flex items-center gap-0.5 rounded-[4px] bg-border py-0 pl-2 pr-0.5 text-sm text-foreground">
             {tag}
             <button type="button" aria-label={t("admin.ex.filterTags.remove", { tag })} onClick={() => onChange(value.filter((item) => item !== tag))}
               className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">

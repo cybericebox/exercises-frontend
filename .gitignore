@@ -46,3 +46,4 @@ qodana.yaml
 /graphify-out/
 /.graphify/
 /.superpowers/
+.worktrees/
