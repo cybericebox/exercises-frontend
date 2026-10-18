@@ -1,7 +1,7 @@
 "use client"
 
-import { ChevronDown, Download } from "lucide-react"
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { ChevronDown, Download, Upload } from "lucide-react"
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ApiError } from "@/api/client"
@@ -81,6 +81,46 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     setFileError(null)
   }
 
+  // Whole-dialog drop target: the counter keeps child elements from flickering the overlay (every child fires its own enter/leave).
+  const dragDepth = useRef(0)
+  const [dragging, setDragging] = useState(false)
+  const dropActive = !busy && !imported
+  const showDrop = dragging && dropActive
+  const carriesFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files")
+  function endDrag() {
+    dragDepth.current = 0
+    setDragging(false)
+  }
+  useEffect(() => {
+    if (!dragging) return
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") endDrag() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [dragging])
+  const dropProps = {
+    onDragEnter(event: DragEvent) {
+      if (!dropActive || !carriesFiles(event)) return
+      dragDepth.current += 1
+      setDragging(true)
+    },
+    onDragOver(event: DragEvent) {
+      if (carriesFiles(event)) event.preventDefault()
+    },
+    onDragLeave(event: DragEvent) {
+      if (!carriesFiles(event) || dragDepth.current === 0) return
+      dragDepth.current -= 1
+      if (dragDepth.current === 0) setDragging(false)
+    },
+    onDrop(event: DragEvent) {
+      endDrag()
+      if (!carriesFiles(event)) return
+      // The field handles (and marks) its own drops; anywhere else in the dialog takes the same path.
+      const handledByField = event.defaultPrevented
+      event.preventDefault()
+      if (!handledByField && dropActive) chooseFile(event.dataTransfer.files?.[0] ?? null)
+    },
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) return
@@ -125,7 +165,11 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   }
 
   return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
-    <DialogContent>
+    <DialogContent {...dropProps}>
+      {showDrop && <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-[inherit] border-2 border-dashed border-ring bg-accent text-sm font-medium text-foreground">
+        <Upload aria-hidden="true" className="h-8 w-8" />
+        {t("admin.exImport.dropHere")}
+      </div>}
       {imported ? <>
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.resultTitle")}</DialogTitle>
