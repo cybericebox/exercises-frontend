@@ -9,6 +9,7 @@ import { ResourcesPanel } from "./ResourcesPanel"
 import type { Elevation } from "@/api/exercises/elevation"
 import type { DeviceOutside, ResourceTotals, VersionResources } from "@/api/exercises/versions"
 import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
+import { helpButton } from "@/test/help"
 import { presetOptionLabel } from "@/lib/presetLabels"
 
 const MIB = 1024 ** 2
@@ -46,6 +47,13 @@ describe("ResourcesPanel", () => {
     const { container } = view(resources({ Min: totals(50, 128, 1), Max: totals(250, 1024, 3), Variants: [{ VariantID: "a", ...totals(50, 128, 1) }, { VariantID: "b", ...totals(250, 1024, 3) }], VariantsDiffer: true, SpreadPercent: 80 }))
     expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("50m – 250m")
     expect(container.querySelector("[data-variants-differ]")).toBeInTheDocument()
+  })
+
+  it("keeps the range note out of the card body and in the title help", () => {
+    const { container } = view(resources({ Variants: [{ VariantID: "a", ...totals(50, 128, 1) }, { VariantID: "b", ...totals(250, 1024, 3) }] }))
+    const visible = Array.from(container.querySelectorAll("[data-resources-panel] > p")).map((node) => node.textContent)
+    expect(visible.some((text) => text?.includes("exercises.res.rangeNote"))).toBe(false)
+    expect(helpButton(/exercises\.res\.rangeNote.*"count":2/)).toBeInTheDocument()
   })
 
   it("does not warn when the server says the variants are close", () => {
