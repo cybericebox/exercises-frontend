@@ -137,6 +137,21 @@ describe("ImportDialog", () => {
       expect(overlay()).not.toBeInTheDocument()
     })
 
+    it("dims the content beneath the overlay while dragging and restores it after", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      const content = () => screen.getByTestId("import-content")
+      expect(content()).not.toHaveAttribute("data-dimmed")
+      expect(content()).not.toHaveAttribute("aria-hidden")
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      expect(content()).toHaveAttribute("data-dimmed")
+      expect(content()).toHaveAttribute("aria-hidden", "true")
+      expect(content()).toHaveClass("invisible")
+      expect(content()).not.toContainElement(overlay())
+      fireEvent.dragLeave(dialog(), { dataTransfer: files })
+      expect(content()).not.toHaveAttribute("data-dimmed")
+      expect(content()).not.toHaveClass("invisible")
+    })
+
     it("takes a drop outside the field like a field drop", () => {
       render(<ImportDialog onClose={vi.fn()} />)
       fireEvent.dragEnter(dialog(), { dataTransfer: files })
