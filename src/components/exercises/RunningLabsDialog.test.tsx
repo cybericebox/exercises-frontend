@@ -22,7 +22,7 @@ describe("RunningLabsDialog", () => {
   beforeEach(() => { vi.mocked(listDeploys).mockResolvedValue([]) })
 
   it("marks only the static test and keeps open and end for both rows", () => {
-    render(<RunningLabsDialog open items={[item("d1", "ex1", "lab"), item("d2", "ex2", "static")]} now={Date.parse("2026-10-17T10:30:00Z")} onClose={vi.fn()} onEnded={vi.fn()} />)
+    render(<RunningLabsDialog open items={[item("d1", "ex1", "lab"), item("d2", "ex2", "static")]} onClose={vi.fn()} onEnded={vi.fn()} />)
     expect(screen.getAllByText("admin.exTest.kindStatic")).toHaveLength(1)
     const rows = screen.getAllByRole("listitem")
     expect(rows[0]).not.toHaveTextContent("admin.exTest.kindStatic")
@@ -33,7 +33,7 @@ describe("RunningLabsDialog", () => {
   })
 
   it("ends a static test with the text that has no lab wording", () => {
-    render(<RunningLabsDialog open items={[item("d2", "ex2", "static")]} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
+    render(<RunningLabsDialog open items={[item("d2", "ex2", "static")]} onClose={vi.fn()} onEnded={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: /admin\.exTest\.endLabNamed/ }))
     expect(screen.getByText("admin.exTest.endDescriptionStatic")).toBeInTheDocument()
   })
@@ -41,7 +41,7 @@ describe("RunningLabsDialog", () => {
   it("promises the VPN stops when the only other running test is a static one", async () => {
     const items = [item("d1", "ex1", "lab"), item("d2", "ex2", "static")]
     vi.mocked(listDeploys).mockResolvedValue(items)
-    render(<RunningLabsDialog open items={items} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
+    render(<RunningLabsDialog open items={items} onClose={vi.fn()} onEnded={vi.fn()} />)
     fireEvent.click(screen.getAllByRole("button", { name: /admin\.exTest\.endLabNamed/ })[0])
     expect(await screen.findByText("admin.exTest.endDescription")).toBeInTheDocument()
     expect(screen.queryByText("admin.exTest.endDescriptionOthers")).not.toBeInTheDocument()
@@ -50,7 +50,7 @@ describe("RunningLabsDialog", () => {
   it("says the VPN stays when another lab still runs", async () => {
     const items = [item("d1", "ex1", "lab"), item("d3", "ex2", "lab")]
     vi.mocked(listDeploys).mockResolvedValue(items)
-    render(<RunningLabsDialog open items={items} now={0} onClose={vi.fn()} onEnded={vi.fn()} />)
+    render(<RunningLabsDialog open items={items} onClose={vi.fn()} onEnded={vi.fn()} />)
     fireEvent.click(screen.getAllByRole("button", { name: /admin\.exTest\.endLabNamed/ })[0])
     expect(await screen.findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
   })

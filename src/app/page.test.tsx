@@ -98,7 +98,18 @@ describe('exercises catalog page', () => {
   it('keeps column headings above rows within the scrolling table', async () => {
     const { container } = render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(container.querySelector('thead th')).toHaveClass('sticky', 'top-0', 'z-10', 'bg-card')
+    expect(container.querySelector('thead th')).toHaveClass('sticky', 'top-0', 'z-20', 'bg-card')
+  })
+
+  it('stacks the sticky header above every positioned row element', async () => {
+    const { container } = render(<Page />)
+    await screen.findByText('SQLi basics')
+    const z = (el: Element | null) => Number(/(?:^|\s)z-(\d+)(?:\s|$)/.exec(el?.className ?? '')?.[1] ?? 0)
+    const header = z(container.querySelector('thead th'))
+    const rowZ = [...container.querySelectorAll('tbody *')].map((el) => z(el))
+    expect(header).toBeGreaterThan(0)
+    expect(Math.max(...rowZ)).toBeGreaterThan(0)
+    expect(header).toBeGreaterThan(Math.max(...rowZ))
   })
 
   it('keeps the header in the loading state and gives the page one h1', async () => {
