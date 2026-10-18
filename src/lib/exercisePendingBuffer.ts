@@ -5,7 +5,7 @@
  * never written; on restore flags come back from the server copy and empty
  * env values mean "keep the stored value" on save.
  */
-import type { DeviceFormValues, DraftFormValues, IdentityFormValues } from "@/lib/exerciseSchemas"
+import { emptyDraft, type DeviceFormValues, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exercisePendingKey } from "@/lib/storageKeys"
 
 export type PendingChanges = {
@@ -34,6 +34,19 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
       },
     })),
   }
+}
+
+// Client-generated ids differ between two empty drafts; everything else is the content.
+function contentSignature(draft: DraftFormValues): string {
+  return JSON.stringify(sanitizePendingDraft(draft), (key, value: unknown) => key === "ID" ? undefined : value)
+}
+
+const BLANK_DRAFT_SIGNATURE = contentSignature(emptyDraft())
+
+/** True when anything beyond the untouched new-task form is entered (secrets are not content: they are never buffered). */
+export function hasDraftContent(identity: IdentityFormValues, draft: DraftFormValues): boolean {
+  return identity.Name.trim() !== "" || identity.Description.trim() !== "" || identity.Tags.length > 0 ||
+    contentSignature(draft) !== BLANK_DRAFT_SIGNATURE
 }
 
 export function writePendingChanges(key: string, identity: IdentityFormValues, draft: DraftFormValues): boolean {
