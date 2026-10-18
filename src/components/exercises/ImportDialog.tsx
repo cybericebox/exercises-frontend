@@ -17,9 +17,7 @@ import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
 import { downloadBlob } from "@/lib/downloadBlob"
-import { formatBytes } from "@/lib/formatBytes"
 import { dismissImportJob, trackImportJob, useImportJob, type TrackedImport } from "@/lib/importJobs"
-import { importStagePercent, importStageText } from "@/lib/importStage"
 import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import "@/styles/import-howto.css"
@@ -59,13 +57,12 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [stage, setStage] = useState<ArchiveStage | null>(null)
-  const [jobID, setJobID] = useState<string | null>(jobId ?? null)
-  const job = useImportJob(jobID)
-  // The ended job this dialog has read (it is dismissed from the catalog's indicator once read here).
-  const [finished, setFinished] = useState<NonNullable<typeof job> | null>(null)
-  if (job && job.state !== "running" && finished?.jobID !== job.jobID) setFinished(job)
-  const tracking = job?.state === "running"
-  const failure = finished?.state === "failed" && finished.error ? describeFailure(finished.error) : null
+  // Opened from «Подробиці» of a failed import row: the job's error is shown like a failed synchronous import, and
+  // the job is read, so its row goes away.
+  const job = useImportJob(jobId ?? null)
+  const [failed, setFailed] = useState<TrackedImport | null>(null)
+  if (job && job.state === "failed" && failed?.jobID !== job.jobID) setFailed(job)
+  const failure = failed?.error ? describeFailure(failed.error) : null
   const [exampleBusy, setExampleBusy] = useState(false)
   const [imported, setImported] = useState<Exercise[] | null>(null)
 
@@ -74,26 +71,16 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   // multipart path stores a fresh file each time).
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
-  // Leaving is allowed while the server works on a queued job (not while the archive is going up).
+  // Leaving is not allowed while the archive is going up: the browser has to keep sending it.
   const canLeave = !busy
   function leave() {
     waiting.current?.abort()
     onClose()
   }
 
-  // An import that ended while this dialog shows it: one task opens it, several are listed below (the toast and the
-  // catalog reload are the store's). A failure is shown in the form; either way the job is read, so it is dismissed.
-  const handled = useRef<string | null>(null)
   useEffect(() => {
-    if (!finished || handled.current === finished.jobID) return
-    handled.current = finished.jobID
-    dismissImportJob(finished.jobID)
-    if (finished.state === "done" && finished.exercises.length === 1) {
-      onClose()
-      router.push(exerciseHref(finished.exercises[0].ID))
-    }
-  }, [finished, onClose, router])
-  const importedList = imported ?? (finished?.state === "done" && finished.exercises.length !== 1 ? finished.exercises : null)
+    if (failed) dismissImportJob(failed.jobID)
+  }, [failed])
 
   async function downloadExample() {
     setExampleBusy(true)
@@ -124,7 +111,7 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   // Whole-dialog drop target: the counter keeps child elements from flickering the overlay (every child fires its own enter/leave).
   const dragDepth = useRef(0)
   const [dragging, setDragging] = useState(false)
-  const dropActive = !busy && !tracking && !importedList
+  const dropActive = !busy && !imported
   const showDrop = dragging && dropActive
   const carriesFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files")
   function endDrag() {
@@ -170,17 +157,17 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
     setFileError(null)
     setPasswordNeeded(false)
     setStage(null)
-    setFinished(null)
-    setJobID(null)
+    setFailed(null)
     const controller = new AbortController()
     waiting.current = controller
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
       const started = await startImport(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined, setStage, controller.signal)
       if (started.kind === "job") {
-        // Queued: from here the job is followed by lib/importJobs, with or without this dialog.
+        // Queued: the archive is on the server, so the dialog closes and the import goes on in the background, shown
+        // as a row of the catalog table (lib/importJobs follows it).
         trackImportJob(started.jobID)
-        setJobID(started.jobID)
+        onClose()
         return
       }
       const result = started.exercises
@@ -206,8 +193,7 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   }
 
   // The busy button names the operation, with the percent while the archive goes up.
-  const submitLabel = tracking && job ? importStageText(job)
-    : busy ? (stage === "uploading" && progress !== null ? t("admin.exImport.uploadingPercent", { percent: progress }) : t("admin.exImport.importing"))
+  const submitLabel = busy ? (stage === "uploading" && progress !== null ? t("admin.exImport.uploadingPercent", { percent: progress }) : t("admin.exImport.importing"))
     : t("admin.exImport.submit")
 
   return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
@@ -217,13 +203,13 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
         {t("admin.exImport.dropHere")}
       </div>}
       <div data-testid="import-content" data-dimmed={showDrop || undefined} aria-hidden={showDrop || undefined} className={showDrop ? "contents invisible" : "contents"}>
-      {importedList ? <>
+      {imported ? <>
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.resultTitle")}</DialogTitle>
-          <DialogDescription>{t("admin.exImport.done", { count: importedList.length })}</DialogDescription>
+          <DialogDescription>{t("admin.exImport.done", { count: imported.length })}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-[50vh] space-y-1 overflow-y-auto text-sm">
-          {importedList.map((exercise) => <li key={exercise.ID}>
+          {imported.map((exercise) => <li key={exercise.ID}>
             <Link href={exerciseHref(exercise.ID)} className="text-primary hover:underline" onClick={onClose}>{exercise.Name}</Link>
           </li>)}
         </ul>
@@ -234,7 +220,7 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
           <DialogDescription>{t("admin.exImport.description")}</DialogDescription>
         </DialogHeader>
         <div className="relative space-y-4">
-          <div className={tracking ? "hidden" : "space-y-4"}>
+          <div className="space-y-4">
           <div className="import-howto">
             <details className="import-howto__details">
               <summary>{t("admin.exImport.howTo")}<ChevronDown aria-hidden="true" /></summary>
@@ -265,32 +251,13 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
           )}
           {(error ?? failure?.error) && <p role="alert" className="text-sm text-destructive">{error ?? failure?.error}</p>}
           </div>
-          {job && tracking && <ImportStatus job={job} />}
         </div>
         <DialogFooter>
-          {tracking
-            ? <Button type="button" variant="outline" onClick={leave}>{t("admin.exImport.background")}</Button>
-            : <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>}
-          <Button type="submit" className="min-w-56" busy={busy || tracking} disabled={busy || tracking || !file}>{submitLabel}</Button>
+          <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
+          <Button type="submit" className="min-w-56" busy={busy} disabled={busy || !file}>{submitLabel}</Button>
         </DialogFooter>
       </form>}
       </div>
     </DialogContent>
   </Dialog>
-}
-
-/** The live state of a queued import: the stage with its counts, a bar once the total is known, the image bytes sent. */
-function ImportStatus({ job }: { job: TrackedImport }) {
-  const text = importStageText(job)
-  const percent = importStagePercent(job)
-  return <div className="space-y-3 py-2" aria-live="polite">
-    <p className="text-sm text-muted-foreground">{t("admin.exImport.backgroundHint")}</p>
-    <div className="space-y-1.5">
-      <div className="flex justify-between gap-2 text-sm"><span>{text}</span>{percent !== null && <span className="tabular-nums text-muted-foreground">{percent}%</span>}</div>
-      <div role="progressbar" aria-label={text} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} className="h-1.5 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${percent ?? 0}%` }} />
-      </div>
-      <p className="min-h-4 text-xs text-muted-foreground">{job.stage === "images" && job.bytesTotal > 0 ? t("admin.exImport.bytes", { done: formatBytes(job.bytesPushed), total: formatBytes(job.bytesTotal) }) : ""}</p>
-    </div>
-  </div>
 }

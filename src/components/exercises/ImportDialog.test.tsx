@@ -7,7 +7,7 @@ const push = vi.fn()
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
 vi.mock("@/api/exercises/archive", () => ({ startImport: vi.fn(), downloadImportExample: vi.fn() }))
-vi.mock("@/api/exercises/archiveJobs", () => ({ getImportJob: vi.fn(), JOB_POLL_MS: 5, isPassing: () => false }))
+vi.mock("@/api/exercises/archiveJobs", () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
@@ -15,7 +15,6 @@ import { downloadImportExample, startImport } from "@/api/exercises/archive"
 import { getImportJob, type ImportJobStatus } from "@/api/exercises/archiveJobs"
 import { downloadBlob } from "@/lib/downloadBlob"
 import { IMPORT_JOBS_KEY, resetImportJobsForTests, trackImportJob } from "@/lib/importJobs"
-import { toast } from "@/components/ui/toast"
 import { ImportDialog } from "./ImportDialog"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
@@ -302,99 +301,52 @@ describe("ImportDialog", () => {
   })
 
   describe("a queued background import", () => {
-    const submit = async () => {
+    const submit = () => {
       chooseFile()
       fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     }
 
-    it("shows the stage with its counts, a determinate bar and the operation on the busy button", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      mockJob.mockResolvedValue(status({ stage: "images", imagesDone: 3, imagesTotal: 7, bytesPushed: 3 * 1024 ** 3, bytesTotal: 7 * 1024 ** 3 }))
-      render(<ImportDialog onClose={vi.fn()} />)
-      await submit()
-      const stageText = 'admin.exImport.stage.imagesCount {"done":3,"total":7}'
-      expect(await screen.findAllByText(stageText)).not.toHaveLength(0)
-      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "43")
-      const button = screen.getAllByText(stageText).map((node) => node.closest("button")).find(Boolean)!
-      expect(button).toBeDisabled()
-      expect(button).toHaveAttribute("aria-busy", "true")
-      expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
-      expect(screen.getByText(/^admin\.exImport\.bytes/)).toBeInTheDocument()
-      expect(screen.queryByText("admin.exImport.working")).not.toBeInTheDocument()
-    })
-
-    it("moves through the stages: unpacking has no counts and no bar value, then the tasks", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      mockJob.mockResolvedValueOnce(status({})).mockResolvedValue(status({ stage: "tasks", imagesDone: 7, imagesTotal: 7, tasksDone: 5, tasksTotal: 12 }))
-      render(<ImportDialog onClose={vi.fn()} />)
-      await submit()
-      expect((await screen.findAllByText("admin.exImport.stage.unpacking")).length).toBeGreaterThan(0)
-      expect(screen.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow")
-      expect((await screen.findAllByText('admin.exImport.stage.tasksCount {"done":5,"total":12}')).length).toBeGreaterThan(0)
-      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42")
-    })
-
-    it("lets the user continue in the background: the dialog closes, the job is not cancelled and keeps polling", async () => {
+    it("closes by itself once the job is queued and the import goes on without the dialog", async () => {
       mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
       mockJob.mockResolvedValue(status({ stage: "images", imagesDone: 1, imagesTotal: 2 }))
       const onClose = vi.fn()
-      const { unmount } = render(<ImportDialog onClose={onClose} />)
-      await submit()
-      fireEvent.click(await screen.findByRole("button", { name: "admin.exImport.background" }))
-      expect(onClose).toHaveBeenCalled()
-      unmount()
-      mockJob.mockClear()
-      await waitFor(() => expect(mockJob.mock.calls.length).toBeGreaterThanOrEqual(2))
+      const onImported = vi.fn()
+      const { unmount } = render(<ImportDialog onClose={onClose} onImported={onImported} />)
+      submit()
+      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(screen.queryByRole("button", { name: "admin.exImport.background" })).not.toBeInTheDocument()
       expect(JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")).toEqual(["j1"])
-    })
-
-    it("lists several created tasks when the import ends while the dialog is open", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      mockJob.mockResolvedValueOnce(status({ stage: "tasks" })).mockResolvedValue(status({ state: "done", stage: "done", exercises: [imported("e1", "One"), imported("e2", "Two")] }))
-      render(<ImportDialog onClose={vi.fn()} />)
-      await submit()
-      expect(await screen.findByRole("link", { name: "Two" })).toHaveAttribute("href", "/detail?id=e2")
-      expect(toast.success).toHaveBeenCalledWith('admin.exImport.done {"count":2}')
       expect(push).not.toHaveBeenCalled()
+      expect(onImported).not.toHaveBeenCalled()
+      unmount()
+      await waitFor(() => expect(mockJob.mock.calls.length).toBeGreaterThanOrEqual(2))
     })
 
-    it("opens the only created task when the import ends while the dialog is open", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      mockJob.mockResolvedValue(status({ state: "done", stage: "done", exercises: [imported("e9", "Web 101")] }))
+    it("stays open while the archive goes up, with the percent on the busy button", async () => {
+      mockImport.mockImplementation(async (_file, _password, onProgress, onStage) => {
+        onStage?.("uploading")
+        onProgress?.(40)
+        return new Promise(() => undefined)
+      })
       const onClose = vi.fn()
       render(<ImportDialog onClose={onClose} />)
-      await submit()
-      await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
-      expect(onClose).toHaveBeenCalled()
+      fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
+        target: { files: [Object.defineProperty(new File(["zip"], "big.zip"), "size", { value: 600 * 1024 * 1024 })] },
+      })
+      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+      expect(await screen.findByText('admin.exImport.uploadingPercent {"percent":40}')).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
     })
 
-    it("shows a failed job's error in the form, like a failed synchronous import", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      const error = new ApiError(409, { Status: { Code: 22829, Context: { file: "images/web.tar", reason: "gzip" } } }, undefined, undefined, 22829)
-      mockJob.mockResolvedValue(status({ state: "failed", stage: "failed", error }))
-      render(<ImportDialog onClose={vi.fn()} />)
-      await submit()
+    it("opened from «Подробиці» of a failed import it shows the error and takes the job off the table", async () => {
+      mockJob.mockResolvedValue(status({ state: "failed", stage: "failed", error: new ApiError(409, { Status: { Code: 22829, Context: { file: "images/web.tar", reason: "gzip" } } }, undefined, undefined, 22829) }))
+      trackImportJob("j8", 0)
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")).toEqual(["j8"]))
+      await waitFor(() => expect(mockJob).toHaveBeenCalled())
+      render(<ImportDialog jobId="j8" onClose={vi.fn()} />)
       const message = await screen.findByRole("alert")
       expect(message).toHaveTextContent("images/web.tar")
       expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
-      expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
-    })
-
-    it("reopened from the indicator on a running import it shows the live progress without a file", async () => {
-      mockJob.mockResolvedValue(status({ stage: "tasks", tasksDone: 2, tasksTotal: 4 }))
-      trackImportJob("j7", 0)
-      render(<ImportDialog jobId="j7" onClose={vi.fn()} />)
-      expect((await screen.findAllByText('admin.exImport.stage.tasksCount {"done":2,"total":4}')).length).toBeGreaterThan(0)
-      expect(screen.getByRole("button", { name: "admin.exImport.background" })).toBeEnabled()
-    })
-
-    it("reopened on a failed import it shows the error and takes the job off the indicator", async () => {
-      mockJob.mockResolvedValue(status({ state: "failed", stage: "failed", error: new ApiError(409, { Status: { Code: 72802 } }, undefined, undefined, 72802) }))
-      trackImportJob("j8", 0)
-      await waitFor(() => expect(mockJob).toHaveBeenCalled())
-      await waitFor(() => expect(JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")).toEqual(["j8"]))
-      render(<ImportDialog jobId="j8" onClose={vi.fn()} />)
-      expect(await screen.findByRole("alert")).toBeInTheDocument()
       await waitFor(() => expect(localStorage.getItem(IMPORT_JOBS_KEY)).toBeNull())
     })
   })

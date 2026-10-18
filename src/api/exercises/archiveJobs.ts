@@ -2,6 +2,7 @@
  * archiveJobs.ts — waiting for the background jobs of archives with images.
  *
  *   GET /api/exercises/export/jobs/:id  → {State: running|done|failed, File?: {FileID, Name, …}, Error?}
+ *   GET /api/exercises/import/jobs      → [{JobID, Stage, counts…}] the caller's running imports
  *   GET /api/exercises/import/jobs/:id  → {State: running|done|failed, Stage, ImagesDone/Total, TasksDone/Total,
  *                                          BytesPushed/Total, Exercises?, Error?}
  *
@@ -106,6 +107,12 @@ export async function waitForExportJob(jobID: string, signal?: AbortSignal): Pro
   const job = await pollJob<ExportJob>(`${BASE}/export/jobs/${encodeURIComponent(jobID)}`, 70998, signal)
   if (!job.File) throw jobError({ Code: 70998 })
   return { FileID: job.File.FileID, Name: job.File.Name }
+}
+
+/** The ids of the caller's imports that still run on the server (another device, or storage that was cleared). */
+export async function listRunningImports(signal?: AbortSignal): Promise<string[]> {
+  const jobs = await apiGet<{ JobID: string }[] | null>(`${BASE}/import/jobs`, { signal }, { silentOutage: true })
+  return (jobs ?? []).map((job) => job.JobID)
 }
 
 /** One read of a background import: its stage, counts and (at the end) the created tasks or the error. */
