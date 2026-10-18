@@ -33,11 +33,12 @@ describe("NoRoomPanel (72509)", () => {
     expect(screen.getByText(/exercises\.book\.noRoomNow/)).toBeTruthy()
     expect(getRoom).not.toHaveBeenCalled()
     fireEvent.click(await screen.findByRole("button", { name: "exercises.book.action" }))
-    fireEvent.change(await screen.findByLabelText("exercises.book.minutes"), { target: { value: "90" } })
+    fireEvent.keyDown(await screen.findByRole("button", { name: "exercises.book.minutes" }), { key: "Enter" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "exercises.book.duration.minutes 45" }))
     fireEvent.click(screen.getByRole("button", { name: "exercises.book.confirm" }))
     await waitFor(() => expect(createBooking).toHaveBeenCalledTimes(1))
     expect(createBooking).toHaveBeenCalledWith({
-      Start: start, DurationMinutes: 90,
+      Start: start, DurationMinutes: 45,
       Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB }, LargestDevice: { CPUMillicores: 15, MemoryBytes: 64 * MIB },
     })
     expect(await screen.findByText(/exercises\.book\.bookedFrom/)).toBeTruthy()

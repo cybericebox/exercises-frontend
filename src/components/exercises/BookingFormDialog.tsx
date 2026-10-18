@@ -5,7 +5,7 @@ import { useState } from "react"
 import { createBooking, type Amount, type Booking } from "@/api/exercises/testLabs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
-import { Input } from "@/components/ui/input"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { Label } from "@/components/ui/label"
 import { t } from "@/i18n/t"
 import { BOOKING_DEFAULT_MINUTES, BOOKING_MAX_ACTIVE, BOOKING_MAX_DAYS_AHEAD, BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, bookingLimitError, type BookingLimitError } from "@/lib/bookingLimits"
@@ -19,6 +19,24 @@ const pad = (value: number) => String(value).padStart(2, "0")
 export function toLocalInput(iso: string): string {
   const d = new Date(iso)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Lengths offered in the duration list, in minutes. */
+const DURATION_CHOICES = [15, 30, 45, 60, 120, 240, 480]
+
+/** The choices inside the platform limits. */
+export function allowedDurations(): number[] {
+  return DURATION_CHOICES.filter((m) => m >= BOOKING_MIN_MINUTES && m <= BOOKING_MAX_MINUTES)
+}
+
+/** The default length if allowed (1 h), else the nearest allowed one. */
+export function defaultDuration(): number {
+  const list = allowedDurations()
+  return list.reduce((best, m) => Math.abs(m - 60) < Math.abs(best - 60) ? m : best, list[0] ?? BOOKING_DEFAULT_MINUTES)
+}
+
+function durationLabel(minutes: number): string {
+  return minutes % 60 === 0 ? t("exercises.book.duration.hours", { n: minutes / 60 }) : t("exercises.book.duration.minutes", { n: minutes })
 }
 
 const LIMIT_KEY: Record<BookingLimitError, string> = {
@@ -49,7 +67,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
   onBooked: (booking: Booking) => void
 }) {
   const [startValue, setStartValue] = useState(() => toLocalInput(start))
-  const [minutes, setMinutes] = useState(String(BOOKING_DEFAULT_MINUTES))
+  const [minutes, setMinutes] = useState(String(defaultDuration()))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -84,9 +102,9 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="booking-minutes">{t("exercises.book.minutes")}</Label>
-        <Input id="booking-minutes" type="number" inputMode="numeric" min={BOOKING_MIN_MINUTES} max={BOOKING_MAX_MINUTES} step={15} value={minutes}
-          aria-invalid={limit === "duration"} aria-describedby={limit === "duration" ? "booking-minutes-hint booking-minutes-error" : "booking-minutes-hint"} onChange={(event) => { setMinutes(event.target.value); setError("") }} />
-        <p id="booking-minutes-hint" className="text-xs text-muted-foreground">{t("exercises.book.hint", { min: BOOKING_MIN_MINUTES, max: BOOKING_MAX_MINUTES, days: BOOKING_MAX_DAYS_AHEAD, count: BOOKING_MAX_ACTIVE })}</p>
+        <SelectMenu id="booking-minutes" ariaLabel={t("exercises.book.minutes")} value={minutes} options={allowedDurations().map((m) => ({ value: String(m), label: durationLabel(m) }))}
+          aria-invalid={limit === "duration"} aria-describedby={limit === "duration" ? "booking-minutes-hint booking-minutes-error" : "booking-minutes-hint"} onChange={(value) => { setMinutes(value); setError("") }} />
+        <p id="booking-minutes-hint" className="text-xs text-muted-foreground">{t("exercises.book.hint", { days: BOOKING_MAX_DAYS_AHEAD, count: BOOKING_MAX_ACTIVE })}</p>
         {limit === "duration" && <p id="booking-minutes-error" role="alert" className="text-xs text-destructive">{limitMessage(limit)}</p>}
       </div>
     </div>
