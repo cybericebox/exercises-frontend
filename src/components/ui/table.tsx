@@ -13,7 +13,7 @@ export function Table({ label, className, regionClassName, regionRef, busy, chil
 }
 
 export const TABLE_HEAD_ROW = "h-10 text-left text-[length:var(--ib-fs-13)] font-medium text-[var(--ib-dim)]"
-export const TABLE_HEAD_CELL = "sticky top-0 z-10 border-b border-border bg-card px-3 text-left font-medium"
+export const TABLE_HEAD_CELL = "sticky top-0 z-20 border-b border-border bg-card px-3 text-left font-medium"
 export const TABLE_CELL = "border-b border-border/50 px-3 py-2"
 export const TABLE_ROW = "h-10 transition-colors hover:bg-[var(--ib-hover)]"
 
