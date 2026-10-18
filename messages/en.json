@@ -174,6 +174,7 @@
   "admin.exImport.chooseFile": "Choose file",
   "admin.exImport.notZip": "A .zip archive is required.",
   "admin.exImport.noFile": "No file chosen",
+  "admin.exImport.dropHere": "Drop the archive here",
   "admin.exImport.password": "Password (if the archive is protected)",
   "admin.exImport.passwordNeeded": "Could not open the archive. If it is password-protected, enter the correct password.",
   "admin.exImport.submit": "Import",

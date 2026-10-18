@@ -121,6 +121,76 @@ describe("ImportDialog", () => {
     expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
   })
 
+  describe("whole-dialog drop", () => {
+    const files = { types: ["Files"] }
+    const zip = () => new File(["zip"], "web.zip", { type: "application/zip" })
+    const dialog = () => screen.getByRole("dialog")
+    const overlay = () => screen.queryByText("admin.exImport.dropHere")
+
+    it("shows the overlay over the dialog on a file drag and hides it on leave", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      expect(overlay()).not.toBeInTheDocument()
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      expect(overlay()).toBeInTheDocument()
+      expect(dialog()).toContainElement(overlay()!)
+      fireEvent.dragLeave(dialog(), { dataTransfer: files })
+      expect(overlay()).not.toBeInTheDocument()
+    })
+
+    it("takes a drop outside the field like a field drop", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      fireEvent.drop(screen.getByText("admin.exImport.description"), { dataTransfer: { ...files, files: [zip()] } })
+      expect(overlay()).not.toBeInTheDocument()
+      expect(screen.getByText("web.zip")).toBeInTheDocument()
+      fireEvent.drop(screen.getByText("admin.exImport.title"), { dataTransfer: { ...files, files: [new File(["x"], "n.txt")] } })
+      expect(screen.getByText("admin.exImport.notZip")).toBeInTheDocument()
+    })
+
+    it("does not take a field drop twice", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      const zone = screen.getByText("admin.exImport.noFile").parentElement!
+      fireEvent.dragEnter(zone, { dataTransfer: files })
+      fireEvent.drop(zone, { dataTransfer: { ...files, files: [zip()] } })
+      expect(screen.getByText("web.zip")).toBeInTheDocument()
+      expect(overlay()).not.toBeInTheDocument()
+    })
+
+    it("ignores text drags", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      fireEvent.dragEnter(dialog(), { dataTransfer: { types: ["text/plain"] } })
+      expect(overlay()).not.toBeInTheDocument()
+    })
+
+    it("does not flicker while moving over children", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      const child = screen.getByText("admin.exImport.title")
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      fireEvent.dragEnter(child, { dataTransfer: files })
+      fireEvent.dragLeave(dialog(), { dataTransfer: files })
+      expect(overlay()).toBeInTheDocument()
+      fireEvent.dragLeave(child, { dataTransfer: files })
+      expect(overlay()).not.toBeInTheDocument()
+    })
+
+    it("hides on Escape", () => {
+      render(<ImportDialog onClose={vi.fn()} />)
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      fireEvent.keyDown(document, { key: "Escape" })
+      expect(overlay()).not.toBeInTheDocument()
+    })
+
+    it("shows no overlay while an import runs", async () => {
+      mockImport.mockReturnValue(new Promise(() => undefined))
+      render(<ImportDialog onClose={vi.fn()} />)
+      chooseFile()
+      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+      await waitFor(() => expect(mockImport).toHaveBeenCalled())
+      fireEvent.dragEnter(dialog(), { dataTransfer: files })
+      expect(overlay()).not.toBeInTheDocument()
+    })
+  })
+
   it("keeps the button busy only while loading and the file form usable", async () => {
     let resolve: (value: { blob: Blob; filename: string }) => void = () => undefined
     mockExample.mockReturnValue(new Promise((r) => { resolve = r }))
