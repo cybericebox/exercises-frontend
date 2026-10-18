@@ -119,20 +119,9 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
         <Input id={`internet-dhcp-dns-${variantIndex}`} value={field.value ?? ""} onChange={field.onChange} disabled={disabled} placeholder="1.1.1.1" className="h-9" aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `internet-dns-${variantIndex}-error` : undefined} />
         {fieldState.error?.message && <p id={`internet-dns-${variantIndex}-error`} role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
       </div>} />}
-    {enabled && <dl className="space-y-1.5 text-xs leading-5 text-muted-foreground">
-      {(["enabled", "disabled"] as const).map((state) => <div key={state} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
-        <dt className="font-medium text-foreground">{t(`admin.exTopo.dhcp.${state}Label`)}</dt>
-        <dd className="min-w-0">{t(state === "enabled"
-          ? `admin.exTopo.dhcp.enabled.${network === "VPN" ? "vpn" : "internet"}`
-          : "admin.exTopo.dhcp.disabled")}</dd>
-      </div>)}
-    </dl>}
     {showDhcpWarning && <div role="note" className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">
       <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-      <span>
-        <span className="block">{t("admin.exTopo.dhcp.warning")}</span>
-        <span className="block">{t("admin.exTopo.dhcp.warningConsequence")}</span>
-      </span>
+      <span>{t("admin.exTopo.dhcp.warning")}</span>
     </div>}
   </div>
 }

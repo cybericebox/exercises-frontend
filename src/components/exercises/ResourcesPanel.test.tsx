@@ -9,6 +9,7 @@ import { ResourcesPanel } from "./ResourcesPanel"
 import type { Elevation } from "@/api/exercises/elevation"
 import type { DeviceOutside, ResourceTotals, VersionResources } from "@/api/exercises/versions"
 import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
+import { presetOptionLabel } from "@/lib/presetLabels"
 
 const MIB = 1024 ** 2
 const totals = (cpu: number, mib: number, devices: number, blocks = mib / 32): ResourceTotals => ({ CPUMillicores: cpu, MemoryBytes: mib * MIB, Devices: devices, Blocks: blocks })
@@ -125,6 +126,19 @@ describe("ResourcesPanel", () => {
     expect(screen.queryByRole("menuitemradio", { name: /exercises.res.preset.large/ })).toBeNull()
     fireEvent.click(await screen.findByRole("menuitemradio", { name: /exercises.res.preset.max/ }))
     expect(onPickBlock).toHaveBeenCalledWith(expect.objectContaining({ DeviceID: "big" }), "max")
+  })
+
+  it("words the dialog options like the device's select, through the one shared label", async () => {
+    view(resources({ Outside: [outside()] }), null, { onPickBlock: vi.fn() })
+    fireEvent.click(screen.getByRole("button", { name: "exercises.res.request" }))
+    fireEvent.keyDown(screen.getByRole("button", { name: /exercises.res.dialog.block/ }), { key: "ArrowDown" })
+    const max = RESOURCES_CONFIG.Presets.find((preset) => preset.ID === "max")!
+    expect(await screen.findByRole("menuitemradio", { name: presetOptionLabel(max) })).toBeInTheDocument()
+  })
+
+  it("does not repeat the approval-free frame at task level (it is in the select's help)", () => {
+    view(resources({ Outside: [outside({ Covered: true })] }))
+    expect(screen.queryByText(/frameHint/)).toBeNull()
   })
 
   it("shows a failed request inside the dialog", async () => {

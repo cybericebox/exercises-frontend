@@ -115,6 +115,11 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
   const { formRef, focusField } = useEditorValidationFocus()
+  // «Ввести назву» under the image field: the General tab, with the cursor in the name.
+  const showNameField = () => {
+    updatePosition("tab", "general")
+    window.setTimeout(() => document.getElementById("exercise-name")?.focus(), 0)
+  }
 
   const editor = useExerciseEditor({
     exerciseId,
@@ -353,7 +358,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         <CardContent className="flex flex-1 flex-col pt-5">
           <Form {...editor.draftForm}>
             {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
-            <ImageUploadsProvider canWrite={permissions.write && !readOnly}>
+            <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
             <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-1 flex-col gap-5">
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />

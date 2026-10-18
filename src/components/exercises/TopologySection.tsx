@@ -504,18 +504,9 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         </div>
       </div>
       <div className="@container min-h-0 min-w-0 flex-1 overflow-y-auto p-3">
-        {settingsDescriptionKind && <dl className="mb-3 space-y-2 border-b border-border pb-3 text-sm">
-          {(["purpose", "ports"] as const).map((fact) =>
-            <div key={fact} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2 leading-5">
-              <dt className="font-medium text-foreground">{t(`admin.exTopo.networkFact.${fact}`)}</dt>
-              <dd className="min-w-0 text-muted-foreground">
-                {fact === "purpose" && (settingsDescriptionKind === "switch" || settingsDescriptionKind === "hub") ? <>
-                  <p>{t(`admin.exTopo.networkDescription.${settingsDescriptionKind}.purpose`)}</p>
-                  <p className="mt-1">{t(`admin.exTopo.networkDescription.${settingsDescriptionKind}.behavior`)}</p>
-                </> : t(`admin.exTopo.networkDescription.${settingsDescriptionKind}.${fact}`)}
-              </dd>
-            </div>)}
-        </dl>}
+        {settingsDescriptionKind && <p className="mb-3 border-b border-border pb-3 text-sm leading-5 text-muted-foreground">
+          {t(`admin.exTopo.networkDescription.${settingsDescriptionKind}.purpose`)}
+        </p>}
         {settingsGateway ? <NetworkToggles variantIndex={variantIndex} disabled={disabled}
           network={settingsGateway === "vpn" ? "VPN" : "Internet"} showEnabled={false} />
           : settingsDeviceIndex >= 0 && <DeviceCard key={fields[settingsDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={settingsDeviceIndex} disabled={disabled} compact />}

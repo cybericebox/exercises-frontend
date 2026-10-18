@@ -1,21 +1,22 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
-import { Upload } from "lucide-react"
+import { Check, Clock, FileArchive, Link2, RefreshCw, TriangleAlert, Upload, X } from "lucide-react"
 import { t } from "@/i18n/t"
-import { tRich } from "@/i18n/tRich"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { formatBytes } from "@/lib/formatBytes"
 import { MAX_IMAGE_ARCHIVE_GIB } from "@/lib/imageErrors"
+import { pluralKey } from "@/lib/presetLabels"
+import { cn } from "@/utils/cn"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
-import { useExerciseId } from "./ExerciseIdContext"
 import { ImageAvailability } from "./ImageAvailability"
-import { useDeviceImageUpload, useImageUploads } from "./ImageUploads"
+import { useDeviceImageUpload, useImageUploads, type ImageUploadProgress } from "./ImageUploads"
 
 const PLATFORM_REF = /^platform:([a-z0-9]+(?:[._-][a-z0-9]+)*)@(sha256:[0-9a-f]{64})$/
 
@@ -25,11 +26,33 @@ export function parsePlatformRef(image: string): { name: string; digest: string 
   return match ? { name: match[1], digest: match[2] } : null
 }
 
+/** A small icon button with the name as its aria-label and tooltip. */
+function IconButton({ label, onClick, disabled, children, className }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode; className?: string }) {
+  return <HoverTooltip text={label}><button type="button" aria-label={label} disabled={disabled} onClick={onClick}
+    className={cn("inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50", className)}>
+    {children}
+  </button></HoverTooltip>
+}
+
+const CONTROL = "flex min-h-10 w-full min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
+
+/** The note under the field for the stage of a running upload. */
+function stageNote(progress: ImageUploadProgress): string | null {
+  const { stage, detail } = progress
+  if (stage === "unpacking") return t("exercises.image.stage.unpacking")
+  if (stage === "compressing" && detail?.layer && detail.layers) return t("exercises.image.stage.compressing", { layer: detail.layer, layers: detail.layers })
+  if (stage === "uploading" && detail?.total !== undefined && detail.sent !== undefined && detail.original !== undefined) {
+    return t("exercises.image.stage.sent", { sent: formatBytes(detail.sent), total: formatBytes(detail.total), original: formatBytes(detail.original) })
+  }
+  return null
+}
+
 /**
- * The device image: a reference typed by the author, or an image uploaded from a `docker save` archive (dropped
- * on the zone or picked with «Завантажити образ»). An uploaded image is the platform reference, shown as a
- * read-only chip with «Замінити». The field changes only when the upload has created the image. Below it, the
- * availability of the image.
+ * The device image: ONE field. Type a reference, or upload a `docker save` archive (.tar or .tar.gz) with the
+ * trailing icon button or by dropping it on the field. An uploaded image is the platform reference, shown as a
+ * chip with «Замінити» and «Вказати посилання». The field changes only when the upload has created the image.
+ * An archive dropped before the task has a name is kept and checked at once; it is sent by itself when the task
+ * exists (see ImageUploadStore). Below the field: the hint, the stage, the error and the availability of the image.
  */
 export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact = false }: {
   variantIndex: number
@@ -42,25 +65,20 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const image = useWatch({ control, name: `${base}.Image` }) ?? ""
   const deviceId = useWatch({ control, name: `${base}.ID` }) ?? ""
-  const exerciseId = useExerciseId()
   const isAdmin = useExerciseAccess().access?.IsAdmin ?? false
   const platform = parsePlatformRef(image)
   const fileRef = useRef<HTMLInputElement | null>(null)
-  // The upload lives in the editor's store, keyed by the device id: collapsing the section or switching panels does not stop it.
-  const { store, canWrite } = useImageUploads()
-  const { progress, error, failedFile, dropped } = useDeviceImageUpload(store, deviceId)
+  // The upload lives in the editor's store, keyed by the device id: switching panels or devices does not stop it.
+  const { store, canWrite, focusName } = useImageUploads()
+  const { progress, error, failedFile, dropped, queued, fileName } = useDeviceImageUpload(store, deviceId)
   const [dragging, setDragging] = useState(false)
-  const canUpload = !disabled && exerciseId !== null
+  const canUpload = !disabled
   const uploading = progress !== null
 
   function upload(file: File) {
-    if (!canUpload || uploading || exerciseId === null) return
+    if (!canUpload || uploading) return
     const variantId = getValues(`Variants.${variantIndex}.ID`) ?? ""
-    void store.start({ deviceId, variantId, file, exerciseId, isAdmin, form })
-  }
-
-  function cancel() {
-    store.cancel(deviceId)
+    void store.submit({ deviceId, variantId, file, isAdmin, form })
   }
 
   function onPicked(event: React.ChangeEvent<HTMLInputElement>) {
@@ -69,96 +87,110 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     if (file) upload(file)
   }
 
-  // The zone always takes the drag, so a dropped archive is never opened by the browser; it says "none" when it cannot upload.
+  // The field always takes the drag, so a dropped archive is never opened by the browser; it says "none" when it cannot upload.
   function onDragOver(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault()
-    if (event.dataTransfer) event.dataTransfer.dropEffect = canUpload ? "copy" : "none"
-    if (canUpload) setDragging(true)
+    if (event.dataTransfer) event.dataTransfer.dropEffect = canUpload && !uploading ? "copy" : "none"
+    if (canUpload && !uploading) setDragging(true)
   }
 
   function onDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault()
+    event.stopPropagation()
     setDragging(false)
-    if (!canUpload) return
     const file = event.dataTransfer?.files?.[0]
     if (file) upload(file)
   }
 
-  const fileInput = <input ref={fileRef} data-testid="image-file-input" type="file" accept=".tar,application/x-tar" aria-hidden="true" tabIndex={-1}
+  const pick = () => fileRef.current?.click()
+  const fileInput = <input ref={fileRef} data-testid="image-file-input" type="file" accept=".tar,.gz,.tgz,application/x-tar,application/gzip" aria-hidden="true" tabIndex={-1}
     className="hidden" onChange={onPicked} />
+  const label = <ExerciseFieldLabel labelKey="admin.exTopo.image" helpLines={[t("admin.exTopo.imageHelp", { size: MAX_IMAGE_ARCHIVE_GIB })]} form />
+  const dropText = <><Upload aria-hidden="true" className="h-4 w-4" />{t("exercises.image.dropHere")}</>
 
-  return <div className="min-w-0 space-y-2">
+  /** The control and what sits under it, by state. */
+  let control_: ReactNode
+  let under: ReactNode = null
+  let hint = false
+
+  if (progress) {
+    const pushing = progress.stage === "pushing"
+    const note = stageNote(progress)
+    control_ = <div className={cn(CONTROL, "border-border")}>
+      {pushing ? <Spinner size="sm" /> : <FileArchive aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />}
+      <span className="min-w-0 flex-1 truncate">{pushing ? t("exercises.image.pushing") : fileName}</span>
+      {!pushing && <span className="font-mono text-xs tabular-nums text-muted-foreground">{t("exercises.image.percent", { percent: progress.percent })}</span>}
+      <IconButton label={t("exercises.image.cancelUpload")} onClick={() => store.cancel(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
+      {!pushing && <div role="progressbar" aria-label={t("exercises.image.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}
+        className="h-1 basis-full overflow-hidden rounded-full bg-secondary">
+        <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress.percent}%` }} />
+      </div>}
+    </div>
+    under = <p aria-live="polite" className="mt-1.5 text-xs text-muted-foreground">{note}</p>
+  } else if (queued) {
+    const checking = queued.status === "checking"
+    control_ = <div data-queued-image className={cn(CONTROL, "border-border")}>
+      {checking
+        ? <Spinner size="sm" />
+        : <HoverTooltip text={t("exercises.image.queuedTip")}><span className="inline-flex text-[var(--ib-warn)]"><Clock aria-hidden="true" className="h-4 w-4" /></span></HoverTooltip>}
+      <span className="min-w-0 flex-1 truncate">{queued.file.name}</span>
+      <span className="text-xs text-muted-foreground">{checking ? t("exercises.image.checking") : <span className="font-mono tabular-nums">{formatBytes(queued.file.size)}</span>}</span>
+      <IconButton label={t("exercises.image.removeFile")} onClick={() => store.unqueue(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
+    </div>
+    under = checking ? null : <>
+      <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+        <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--ib-ok)]" />
+        <span>{queued.layers === null ? t("exercises.image.checkedGzip") : t("exercises.image.checked", { layers: t(pluralKey("exercises.image.layers", queued.layers), { count: queued.layers }) })}</span>
+      </p>
+      <div role="status" data-name-prompt className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md bg-[var(--ib-warn-bg)] px-2.5 py-2 text-sm">
+        <Clock aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--ib-warn)]" />
+        <span className="min-w-0 flex-1">{t("exercises.image.needName")}</span>
+        <Button type="button" size="sm" onClick={focusName}>{t("exercises.image.enterName")}</Button>
+      </div>
+    </>
+  } else if (platform) {
+    control_ = <div data-platform-image role="group" aria-label={t("exercises.image.platform")} className={cn(CONTROL, "border-border")}>
+      <HoverTooltip text={t("exercises.image.doneTip")}><span className="inline-flex text-[var(--ib-ok)]"><Check aria-hidden="true" className="h-4 w-4" /></span></HoverTooltip>
+      <span className="min-w-0 flex-1 truncate font-medium">{platform.name}</span>
+      <code className="shrink-0 font-mono text-xs text-muted-foreground">{platform.digest.slice(0, "sha256:".length + 12)}</code>
+      {!disabled && <>
+        <IconButton label={t("exercises.image.replaceTip")} onClick={pick}><RefreshCw aria-hidden="true" className="h-4 w-4" /></IconButton>
+        <IconButton label={t("exercises.image.referenceTip")} onClick={() => setValue(`${base}.Image`, "", { shouldDirty: true })}><Link2 aria-hidden="true" className="h-4 w-4" /></IconButton>
+      </>}
+    </div>
+  } else if (failedFile) {
+    control_ = <div data-failed-image className={cn(CONTROL, "border-destructive")}>
+      <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0 text-destructive" />
+      <span className="min-w-0 flex-1 truncate">{failedFile.name}</span>
+      {canUpload && <IconButton label={t("exercises.image.retryTip")} onClick={() => upload(failedFile)}><RefreshCw aria-hidden="true" className="h-4 w-4" /></IconButton>}
+      <IconButton label={t("exercises.image.removeFile")} onClick={() => store.dismissError(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
+    </div>
+  } else {
+    hint = true
+    control_ = null
+  }
+
+  return <div data-testid="image-drop-zone" className="min-w-0" onDragOver={onDragOver} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
     <FormField control={control} name={`${base}.Image`} render={({ field, fieldState }) => (
       <FormItem className={compact ? "space-y-1" : undefined}>
-        <ExerciseFieldLabel labelKey="admin.exTopo.image" helpKey="admin.exTopo.imageHelp" form />
-        {platform ? (
-          <div data-platform-image role="group" aria-label={t("exercises.image.platform")} className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1.5 text-sm">
-              <span className="truncate font-medium">{platform.name}</span>
-              <code className="shrink-0 font-mono text-xs text-muted-foreground">{platform.digest.slice(0, "sha256:".length + 12)}</code>
-            </span>
-            {!disabled && <>
-              <Button type="button" variant="outline" size="sm" disabled={!canUpload || uploading} onClick={() => fileRef.current?.click()}>
-                {t("exercises.image.replace")}
-              </Button>
-              <Button type="button" variant="ghost" size="sm" disabled={uploading} onClick={() => setValue(`${base}.Image`, "", { shouldDirty: true })}>
-                {t("exercises.image.useReference")}
-              </Button>
-              {fileInput}
-            </>}
-          </div>
-        ) : (
-          <FormControl><Input {...field} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")} /></FormControl>
-        )}
-        {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
+        {label}
+        {dragging && canUpload && !uploading
+          ? <div data-image-dropping className={cn(CONTROL, "justify-center border-dashed border-primary bg-accent font-medium")}>{dropText}</div>
+          : control_ ?? <div className={cn(CONTROL, "flex-nowrap focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40", disabled && "opacity-50")}>
+            <FormControl><input {...field} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")}
+              className="min-w-0 flex-1 bg-transparent py-1 outline-none placeholder:text-placeholder disabled:cursor-not-allowed" /></FormControl>
+            {!disabled && <IconButton label={t("exercises.image.uploadTip")} onClick={pick} className="border border-border"><Upload aria-hidden="true" className="h-4 w-4" /></IconButton>}
+          </div>}
+        {fieldState.error && <FormMessage className="leading-5" />}
       </FormItem>
     )} />
-
-    {!platform && !disabled && !uploading && <div data-testid="image-drop-zone"
-      onDragOver={onDragOver}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-      className={`flex min-w-0 flex-col gap-2 rounded-md border border-border p-3 ${dragging ? "bg-muted" : ""}`}>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" disabled={!canUpload} onClick={() => fileRef.current?.click()}>
-          <Upload className="mr-1 h-4 w-4" aria-hidden="true" />
-          {t("exercises.image.upload")}
-        </Button>
-        {fileInput}
-      </div>
-      {exerciseId === null
-        ? <p className="text-xs text-muted-foreground">{t("exercises.image.saveFirst")}</p>
-        : <p className="text-xs text-muted-foreground">
-          {dragging ? t("exercises.image.dropHere") : tRich("exercises.image.uploadHint", {
-            size: MAX_IMAGE_ARCHIVE_GIB,
-            command: <code className="rounded bg-muted px-1 py-0.5 font-mono text-foreground">{t("exercises.image.command")}</code>,
-          })}
-        </p>}
-    </div>}
-
-    {progress && <div className="space-y-1.5" aria-live="polite">
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        {progress.stage === "pushing"
-          ? <span className="flex items-center gap-1.5"><Spinner size="sm" /><span>{t("exercises.image.pushing")}</span></span>
-          : <span>{t("exercises.image.uploading")}</span>}
-        <span className="flex items-center gap-2">
-          {progress.stage === "uploading" && <span>{t("exercises.image.percent", { percent: progress.percent })}</span>}
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={cancel}>{t("exercises.image.cancel")}</Button>
-        </span>
-      </div>
-      <div role="progressbar" aria-label={t(progress.stage === "pushing" ? "exercises.image.pushing" : "exercises.image.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}
-        className="h-1.5 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress.percent}%` }} />
-      </div>
-    </div>}
-
-    {dropped && <p className="text-xs text-muted-foreground">{t("exercises.image.changedDuringUpload")}</p>}
-
-    {error && <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
-      <span>{error}</span>
-      {failedFile && canUpload && <button type="button" className="underline" onClick={() => upload(failedFile)}>{t("admin.exFiles.retry")}</button>}
-    </div>}
-
+    {fileInput}
+    {under}
+    {hint && !dragging && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.hint")}</p>}
+    {dropped && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.changedDuringUpload")}</p>}
+    {error && <p role="alert" className="mt-1.5 flex items-start gap-1.5 text-xs text-destructive">
+      <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{error}</span>
+    </p>}
     <ImageAvailability variantIndex={variantIndex} deviceIndex={deviceIndex} enabled={canWrite} />
   </div>
 }
