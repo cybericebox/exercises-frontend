@@ -6,15 +6,22 @@
 import type { DeployDeviceStatus, DeployQueue } from "@/api/exercises/deploy"
 import { t } from "@/i18n/t"
 
-const QUEUE_REASONS = new Set(["InFlightLimit", "WaitingForGroup", "WaitingForTurn", "PreparingImages", "InsufficientResources", "NoSchedulableNodes", "TenantQuota"])
+/** Reasons that mean the cluster has no room; the author sees «not enough resources», never the code. */
+const NO_RESOURCES_REASONS = new Set(["InsufficientResources", "NoSchedulableNodes", "TenantQuota"])
+/** How long a starting lab may take before the author gets a reassuring second line. */
+export const LONG_WAIT_MS = 30_000
 const FAILURE_REASONS = new Set(["ImagePull", "CrashLoop", "Unschedulable", "StartupTimeout", "DoesNotFit"])
 
-/** The line shown while the lab waits; null when it is not queued (or every device is already dispatched). */
-export function queueLine(queue: DeployQueue | null | undefined): string | null {
-  if (!queue) return null
-  if (queue.Position <= 0) return t("admin.exQueue.dispatched")
-  const reason = t(QUEUE_REASONS.has(queue.Reason) ? `admin.exQueue.reason.${queue.Reason}` : "admin.exQueue.reason.unknown")
-  return t("admin.exQueue.status", { position: queue.Position, length: queue.Length, reason })
+/** The second line of a starting lab: null before the long wait, then «not enough resources» for a resource reason or the generic «almost there». */
+export function startingNote(queue: DeployQueue | null | undefined, longWait: boolean): string | null {
+  if (!longWait) return null
+  return t(queue && NO_RESOURCES_REASONS.has(queue.Reason) ? "admin.exDeploy.startingNoResources" : "admin.exDeploy.startingLong")
+}
+
+/** The earliest time any device of the lab was queued (ms); null when the status carries none. */
+export function earliestQueuedAt(devices: DeployDeviceStatus[] | undefined): number | null {
+  const times = (devices ?? []).map((device) => Date.parse(device.Scheduling?.QueuedAt ?? "")).filter((time) => !Number.isNaN(time))
+  return times.length > 0 ? Math.min(...times) : null
 }
 
 export function failureReasonLabel(reason: string): string {

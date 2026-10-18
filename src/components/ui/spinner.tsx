@@ -37,8 +37,9 @@ export function Spinner({
 
 // Block-level loading state: the crest is centered in the area being loaded
 // and scales with that area's inline size instead of inheriting a page-wide size.
-export function LoadingArea({ label, message, compact = false, className }: { label?: string; message?: string; compact?: boolean; className?: string }) {
-  return <div className={cn("loading-area", compact ? "loading-area-compact" : "loading-area-panel", className)}><Spinner size="auto" label={label ?? message ?? t("admin.loading")} />{message && <span className="loading-area-label" aria-hidden="true">{message}</span>}</div>
+// `note` is a second line that is always laid out (hidden until `noteShown`), so showing it never moves the block.
+export function LoadingArea({ label, message, note, noteShown = true, compact = false, className }: { label?: string; message?: string; note?: string; noteShown?: boolean; compact?: boolean; className?: string }) {
+  return <div className={cn("loading-area", compact ? "loading-area-compact" : "loading-area-panel", className)}><Spinner size="auto" label={label ?? message ?? t("admin.loading")} />{message && <span className="loading-area-label" aria-hidden="true">{message}</span>}{note && <span className={cn("loading-area-label max-w-[44ch]", !noteShown && "invisible")} aria-hidden="true">{note}</span>}</div>
 }
 
 // Full-screen centered loader for page-level loading states.

@@ -16,10 +16,16 @@ describe("deployPhaseLabel", () => {
   })
 
   it("has an English and a Ukrainian message for every phase and for unknown", () => {
-    for (const key of [...PHASES.map((p) => p.toLowerCase()), "unknown"]) {
+    for (const key of [...PHASES.filter((p) => p !== "Pending" && p !== "Provisioning").map((p) => p.toLowerCase()), "unknown"]) {
       expect((uk as Record<string, string>)[`admin.exDeploy.phase.${key}`], `uk ${key}`).toBeTruthy()
       expect((en as Record<string, string>)[`admin.exDeploy.phase.${key}`], `en ${key}`).toBeTruthy()
     }
+  })
+
+  it("reads every step before the lab is up as one «starting» text", () => {
+    expect(deployPhaseLabel("Pending")).toBe("Готуємо лабораторію…")
+    expect(deployPhaseLabel("Queued")).toBe(deployPhaseLabel("Pending"))
+    expect(deployPhaseLabel("Provisioning")).toBe(deployPhaseLabel("Pending"))
   })
 
   it("shows an unknown or missing phase as «unknown»", () => {
