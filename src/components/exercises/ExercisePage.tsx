@@ -148,6 +148,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     () => editing && exercise === null && editor.hasLocalDraft(),
   )
   // A leave request on an unsaved new task: nothing to send, ask and keep the draft in this browser.
+  const [cancelNewAsk, setCancelNewAsk] = useState(false)
   const leaveDraft = leave.destination !== null && exercise === null
   const actions = useExerciseActions({
     editor, canWrite: permissions.write, canDelete: permissions.delete, setMode, setPosition, focusField,
@@ -285,7 +286,12 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
-        onCancelNew={() => { leave.allowNavigation(); void editor.autosave.discard() }}
+        onCancelNew={(event) => {
+          // A draft with content is erased only after a confirmation.
+          if (editor.hasLocalDraft()) { event.preventDefault(); setCancelNewAsk(true); return }
+          leave.allowNavigation()
+          void editor.autosave.discard()
+        }}
         activeTestUntil={activeDeploy?.ExpiresAt ?? null}
         onOpenTest={activeDeploy ? () => openTest() : undefined}
         onTest={(index) => {
@@ -388,6 +394,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
+    <ConfirmDialog open={cancelNewAsk} tone="danger" onCancel={() => setCancelNewAsk(false)}
+      title={t("admin.ex.cancelNew.title")} description={t("admin.ex.cancelNew.description")}
+      confirmLabel={t("admin.ex.cancelNew.confirm")}
+      onConfirm={() => { setCancelNewAsk(false); leave.allowNavigation(); void editor.autosave.discard(); router.push("/") }} />
     <ConfirmDialog open={leaveDraft} onCancel={leave.cancelLeave}
       title={t("admin.ex.leaveNew.title")} description={t("admin.ex.leaveNew.description")}
       cancelLabel={t("admin.ex.leaveNew.stay")} confirmLabel={t("admin.ex.leaveNew.go")}
