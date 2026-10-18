@@ -44,7 +44,7 @@ export type ExerciseHeaderProps = {
   getTestVariants: () => TestVariantOption[]
   usageEvents: string[]
   onRetrySave: () => void
-  onCancelNew: () => void
+  onCancelNew: (event: React.MouseEvent) => void
   onTest: (variantIndex: number) => void
   /** The caller already has a test lab running for this exercise: its lease end (ISO). */
   activeTestUntil?: string | null
