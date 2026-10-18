@@ -3,14 +3,19 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
-/** Guard in-app navigation only. Reload is deliberately left alone. */
-export function useExerciseLeaveGuard(shouldGuard: boolean) {
+/**
+ * Guard in-app navigation. Reload is deliberately left alone, except for `warnOnUnload`
+ * (a tab close or reload that would leave work only this browser holds).
+ * A link with data-allow-leave is an explicit exit and is never held back.
+ */
+export function useExerciseLeaveGuard(shouldGuard: boolean | (() => boolean), warnOnUnload?: () => boolean) {
   const router = useRouter()
   const guardRef = useRef(shouldGuard)
   const [destination, setDestination] = useState<string | null>(null)
   const bypassRef = useRef(false)
 
-  useEffect(() => { guardRef.current = shouldGuard }, [shouldGuard])
+  const warnRef = useRef(warnOnUnload)
+  useEffect(() => { guardRef.current = shouldGuard; warnRef.current = warnOnUnload })
 
   useEffect(() => {
     // Read the location at event time: the page may swap its own address in place
@@ -18,14 +23,15 @@ export function useExerciseLeaveGuard(shouldGuard: boolean) {
     const request = (href: string) => {
       const currentUrl = window.location.href
       const target = new URL(href, currentUrl)
-      if (target.href === currentUrl || !guardRef.current || bypassRef.current) return false
+      const guard = typeof guardRef.current === "function" ? guardRef.current() : guardRef.current
+      if (target.href === currentUrl || !guard || bypassRef.current) return false
       setDestination(target.origin === window.location.origin ? target.pathname + target.search + target.hash : target.href)
       return true
     }
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
       const anchor = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null
-      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download") || anchor.hasAttribute("data-allow-leave")) return
       if (request(anchor.href)) {
         event.preventDefault()
         event.stopPropagation()
@@ -41,9 +47,16 @@ export function useExerciseLeaveGuard(shouldGuard: boolean) {
       if (nav.navigationType === "reload" || nav.navigationType === "replace" || !nav.canIntercept) return
       if (request(nav.destination.url)) event.preventDefault()
     }
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (bypassRef.current || !warnRef.current?.()) return
+      event.preventDefault()
+      event.returnValue = ""
+    }
     document.addEventListener("click", onClick, true)
     navigation?.addEventListener("navigate", onNavigate)
+    window.addEventListener("beforeunload", onBeforeUnload)
     return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload)
       document.removeEventListener("click", onClick, true)
       navigation?.removeEventListener("navigate", onNavigate)
     }

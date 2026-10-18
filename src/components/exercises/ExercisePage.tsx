@@ -142,7 +142,13 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const archived = Boolean(exercise?.ArchivedAt)
   const editing = !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
   const saveStatus = editor.autosave.status
-  const leave = useExerciseLeaveGuard(editing && exercise !== null && (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error"))
+  // A new task without a name is not on the server: only this browser holds it.
+  const leave = useExerciseLeaveGuard(
+    () => editing && (exercise !== null ? (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error") : editor.hasLocalDraft()),
+    () => editing && exercise === null && editor.hasLocalDraft(),
+  )
+  // A leave request on an unsaved new task: nothing to send, ask and keep the draft in this browser.
+  const leaveDraft = leave.destination !== null && exercise === null
   const actions = useExerciseActions({
     editor, canWrite: permissions.write, canDelete: permissions.delete, setMode, setPosition, focusField,
     allowNavigation: leave.allowNavigation,
@@ -202,6 +208,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
 
   useEffect(() => {
     if (!leave.destination) return
+    if (editor.exercise === null) return
     let cancelled = false
     void editor.autosave.flush().then((ok) => {
       if (cancelled) return
@@ -278,7 +285,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
-        onCancelNew={() => void editor.autosave.discard()}
+        onCancelNew={() => { leave.allowNavigation(); void editor.autosave.discard() }}
         activeTestUntil={activeDeploy?.ExpiresAt ?? null}
         onOpenTest={activeDeploy ? () => openTest() : undefined}
         onTest={(index) => {
@@ -381,6 +388,10 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
+    <ConfirmDialog open={leaveDraft} onCancel={leave.cancelLeave}
+      title={t("admin.ex.leaveNew.title")} description={t("admin.ex.leaveNew.description")}
+      cancelLabel={t("admin.ex.leaveNew.stay")} confirmLabel={t("admin.ex.leaveNew.go")}
+      onConfirm={leave.finishLeave} />
     <ConfirmDialog open={leaveOffline} onCancel={() => { setLeaveOffline(false); leave.cancelLeave() }}
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}

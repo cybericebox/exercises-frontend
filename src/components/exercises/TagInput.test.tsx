@@ -42,3 +42,12 @@ describe("TagInput chips", () => {
     expect(onChange).toHaveBeenCalledWith(["crypto"])
   })
 })
+
+describe("TagInput chips", () => {
+  it("uses the catalog table tag look: border background, 4px radius, no pale pill", () => {
+    render(<TagInput value={["crypto"]} onChange={vi.fn()} />)
+    const chip = screen.getByText("crypto")
+    expect(chip).toHaveClass("bg-border", "rounded-[4px]")
+    expect(chip).not.toHaveClass("bg-secondary/40", "rounded-full")
+  })
+})

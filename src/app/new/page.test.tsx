@@ -121,6 +121,91 @@ describe("new exercise page", () => {
     expect(storage.has("cib_exercise_pending_editor-1_new")).toBe(false)
   })
 
+  describe("browser draft", () => {
+    const KEY = "cib_exercise_pending_editor-1_new"
+
+    function leaveLink() {
+      const link = document.createElement("a")
+      link.href = "/somewhere"
+      document.body.appendChild(link)
+      return link
+    }
+
+    it("asks before leaving only while an unnamed draft has content", async () => {
+      const link = leaveLink()
+      render(<NewExercisePage />)
+      vi.useFakeTimers()
+      fireEvent.click(link)
+      expect(screen.queryByText("admin.ex.leaveNew.title")).not.toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      fireEvent.click(link)
+      expect(screen.getByText("admin.ex.leaveNew.title")).toBeInTheDocument()
+      expect(screen.getByText("admin.ex.leaveNew.description")).toBeInTheDocument()
+      expect(createExercise).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole("button", { name: "admin.ex.leaveNew.stay" }))
+      expect(screen.queryByText("admin.ex.leaveNew.title")).not.toBeInTheDocument()
+      expect(storage.get(KEY)).toContain("Qz")
+      link.remove()
+    })
+
+    it("leaves and keeps the draft on confirm", async () => {
+      const link = leaveLink()
+      render(<NewExercisePage />)
+      vi.useFakeTimers()
+      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      fireEvent.click(link)
+      fireEvent.click(screen.getByRole("button", { name: "admin.ex.leaveNew.go" }))
+      expect(h.push).toHaveBeenCalledWith("/somewhere")
+      expect(storage.get(KEY)).toContain("Qz")
+      link.remove()
+    })
+
+    it("warns on tab close only while an unnamed draft has content", async () => {
+      render(<NewExercisePage />)
+      vi.useFakeTimers()
+      const blank = new Event("beforeunload", { cancelable: true })
+      window.dispatchEvent(blank)
+      expect(blank.defaultPrevented).toBe(false)
+      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      const filled = new Event("beforeunload", { cancelable: true })
+      window.dispatchEvent(filled)
+      expect(filled.defaultPrevented).toBe(true)
+    })
+
+    it("asks to continue or start new when a draft exists; continue keeps it", async () => {
+      storage.set(KEY, JSON.stringify({ version: 1, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      render(<NewExercisePage />)
+      expect(await screen.findByText("admin.ex.localDraft.confirmTitle")).toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "admin.ex.localDraft.resume" }))
+      expect(await screen.findByDisplayValue("Qz")).toBeInTheDocument()
+      expect(toast.success).toHaveBeenCalledWith("admin.ex.create.localOmitted")
+    })
+
+    it("start new clears the buffer and opens an empty form", async () => {
+      storage.set(KEY, JSON.stringify({ version: 1, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      render(<NewExercisePage />)
+      fireEvent.click(await screen.findByRole("button", { name: "admin.ex.localDraft.startNew" }))
+      expect(await screen.findByLabelText(/admin.ex.field.name/)).toHaveValue("")
+      expect(storage.has(KEY)).toBe(false)
+    })
+
+    it("drops the browser draft once the task is created on the server", async () => {
+      render(<NewExercisePage />)
+      vi.useFakeTimers()
+      const name = screen.getByLabelText(/admin.ex.field.name/)
+      fireEvent.change(name, { target: { value: "Qz" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(storage.has(KEY)).toBe(true)
+      fireEvent.change(name, { target: { value: "Buffer overflow" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(createExercise).toHaveBeenCalled()
+      expect(storage.has(KEY)).toBe(false)
+    })
+  })
+
   it("refuses without exercises.write", () => {
     h.perms = new Set(["exercises.read"])
     render(<NewExercisePage />)

@@ -14,7 +14,7 @@ import {
   type DraftFormValues, type IdentityFormValues,
 } from "@/lib/exerciseSchemas"
 import {
-  clearPendingChanges, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
+  clearPendingChanges, hasDraftContent, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
 } from "@/lib/exercisePendingBuffer"
 import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
@@ -65,6 +65,8 @@ export type ExerciseEditor = {
   setElevation: (elevation: Version["Elevation"]) => void
   /** The published version is shown read-only (no working copy access). */
   readOnly: boolean
+  /** A new task with content but no valid name yet: it lives only in this browser. */
+  hasLocalDraft: () => boolean
 }
 
 function identityOf(exercise: Exercise): IdentityFormValues {
@@ -293,7 +295,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (pending && !canWrite) clearPendingChanges(key)
           if (pending && canWrite && !cancelled) {
             applyValues(pending.identity, pending.draft)
-            toast.success(t("admin.exPage.toast.pendingRestored"))
+            toast.success(t("admin.ex.create.localOmitted"))
             optionsRef.current.onPendingRestored()
             setRestored(true)
           }
@@ -421,6 +423,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   // check is marked before the autosave hook's unmount flush looks for unsaved changes.
   useLayoutEffect(() => () => checkPendingRef.current(), [])
 
+  const hasLocalDraft = useCallback(() => {
+    checkPendingRef.current()
+    if (exerciseIdRef.current) return false
+    const identity = identityForm.getValues()
+    return !identitySchema.shape.Name.safeParse(identity.Name).success && hasDraftContent(identity, draftForm.getValues())
+  }, [identityForm, draftForm])
+
   const reloadWorkingCopy = useCallback(async () => {
     const id = exerciseIdRef.current
     if (!id) return
@@ -452,6 +461,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   }), [autosave])
 
   return {
-    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
   }
 }
