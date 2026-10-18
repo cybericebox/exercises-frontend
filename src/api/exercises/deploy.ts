@@ -30,7 +30,6 @@ export type DeployResponse = {
   DeployID: string
   Lab: string
   Kind?: DeployKind
-  VPNClient?: string
   Tasks?: DeployTask[]
 }
 
