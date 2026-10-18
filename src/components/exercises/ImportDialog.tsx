@@ -166,10 +166,11 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
 
   return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
     <DialogContent {...dropProps}>
-      {showDrop && <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-[inherit] border-2 border-dashed border-ring bg-accent text-sm font-medium text-foreground">
+      {showDrop && <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-[inherit] border-2 border-dashed border-ring bg-popover text-sm font-medium text-foreground">
         <Upload aria-hidden="true" className="h-8 w-8" />
         {t("admin.exImport.dropHere")}
       </div>}
+      <div data-testid="import-content" data-dimmed={showDrop || undefined} aria-hidden={showDrop || undefined} className={showDrop ? "contents invisible" : "contents"}>
       {imported ? <>
         <DialogHeader>
           <DialogTitle>{t("admin.exImport.resultTitle")}</DialogTitle>
@@ -225,6 +226,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <Button type="submit" busy={busy} disabled={busy || !file}>{t("admin.exImport.submit")}</Button>
         </DialogFooter>
       </form>}
+      </div>
     </DialogContent>
   </Dialog>
 }
