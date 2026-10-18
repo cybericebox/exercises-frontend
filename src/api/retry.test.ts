@@ -15,8 +15,8 @@ function answers(...statuses: Array<number | Response>) {
   })
 }
 
-/** An error shaped like any client's API error (status + optional Retry-After field). */
-const apiError = (status: number, fields: { retryAfter?: number; retryAfterSeconds?: number } = {}) => Object.assign(new Error(`API error ${status}`), { status, ...fields })
+/** An error shaped like any client's API error (status + optional Retry-After field and error code). */
+const apiError = (status: number, fields: { retryAfter?: number; retryAfterSeconds?: number; code?: number } = {}) => Object.assign(new Error(`API error ${status}`), { status, ...fields })
 
 // No jitter by default, so delays are exact; tests that need jitter pass `random`.
 beforeEach(() => { vi.useFakeTimers(); vi.spyOn(Math, "random").mockReturnValue(0) })
@@ -186,18 +186,31 @@ describe("isOverloadResponse", () => {
 })
 
 describe("isOverloadError", () => {
-  it("is a 429, or a 503 that carried Retry-After (0 included), under either field name", () => {
-    expect(isOverloadError(apiError(429))).toBe(true)
+  it("is a 503 that carried Retry-After (0 included), under either field name", () => {
     expect(isOverloadError(apiError(503, { retryAfter: 1 }))).toBe(true)
     expect(isOverloadError(apiError(503, { retryAfterSeconds: 1 }))).toBe(true)
     expect(isOverloadError(apiError(503, { retryAfter: 0 }))).toBe(true)
   })
 
-  it("is false for a 503 without Retry-After, other statuses and non-API errors", () => {
+  it("is an overload code (ServiceOverloaded 70431, DatabaseBusy 70432), full or as the detail code", () => {
+    expect(isOverloadError(apiError(503, { code: 70431 }))).toBe(true)
+    expect(isOverloadError(apiError(503, { code: 70432 }))).toBe(true)
+    expect(isOverloadError(apiError(503, { code: 431 }))).toBe(true)
+    expect(isOverloadError(apiError(503, { code: 432 }))).toBe(true)
+  })
+
+  it("is never a 429: a personal rate limit is not the server overload", () => {
+    expect(isOverloadError(apiError(429))).toBe(false)
+    expect(isOverloadError(apiError(429, { retryAfter: 30, code: 70428 }))).toBe(false)
+    expect(isOverloadError(apiError(429, { retryAfterSeconds: 30, code: 428 }))).toBe(false)
+  })
+
+  it("is false for a 503 without Retry-After, other statuses, other codes and non-API errors", () => {
     expect(isOverloadError(apiError(503))).toBe(false)
+    expect(isOverloadError(apiError(503, { code: 20225 }))).toBe(false)
     expect(isOverloadError(apiError(500, { retryAfter: 1 }))).toBe(false)
     expect(isOverloadError(new Error("503"))).toBe(false)
-    expect(isOverloadError({ status: 429 })).toBe(false)
+    expect(isOverloadError({ status: 503, retryAfter: 1 })).toBe(false)
     expect(isOverloadError(null)).toBe(false)
   })
 
