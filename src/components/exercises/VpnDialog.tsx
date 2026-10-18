@@ -47,7 +47,11 @@ export function VpnDialog({ open, config, connected = null, probeUrl, onClose }:
               <li><div className="vpn-dialog__methods">
                 <div><strong>{t("admin.exTest.vpnHelp.app")}</strong><p>{t("admin.exTest.vpnHelp.import")}</p></div>
                 <div><strong>{t("admin.exTest.vpnHelp.terminal")}</strong><p>{t("admin.exTest.vpnHelp.terminalFolder")}</p>
+                  <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.up")}</p>
                   <VpnCommand value={t("admin.exTest.vpnHelp.command", { filename: VPN_CONFIG_FILENAME })} />
+                  <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.down")}</p>
+                  <VpnCommand value={t("admin.exTest.vpnHelp.downCommand", { filename: VPN_CONFIG_FILENAME })} />
+                  <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.keepFile")}</p>
                 </div>
               </div></li>
               {probeUrl && <li>{tRich("admin.exTest.vpnHelp.checkProbe", {
@@ -56,6 +60,7 @@ export function VpnDialog({ open, config, connected = null, probeUrl, onClose }:
               })}</li>}
             </ol>
             <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.note")}</p>
+            <p className="vpn-dialog__note">{t("admin.exTest.vpnHelp.reminder")}</p>
           </div>
         </details>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
