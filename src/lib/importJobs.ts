@@ -5,13 +5,14 @@
  * hands the job id here: this module polls the job on its own, so closing the dialog or leaving the page changes
  * nothing. The ids are kept in localStorage, so a reload resumes the polls.
  *
+ * - the row of the catalog table (ImportRows) shows each followed import;
  * - done: a toast, the handlers of onImportsDone run (the catalog reloads), the id is forgotten at once;
  * - failed: a toast (when the failure was seen live) and the job stays until dismissImportJob, so the indicator can
  *   offer «Подробиці» and a reload still shows it.
  */
 import { useEffect, useSyncExternalStore } from "react"
 import { ApiError } from "@/api/client"
-import { getImportJob, isPassing, JOB_POLL_MS, type ImportJobStatus } from "@/api/exercises/archiveJobs"
+import { getImportJob, isPassing, listRunningImports, JOB_POLL_MS, type ImportJobStatus } from "@/api/exercises/archiveJobs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import type { Exercise } from "@/api/exercises/catalog"
@@ -115,11 +116,15 @@ export function trackImportJob(jobID: string, firstPollIn = JOB_POLL_MS) {
   schedule(jobID, firstPollIn)
 }
 
-/** Picks up the imports a reload interrupted; once per page load. */
+/**
+ * Picks up the imports a reload interrupted; once per page load: the ids kept in localStorage, and the running
+ * imports the server lists for the user (another device, cleared storage). A failed list is not an error here.
+ */
 export function restoreImportJobs() {
   if (restored) return
   restored = true
   for (const jobID of readStored()) trackImportJob(jobID, 0)
+  listRunningImports().then((ids) => { for (const jobID of ids) trackImportJob(jobID, 0) }).catch(() => undefined)
 }
 
 /** Stops showing a finished or failed import. */
