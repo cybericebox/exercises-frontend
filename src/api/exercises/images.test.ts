@@ -17,6 +17,13 @@ vi.mock("./chunkedUpload", () => ({
   forgetChunkedUpload: (...args: unknown[]) => forgetChunkedUpload(...args),
 }))
 vi.mock("@/lib/imageArchive", () => ({ readImageArchive: (...args: unknown[]) => readImageArchive(...args) }))
+const compressLayers = vi.fn()
+const release = vi.fn()
+vi.mock("@/lib/imageCompression", () => ({
+  GZIP_LAYER: "application/vnd.oci.image.layer.v1.tar+gzip",
+  prepareImage: async (file: File) => ({ archive: await readImageArchive(file), source: file, release }),
+  compressLayers: (...args: unknown[]) => compressLayers(...args),
+}))
 
 const { ApiError } = await import("@/api/client")
 const { BLOB_POLL_MS, BLOB_PUSH_MAX_WAIT_MS, ImagePushError, uploadImage } = await import("./images")
@@ -83,6 +90,8 @@ beforeEach(() => {
   uploadChunks.mockReset()
   forgetChunkedUpload.mockReset()
   readImageArchive.mockReset().mockResolvedValue(archive)
+  compressLayers.mockReset().mockResolvedValue(null)
+  release.mockReset().mockResolvedValue(undefined)
   uploadChunks.mockImplementation(async (blob: File, onProgress?: (p: number) => void) => {
     onProgress?.(50)
     onProgress?.(100)
@@ -316,5 +325,76 @@ describe("uploadImage", () => {
     readImageArchive.mockRejectedValue(Object.assign(new Error("gzip"), { code: "gzip" }))
     await expect(uploadImage(EXERCISE, file, "app")).rejects.toMatchObject({ code: "gzip" })
     expect(apiPost).not.toHaveBeenCalled()
+  })
+})
+
+describe("uploadImage with compressed layers", () => {
+  const GZ = "application/vnd.oci.image.layer.v1.tar+gzip"
+  const Z1 = `sha256:${"a".repeat(64)}`
+  const Z2 = `sha256:${"b".repeat(64)}`
+  const packed = (digest: string, size: number, content: number) => ({
+    digest,
+    size,
+    tempName: `tmp-${content}.gz`,
+    file: new File([Uint8Array.from({ length: size }, () => content)], `sha256-${digest.slice(7)}`, { lastModified: 0 }),
+  })
+
+  beforeEach(() => {
+    compressLayers.mockResolvedValue({
+      byDiffId: new Map([[L1, packed(Z1, 12, 1)], [L2, packed(Z2, 9, 2)]]),
+      release,
+    })
+  })
+
+  it("asks for, uploads and describes the compressed layers; the config stays as it is", async () => {
+    serve([CONFIG, Z1, Z2])
+    await uploadImage(EXERCISE, file, "app", vi.fn())
+
+    expect(apiPost.mock.calls[0]).toEqual([`${BASE}/blobs/missing`, { Digests: [CONFIG, Z1, Z2] }, expect.anything()])
+    const sent = uploadChunks.mock.calls.map(([blob]) => blob as File)
+    expect(sent.map((blob) => [blob.name, blob.size])).toEqual([[`sha256-${HEX_CONFIG}`, 20], [`sha256-${"a".repeat(64)}`, 12], [`sha256-${"b".repeat(64)}`, 9]])
+    expect(apiPost.mock.calls.at(-1)).toEqual([
+      BASE,
+      {
+        Name: "app",
+        Config: { MediaType: OCI_CONFIG, Digest: CONFIG, Size: 20 },
+        Layers: [
+          { MediaType: GZ, Digest: Z1, Size: 12 },
+          { MediaType: GZ, Digest: Z2, Size: 9 },
+          { MediaType: GZ, Digest: Z1, Size: 12 },
+        ],
+      },
+      expect.anything(),
+    ])
+  })
+
+  it("counts progress over the compressed bytes and reports them with the size they were", async () => {
+    serve([Z1, Z2])
+    const progress = vi.fn()
+    await uploadImage(EXERCISE, file, "app", progress)
+    const detail = progress.mock.calls.map((call) => call[2]).filter(Boolean)
+    expect(detail.at(-1)).toMatchObject({ total: 21, sent: 21, original: 110 })
+  })
+
+  it("removes the temporary files when the upload ends, and when it fails", async () => {
+    serve([Z1])
+    await uploadImage(EXERCISE, file, "app", vi.fn())
+    expect(release).toHaveBeenCalledTimes(2) // the compressed layers and the prepared archive
+
+    release.mockClear()
+    apiPost.mockRejectedValue(new Error("boom"))
+    await expect(uploadImage(EXERCISE, file, "app", vi.fn())).rejects.toThrow("boom")
+    expect(release).toHaveBeenCalledTimes(2)
+  })
+
+  it("reports the compression stage with the layer in work", async () => {
+    compressLayers.mockImplementation(async (_source: unknown, _archive: unknown, options: { onProgress: (p: number, l: number, n: number) => void }) => {
+      options.onProgress(40, 2, 3)
+      return null
+    })
+    serve([])
+    const progress = vi.fn()
+    await uploadImage(EXERCISE, file, "app", progress)
+    expect(progress).toHaveBeenCalledWith(40, "compressing", { layer: 2, layers: 3 })
   })
 })

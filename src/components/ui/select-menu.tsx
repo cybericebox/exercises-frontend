@@ -1,6 +1,6 @@
 "use client"
 
-import { useId } from "react"
+import { useId, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,10 @@ export interface SelectMenuOption {
   description?: string
   unavailable?: boolean
   disabled?: boolean
+  /** Replaces the row's text (the radio item keeps its role, label and indicator). */
+  content?: ReactNode
+  /** Replaces the label in the closed trigger. */
+  triggerContent?: ReactNode
 }
 
 interface SelectMenuProps {
@@ -31,6 +35,8 @@ interface SelectMenuProps {
   compactChevron?: boolean
   triggerVariant?: "outline" | "default"
   menuClassName?: string
+  /** A line above the options (not an option). */
+  menuHeader?: ReactNode
   portalled?: boolean
   modal?: boolean
   sideOffset?: number
@@ -44,7 +50,7 @@ interface SelectMenuProps {
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, portalled = true, modal = true, sideOffset = 4, id, "aria-labelledby": labelledBy, "aria-describedby": describedBy, "aria-invalid": invalid, "aria-required": required }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, menuHeader, portalled = true, modal = true, sideOffset = 4, id, "aria-labelledby": labelledBy, "aria-describedby": describedBy, "aria-invalid": invalid, "aria-required": required }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
   const valueId = useId()
   // The name stays the field label; the chosen option is announced as the description (an aria-label alone would hide it).
@@ -64,18 +70,19 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
           disabled={disabled}
           className={cn("h-10 justify-between font-normal", className)}
         >
-          <span id={valueId} className={cn("truncate", !selected && "text-placeholder", selected?.unavailable && "text-destructive")}>{selected ? selected.label : (placeholder ?? "")}</span>
+          <span id={valueId} className={cn("truncate", !selected && "text-placeholder", selected?.unavailable && "text-destructive")}>{selected ? (selected.triggerContent ?? selected.label) : (placeholder ?? "")}</span>
           <ChevronDown className={cn(compactChevron ? "ml-1" : "ml-2", "h-4 w-4 shrink-0 opacity-60")} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" portalled={portalled} sideOffset={sideOffset} className={cn("min-w-[var(--radix-dropdown-menu-trigger-width)]", menuClassName)}>
+        {menuHeader && <div className="mb-1 border-b border-border px-2.5 py-2 text-xs leading-snug text-muted-foreground">{menuHeader}</div>}
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value} disabled={o.disabled} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>
-              {o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
+              {o.content ?? (o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
                 <span className="font-medium">{o.label}</span>
                 <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>
-              </span> : o.label}
+              </span> : o.label)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

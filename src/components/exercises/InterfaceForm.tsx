@@ -108,7 +108,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               manualInput={<FormControl aria-invalid={Boolean(addressError)} aria-describedby={addressError ? `${name}-address-error` : undefined}><Input value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Addresses`, ref ? [] : [""], { shouldDirty: true }) }} />} />
             {dhcpOverlap && <p role="note" data-ip-warning className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">{t("admin.exTopo.ref.dhcpOverlap")}</p>}
-            {(addressError || !compact) && <p id={`${name}-address-error`} role={addressError ? "alert" : undefined} className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{addressError}</p>}
+            {addressError && <p id={`${name}-address-error`} role="alert" className="text-xs font-medium leading-5 text-destructive">{addressError}</p>}
           </FormItem>
         )} />
         <FormField control={control} name={`${name}.IP.Gateway`} render={({ field }) => (
@@ -119,7 +119,7 @@ function StaticIPFields({ name, disabled, compact, vpn, internet }: {
               kind="gateway" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
               manualInput={<FormControl aria-invalid={Boolean(gatewayError)} aria-describedby={gatewayError ? `${name}-gateway-error` : undefined}><Input {...field} disabled={disabled} placeholder="10.0.0.1" /></FormControl>}
               onChange={(ref) => { refField.onChange(ref); setValue(`${name}.IP.Gateway`, "", { shouldDirty: true }) }} />} />
-            {(gatewayError || !compact) && <p id={`${name}-gateway-error`} role={gatewayError ? "alert" : undefined} className={compact ? "text-xs font-medium leading-5 text-destructive" : "min-h-5 text-xs font-medium leading-5 text-destructive"}>{gatewayError}</p>}
+            {gatewayError && <p id={`${name}-gateway-error`} role="alert" className="text-xs font-medium leading-5 text-destructive">{gatewayError}</p>}
           </FormItem>
         )} />
       </div>
@@ -188,13 +188,13 @@ export function InterfaceForm({
         const ipType = rows[ii]?.IP?.Type
         return (
           <div key={field.id} data-interface-panel className={compact ? "space-y-2 pt-2" : "space-y-3 border-t border-border pt-3"}>
-            {!compact && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaceItemN", { n: ii + 1 })}</p>}
+            {!compact && fields.length > 1 && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaceItemN", { n: ii + 1 })}</p>}
             <div data-interface-grid className={`grid ${compact ? "grid-cols-1 gap-2 @min-[26rem]:grid-cols-2" : "gap-3 sm:grid-cols-2 lg:grid-cols-3"}`}>
               <FormField control={control} name={`${name}.${ii}.Name`} render={({ field: nameField, fieldState }) => (
                 <FormItem className={compact ? "space-y-1" : undefined}>
-                  <ExerciseFieldLabel labelKey="admin.exTopo.ifaceName" helpKey="admin.exTopo.ifaceNameHelp" required form />
+                  <ExerciseFieldLabel labelKey="admin.exTopo.ifaceName" required form />
                   <FormControl><Input {...nameField} required disabled={disabled} placeholder={t("admin.exTopo.ifaceNamePlaceholder")} /></FormControl>
-                  {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
+                  {fieldState.error && <FormMessage className="leading-5" />}
                 </FormItem>
               )} />
               <FormField control={control} name={`${name}.${ii}.MAC`} render={({ field: macField, fieldState }) => (
@@ -203,7 +203,7 @@ export function InterfaceForm({
                   <FormControl>
                     <Input {...macField} disabled={disabled} placeholder={t("admin.exTopo.macPlaceholder")} />
                   </FormControl>
-                  {(fieldState.error || !compact) && <FormMessage className={compact ? "leading-5" : "min-h-5 leading-5"} />}
+                  {fieldState.error && <FormMessage className="leading-5" />}
                 </FormItem>
               )} />
               <div className={compact ? "space-y-1 @min-[26rem]:col-span-2" : "space-y-2"}>

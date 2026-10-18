@@ -6,7 +6,8 @@
  *   - Docker ≥25 OCI layout: index.json → (nested index → linux/amd64) → manifest blob → config + layers.
  *   - legacy manifest.json: Config `<hex>.json`, Layers `<id>/layer.tar`, layer digests from the config's
  *     rootfs.diff_ids (a layer.tar is the uncompressed layer, so its sha256 is the diff id).
- * When both are present the OCI layout wins. Only an uncompressed tar is accepted.
+ * When both are present the OCI layout wins. Only an uncompressed tar is read here; a .tar.gz is unpacked first
+ * (imageCompression.ts).
  */
 
 /** The largest image archive the platform takes (10 GiB). */
@@ -23,7 +24,7 @@ export type BlobEntry = {
 
 export type ImageArchive = { config: BlobEntry; layers: BlobEntry[] }
 
-export type ImageArchiveErrorCode = "gzip" | "notTar" | "noImage" | "multiImage" | "noAmd64" | "tooLarge"
+export type ImageArchiveErrorCode = "gzip" | "notTar" | "noImage" | "multiImage" | "noAmd64" | "tooLarge" | "noSpace"
 
 export class ImageArchiveError extends Error {
   constructor(public readonly code: ImageArchiveErrorCode) {
