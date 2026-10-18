@@ -139,11 +139,11 @@ export function exerciseErrorMessage(e: unknown): string {
     if (key) return t(key)
     const cataloged = catalogError(e)
     if (cataloged) return cataloged
-    if (e instanceof ApiError && e.status === 503 && isOverloadError(e)) return t("error.overloaded")
+    if (isOverloadError(e)) return t("error.overloaded")
     const message = ((e as ApiError).body as EnvelopeBody | null | undefined)?.Status?.Message
     if (message) return t("admin.ex.err.genericWith", { message })
   }
-  if (e instanceof ApiError && e.status === 503 && isOverloadError(e)) return t("error.overloaded")
+  if (isOverloadError(e)) return t("error.overloaded")
   return t("admin.ex.err.generic")
 }
 
