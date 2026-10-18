@@ -2,7 +2,11 @@
  * archiveJobs.ts — waiting for the background jobs of archives with images.
  *
  *   GET /api/exercises/export/jobs/:id  → {State: running|done|failed, File?: {FileID, Name, …}, Error?}
- *   GET /api/exercises/import/jobs/:id  → {State: running|done|failed, Exercises?, Error?}
+ *   GET /api/exercises/import/jobs/:id  → {State: running|done|failed, Stage, ImagesDone/Total, TasksDone/Total,
+ *                                          BytesPushed/Total, Exercises?, Error?}
+ *
+ * An export is awaited here. An import is only read here (getImportJob): the poll of its progress lives in
+ * lib/importJobs.ts, so the dialog can be closed while the job runs.
  *
  * The wait is a quiet poll: a failed poll (network, rate limit, server trouble) is asked again on the next round
  * and never reported as a platform outage. A failed job is thrown as an ApiError that looks like the answer the
@@ -21,7 +25,33 @@ export const JOB_MAX_WAIT_MS = 7 * 60 * 60 * 1000
 type JobError = { Code: number; Message?: string; Context?: Record<string, unknown> }
 type JobState<T> = { State: "running" | "done" | "failed"; Error?: JobError } & T
 type ExportJob = JobState<{ File?: { FileID: string; Name: string } }>
-type ImportJob = JobState<{ Exercises?: RawExercise[] | null }>
+
+/** Where a running import is; done and failed are the ends. */
+export type ImportStage = "unpacking" | "images" | "tasks" | "done" | "failed"
+type ImportJob = JobState<{
+  Stage?: ImportStage
+  ImagesDone?: number
+  ImagesTotal?: number
+  TasksDone?: number
+  TasksTotal?: number
+  BytesPushed?: number
+  BytesTotal?: number
+  Exercises?: RawExercise[] | null
+}>
+
+/** An import job as the UI reads it: the counts are 0 until the stage that learns them. */
+export type ImportJobStatus = {
+  state: "running" | "done" | "failed"
+  stage: ImportStage
+  imagesDone: number
+  imagesTotal: number
+  tasksDone: number
+  tasksTotal: number
+  bytesPushed: number
+  bytesTotal: number
+  exercises: Exercise[]
+  error?: ApiError
+}
 
 /** The error a failed job stands for: 400 for the plain archive text (broken zip, wrong password), 409 otherwise, 500 for an internal failure. */
 function jobError(error: JobError | undefined): ApiError {
@@ -50,7 +80,7 @@ function wait(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-function isPassing(error: unknown): boolean {
+export function isPassing(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)
 }
 
@@ -78,8 +108,19 @@ export async function waitForExportJob(jobID: string, signal?: AbortSignal): Pro
   return { FileID: job.File.FileID, Name: job.File.Name }
 }
 
-/** Waits for a background import; resolves with the created tasks. */
-export async function waitForImportJob(jobID: string, signal?: AbortSignal): Promise<Exercise[]> {
-  const job = await pollJob<ImportJob>(`${BASE}/import/jobs/${encodeURIComponent(jobID)}`, 70995, signal)
-  return (job.Exercises ?? []).map(normalizeExercise)
+/** One read of a background import: its stage, counts and (at the end) the created tasks or the error. */
+export async function getImportJob(jobID: string, signal?: AbortSignal): Promise<ImportJobStatus> {
+  const job = await apiGet<ImportJob>(`${BASE}/import/jobs/${encodeURIComponent(jobID)}`, { signal }, { silentOutage: true })
+  return {
+    state: job.State,
+    stage: job.Stage ?? (job.State === "running" ? "unpacking" : job.State),
+    imagesDone: job.ImagesDone ?? 0,
+    imagesTotal: job.ImagesTotal ?? 0,
+    tasksDone: job.TasksDone ?? 0,
+    tasksTotal: job.TasksTotal ?? 0,
+    bytesPushed: job.BytesPushed ?? 0,
+    bytesTotal: job.BytesTotal ?? 0,
+    exercises: job.State === "done" ? (job.Exercises ?? []).map(normalizeExercise) : [],
+    error: job.State === "failed" ? jobError(job.Error) : undefined,
+  }
 }

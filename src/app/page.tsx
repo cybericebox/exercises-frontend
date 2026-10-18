@@ -19,6 +19,8 @@ import { TagFilter } from "@/components/exercises/catalog/TagFilter"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
+import { ImportIndicator } from "@/components/exercises/ImportIndicator"
+import { onImportsDone } from "@/lib/importJobs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -73,6 +75,8 @@ export default function Page() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [exportOpen, setExportOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Set when the dialog is reopened on a background import from the indicator.
+  const [importJobId, setImportJobId] = useState<string | undefined>()
   const tableScrollRef = useRef<HTMLDivElement>(null)
 
   const { can, me } = useRole()
@@ -115,6 +119,9 @@ export default function Page() {
       return next
     })
   }
+
+  // A background import ended (any tab of this page load): the list reloads with its rows kept, so nothing flashes.
+  useEffect(() => onImportsDone(() => setReloadKey((key) => key + 1)), [])
 
   useEffect(() => {
     if (!isAdmin || !loadedAccess) return
@@ -204,8 +211,9 @@ export default function Page() {
           className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm"
         />
         {(canWrite || canImport) && (
-          <div className="ml-auto flex shrink-0 gap-2">
-            {canImport && <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-10 text-sm">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {canImport && <ImportIndicator onOpen={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} />}
+            {canImport && <Button type="button" variant="outline" onClick={() => { setImportJobId(undefined); setImportOpen(true) }} className="h-10 text-sm">
               <Upload aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.exImport.button")}
             </Button>}
             {canWrite && <Button type="button" onClick={() => router.push(createHref())} className="h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>}
@@ -326,7 +334,7 @@ export default function Page() {
       <TablePagination page={page} pageSize={pageSize} total={total}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
       {exportOpen && <ExportDialog exerciseIds={[...selected]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Set())} />}
-      {importOpen && <ImportDialog onClose={() => setImportOpen(false)} onImported={() => setReloadKey((key) => key + 1)} />}
+      {importOpen && <ImportDialog key={importJobId ?? "new"} jobId={importJobId} onClose={() => { setImportOpen(false); setImportJobId(undefined) }} onImported={() => setReloadKey((key) => key + 1)} />}
     </div>
   )
 }

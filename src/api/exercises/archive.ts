@@ -7,11 +7,12 @@
  *         POST /api/exercises/import/uploaded (JSON: FileID, Password) for an archive that went up in chunks,
  *         POST /api/exercises/import/upload (JSON: UploadID, Password) for an archive over 512 MiB (purpose exercise-archive).
  * With images an export (IncludeImages) and an import that names image files run as server jobs: the start answers
- * 202 {JobID}, archiveJobs.ts waits for the result.
+ * 202 {JobID}. An export is awaited by archiveJobs.ts; an import is handed to lib/importJobs.ts, which polls its
+ * progress in the background.
  * Import never overwrites: every archive creates new exercises.
  */
 import { ApiError, apiGetBlob, apiPost, apiPostMultipart } from "@/api/client"
-import { waitForExportJob, waitForImportJob } from "@/api/exercises/archiveJobs"
+import { waitForExportJob } from "@/api/exercises/archiveJobs"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercises/chunkedUpload"
@@ -70,24 +71,24 @@ export async function downloadImportExample(): Promise<ExportedArchive> {
   return { blob, filename: filename ?? "example-task.cybericebox.zip" }
 }
 
-/** The answer of an import start: the created tasks, or (an archive naming image files) a job to wait for. */
-async function finishImport(answer: RawExercise[] | null | Started, onStage?: (stage: ArchiveStage) => void, signal?: AbortSignal): Promise<Exercise[]> {
-  if (isJob(answer)) {
-    onStage?.("working")
-    return waitForImportJob(answer.JobID, signal)
-  }
-  return (answer ?? []).map(normalizeExercise)
+/** What an import start came to: the tasks created at once, or (an archive naming image files) a job to follow. */
+export type ImportStart = { kind: "done"; exercises: Exercise[] } | { kind: "job"; jobID: string }
+
+function importStarted(answer: RawExercise[] | null | Started): ImportStart {
+  if (isJob(answer)) return { kind: "job", jobID: answer.JobID }
+  return { kind: "done", exercises: (answer ?? []).map(normalizeExercise) }
 }
 
 const ERR_UPLOAD_NOT_FOUND = 31006
 
-export async function importExercises(
+/** Sends the archive and starts its import; a background import is not awaited here. */
+export async function startImport(
   file: File,
   password: string,
   onProgress?: (percent: number) => void,
   onStage?: (stage: ArchiveStage) => void,
   signal?: AbortSignal,
-): Promise<Exercise[]> {
+): Promise<ImportStart> {
   // An archive that may carry images goes up in chunks as an exercise-archive upload and is read where its chunks
   // lie: the server never assembles it into one file. A repeated submit resumes the upload (and a failed job).
   if (file.size > MAX_PLAIN_ARCHIVE_BYTES) {
@@ -95,9 +96,11 @@ export async function importExercises(
     const uploadID = await uploadChunks(file, onProgress, signal, { purpose: ARCHIVE_UPLOAD_PURPOSE })
     try {
       const answer = await apiPost<RawExercise[] | null | Started>(`${BASE}/import/upload`, { UploadID: uploadID, Password: password })
-      const result = await finishImport(answer, onStage, signal)
-      forgetChunkedUpload(file)
-      return result
+      const started = importStarted(answer)
+      // A job keeps its upload: a failed import runs again from it when the same file is submitted. The server drops
+      // the upload of a finished import, so a stale id is only a 404 that starts the upload anew.
+      if (started.kind === "done") forgetChunkedUpload(file)
+      return started
     } catch (error) {
       if (error instanceof ApiError && error.code === ERR_UPLOAD_NOT_FOUND) forgetChunkedUpload(file)
       throw error
@@ -107,11 +110,10 @@ export async function importExercises(
   if (file.size > SINGLE_REQUEST_MAX) {
     onStage?.("uploading")
     const uploaded = await uploadInChunks(file, onProgress)
-    const answer = await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password })
-    return finishImport(answer, onStage, signal)
+    return importStarted(await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password }))
   }
   const form = new FormData()
   form.append("archive", file)
   if (password) form.append("password", password)
-  return finishImport(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form), onStage, signal)
+  return importStarted(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form))
 }
