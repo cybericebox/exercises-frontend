@@ -39,6 +39,8 @@ function durationLabel(minutes: number): string {
   return minutes % 60 === 0 ? t("exercises.book.duration.hours", { n: minutes / 60 }) : t("exercises.book.duration.minutes", { n: minutes })
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 const LIMIT_KEY: Record<BookingLimitError, string> = {
   duration: "exercises.book.limit.duration",
   past: "exercises.book.limit.past",
@@ -68,6 +70,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
 }) {
   const [startValue, setStartValue] = useState(() => toLocalInput(start))
   const [minutes, setMinutes] = useState(String(defaultDuration()))
+  const [latest] = useState(() => new Date(Date.now() + BOOKING_MAX_DAYS_AHEAD * DAY_MS))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -96,7 +99,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
     <div className="grid gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="booking-start">{t("exercises.book.start")}</Label>
-        <DateTimePicker id="booking-start" aria-label={t("exercises.book.start")} value={startValue} aria-invalid={limit === "past" || limit === "ahead"}
+        <DateTimePicker id="booking-start" max={latest} aria-label={t("exercises.book.start")} value={startValue} aria-invalid={limit === "past" || limit === "ahead"}
           aria-describedby={limit === "past" || limit === "ahead" ? "booking-start-error" : undefined} onChange={(value) => { setStartValue(value); setError("") }} />
         {(limit === "past" || limit === "ahead") && <p id="booking-start-error" role="alert" className="text-xs text-destructive">{limitMessage(limit)}</p>}
       </div>

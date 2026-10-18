@@ -15,6 +15,8 @@ type Props = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "value" | "onCh
   value: string
   onChange: (value: string) => void
   allowClear?: boolean
+  /** The latest moment that can be chosen: later days are disabled and later times are clamped to it. */
+  max?: Date
 }
 
 type Part = "hour" | "minute"
@@ -67,7 +69,7 @@ function zoneLabel(at: Date = new Date()): { zone: string; offset: string } {
   return { zone, offset }
 }
 
-export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {
+export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, max, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {
   const chosen = selectedDate(value)
   const [open, setOpen] = React.useState(false)
   const [focused, setFocused] = React.useState<Date>(() => chosen ?? new Date())
@@ -99,8 +101,12 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
     setOpen(next)
   }
 
+  const afterMax = (day: Date) => !!max && day.getTime() > max.getTime()
+
   function emit(day: Date, parts: { hour: number; minute: number }) {
-    onChange(`${datePart(day)}T${pad(parts.hour)}:${pad(parts.minute)}`)
+    const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), parts.hour, parts.minute)
+    const limit = max && afterMax(at) ? new Date(max.getFullYear(), max.getMonth(), max.getDate(), max.getHours(), max.getMinutes()) : at
+    onChange(`${datePart(limit)}T${pad(limit.getHours())}:${pad(limit.getMinutes())}`)
   }
 
   function pick(day: Date) {
@@ -113,6 +119,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
     const next = moveDay(day, event.key, event.shiftKey)
     if (!next) return
     event.preventDefault()
+    if (afterMax(next)) return
     moved.current = true
     setFocused(next)
     if (next.getMonth() !== month.getMonth() || next.getFullYear() !== month.getFullYear()) setMonth(monthStart(next))
@@ -162,15 +169,15 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
         <div className="flex items-center justify-between gap-2">
           <button type="button" aria-label={t("ui.dateTime.prevMonth")} onClick={() => changeMonth(-1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button>
           <strong id={`${calendarId}-month`} aria-live="polite" className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(month)}</strong>
-          <button type="button" aria-label={t("ui.dateTime.nextMonth")} onClick={() => changeMonth(1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight aria-hidden="true" className="h-4 w-4" /></button>
+          <button type="button" aria-label={t("ui.dateTime.nextMonth")} onClick={() => changeMonth(1)} disabled={afterMax(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-md p-2 hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight aria-hidden="true" className="h-4 w-4" /></button>
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">{WEEKDAY_KEYS.map((key) => <span key={key} className="py-1">{t(key)}</span>)}</div>
         <div ref={gridRef} role="group" aria-labelledby={`${calendarId}-month`} className="grid grid-cols-7 gap-0.5">{days.map((day) => {
           const key = datePart(day)
           const isSelected = !!chosen && key === datePart(chosen)
           return <button key={key} data-day={key} type="button" tabIndex={key === datePart(focused) ? 0 : -1} aria-label={dateLabel(day)} aria-pressed={isSelected} aria-current={key === today ? "date" : undefined}
-            onClick={() => pick(day)} onKeyDown={(event) => dayKey(event, day)}
-            className={`h-8 rounded-md text-xs tabular-nums focus-visible:outline-2 focus-visible:outline-primary ${key === today ? "font-semibold underline underline-offset-[3px]" : ""} ${isSelected ? "bg-primary text-primary-foreground" : day.getMonth() === month.getMonth() ? "text-foreground hover:bg-accent" : "text-muted-foreground hover:bg-accent"}`}>{day.getDate()}</button>
+            disabled={afterMax(day)} onClick={() => pick(day)} onKeyDown={(event) => dayKey(event, day)}
+            className={`h-8 rounded-md text-xs tabular-nums focus-visible:outline-2 focus-visible:outline-primary ${key === today ? "font-semibold underline underline-offset-[3px]" : ""} ${isSelected ? "bg-primary text-primary-foreground" : day.getMonth() === month.getMonth() ? "text-foreground hover:bg-accent" : "text-muted-foreground hover:bg-accent"} disabled:opacity-30 disabled:hover:bg-transparent`}>{day.getDate()}</button>
         })}</div>
         <div className="grid gap-3 border-t border-border pt-3">
           <div role="group" aria-label={t("ui.dateTime.time")} className="flex flex-wrap items-center gap-2 text-sm">
