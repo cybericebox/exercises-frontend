@@ -118,6 +118,7 @@ describe("new exercise page", () => {
     expect(createExercise).not.toHaveBeenCalled()
     expect(storage.get("cib_exercise_pending_editor-1_new")).toContain("Qz")
     fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "admin.ex.cancelNew.confirm" })) })
     expect(storage.has("cib_exercise_pending_editor-1_new")).toBe(false)
   })
 
@@ -147,6 +148,24 @@ describe("new exercise page", () => {
       expect(screen.queryByText("admin.ex.leaveNew.title")).not.toBeInTheDocument()
       expect(storage.get(KEY)).toContain("Qz")
       link.remove()
+    })
+
+    it("Cancel asks before erasing a draft with content, and goes straight when empty", async () => {
+      render(<NewExercisePage />)
+      vi.useFakeTimers()
+      fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
+      expect(screen.queryByText("admin.ex.cancelNew.title")).not.toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
+      expect(screen.getByText("admin.ex.cancelNew.title")).toBeInTheDocument()
+      expect(storage.get(KEY)).toContain("Qz")
+      fireEvent.click(screen.getByRole("button", { name: "confirm.cancel" }))
+      expect(storage.get(KEY)).toContain("Qz")
+      fireEvent.click(screen.getByRole("link", { name: "admin.ex.create.cancel" }))
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "admin.ex.cancelNew.confirm" })) })
+      expect(storage.has(KEY)).toBe(false)
+      expect(h.push).toHaveBeenCalledWith("/")
     })
 
     it("leaves and keeps the draft on confirm", async () => {
