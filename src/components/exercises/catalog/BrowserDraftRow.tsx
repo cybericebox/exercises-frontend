@@ -4,37 +4,60 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { TABLE_CELL } from "@/components/ui/table"
 import { t } from "@/i18n/t"
 import { clearPendingChanges, hasDraftContent, pendingBufferKey, readPendingChanges } from "@/lib/exercisePendingBuffer"
 
+/** The title of the unsaved new-task draft kept on this device, or null when there is none. */
+function readDraftTitle(userId: string | null): string | null {
+  const pending = userId ? readPendingChanges(pendingBufferKey(userId, null)) : null
+  return pending !== null && hasDraftContent(pending.identity, pending.draft) ? pending.identity.Name.trim() : null
+}
+
 /**
- * The unnamed new task kept in this browser (nothing on the server yet): one row above
- * the catalog table to continue or delete it.
+ * The unsaved new task (nothing on the server yet): the first row of the catalog table, tinted
+ * with the warning colour, to continue or delete it. Re-read whenever the page is shown again.
  */
-export function BrowserDraftRow({ userId }: { userId: string | null }) {
+export function BrowserDraftRow({ userId, columns }: { userId: string | null; columns: number }) {
   const router = useRouter()
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
-    const pending = userId ? readPendingChanges(pendingBufferKey(userId, null)) : null
-    const present = pending !== null && hasDraftContent(pending.identity, pending.draft)
-    // Reading browser storage once the user is known.
+    const refresh = () => setTitle(readDraftTitle(userId))
+    // Reading browser storage once the user is known, and again when the page is shown or the storage changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTitle(present ? pending.identity.Name.trim() : null)
+    refresh()
+    window.addEventListener("pageshow", refresh)
+    window.addEventListener("focus", refresh)
+    window.addEventListener("storage", refresh)
+    return () => {
+      window.removeEventListener("pageshow", refresh)
+      window.removeEventListener("focus", refresh)
+      window.removeEventListener("storage", refresh)
+    }
   }, [userId])
 
   if (title === null || !userId) return null
 
+  const cell = `${TABLE_CELL} bg-[var(--ib-warn-bg)]`
   return <>
-    <div role="region" aria-label={t("admin.ex.localDraft.badge")} className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
-      <span className="rounded-[4px] bg-border px-2 py-0.5 text-xs">{t("admin.ex.localDraft.badge")}</span>
-      <span className="min-w-0 flex-1 truncate font-medium">{title || t("admin.ex.localDraft.untitled")}</span>
-      <div className="flex shrink-0 gap-2">
-        <Button type="button" size="sm" onClick={() => router.push("/new?draft=continue")}>{t("admin.ex.localDraft.continue")}</Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(true)}>{t("admin.ex.localDraft.delete")}</Button>
-      </div>
-    </div>
+    <tbody data-unsaved-draft>
+      <tr className="h-10">
+        <td colSpan={columns - 2} className={cell}>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="rounded-[4px] bg-[var(--ib-warn)] px-2 py-0.5 text-xs font-medium text-[var(--ib-warn-bg)]">{t("admin.ex.localDraft.badge")}</span>
+            <span className="min-w-0 truncate font-medium">{title || t("admin.ex.localDraft.untitled")}</span>
+          </span>
+        </td>
+        <td colSpan={2} className={cell}>
+          <span className="flex justify-end gap-2">
+            <Button type="button" size="sm" onClick={() => router.push("/new?draft=continue")}>{t("admin.ex.localDraft.continue")}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(true)}>{t("admin.ex.localDraft.delete")}</Button>
+          </span>
+        </td>
+      </tr>
+    </tbody>
     <ConfirmDialog open={confirming} tone="danger" onCancel={() => setConfirming(false)}
       title={t("admin.ex.localDraft.deleteTitle")} description={t("admin.ex.localDraft.deleteDescription")}
       confirmLabel={t("admin.ex.localDraft.delete")}

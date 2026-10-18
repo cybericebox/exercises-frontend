@@ -258,8 +258,6 @@ export default function Page() {
         </div>
       )}
 
-      {canWrite && <BrowserDraftRow userId={me?.ID ?? null} />}
-
       <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem]">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
@@ -279,6 +277,7 @@ export default function Page() {
             <SortableHeader label={t("admin.ex.col.updated")} field="updated" activeField={filters.sortBy} direction={filters.sortDir} onSort={sort} />
           </tr>
         </thead>
+        {canWrite && <BrowserDraftRow userId={me?.ID ?? null} columns={columns} />}
         {error ? (
           <TableState colSpan={columns}><LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} /></TableState>
         ) : loading && rows.length === 0 ? (
