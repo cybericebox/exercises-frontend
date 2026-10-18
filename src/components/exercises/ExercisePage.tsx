@@ -395,7 +395,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       onSaved={(updated) => { editor.setExercise(updated) }} />}
     {dialog === "propose" && exercise && <ProposeDialog exerciseId={exercise.ID} onClose={() => setDialog(null)}
       onProposed={(proposal) => { editor.setExercise({ ...exercise, PendingProposalID: proposal.ID }); setDialog(null) }} />}
-    <RunningLabsDialog open={limitReached !== null && limitReached.items.length > 0} items={limitReached?.items ?? []} now={limitReached?.at ?? 0}
+    <RunningLabsDialog open={limitReached !== null && limitReached.items.length > 0} items={limitReached?.items ?? []} onExpired={() => void activeDeploys.refresh()}
       description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
