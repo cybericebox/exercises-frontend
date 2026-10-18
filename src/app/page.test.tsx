@@ -33,11 +33,11 @@ vi.mock('@/components/exercises/ExportDialog', () => ({
   ExportDialog: ({ exerciseIds }: { exerciseIds: string[] }) => <div data-testid="export-dialog">{exerciseIds.join(',')}</div>,
 }))
 vi.mock('@/components/exercises/ImportDialog', () => ({ ImportDialog: ({ jobId }: { jobId?: string }) => <div data-testid="import-dialog">{jobId ?? ''}</div> }))
-vi.mock('@/api/exercises/archiveJobs', () => ({ getImportJob: vi.fn(), JOB_POLL_MS: 5, isPassing: () => false }))
+vi.mock('@/api/exercises/archiveJobs', () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
 vi.mock('@/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 import { getExercise, listExercisesPage, listExerciseTags } from '@/api/exercises/catalog'
-import { getImportJob } from '@/api/exercises/archiveJobs'
+import { getImportJob, listRunningImports } from '@/api/exercises/archiveJobs'
 import { IMPORT_JOBS_KEY, resetImportJobsForTests } from '@/lib/importJobs'
 import Page from './page'
 import { OWNERSHIP } from '@/test/exerciseFixtures'
@@ -494,6 +494,7 @@ describe('exercises catalog — background imports', () => {
     vi.clearAllMocks()
     resetStorage()
     resetImportJobsForTests()
+    vi.mocked(listRunningImports).mockResolvedValue([])
     h.access = null
     mockList.mockReset()
     h.canWrite = true
@@ -501,16 +502,39 @@ describe('exercises catalog — background imports', () => {
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
-  it('shows an indicator for an import resumed after a reload and reopens the dialog on it', async () => {
+  it('shows a row at the top of the table for an import resumed after a reload', async () => {
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
     vi.mocked(getImportJob).mockResolvedValue(running)
     render(<Page />)
-    const chip = await screen.findByRole('button', { name: /admin\.exImport\.indicator/ })
-    fireEvent.click(chip)
-    expect(screen.getByTestId('import-dialog')).toHaveTextContent('j1')
-    // The rest of the catalog stays usable meanwhile.
+    await screen.findByText('SQLi basics')
+    const row = await waitFor(() => {
+      const found = document.querySelector('[data-import-job="running"]')
+      expect(found).not.toBeNull()
+      return found as HTMLElement
+    })
+    expect(row).toHaveTextContent('admin.exImport.rowTitle')
+    expect(row).toHaveTextContent('admin.exImport.stage.tasksCount')
+    expect(within(row).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+    // Above the task rows, and the rest of the catalog stays usable meanwhile.
+    const tbodies = Array.from(row.closest('table')!.querySelectorAll('tbody'))
+    expect(tbodies.indexOf(row as HTMLTableSectionElement)).toBeLessThan(tbodies.length - 1)
     expect(screen.getByRole('button', { name: 'admin.exImport.button' })).toBeEnabled()
-    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
+  })
+
+  it('shows the row whatever the filters leave in the list', async () => {
+    mockList.mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 })
+    localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
+    vi.mocked(getImportJob).mockResolvedValue(running)
+    render(<Page />)
+    await screen.findByText('admin.ex.empty')
+    await waitFor(() => expect(document.querySelector('[data-import-job="running"]')).not.toBeNull())
+  })
+
+  it('follows an import the server lists even with empty storage', async () => {
+    vi.mocked(listRunningImports).mockResolvedValue(['srv1'])
+    vi.mocked(getImportJob).mockResolvedValue(running)
+    render(<Page />)
+    await waitFor(() => expect(document.querySelector('[data-import-job="running"]')).not.toBeNull())
   })
 
   it('refreshes the list without clearing it when an import ends', async () => {
@@ -519,7 +543,7 @@ describe('exercises catalog — background imports', () => {
     render(<Page />)
     await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
     expect(screen.getByText('SQLi basics')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /admin\.exImport\.indicator/ })).not.toBeInTheDocument()
+    expect(document.querySelector('[data-import-job]')).toBeNull()
   })
 
   it('shows a failed import with its details button', async () => {
@@ -528,15 +552,16 @@ describe('exercises catalog — background imports', () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.exImport.details' }))
     expect(screen.getByTestId('import-dialog')).toHaveTextContent('j2')
+    expect(document.querySelector('[data-import-job="failed"]')).toHaveTextContent('admin.exImport.failedWith')
   })
 
-  it('shows no indicator to someone who cannot import', async () => {
+  it('shows no import row to someone who cannot import', async () => {
     h.canWrite = false
     h.canExport = false
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
     vi.mocked(getImportJob).mockResolvedValue(running)
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.queryByRole('button', { name: /admin\.exImport\.indicator/ })).not.toBeInTheDocument()
+    expect(document.querySelector('[data-import-job]')).toBeNull()
   })
 })

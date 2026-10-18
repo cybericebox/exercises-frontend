@@ -8,15 +8,17 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/api/exercises/archiveJobs", () => ({
   getImportJob: vi.fn(),
+  listRunningImports: vi.fn(),
   JOB_POLL_MS: 2000,
   isPassing: (error: unknown) => error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500),
 }))
 
-import { getImportJob } from "@/api/exercises/archiveJobs"
+import { getImportJob, listRunningImports } from "@/api/exercises/archiveJobs"
 import { toast } from "@/components/ui/toast"
 import { IMPORT_JOBS_KEY, dismissImportJob, onImportsDone, resetImportJobsForTests, trackImportJob, useImportJob, useImportJobs } from "./importJobs"
 
 const mockGet = vi.mocked(getImportJob)
+const mockList = vi.mocked(listRunningImports)
 const POLL = 2000
 
 const status = (patch: Partial<ImportJobStatus>): ImportJobStatus => ({
@@ -31,6 +33,7 @@ describe("background import jobs", () => {
     vi.clearAllMocks()
     localStorage.clear()
     resetImportJobsForTests()
+    mockList.mockResolvedValue([])
   })
   afterEach(() => { vi.useRealTimers() })
 
@@ -156,6 +159,34 @@ describe("background import jobs", () => {
       expect(result.current).toEqual([])
       expect(stored()).toEqual([])
       expect(toast.error).not.toHaveBeenCalled()
+    })
+
+    it("follows the imports the server lists even with nothing in storage (another device)", async () => {
+      mockList.mockResolvedValue(["srv1", "srv2"])
+      mockGet.mockResolvedValue(status({ stage: "images", imagesDone: 1, imagesTotal: 2 }))
+      const { result } = renderHook(() => useImportJobs())
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(result.current.map((job) => job.jobID)).toEqual(["srv1", "srv2"])
+      expect(stored()).toEqual(["srv1", "srv2"])
+    })
+
+    it("does not follow a job twice when storage and the server both name it", async () => {
+      localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(["j9"]))
+      mockList.mockResolvedValue(["j9"])
+      mockGet.mockResolvedValue(status({}))
+      const { result } = renderHook(() => useImportJobs())
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(result.current).toHaveLength(1)
+      expect(mockGet).toHaveBeenCalledTimes(1)
+    })
+
+    it("works when the server list fails (no permission, outage)", async () => {
+      localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(["j9"]))
+      mockList.mockRejectedValue(new ApiError(403, null))
+      mockGet.mockResolvedValue(status({}))
+      const { result } = renderHook(() => useImportJobs())
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      expect(result.current).toHaveLength(1)
     })
 
     it("ignores a damaged stored value", async () => {

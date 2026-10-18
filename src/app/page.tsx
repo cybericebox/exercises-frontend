@@ -19,7 +19,7 @@ import { TagFilter } from "@/components/exercises/catalog/TagFilter"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
-import { ImportIndicator } from "@/components/exercises/ImportIndicator"
+import { ImportRows } from "@/components/exercises/catalog/ImportRows"
 import { onImportsDone } from "@/lib/importJobs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -211,8 +211,7 @@ export default function Page() {
           className="min-w-[min(100%,14rem)] flex-1 lg:max-w-sm"
         />
         {(canWrite || canImport) && (
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-            {canImport && <ImportIndicator onOpen={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} />}
+          <div className="ml-auto flex shrink-0 gap-2">
             {canImport && <Button type="button" variant="outline" onClick={() => { setImportJobId(undefined); setImportOpen(true) }} className="h-10 text-sm">
               <Upload aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.exImport.button")}
             </Button>}
@@ -286,6 +285,7 @@ export default function Page() {
           </tr>
         </thead>
         {canWrite && <BrowserDraftRow userId={me?.ID ?? null} columns={columns} />}
+        {canImport && <ImportRows columns={columns} onDetails={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} />}
         {error ? (
           <TableState colSpan={columns}><LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} /></TableState>
         ) : loading && rows.length === 0 ? (
