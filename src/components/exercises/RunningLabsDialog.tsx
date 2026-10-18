@@ -14,11 +14,17 @@ import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { testLabHref } from "@/lib/exerciseRoutes"
 import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
+import { LEASE_FAST_BELOW_MS, useLeaseClock } from "@/lib/useLeaseClock"
 import { useExerciseNames, useVariantNumbers } from "@/lib/useExerciseNames"
 
-/** "1:42" — hours and minutes left, rounded up; "0:00" at the end. */
+/** "1:42" (h:mm, rounded up) while 10 minutes or more are left, "9:41" (m:ss) under that; zero at the end. */
 export function timeLeft(expiresAt: string, now: number): string {
-  const minutes = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 60000))
+  const ms = Math.max(0, new Date(expiresAt).getTime() - now)
+  if (ms < LEASE_FAST_BELOW_MS) {
+    const seconds = Math.ceil(ms / 1000)
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+  }
+  const minutes = Math.ceil(ms / 60000)
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`
 }
 
@@ -27,22 +33,25 @@ export function timeLeft(expiresAt: string, now: number): string {
  * button to open its test page and one to end it (after a danger confirmation). Used by the
  * navbar indicator and by the «Тест» button once the limit of running labs is reached.
  */
-export function RunningLabsDialog({ open, items, now, description, onClose, onEnded }: {
+export function RunningLabsDialog({ open, items, description, onClose, onEnded, onExpired }: {
   open: boolean
   items: DeployListItem[]
-  now: number
   description?: string
   onClose: () => void
   /** A lab was ended here. */
   onEnded: (deployId: string) => void
+  /** A lab's time ran out while the list was open: refetch the list once. */
+  onExpired?: () => void
 }) {
   const router = useRouter()
+  const now = useLeaseClock(items.filter((item) => !item.Expired).map((item) => item.ExpiresAt), open, onExpired)
   const names = useExerciseNames(items.map((item) => item.ExerciseID))
   const variants = useVariantNumbers(items)
   const [ending, setEnding] = useState<DeployListItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const othersRunning = useOtherLabsRunning(ending?.DeployID ?? null, 1)
+  const statusOf = (item: DeployListItem) => item.Expired || new Date(item.ExpiresAt).getTime() <= now ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })
   const nameOf = (item: DeployListItem) => names[item.ExerciseID] ?? t("admin.exTest.unknownExercise")
 
   async function end() {
@@ -78,7 +87,7 @@ export function RunningLabsDialog({ open, items, now, description, onClose, onEn
                   {item.Kind === "static" && <Badge tone="muted">{t("admin.exTest.kindStatic")}</Badge>}
                 </div>
                 <div className="text-xs tabular-nums text-muted-foreground">
-                  {variant ? t("admin.exTest.runningVariant", { variant, status: item.Expired ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) }) }) : item.Expired ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })}
+                  {variant ? t("admin.exTest.runningVariant", { variant, status: statusOf(item) }) : statusOf(item)}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
