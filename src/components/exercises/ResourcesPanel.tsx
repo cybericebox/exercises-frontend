@@ -7,6 +7,7 @@ import type { DeviceOutside, VersionResources } from "@/api/exercises/versions"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { FieldHelp } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Textarea } from "@/components/ui/textarea"
@@ -75,13 +76,15 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
 
   return <section data-resources-panel aria-label={t("exercises.res.title")} className="mb-3 min-w-0 space-y-3 rounded-md border border-border p-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold">{t("exercises.res.title")}</h3>
+      <h3 className="flex items-center gap-1 text-sm font-semibold">
+        {t("exercises.res.title")}
+        {resources.Variants.length > 1 && <FieldHelp text={t("exercises.res.rangeNote", { count: resources.Variants.length })} />}
+      </h3>
       {canRequest && requestable.length > 0 && !ceilingIssues.length && <Button type="button" variant="outline" size="sm" disabled={!exerciseId} onClick={() => setDialog(true)}>
         {t("exercises.res.request")}
       </Button>}
     </div>
     <TotalsLine resources={resources} />
-    {resources.Variants.length > 1 && <p className="text-xs text-muted-foreground">{t("exercises.res.rangeNote", { count: resources.Variants.length })}</p>}
     {resources.VariantsDiffer && <p role="status" data-variants-differ className="text-xs text-[var(--ib-warn)]">{t("exercises.res.variantsDiffer", { percent: Math.round(resources.SpreadPercent) })}</p>}
 
     {issues.length > 0 && <ul data-frame-issues className="divide-y divide-border">
