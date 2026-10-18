@@ -12,6 +12,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { t } from "@/i18n/t"
 import { elevationPresets, formatCPU, formatMemory, type Preset } from "@/lib/deviceResources"
+import { blockHint, presetOptionLabel } from "@/lib/presetLabels"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { formatExerciseDateTime } from "@/lib/exerciseStatus"
 
@@ -89,13 +90,13 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
         return <li key={`${issue.VariantID}:${issue.DeviceID}`} data-issue-state={state} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
           <span className="min-w-0 truncate">
             <span className="font-medium">{issue.Name || t("exercises.res.unnamed")}</span>{" "}
-            <span className="text-muted-foreground">{t("exercises.res.blockHint", { count: issue.Blocks, cpu: formatCPU(issue.CPUMillicores), memory: formatMemory(issue.MemoryBytes) })}</span>
+            <span className="text-muted-foreground">{blockHint(issue.Blocks, issue.CPUMillicores, issue.MemoryBytes)}</span>
           </span>
           <Badge tone={STATE_TONE[state]}>{t(`exercises.res.state.${state}`)}</Badge>
         </li>
       })}
     </ul>}
-    {issues.length > 0 && <ElevationState elevation={elevation} config={config} />}
+    {issues.length > 0 && <ElevationState elevation={elevation} />}
     {ceilingIssues.length > 0 && config && <p role="alert" data-ceiling className="text-xs text-[var(--ib-warn)]">
       {t("exercises.res.ceiling", { blocks: config.CeilingBlocks, cpu: formatCPU(config.Ceiling.CPUMillicores), memory: formatMemory(config.Ceiling.MemoryBytes) })}
     </p>}
@@ -108,8 +109,9 @@ export function ResourcesPanel({ exerciseId, resources, elevation, config, canRe
   </section>
 }
 
-function ElevationState({ elevation, config }: { elevation: Elevation | null; config: ResourcesConfig | null }) {
-  if (!elevation) return config ? <p className="text-xs text-muted-foreground">{t("exercises.res.frameHint", { blocks: config.FrameBlocks, cpu: formatCPU(config.Frame.CPUMillicores), memory: formatMemory(config.Frame.MemoryBytes) })}</p> : null
+function ElevationState({ elevation }: { elevation: Elevation | null }) {
+  // The unit and the approval-free frame are in the help of the device's resource select.
+  if (!elevation) return null
   const when = (iso: string | null) => iso ? formatExerciseDateTime(iso) : ""
   return <div data-elevation-status={elevation.Status} className="space-y-1 text-xs">
     {elevation.Status === "pending" && <p>{t("exercises.res.pending", { date: when(elevation.RequestedAt) })}</p>}
@@ -117,7 +119,7 @@ function ElevationState({ elevation, config }: { elevation: Elevation | null; co
     {elevation.Status === "approved" && elevation.Approved.length > 0 && <div data-approved>
       <p>{t("exercises.res.approved")}</p>
       <ul className="text-muted-foreground">
-        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{t("exercises.res.approvedLine", { name: entry.Name || entry.DeviceID, hint: t("exercises.res.blockHint", { count: entry.Blocks, cpu: formatCPU(entry.CPUMillicores), memory: formatMemory(entry.MemoryBytes) }) })}</li>)}
+        {elevation.Approved.map((entry) => <li key={entry.DeviceID}>{t("exercises.res.approvedLine", { name: entry.Name || entry.DeviceID, hint: blockHint(entry.Blocks, entry.CPUMillicores, entry.MemoryBytes) })}</li>)}
       </ul>
       <p className="text-muted-foreground">{t("exercises.res.raiseNote")}</p>
     </div>}
@@ -172,9 +174,9 @@ function ElevationDialog({ exerciseId, issues, config, onPickBlock, flush, onClo
           {config && onPickBlock && options.length > 0
             ? <SelectMenu value={blockOf(issue)} disabled={busy} ariaLabel={t("exercises.res.dialog.block", { name: issue.Name || t("exercises.res.unnamed") })}
               onChange={(next) => { setPicked((current) => ({ ...current, [`${issue.VariantID}:${issue.DeviceID}`]: next })); onPickBlock(issue, next) }}
-              options={options.map((preset) => ({ value: preset.ID, label: t("exercises.res.presetOption", { name: t(`exercises.res.preset.${preset.ID}`), hint: t("exercises.res.blockHint", { count: preset.Blocks, cpu: formatCPU(preset.CPUMillicores), memory: formatMemory(preset.MemoryBytes) }) }) }))}
+              options={options.map((preset) => ({ value: preset.ID, label: presetOptionLabel(preset) }))}
               className="h-9 w-64 shrink-0" />
-            : <span className="shrink-0 text-muted-foreground">{t("exercises.res.blockHint", { count: issue.Blocks, cpu: formatCPU(issue.CPUMillicores), memory: formatMemory(issue.MemoryBytes) })}</span>}
+            : <span className="shrink-0 text-muted-foreground">{blockHint(issue.Blocks, issue.CPUMillicores, issue.MemoryBytes)}</span>}
         </li>)}
       </ul>
       <div className="space-y-1.5">

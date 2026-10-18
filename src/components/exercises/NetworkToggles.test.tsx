@@ -32,7 +32,7 @@ describe('NetworkToggles', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('admin.ex.val.dhcpRangesRequired')
   })
 
-  it('shows DHCP only for enabled networks and explains its effect', () => {
+  it('shows DHCP only for enabled networks, with one help and no permanent glossary', () => {
     render(<Harness />)
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.vpnDhcp' })).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.internetDhcp' })).not.toBeInTheDocument()
@@ -40,19 +40,17 @@ describe('NetworkToggles', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.vpn' }))
     expect(screen.getByRole('switch', { name: 'admin.exTopo.vpnDhcp' })).toBeInTheDocument()
     expect(helpButton('admin.exTopo.dhcpHelp')).toBeInTheDocument()
-    expect(screen.getByText('admin.exTopo.dhcp.enabled.vpn')).toBeInTheDocument()
-    expect(screen.getByText('admin.exTopo.dhcp.disabled')).toBeInTheDocument()
+    expect(screen.queryByText('admin.exTopo.dhcp.enabled.vpn')).not.toBeInTheDocument()
+    expect(screen.queryByText('admin.exTopo.dhcp.disabled')).not.toBeInTheDocument()
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     expect(screen.queryByText('admin.exTopo.dhcp.limit')).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.internetDhcp' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.internet' }))
-    expect(screen.getByText('admin.exTopo.dhcp.enabled.internet')).toBeInTheDocument()
     expect(screen.getAllByRole('note')).toHaveLength(2)
     for (const note of screen.getAllByRole('note')) {
       expect(note).toHaveTextContent('admin.exTopo.dhcp.warning')
-      expect(note).toHaveTextContent('admin.exTopo.dhcp.warningConsequence')
-      expect(within(note).getByText('admin.exTopo.dhcp.warningConsequence')).toHaveClass('block')
+      expect(within(note).queryByText('admin.exTopo.dhcp.warningConsequence')).not.toBeInTheDocument()
     }
 
     fireEvent.click(screen.getByRole('switch', { name: 'admin.exTopo.internetDhcp' }))
