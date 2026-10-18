@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { DeployListItem, DeployStatus } from "@/api/exercises/deploy"
@@ -98,7 +98,7 @@ describe("TestLabPage — states", () => {
     vi.mocked(deployStatus).mockResolvedValue({ Phase: "Provisioning", Ready: false })
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     // the badge and the loader's stage line both say it
-    expect((await screen.findAllByText("admin.exDeploy.phase.provisioning")).length).toBe(2)
+    expect((await screen.findAllByText("admin.exDeploy.starting")).length).toBe(3)
     expect(screen.queryByText("Provisioning")).not.toBeInTheDocument()
     expect(screen.queryByText("Login")).not.toBeInTheDocument()
   })
@@ -782,7 +782,7 @@ describe("TestLabPage — static test", () => {
     expect(screen.getByRole("link", { name: /notes\.pdf/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.topologyShow/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()
     expect(screen.queryByRole("separator")).not.toBeInTheDocument()
     expect(screen.getAllByLabelText(/admin\.exDeploy\.flagInput/)).toHaveLength(1)
     fireEvent.click(screen.getByRole("button", { name: "admin.exTest.taskNext" }))
@@ -825,7 +825,7 @@ describe("TestLabPage — static test", () => {
     vi.mocked(deployStatus).mockReturnValue(new Promise(() => undefined))
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
-    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
   })
 
@@ -874,15 +874,15 @@ describe("TestLabPage — texts before the kind is known", () => {
     vi.mocked(deployVariant).mockReturnValue(new Promise(() => undefined))
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     expect((await screen.findAllByText("admin.exTest.starting")).length).toBeGreaterThan(0)
-    expect(screen.queryByText("admin.exDeploy.provisioning")).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.exDeploy.phase.pending")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()
   })
 
   it("keeps the lab provisioning text once the start says it is a lab", async () => {
     vi.mocked(deployVariant).mockResolvedValue({ DeployID: "run-1", Lab: "lab", Kind: "lab", Tasks: running.Tasks })
     vi.mocked(deployStatus).mockResolvedValue({ Phase: "", Ready: false })
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
-    expect((await screen.findAllByText("admin.exDeploy.provisioning")).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText("admin.exDeploy.starting")).length).toBeGreaterThan(0)
     expect(screen.queryByText("admin.exTest.starting")).not.toBeInTheDocument()
   })
 
@@ -899,5 +899,72 @@ describe("TestLabPage — texts before the kind is known", () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
     expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
     expect(screen.queryByText(/admin\.exTest\.startFailed/)).not.toBeInTheDocument()
+  })
+})
+
+describe("TestLabPage — starting lab", () => {
+  const queue = (Reason: string) => ({ Position: 1, Length: 1, Reason, Message: "", Pods: 1, Pending: 1 })
+  const noteOf = (text: string) => {
+    const note = screen.getByText(text)
+    return note.className.includes("invisible") ? null : note
+  }
+  const LONG = "admin.exDeploy.startingLong"
+  const NO_ROOM = "admin.exDeploy.startingNoResources"
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date("2026-10-18T12:00:00Z"))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it("shows the plain starting text with no queue position or reason", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Queued", Ready: false, Queue: queue("WaitingForTurn") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect((await screen.findAllByText("admin.exDeploy.starting")).length).toBe(3)
+    expect(screen.queryByText(/exQueue/)).not.toBeInTheDocument()
+    expect(noteOf(LONG)).toBeNull()
+  })
+
+  it("adds the long-wait line after 30 s, counted from the first time the page saw it starting", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Provisioning", Ready: false, Queue: queue("PreparingImages") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findAllByText("admin.exDeploy.starting")
+    await act(async () => { await vi.advanceTimersByTimeAsync(29_000) })
+    expect(noteOf(LONG)).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500) })
+    expect(noteOf(LONG)).not.toBeNull()
+  })
+
+  it("counts the wait from the earliest queue time in the status", async () => {
+    const QueuedAt = new Date(Date.now() - 31_000).toISOString()
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Queued", Ready: false, Devices: [{ Name: "web", Ready: false, Scheduling: { State: "Queued", QueuedAt, DispatchedAt: null, StartedAt: null, Failure: null } }] })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findAllByText("admin.exDeploy.starting")
+    await waitFor(() => expect(noteOf(LONG)).not.toBeNull())
+  })
+
+  it.each(["InsufficientResources", "NoSchedulableNodes", "TenantQuota"])("shows the no-resources line for %s only after 30 s", async (reason) => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Queued", Ready: false, Queue: queue(reason) })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findAllByText("admin.exDeploy.starting")
+    expect(noteOf(NO_ROOM)).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_500) })
+    expect(noteOf(NO_ROOM)).not.toBeNull()
+  })
+
+  it("keeps the generic line for other reasons", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Queued", Ready: false, Queue: queue("InFlightLimit") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    await screen.findAllByText("admin.exDeploy.starting")
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_500) })
+    expect(noteOf(LONG)).not.toBeNull()
+    expect(screen.queryByText(NO_ROOM)).not.toBeInTheDocument()
+  })
+
+  it("still shows the error when the lab fails", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ Phase: "Failed", Ready: false, Queue: queue("TenantQuota") })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
+    expect(screen.queryByText(NO_ROOM)).not.toBeInTheDocument()
   })
 })

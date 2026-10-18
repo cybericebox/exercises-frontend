@@ -5,9 +5,10 @@
 import { t } from "@/i18n/t"
 
 const PHASE_KEYS: Record<string, string> = {
-  Pending: "admin.exDeploy.phase.pending",
-  Queued: "admin.exDeploy.phase.queued",
-  Provisioning: "admin.exDeploy.phase.provisioning",
+  // Every step before the lab is up reads as one calm «preparing» state.
+  Pending: "admin.exDeploy.starting",
+  Queued: "admin.exDeploy.starting",
+  Provisioning: "admin.exDeploy.starting",
   Ready: "admin.exDeploy.phase.ready",
   Suspended: "admin.exDeploy.phase.suspended",
   Failed: "admin.exDeploy.phase.failed",
