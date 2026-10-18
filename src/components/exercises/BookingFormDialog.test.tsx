@@ -27,7 +27,7 @@ describe("booking date and time", () => {
     fireEvent.click(screen.getByRole("button", { name: t("ui.dateTime.done") }))
     fireEvent.click(screen.getByRole("button", { name: t("exercises.book.confirm") }))
     next.setHours(18)
-    await waitFor(() => expect(createBooking).toHaveBeenCalledWith({ Start: next.toISOString(), DurationMinutes: 120, Size: size, LargestDevice: size }))
+    await waitFor(() => expect(createBooking).toHaveBeenCalledWith({ Start: next.toISOString(), DurationMinutes: 60, Size: size, LargestDevice: size }))
     expect(onBooked).toHaveBeenCalledWith({ ID: "created" })
     expect(toLocalInput(next.toISOString())).toMatch(/T18:30$/)
   })
@@ -39,20 +39,18 @@ describe("booking date and time", () => {
     const error = document.getElementById(startControl.getAttribute("aria-describedby")!)!
     expect(error).toHaveTextContent(t("exercises.book.limit.past"))
     expect(startControl.parentElement).toContainElement(error)
-    expect(screen.getByRole("spinbutton")).toHaveAttribute("aria-invalid", "false")
+    expect(screen.getByRole("button", { name: t("exercises.book.minutes") })).toHaveAttribute("aria-invalid", "false")
     fireEvent.click(screen.getByRole("button", { name: t("exercises.book.confirm") }))
     expect(screen.getAllByRole("alert")).toHaveLength(1)
     expect(createBooking).not.toHaveBeenCalled()
   })
 
-  it("puts duration validation at duration and preserves its hint link", () => {
+  it("offers the fixed durations, 1 h by default", () => {
     render(<BookingFormDialog open start={start.toISOString()} size={size} largestDevice={size} active={0} onCancel={vi.fn()} onBooked={vi.fn()} />)
-    const control = screen.getByRole("spinbutton")
-    fireEvent.change(control, { target: { value: "0" } })
-    expect(control).toHaveAttribute("aria-invalid", "true")
-    expect(control).toHaveAttribute("aria-describedby", "booking-minutes-hint booking-minutes-error")
-    expect(control.parentElement).toContainElement(screen.getByRole("alert"))
-    expect(screen.getByRole("button", { name: t("exercises.book.start") })).toHaveAttribute("aria-invalid", "false")
+    const control = screen.getByRole("button", { name: t("exercises.book.minutes") })
+    expect(control).toHaveTextContent(t("exercises.book.duration.hours", { n: 1 }))
+    fireEvent.keyDown(control, { key: "Enter" })
+    const labels = screen.getAllByRole("menuitemradio").map((item) => item.textContent)
+    expect(labels).toEqual([15, 30, 45].map((n) => t("exercises.book.duration.minutes", { n })).concat([1, 2, 4, 8].map((n) => t("exercises.book.duration.hours", { n }))))
   })
-
 })
