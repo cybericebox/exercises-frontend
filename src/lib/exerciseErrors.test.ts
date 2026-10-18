@@ -50,6 +50,11 @@ describe('exerciseErrorMessage', () => {
     expect(exerciseErrorMessage(new ApiError(500, undefined, undefined, undefined, undefined, 1))).toBe('admin.ex.err.generic')
   })
 
+  it('answers the overload codes (no catalog message) with the overloaded text, Retry-After or not', () => {
+    expect(exerciseErrorMessage(new ApiError(503, { Status: { Code: 70431, Message: 'x' } }, 'x', undefined, 70431))).toBe('error.overloaded')
+    expect(exerciseErrorMessage(new ApiError(503, { Status: { Code: 70432, Message: 'x' } }, 'x', undefined, 70432, 2))).toBe('error.overloaded')
+  })
+
   it('falls back to generic + backend Status.Message for unknown codes', () => {
     expect(exerciseErrorMessage(apiError(500, 42, 'weird backend fact')))
       .toBe('admin.ex.err.genericWith weird backend fact')
@@ -94,6 +99,7 @@ describe('task description and catalog fallback', () => {
   it('answers a 429 with the wait message, whatever the body', () => {
     expect(exerciseErrorMessage(new ApiError(429, '', undefined, undefined, undefined, 7))).toBe('error.tooManyRequests.wait 7')
     expect(exerciseErrorMessage(new ApiError(429, { Status: { Code: 70428, Message: 'x' } }, 'x', undefined, 70428))).toBe('error.tooManyRequests')
+    expect(exerciseErrorMessage(new ApiError(429, { Status: { Code: 70428, Message: 'x' } }, 'x', undefined, 70428, 30))).toBe('error.tooManyRequests.wait 30')
   })
 })
 

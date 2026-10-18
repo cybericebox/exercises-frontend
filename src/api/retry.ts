@@ -8,11 +8,24 @@
 //   may reach the outage report and the error mapping;
 // - store parseRetryAfterSeconds(res.headers.get("Retry-After")) on the thrown
 //   error as `retryAfter` or `retryAfterSeconds` (a number, 0 included, when the
-//   header was present; undefined otherwise), next to its numeric `status`.
-//   isOverloadError reads exactly these fields.
+//   header was present; undefined otherwise), next to its numeric `status`
+//   and the error `code` of the answer (the full code or its detail part,
+//   code % 10000). isOverloadError reads exactly these fields.
+//
+// isOverloadResponse (429, or 503 with Retry-After) decides which reads are
+// tried again. isOverloadError is narrower: only the server's overload signal
+// may show the "server is overloaded" text. A 429 is always a personal limit
+// (an account, address, sign-in or flag budget) and keeps its own message.
 
 /** Statuses that can mean "busy, ask again shortly" (a 503 only with Retry-After). */
 export const OVERLOAD_STATUSES = [429, 503]
+
+/**
+ * The daemon's overload codes ServiceOverloaded (70431, in-flight limiter) and DatabaseBusy (70432, database
+ * acquire timeout) as detail codes (objectCode*100 + detailCode = code % 10000), so a full code and the detail
+ * code some clients keep both match.
+ */
+const OVERLOAD_DETAIL_CODES = [431, 432]
 
 /** A Retry-After longer than this is not worth waiting for in a pending request. */
 const MAX_RETRY_AFTER_MS = 10_000
@@ -111,11 +124,13 @@ export async function fetchWithOverloadRetry(doFetch: () => Promise<Response>, o
 }
 
 /**
- * An API error the user can simply repeat in a moment: a 429, or a 503 whose
- * response had Retry-After (see the port contract above for the fields).
+ * The server's overload signal: a 503 whose response had Retry-After, or an
+ * overload error code (full or detail form). A 429 never is (see the port contract above).
  */
 export function isOverloadError(err: unknown): boolean {
   if (!(err instanceof Error)) return false
-  const { status, retryAfter, retryAfterSeconds } = err as { status?: unknown; retryAfter?: unknown; retryAfterSeconds?: unknown }
-  return typeof status === "number" && isOverloadStatus(status, retryAfter != null || retryAfterSeconds != null)
+  const { status, code, retryAfter, retryAfterSeconds } = err as { status?: unknown; code?: unknown; retryAfter?: unknown; retryAfterSeconds?: unknown }
+  if (typeof status !== "number" || status === 429) return false
+  if (typeof code === "number" && OVERLOAD_DETAIL_CODES.includes(code % 10_000)) return true
+  return status === 503 && (retryAfter != null || retryAfterSeconds != null)
 }
