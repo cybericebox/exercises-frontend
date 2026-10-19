@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import type { ExerciseListItem, ExercisesPageFilter } from "@/api/exercises/catalog"
+import type { Exercise, ExerciseListItem, ExercisesPageFilter } from "@/api/exercises/catalog"
 import { LIST_EXTRAS, OWNERSHIP } from "@/test/exerciseFixtures"
 import {
   accessInfo, catalogStatus, clearedFilters, countActiveFilters, defaultFilters, difficultyLevel, difficultyName, filtersFromSearch, filtersToSearch,
-  hasActiveFilters, loadCatalogPage, MAX_AUTHORS, MAX_EVENTS, statusQuery, type CatalogFilters,
+  hasActiveFilters, loadCatalogPage, MAX_AUTHORS, MAX_EVENTS, mergeCardIntoRow, statusQuery, type CatalogFilters,
 } from "./catalogList"
 
 function row(id: string, patch: Partial<ExerciseListItem> = {}): ExerciseListItem {
@@ -148,5 +148,30 @@ describe("server query", () => {
     await loadCatalogPage(fetchPage, filters({ events: many("e"), authors: many("u") }), 1, 50)
     expect(fetchPage.mock.calls[1][0].events).toHaveLength(MAX_EVENTS)
     expect(fetchPage.mock.calls[1][0].authors).toHaveLength(MAX_AUTHORS)
+  })
+})
+
+describe("mergeCardIntoRow", () => {
+  const card = (patch: Partial<Exercise>): Exercise => ({
+    ...OWNERSHIP, ID: "a", Name: "a", Description: "", Tags: [], DraftVersionID: null, PublishedVersionID: "v1", ArchivedAt: null, HasChanges: false,
+    CreatedAt: "", CreatedBy: null, UpdatedAt: "2026-10-19T10:00:00Z", UpdatedBy: null, ...patch,
+  })
+
+  it("takes the archive mark, the access and the update time from the changed card, keeps the row's own fields", () => {
+    const permissions = { CanRead: true, CanEdit: true, CanPublish: true, CanDelete: true, CanManageAccess: true, CanPropose: false, CanExport: true }
+    const merged = mergeCardIntoRow(row("a", { Status: "published", AuthorName: "Ann", AvgDifficulty: 3, Permissions: permissions }),
+      card({ ArchivedAt: "2026-10-19T10:00:00Z", AccessLevel: "selected", AccessEventIDs: ["e1"], AccessEvents: [{ ID: "e1", Name: "Winter" }] }))
+    expect(merged).toMatchObject({ ArchivedAt: "2026-10-19T10:00:00Z", Status: "archived", AccessLevel: "selected", AccessEventIDs: ["e1"],
+      UpdatedAt: "2026-10-19T10:00:00Z", AuthorName: "Ann", AvgDifficulty: 3, Permissions: permissions })
+  })
+
+  it("derives the status of an unarchived task from its card", () => {
+    expect(mergeCardIntoRow(row("a", { Status: "archived", ArchivedAt: "x" }), card({ HasChanges: true })).Status).toBe("changed")
+    expect(mergeCardIntoRow(row("a", { Status: "archived", ArchivedAt: "x" }), card({})).Status).toBe("published")
+    expect(mergeCardIntoRow(row("a", { Status: "archived", ArchivedAt: "x" }), card({ PublishedVersionID: null, DraftVersionID: "d" })).Status).toBe("draft_only")
+  })
+
+  it("keeps the row's status when only the access changed", () => {
+    expect(mergeCardIntoRow(row("a", { Status: "changed" }), card({ AccessLevel: "none" })).Status).toBe("changed")
   })
 })

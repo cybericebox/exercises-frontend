@@ -5,18 +5,19 @@ import { useRouter } from "next/navigation"
 import { SlidersHorizontal, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
-import { listExerciseAuthors, listExercisesPage, type ExerciseListItem, type ScopeFilter } from "@/api/exercises/catalog"
+import { listExerciseAuthors, listExercisesPage, type Exercise, type ExerciseListItem, type ScopeFilter } from "@/api/exercises/catalog"
 import { listEventOptions, type EventOption } from "@/api/events/list"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { accessFromRbac, canCreateExercise, ownerOptions, writableEvents } from "@/lib/exerciseRights"
 import {
-  clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, type CatalogFilters,
+  clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
 import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
 import { AccessCell, AuthorCell, DifficultyCell, StatusCell } from "@/components/exercises/catalog/CatalogCells"
 import { CatalogFilterFields, ScopeFilterField, helpLines } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
 import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
+import { BulkActions } from "@/components/exercises/catalog/BulkActions"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
@@ -53,7 +54,8 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ cause: unknown } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  // The selected rows by ID (the selection spans pages; the bulk actions read the rights of each).
+  const [selected, setSelected] = useState<Map<string, ExerciseListItem>>(() => new Map())
   const [exportOpen, setExportOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Set when the dialog is reopened on a background import from the indicator.
@@ -76,33 +78,44 @@ export default function Page() {
   const atLimit = selected.size >= EXPORT_LIMIT
   // A row is exportable per the server (a moderator: their events' tasks); an older API falls back to the RBAC right.
   const exportable = (item: ExerciseListItem) => item.Permissions ? item.Permissions.CanExport : canExport
-  const pageIds = rows.filter(exportable).map((row) => row.ID)
-  const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
-  const columns = canExport ? 8 : 7
-  const selectionLabel = t("admin.ex.selection.count", { count: selected.size })
+  // A row is selectable for export or a bulk action (archive, access) the server allows on it.
+  const selectable = (item: ExerciseListItem) => exportable(item) || Boolean(item.Permissions?.CanEdit || item.Permissions?.CanManageAccess)
+  const selecting = canExport || access.CanCreateCatalog || access.Events.some((event) => event.CanWrite)
+  const pageRows = rows.filter(selectable)
+  const allOnPage = pageRows.length > 0 && pageRows.every((row) => selected.has(row.ID))
+  const columns = selecting ? 8 : 7
 
-  function toggle(id: string) {
+  function toggle(item: ExerciseListItem) {
     setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else if (next.size < EXPORT_LIMIT) next.add(id)
+      const next = new Map(current)
+      if (next.has(item.ID)) next.delete(item.ID)
+      else if (next.size < EXPORT_LIMIT) next.set(item.ID, item)
       return next
     })
   }
 
   function toggleAll() {
     setSelected((current) => {
-      const next = new Set(current)
+      const next = new Map(current)
       if (allOnPage) {
-        for (const id of pageIds) next.delete(id)
+        for (const row of pageRows) next.delete(row.ID)
       } else {
-        for (const id of pageIds) {
+        for (const row of pageRows) {
           if (next.size >= EXPORT_LIMIT) break
-          next.add(id)
+          next.set(row.ID, row)
         }
       }
       return next
     })
+  }
+
+  // A bulk action changed these tasks: their rows update in place, nothing reloads.
+  function applyCards(cards: Exercise[]) {
+    const byId = new Map(cards.map((card) => [card.ID, card]))
+    setRows((current) => current.map((row) => {
+      const card = byId.get(row.ID)
+      return card ? mergeCardIntoRow(row, card) : row
+    }))
   }
 
   // A background import ended (any tab of this page load): the list reloads with its rows kept, so nothing flashes.
@@ -231,24 +244,18 @@ export default function Page() {
         </div>
       </FiltersSheet>
 
-      {canExport && selected.size > 0 && (
-        <div role="region" aria-label={selectionLabel} className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <span className="font-medium">{selectionLabel}</span>
-          <Button type="button" size="sm" onClick={() => setExportOpen(true)}>{t("admin.ex.selection.export")}</Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t("admin.ex.selection.clear")}</Button>
-          {atLimit && <span className="text-xs text-muted-foreground">{t("admin.ex.selection.limit")}</span>}
-        </div>
-      )}
+      <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
+        onClear={() => setSelected(new Map())} onChanged={applyCards} />
 
       <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[64rem]">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
-            {canExport && <th scope="col" className={cn(TABLE_HEAD_CELL, "w-10", "max-sm:left-0 max-sm:z-30")}>
+            {selecting && <th scope="col" className={cn(TABLE_HEAD_CELL, "w-10", "max-sm:left-0 max-sm:z-30")}>
               <label className="inline-flex h-6 w-6 items-center justify-center">
-                <input type="checkbox" aria-label={t("admin.ex.select.all")} checked={allOnPage} disabled={pageIds.length === 0} onChange={toggleAll} className="h-4 w-4 accent-primary" />
+                <input type="checkbox" aria-label={t("admin.ex.select.all")} checked={allOnPage} disabled={pageRows.length === 0} onChange={toggleAll} className="h-4 w-4 accent-primary" />
               </label>
             </th>}
-            <SortableHeader label={t("admin.ex.col.name")} field="name" {...sortProps} className={cn("max-sm:z-30", canExport ? "max-sm:left-10" : "max-sm:left-0")} />
+            <SortableHeader label={t("admin.ex.col.name")} field="name" {...sortProps} className={cn("max-sm:z-30", selecting ? "max-sm:left-10" : "max-sm:left-0")} />
             <SortableHeader label={t("admin.ex.col.author")} field="author" {...sortProps}>
               <FieldHelp lines={[t("exercises.help.authorCol.who")]} />
             </SortableHeader>
@@ -277,13 +284,13 @@ export default function Page() {
           <tbody>
             {rows.map((item) => (
               <tr key={item.ID} className={`relative ${TABLE_ROW} ${item.ArchivedAt ? "text-muted-foreground" : ""}`}>
-                {canExport && <td className={cn(TABLE_CELL, STICKY_SELECT)}>
-                  {exportable(item) && <label className="relative z-10 inline-flex h-6 w-6 items-center justify-center">
+                {selecting && <td className={cn(TABLE_CELL, STICKY_SELECT)}>
+                  {selectable(item) && <label className="relative z-10 inline-flex h-6 w-6 items-center justify-center">
                     <input type="checkbox" aria-label={t("admin.ex.select.rowNamed", { name: item.Name })} checked={selected.has(item.ID)}
-                      disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item.ID)} className="h-4 w-4 accent-primary" />
+                      disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item)} className="h-4 w-4 accent-primary" />
                   </label>}
                 </td>}
-                <td className={cn(TABLE_CELL, STICKY_NAME, canExport ? "max-sm:left-10" : "max-sm:left-0", "max-sm:max-w-[45vw]")}>
+                <td className={cn(TABLE_CELL, STICKY_NAME, selecting ? "max-sm:left-10" : "max-sm:left-0", "max-sm:max-w-[45vw]")}>
                   <span className="flex items-center gap-1.5">
                     <Link href={`/detail?id=${item.ID}`} className="font-medium text-foreground after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-2 focus-visible:outline-primary">{item.Name}</Link>
                     <InfrastructureIcon show={item.Infrastructure} />
@@ -316,7 +323,7 @@ export default function Page() {
       </Table>
       <TablePagination page={page} pageSize={pageSize} total={total}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
-      {exportOpen && <ExportDialog exerciseIds={[...selected]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Set())} />}
+      {exportOpen && <ExportDialog exerciseIds={[...selected.keys()]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Map())} />}
       {importOpen && <ImportDialog key={importJobId ?? "new"} jobId={importJobId}
         targets={ownerOptions(access, t("exercises.owner.catalog"))} initialTarget={filteredEvent}
         onClose={() => { setImportOpen(false); setImportJobId(undefined) }} onImported={() => setReloadKey((key) => key + 1)} />}

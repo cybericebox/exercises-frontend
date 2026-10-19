@@ -4,7 +4,7 @@
  * paging and sorting (several events, statuses and authors, tags with all of /
  * none of, the difficulty range) happen on the server.
  */
-import type { ExerciseListItem, ExerciseStatus, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
+import type { Exercise, ExerciseListItem, ExerciseStatus, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
 import type { OffsetPage } from "@/api/pagination"
 
 /** The single status shown in the table. */
@@ -20,6 +20,24 @@ export function catalogStatus(item: Pick<ExerciseListItem, "ArchivedAt" | "HasDr
   if (item.ArchivedAt) return "archived"
   if (item.HasPublished) return item.HasDraft ? "changed" : "published"
   return item.HasDraft ? "draft" : "none"
+}
+
+const TO_SERVER: Record<CatalogStatus, ExerciseStatus> = {
+  none: "none", draft: "draft_only", changed: "changed", published: "published", archived: "archived",
+}
+
+/**
+ * A table row after a bulk action changed its task: the archive mark, the access and the update time come from the
+ * changed card; the list-only fields (author, difficulty, the caller's rights) stay. An unarchived task gets its
+ * status from the card; after an access change the row's status stays.
+ */
+export function mergeCardIntoRow(row: ExerciseListItem, card: Exercise): ExerciseListItem {
+  const archiveChanged = Boolean(row.ArchivedAt) !== Boolean(card.ArchivedAt)
+  return {
+    ...row, ArchivedAt: card.ArchivedAt, UpdatedAt: card.UpdatedAt || row.UpdatedAt,
+    AccessLevel: card.AccessLevel, AccessEventIDs: card.AccessEventIDs, AccessEvents: card.AccessEvents,
+    Status: card.ArchivedAt ? "archived" : archiveChanged || row.Status === "archived" ? TO_SERVER[headerStatus(card)] : row.Status,
+  }
 }
 
 /** The same status for the exercise card, which knows whether the draft really differs. */
