@@ -42,4 +42,10 @@ describe("ConfirmDialog", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
     expect(onCancel).not.toHaveBeenCalled()
   })
+
+  it("names the running operation on the busy action", () => {
+    renderDialog({ busy: true, busyLabel: "Deleting…" })
+    expect(screen.getByRole("button", { name: /Deleting…/ })).toHaveAttribute("aria-busy", "true")
+    expect(screen.queryByRole("button", { name: /^Delete$/ })).not.toBeInTheDocument()
+  })
 })

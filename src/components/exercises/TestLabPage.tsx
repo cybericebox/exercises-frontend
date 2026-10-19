@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
-import { destroyDeploy, listDeploys, type DeployListItem, type DeployStatus } from "@/api/exercises/deploy"
+import { destroyDeploy, extendDeploy, getTestRunLengths, listDeploys, type DeployListItem, type DeployStatus, type TestRunLengths } from "@/api/exercises/deploy"
 import { getExercise, type Exercise } from "@/api/exercises/catalog"
 import { getVersion, type NormalizedVariant, type VersionResources } from "@/api/exercises/versions"
 import { LabBar, LabTimer, TaskSidebar, TaskView } from "@/components/exercises/LabWorkbench"
@@ -31,11 +31,14 @@ import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
 import { NoRoomPanel } from "@/components/exercises/NoRoomPanel"
 import { isNoTestLabRoom } from "@/lib/noTestLabRoom"
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
+import { useLeaseClock } from "@/lib/useLeaseClock"
+import { formatClock } from "@/lib/bookingFormat"
+import { initialLength, TestRunLength } from "@/components/exercises/TestRunLength"
 
 /** What the page was opened with: a running deploy, or a variant to start one for. */
 export type TestLabInitial = { deploy: string | null; version: string | null; variant: string | null }
 
-type Meta = { exercise: Exercise; variant: NormalizedVariant; variantNumber: number; versionId: string; resources: VersionResources | null }
+type Meta = { exercise: Exercise; variant: NormalizedVariant; variantNumber: number; versionId: string; resources: VersionResources | null; lengths: TestRunLengths | null }
 type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; meta: Meta }
 
 /** A deploy the list no longer knows: ended, or its lease ran out. */
@@ -45,6 +48,8 @@ class DeployGoneError extends Error {}
 const STATIC_STATUS: DeployStatus = { Phase: "Ready", Ready: true }
 
 const RATIO_DEFAULT = 4 / 9 // task 4 : topology 5
+/** The ending line shows this long before the lease ends, even without the reservation's notice. */
+const ENDING_SOON_MS = 5 * 60000
 const clampRatio = (value: number) => Math.min(0.75, Math.max(0.25, value))
 
 /** A value kept in localStorage; storage may be unavailable, then it just lives for the visit. */
@@ -88,6 +93,11 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const [ended, setEnded] = useState(false)
   const [solved, setSolved] = useState<ReadonlySet<string>>(new Set())
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set())
+  // A new test waits for the author to choose its run length and press «Запустити».
+  const [choosing, setChoosing] = useState(false)
+  const [length, setLength] = useState(0)
+  const [extending, setExtending] = useState(false)
+  const [extendError, setExtendError] = useState("")
   const [collapsed, setCollapsed] = usePersisted(LAB_SIDEBAR_COLLAPSED_KEY, false, (raw) => raw === "true")
   const [topologyShown, setTopologyShown] = usePersisted(LAB_TOPOLOGY_SHOWN_KEY, true, (raw) => raw !== "false")
   const [ratio, setRatio] = usePersisted(LAB_TOPOLOGY_WIDTH_KEY, RATIO_DEFAULT, (raw) => Number.isFinite(Number(raw)) ? clampRatio(Number(raw)) : null)
@@ -110,16 +120,21 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
           variantId = running.VariantID
         }
         if (!versionId || !variantId) throw new DeployGoneError()
-        const [exercise, version] = await Promise.all([getExercise(exerciseId), getVersion(exerciseId, versionId)])
+        // The lengths matter only for a new test; without them the server's default applies.
+        const [exercise, version, lengths] = await Promise.all([getExercise(exerciseId), getVersion(exerciseId, versionId),
+          running ? Promise.resolve(null) : getTestRunLengths().catch(() => null)])
         const index = version.Variants.findIndex((candidate) => candidate.ID === variantId)
         if (index < 0) throw new DeployGoneError()
         if (cancelled) return
         const variant = version.Variants[index]
         setSelected(variant.Tasks[0]?.ID ?? null)
         setItem(running)
-        setLoad({ state: "ready", meta: { exercise, variant, variantNumber: index + 1, versionId, resources: version.Resources } })
+        setLoad({ state: "ready", meta: { exercise, variant, variantNumber: index + 1, versionId, resources: version.Resources, lengths } })
         if (running) attach(running.DeployID, running.Tasks, running.Kind ?? "lab")
-        else void start(exerciseId, versionId, variantId)
+        else if (lengths && lengths.AllowedMinutes.length > 0) {
+          setLength(initialLength(lengths))
+          setChoosing(true)
+        } else void start(exerciseId, versionId, variantId)
       } catch (cause) {
         if (!cancelled) setLoad({ state: "error", cause })
       }
@@ -167,9 +182,28 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const task = tasks.find((candidate) => candidate.ID === selected) ?? tasks[0] ?? null
 
   const retry = useCallback(() => {
-    if (load.state === "ready" && !deploy.deployId) void start(exerciseId, load.meta.versionId, load.meta.variant.ID ?? "")
+    if (load.state === "ready" && !deploy.deployId) void start(exerciseId, load.meta.versionId, load.meta.variant.ID ?? "", length || undefined)
     else setAttempt((n) => n + 1)
-  }, [load, deploy.deployId, start, exerciseId])
+  }, [load, deploy.deployId, start, exerciseId, length])
+
+  // The ending line: the reservation's notice, or the last minutes of the lease.
+  const endingAt = deploy.status?.EndingAt ?? item?.EndingAt ?? null
+  const now = useLeaseClock(item?.ExpiresAt ? [item.ExpiresAt] : [], Boolean(item?.ExpiresAt) && !deploy.gone)
+  const endsSoon = Boolean(item?.ExpiresAt) && new Date(item?.ExpiresAt ?? "").getTime() - now <= ENDING_SOON_MS
+
+  async function extend() {
+    if (!deploy.deployId) return
+    setExtending(true)
+    setExtendError("")
+    try {
+      const updated = await extendDeploy(deploy.deployId)
+      setItem({ ...updated, EndingAt: null })
+    } catch (cause) {
+      setExtendError(exerciseErrorMessage(cause))
+    } finally {
+      setExtending(false)
+    }
+  }
 
   async function endTest() {
     if (!deploy.deployId) return
@@ -197,7 +231,8 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
     const cause = load.state === "error" ? load.cause : undefined
     // the whole test page failed (no lab bar, no shell): the full error page
     return gone
-      ? <ErrorPage mode="page" status={404} title={t("admin.exTest.gone")} />
+      // The last answer before the lab went carried the reservation's ending notice: its time ran out.
+      ? <ErrorPage mode="page" status={404} title={t(deploy.status?.EndingAt ? "admin.exDeploy.ended" : "admin.exTest.gone")} />
       : <ErrorPage mode="page" status={500} body={t("admin.exTest.loadFailed", { reason: exerciseErrorMessage(cause) })} error={cause} onRetry={retry} />
   }
 
@@ -220,25 +255,45 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
   const stage = (at: number) => tasks[at] ? { number: at + 1, select: () => setSelected(tasks[at].ID) } : undefined
   const showTopology = !isStatic && topologyShown && ready && !expired
   const imageNote = isStatic ? null : imageWarningText(status)
+  // The lab will be deleted soon unless it is extended (a static test has no reservation).
+  const endingLine = !isStatic && ready && !expired && Boolean(deploy.deployId) && (Boolean(endingAt) || endsSoon)
+  const endingTime = endingAt ?? item?.ExpiresAt ?? null
   // A start refused because some images cannot be pulled (409 72803): which ones, and why.
   const unavailableImages = deploy.error ? unavailableImagesOf(deploy.errorCause) : null
 
   return <div className="flex h-dvh flex-col bg-background">
     <LabBar title={meta.exercise.Name} isStatic={isStatic} backHref={exerciseHref(exerciseId)} progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }}
-      center={<LabTimer isStatic={isStatic} expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={expired ? t("admin.exTest.expired") : isStatic ? "" : !deploy.deployId ? t(deploy.error ? "admin.exTest.startFailed" : "admin.exTest.starting") : deployPhaseLabel(phase)} />}
+      center={<LabTimer isStatic={isStatic} expiresAt={ready && !expired ? item?.ExpiresAt ?? null : null} fallback={choosing ? "" : expired ? t("admin.exTest.expired") : isStatic ? "" : !deploy.deployId ? t(deploy.error ? "admin.exTest.startFailed" : "admin.exTest.starting") : deployPhaseLabel(phase)} />}
       topologyShown={topologyShown} onToggleTopology={isStatic ? undefined : () => setTopologyShown(!topologyShown)}
       onOpenVpn={!expired && ready && vpnConfig ? () => setVpnOpen(true) : undefined}
       vpn={{ connected: status?.VPNConnected ?? false }}
       onEnd={deploy.deployId && !expired ? () => { setEndError(""); setEndOpen(true) } : undefined} />
     <div className="relative flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto">
     {/* Notices float over the content: they appear and go without moving the lab under them. */}
-    {(deploy.link === "error" || imageNote) && <div className="absolute inset-x-0 top-0 z-20 border-b border-border bg-background">
+    {(deploy.link === "error" || imageNote || endingLine) && <div className="absolute inset-x-0 top-0 z-20 border-b border-border bg-background">
       {deploy.link === "error" && <LoadError compact error={deploy.linkError}
         message={deploy.linkError instanceof PopupBlockedError ? t("admin.exDeploy.linkPopupBlocked") : t("admin.exDeploy.linkFailed")} onRetry={deploy.retryLink} />}
       {imageNote && <p className="px-4 py-1.5 text-xs text-muted-foreground">{imageNote}</p>}
+      {endingLine && endingTime && <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-sm">
+        <span>{t("admin.exDeploy.ending", { time: formatClock(endingTime) })}</span>
+        <Button type="button" size="sm" variant="outline" busy={extending} onClick={() => void extend()}>
+          {t(extending ? "admin.exDeploy.extending" : "admin.exDeploy.extend")}
+        </Button>
+        {extendError && <span role="alert" className="text-xs text-destructive">{extendError}</span>}
+      </div>}
     </div>}
 
-    {expired ? (
+    {choosing && meta.lengths ? (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-4">
+        <div className="grid w-full max-w-sm gap-4">
+          <TestRunLength lengths={meta.lengths} value={length} onChange={setLength} />
+          <Button type="button" onClick={() => {
+            setChoosing(false)
+            void start(exerciseId, meta.versionId, meta.variant.ID ?? "", length)
+          }}>{t("admin.exDeploy.start")}</Button>
+        </div>
+      </div>
+    ) : expired ? (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-4">
         <EmptyState className="min-h-0 py-0" message={t("admin.exTest.expired")} />
         <Button type="button" variant="destructive" onClick={() => { setEndError(""); setEndOpen(true) }}>{t("admin.exTest.end")}</Button>
@@ -304,7 +359,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
 
     <VpnDialog open={vpnOpen && Boolean(vpnConfig)} config={vpnConfig} connected={status?.VPNConnected ?? null} probeUrl={status?.VPNProbeURL} onClose={() => setVpnOpen(false)} />
     <ConfirmDialog open={endOpen} tone="danger" busy={ending} error={endError} title={t("admin.exTest.endTitle")}
-      description={t(isStatic ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(isStatic ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} busyLabel={t("admin.exTest.ending")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEndOpen(false)} onConfirm={() => void endTest()} />
   </div>
 }

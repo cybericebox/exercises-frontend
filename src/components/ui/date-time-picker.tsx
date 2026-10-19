@@ -164,7 +164,7 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
       <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content align="start" sideOffset={4} collisionPadding={8} aria-label={ariaLabel} className="z-[80] grid max-h-[var(--radix-popover-content-available-height)] w-[min(21rem,calc(100vw-1rem))] gap-2 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-popover-foreground outline-none"
+      <Popover.Content align="start" sideOffset={4} collisionPadding={8} aria-label={ariaLabel} className="z-(--ib-z-popover) grid max-h-[var(--radix-popover-content-available-height)] w-[min(21rem,calc(100vw-1rem))] gap-2 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-popover-foreground outline-none"
         onOpenAutoFocus={(event) => { event.preventDefault(); gridRef.current?.querySelector<HTMLButtonElement>("[tabindex='0']")?.focus() }}>
         <div className="flex items-center justify-between gap-2">
           <button type="button" aria-label={t("ui.dateTime.prevMonth")} onClick={() => changeMonth(-1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button>

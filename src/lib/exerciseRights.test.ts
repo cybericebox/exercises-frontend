@@ -6,8 +6,8 @@ import {
 } from './exerciseRights'
 
 const ev = (ID: string, CanWrite = true, InfrastructureAllowed = true) => ({ ID, Name: `Event ${ID}`, Tag: ID, CanWrite, InfrastructureAllowed })
-const admin: ExerciseAccess = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, Events: [] }
-const manager: ExerciseAccess = { IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: false, Events: [ev('a'), ev('b', false), ev('c', true, false)] }
+const admin: ExerciseAccess = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] }
+const manager: ExerciseAccess = { IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: false, CanImport: false, Events: [ev('a'), ev('b', false), ev('c', true, false)] }
 const viewer: ExerciseAccess = { ...manager, Events: [ev('b', false)] }
 const nobody: ExerciseAccess = { ...manager, Events: [] }
 const allow = () => true

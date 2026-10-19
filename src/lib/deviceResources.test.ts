@@ -7,10 +7,12 @@ const device = (ResourcePreset: string) => ({ ResourcePreset })
 
 describe("quantities", () => {
   it("formats them", () => {
-    expect(formatCPU(250)).toBe("250m")
+    expect(formatCPU(250)).toBe("0,25")
+    expect(formatCPU(500)).toBe("0,5")
     expect(formatCPU(1000)).toBe("1")
-    expect(formatMemory(64 * MIB)).toBe("64Mi")
-    expect(formatMemory(1536 * MIB)).toBe("1.5Gi")
+    expect(formatMemory(64 * MIB)).toBe("64 МіБ")
+    expect(formatMemory(512 * MIB)).toBe("512 МіБ")
+    expect(formatMemory(1536 * MIB)).toBe("1,5 ГіБ")
   })
 })
 

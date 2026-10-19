@@ -11,8 +11,8 @@ import { SignInRedirect } from "./SignInRedirect"
 
 // A page the signed-in account has no rights for (403): the error-screen frame with a
 // Lock mark, the account, and two ways out: another account (sign out, then sign in
-// back to this page) or home.
-export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: string }) {
+// back to this page) or home. mode="block" centers the same card inside the page area of the shell.
+export function NoAccessScreen({ title = t("auth.noAccess.title"), mode = "page" }: { title?: string; mode?: "page" | "block" }) {
   const { me } = useRole()
   const [working, setWorking] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -33,12 +33,12 @@ export function NoAccessScreen({ title = t("auth.noAccess.title") }: { title?: s
   // The session ended meanwhile: that is a 401 after all.
   if (!me) return <SignInRedirect />
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className={mode === "page" ? "flex min-h-screen items-center justify-center p-4" : "flex h-full min-h-[60dvh] items-center justify-center"}>
       <div className="flex w-full max-w-md flex-col">
-        <div className="mb-6 flex justify-center"><Wordmark size="lg" /></div>
+        {mode === "page" && <div className="mb-6 flex justify-center"><Wordmark size="lg" /></div>}
         <div role="alert" className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-8 text-center">
           <Lock size={32} className="text-muted-foreground" aria-hidden />
-          <h1 className="text-lg font-semibold">{title}</h1>
+          {mode === "page" ? <h1 className="text-lg font-semibold">{title}</h1> : <h2 className="text-lg font-semibold">{title}</h2>}
           <p className="text-sm text-muted-foreground">{t("auth.noAccess.body", { email: me.Email })}</p>
           {failed && <p role="alert" className="text-sm text-destructive">{t("auth.noAccess.failed")}</p>}
           <div className="mt-2 flex flex-wrap justify-center gap-2">

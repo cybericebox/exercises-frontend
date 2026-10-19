@@ -116,10 +116,23 @@ describe("exercise page — modes", () => {
     h.perms = new Set(["exercises.read"])
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    for (const name of ["admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.more", "admin.exPage.action.test"]) {
+    for (const name of ["admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.test"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument()
     }
     expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
+    // Only History is left: the more menu that carries it on phones is hidden from sm up.
+    expect(screen.getByRole("button", { name: "admin.exPage.action.more" })).toHaveClass("sm:hidden")
+  })
+
+  it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
+    const { unmount } = render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeInTheDocument()
+    unmount()
+    h.perms = new Set(["exercises.read"])
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    expect(screen.queryByRole("textbox", { name: "admin.ex.create.notes" })).not.toBeInTheDocument()
   })
 
   it("disables Publish when the working copy matches the publication", async () => {
@@ -206,6 +219,10 @@ describe("exercise page — publishing and history", () => {
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.version.restore" }))
+    // It replaces the working copy: asked first, with the danger action.
+    expect(restoreVersion).not.toHaveBeenCalled()
+    expect(await screen.findByRole("dialog", { name: "admin.exPage.restore.title" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.restore.confirm" }))
     await waitFor(() => expect(restoreVersion).toHaveBeenCalledWith("ex-1", "snap-1"))
     expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1")
   })

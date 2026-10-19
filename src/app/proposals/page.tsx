@@ -5,6 +5,7 @@ import Link from "next/link"
 import { approveProposal, listProposals, rejectProposal, type Proposal, type ProposalStatus } from "@/api/exercises/proposals"
 import { AccessLevelFields, accessValueValid, type AccessValue } from "@/components/exercises/AccessLevelFields"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
+import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -73,7 +74,7 @@ function ApproveDialog({ proposal, onClose, onDone }: { proposal: Proposal; onCl
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{t("admin.exPage.dialog.cancel")}</Button>
-          <Button type="button" disabled={busy || !nameValid || !accessValueValid(access)} onClick={() => void approve()}>{t("exercises.proposals.approve")}</Button>
+          <Button type="button" busy={busy} disabled={!nameValid || !accessValueValid(access)} onClick={() => void approve()}>{busy ? t("exercises.proposals.approving") : t("exercises.proposals.approve")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -100,7 +101,7 @@ function RejectDialog({ proposal, onClose, onDone }: { proposal: Proposal; onClo
   return (
     <ConfirmDialog open onCancel={onClose} tone="danger" busy={busy} error={error}
       title={t("exercises.proposals.rejectTitle")} description={`${proposal.ExerciseName} · ${proposal.EventName}`}
-      cancelLabel={t("admin.exPage.dialog.cancel")} confirmLabel={t("exercises.proposals.reject")} onConfirm={() => void reject()}>
+      cancelLabel={t("admin.exPage.dialog.cancel")} confirmLabel={t("exercises.proposals.reject")} busyLabel={t("exercises.proposals.rejecting")} onConfirm={() => void reject()}>
       <div className="space-y-1.5">
         <Label htmlFor="reject-note">{t("exercises.proposals.rejectNote")}</Label>
         <Textarea id="reject-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
@@ -119,7 +120,9 @@ export default function ProposalsPage() {
   const [rejecting, setRejecting] = useState<Proposal | null>(null)
   const [approved, setApproved] = useState<Proposal | null>(null)
   const isAdmin = access?.IsAdmin ?? false
-  const columns = status === "pending" ? 6 : 5
+  // The decisions need exercises.publish (POST proposals/:id/approve|reject): a read-only admin only reads the list.
+  const canDecide = status === "pending" && (access?.CanPublish ?? false)
+  const columns = canDecide ? 6 : 5
 
   useEffect(() => {
     if (!isAdmin) return
@@ -132,7 +135,7 @@ export default function ProposalsPage() {
   }, [isAdmin, status, reload])
 
   if (!isAdmin) {
-    return <p role="alert" className="text-sm text-muted-foreground">{t("exercises.proposals.forbidden")}</p>
+    return <NoAccessScreen mode="block" title={t("exercises.proposals.forbidden")} />
   }
 
   function decided(proposal: Proposal) {
@@ -160,7 +163,7 @@ export default function ProposalsPage() {
             <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.by")}</th>
             <th scope="col" className={TABLE_HEAD_CELL}>{t("exercises.proposals.col.note")}</th>
             <th scope="col" className={TABLE_HEAD_CELL}>{t(status === "pending" ? "exercises.proposals.col.at" : "exercises.proposals.col.decided")}</th>
-            {status === "pending" && <th scope="col" className={TABLE_HEAD_CELL}><span className="sr-only">{t("exercises.proposals.col.actions")}</span></th>}
+            {canDecide && <th scope="col" className={TABLE_HEAD_CELL}><span className="sr-only">{t("exercises.proposals.col.actions")}</span></th>}
           </tr>
         </thead>
         {items === null ? <TableState colSpan={columns}><LoadingArea label={t("admin.loading")} /></TableState>
@@ -183,7 +186,7 @@ export default function ProposalsPage() {
                   <td className={`${TABLE_CELL} whitespace-nowrap tabular-nums text-muted-foreground`}>
                     {(() => { const at = (status === "pending" ? item.ProposedAt : item.DecidedAt) ?? item.ProposedAt; return <time dateTime={at}>{formatExerciseDateTime(at)}</time> })()}
                   </td>
-                  {status === "pending" && (
+                  {canDecide && (
                     <td className={`${TABLE_CELL} whitespace-nowrap text-right`}>
                       <span className="inline-flex gap-2">
                         <Button type="button" size="sm" variant="outline" onClick={() => setRejecting(item)}>{t("exercises.proposals.reject")}</Button>

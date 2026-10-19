@@ -28,7 +28,10 @@ export function RunningTestsMenu() {
   if (!running && !open) return null
   return <>
     <Button type="button" variant="outline" size="sm" data-running-tests onClick={() => setOpen(true)}>
-      <FlaskConical aria-hidden="true" size={16} className="md:mr-1.5" /><span className="sr-only md:not-sr-only">{active > 0 ? t("admin.exTest.running", { n: active }) : t("admin.exTest.endingLabs", { n: items.length })}</span>
+      <FlaskConical aria-hidden="true" size={16} className="md:mr-1.5" />
+      {/* On a phone the label is for screen readers only: the count stays visible beside the icon. */}
+      <span data-running-count aria-hidden="true" className="ml-1 tabular-nums md:hidden">{active > 0 ? active : items.length}</span>
+      <span className="sr-only md:not-sr-only">{active > 0 ? t("admin.exTest.running", { n: active }) : t("admin.exTest.endingLabs", { n: items.length })}</span>
     </Button>
     <RunningLabsDialog open={open && running} items={items} onExpired={() => void refresh()} onClose={() => setOpen(false)}
       onEnded={(id) => { forget(id); setTimeout(() => void refresh(), 1500) }} />

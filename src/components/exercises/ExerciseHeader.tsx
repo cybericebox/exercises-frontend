@@ -37,6 +37,8 @@ export type ExerciseHeaderProps = {
   publishBlockedReason?: string
   revertable: boolean
   busy: boolean
+  /** The action that keeps the header busy: its button names it («Публікуємо…»). */
+  running?: string | null
   testAvailable: boolean
   /** The test action is shown but disabled; the reason (when known) appears in a tooltip. */
   testBlocked?: boolean
@@ -176,16 +178,28 @@ function MoreMenu(props: ExerciseHeaderProps) {
   const deleteItem = permissions.delete
   const top = snapshot || revert || exportItem
   const bottom = archiveItem || deleteItem
-  if (!top && !bottom) return null
+  // On phones «Історія» and «Доступ» move here (their buttons are hidden), so the actions fit on one row.
+  const phoneOnly = !top && !bottom
   const inUse = usageEvents.length > 0
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy}>
+        <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className={cn(phoneOnly && "sm:hidden")}>
           <Ellipsis aria-hidden="true" className={ICON} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem className="gap-2 sm:hidden" onSelect={props.onHistory}>
+          <History aria-hidden="true" className={ICON} />
+          {t("admin.exPage.action.history")}
+        </DropdownMenuItem>
+        {props.onAccess && (
+          <DropdownMenuItem className="gap-2 sm:hidden" onSelect={props.onAccess}>
+            <ShieldCheck aria-hidden="true" className={ICON} />
+            {t("exercises.access.button")}
+          </DropdownMenuItem>
+        )}
+        {!phoneOnly && <DropdownMenuSeparator className="sm:hidden" />}
         {snapshot && (
           <DropdownMenuItem className="gap-2" onSelect={props.onSnapshot}>
             <Camera aria-hidden="true" className={ICON} />
@@ -274,12 +288,15 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
                 <Button type="button" variant="outline" size="sm" onClick={props.onOpenTest}>{t("admin.exPage.test.open")}</Button>
               </span>
             )}
-            {testAvailable && <TestMenu disabled={!created || busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
-            <Button type="button" variant="outline" disabled={!created} onClick={props.onHistory}>
-              <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-              {t("admin.exPage.action.history")}
-            </Button>
-            <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+            {/* A new exercise has nothing to test or look back at yet. */}
+            {created && testAvailable && <TestMenu disabled={busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
+            {created && <>
+              <Button type="button" variant="outline" className="max-sm:hidden" onClick={props.onHistory}>
+                <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
+                {t("admin.exPage.action.history")}
+              </Button>
+              <span aria-hidden="true" className="mx-1 h-6 w-px bg-border max-sm:hidden" />
+            </>}
             {mode === "new" && (
               <Button asChild variant="outline">
                 <Link href="/" data-allow-leave onClick={props.onCancelNew}>
@@ -299,7 +316,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
               </Button>
             )}
             {created && props.onAccess && (
-              <Button type="button" variant="outline" disabled={busy} onClick={props.onAccess}>
+              <Button type="button" variant="outline" className="max-sm:hidden" disabled={busy} onClick={props.onAccess}>
                 <ShieldCheck aria-hidden="true" className={cn(ICON, "mr-1.5")} />
                 {t("exercises.access.button")}
               </Button>
@@ -309,8 +326,9 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
             )}
             {permissions.publish && (
               (() => {
-                const publishButton = <Button type="button" disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>
-                  {t("admin.exPage.action.publish")}
+                const publishing = props.running === "publish"
+                const publishButton = <Button type="button" busy={publishing} disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>
+                  {t(publishing ? "admin.exPage.action.publishing" : "admin.exPage.action.publish")}
                 </Button>
                 return props.publishBlockedReason ? <HoverTooltip text={props.publishBlockedReason} describe>{publishButton}</HoverTooltip> : publishButton
               })()

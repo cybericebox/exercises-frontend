@@ -20,4 +20,9 @@ describe("SnapshotDialog", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("admin.exPage.snapshot.noteTooLong")
     expect(screen.getByRole("button", { name: "admin.exPage.snapshot.confirm" })).toBeDisabled()
   })
+
+  it("names the snapshot on its busy button", () => {
+    render(<SnapshotDialog busy onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(screen.getByRole("button", { name: /admin\.exPage\.snapshot\.busy/ })).toHaveAttribute("aria-busy", "true")
+  })
 })

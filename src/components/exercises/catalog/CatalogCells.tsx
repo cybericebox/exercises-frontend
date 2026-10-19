@@ -7,10 +7,11 @@ import { getEventOption } from "@/api/events/list"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { LoadingArea } from "@/components/ui/spinner"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
-import { accessInfo, catalogStatus, type CatalogStatus } from "@/lib/catalogList"
+import { accessInfo, catalogStatus, difficultyName, type CatalogStatus } from "@/lib/catalogList"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
+import { formatExerciseDate, formatExerciseTime } from "@/lib/exerciseStatus"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 const STATUS_BADGES: Record<CatalogStatus, { key: string; tone: BadgeTone }[]> = {
@@ -103,4 +104,40 @@ export function AccessCell({ item, eventName }: { item: ExerciseOwnership & { ID
       </PopoverContent>
     </Popover>
   )
+}
+
+const ONE_DECIMAL = new Intl.NumberFormat("uk", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** Average difficulty: the level it rounds to and the number (one decimal); «—» when the task has none. */
+export function DifficultyCell({ average }: { average: number | null }) {
+  if (average === null) return <span aria-label={t("exercises.difficulty.none")} className="text-muted-foreground">—</span>
+  const level = t(`admin.ex.difficulty.${difficultyName(average)}`)
+  const value = ONE_DECIMAL.format(average)
+  return <span aria-label={t("exercises.difficulty.value", { level, value })} className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+    <span aria-hidden="true">{level}</span>
+    <span aria-hidden="true" className="tabular-nums text-xs text-muted-foreground">{value}</span>
+  </span>
+}
+
+/** The author's name; «—» when unknown. */
+export function AuthorCell({ name }: { name: string }) {
+  return name
+    ? <span className="block max-w-48 truncate" title={name}>{name}</span>
+    : <span aria-label={t("exercises.author.unknown")} className="text-muted-foreground">—</span>
+}
+
+/** The number of subtasks of the first variant; «—» without a variant. */
+export function SubtaskCountCell({ count }: { count: number | null }) {
+  return count === null
+    ? <span aria-label={t("exercises.subtasks.none")} className="text-muted-foreground">—</span>
+    : <span className="tabular-nums">{count}</span>
+}
+
+/** When the task changed: the date over the time, so the column stays narrow; «—» when unknown. */
+export function UpdatedCell({ iso }: { iso: string }) {
+  if (!iso) return <span aria-label={t("admin.ex.none")}>—</span>
+  return <time dateTime={iso} className="flex flex-col leading-tight">
+    <span>{formatExerciseDate(iso)}</span>
+    <span className="text-xs">{formatExerciseTime(iso)}</span>
+  </time>
 }

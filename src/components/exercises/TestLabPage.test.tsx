@@ -23,10 +23,11 @@ vi.mock("@/api/exercises/catalog", () => ({ getExercise: vi.fn() }))
 vi.mock("@/api/exercises/versions", () => ({ getVersion: vi.fn() }))
 vi.mock("@/api/exercises/deploy", () => ({
   listDeploys: vi.fn(), deployVariant: vi.fn(), deployStatus: vi.fn(), destroyDeploy: vi.fn(), openDeployLink: vi.fn(), checkDeployFlag: vi.fn(),
+  getTestRunLengths: vi.fn(), extendDeploy: vi.fn(),
 }))
 
 import { getExercise } from "@/api/exercises/catalog"
-import { checkDeployFlag, deployStatus, deployVariant, destroyDeploy, listDeploys, openDeployLink } from "@/api/exercises/deploy"
+import { checkDeployFlag, deployStatus, deployVariant, destroyDeploy, extendDeploy, getTestRunLengths, listDeploys, openDeployLink } from "@/api/exercises/deploy"
 import { getVersion } from "@/api/exercises/versions"
 import { ApiError } from "@/api/client"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
@@ -85,6 +86,8 @@ beforeEach(() => {
   vi.mocked(listDeploys).mockResolvedValue([running])
   vi.mocked(deployStatus).mockResolvedValue(readyStatus)
   vi.mocked(destroyDeploy).mockResolvedValue(undefined)
+  // Without the offered lengths a new test starts at once with the server's default.
+  vi.mocked(getTestRunLengths).mockRejectedValue(new ApiError(404, null, "old server"))
 })
 
 describe("TestLabPage — states", () => {
@@ -967,4 +970,72 @@ describe("TestLabPage — starting lab", () => {
     expect(await screen.findByText("admin.exDeploy.failed")).toBeInTheDocument()
     expect(screen.queryByText(NO_ROOM)).not.toBeInTheDocument()
   })
+})
+
+describe("TestLabPage — run length and ending", () => {
+  const fresh = { deploy: null, version: "draft-1", variant: "v1" }
+
+  it("offers only the allowed lengths, default from the server", async () => {
+    vi.mocked(getTestRunLengths).mockResolvedValue({ AllowedMinutes: [15, 30, 45, 60], DefaultMinutes: 45 })
+    render(<TestLabPage exerciseId="ex-1" initial={fresh} />)
+    const select = await screen.findByRole("button", { name: "admin.exDeploy.length" })
+    expect(select).toHaveTextContent("exercises.book.duration.minutes 45")
+    expect(screen.getByText("admin.exDeploy.lengthHint")).toBeInTheDocument()
+    expect(deployVariant).not.toHaveBeenCalled()
+    fireEvent.pointerDown(select, { button: 0, ctrlKey: false })
+    const options = await screen.findAllByRole("menuitemradio")
+    expect(options.map((option) => option.textContent)).toEqual([
+      "exercises.book.duration.minutes 15", "exercises.book.duration.minutes 30", "exercises.book.duration.minutes 45", "exercises.book.duration.hours 1",
+    ])
+  })
+
+  it("sends the chosen length", async () => {
+    vi.mocked(getTestRunLengths).mockResolvedValue({ AllowedMinutes: [15, 30, 60], DefaultMinutes: 120 })
+    vi.mocked(deployVariant).mockResolvedValue({ DeployID: "run-1", Lab: "lab", Tasks: running.Tasks })
+    render(<TestLabPage exerciseId="ex-1" initial={fresh} />)
+    const select = await screen.findByRole("button", { name: "admin.exDeploy.length" })
+    expect(select).toHaveTextContent("exercises.book.duration.hours 1")
+    fireEvent.pointerDown(select, { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "exercises.book.duration.minutes 30" }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exDeploy.start" }))
+    expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
+    expect(deployVariant).toHaveBeenCalledWith("ex-1", "draft-1", "v1", 30)
+  })
+
+  it("shows the ending banner with the time", async () => {
+    const endingAt = "2026-10-19T15:05:00Z"
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, EndingAt: endingAt })
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    const time = new Date(endingAt).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })
+    expect(await screen.findByText(`admin.exDeploy.ending ${time}`)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "admin.exDeploy.extend" })).toBeInTheDocument()
+  })
+
+  it("shows the banner in the last minutes of the lease without a notice", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([{ ...running, ExpiresAt: new Date(Date.now() + 2 * 60000).toISOString() }])
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByRole("button", { name: "admin.exDeploy.extend" })).toBeInTheDocument()
+  })
+
+  it("extend busy state shows the crest and «Продовжуємо…»", async () => {
+    vi.mocked(deployStatus).mockResolvedValue({ ...readyStatus, EndingAt: "2026-10-19T15:05:00Z" })
+    let finish: (value: DeployListItem) => void = () => undefined
+    vi.mocked(extendDeploy).mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exDeploy.extend" }))
+    const busy = await screen.findByRole("button", { name: /admin\.exDeploy\.extending/ })
+    expect(busy).toHaveAttribute("aria-busy", "true")
+    expect(within(busy).getByRole("status")).toBeInTheDocument()
+    expect(extendDeploy).toHaveBeenCalledWith("run-1")
+    await act(async () => finish({ ...running, ExpiresAt: inHours(2), EndingAt: null }))
+    vi.mocked(deployStatus).mockResolvedValue(readyStatus)
+    await waitFor(() => expect(screen.queryByRole("button", { name: /admin\.exDeploy\.extending/ })).not.toBeInTheDocument())
+  })
+
+  it("says the time is over when the lab goes after its ending notice", async () => {
+    vi.mocked(deployStatus).mockResolvedValueOnce({ ...readyStatus, EndingAt: "2026-10-19T15:05:00Z" }).mockRejectedValue(new ApiError(404, null, "gone"))
+    render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+    expect(await screen.findByText(/admin\.exDeploy\.ending/)).toBeInTheDocument()
+    expect(await screen.findByText("admin.exDeploy.ended", {}, { timeout: 6000 })).toBeInTheDocument()
+  }, 10000)
 })

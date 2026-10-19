@@ -54,4 +54,22 @@ describe("RunningLabsDialog", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /admin\.exTest\.endLabNamed/ })[0])
     expect(await screen.findByText("admin.exTest.endDescriptionOthers")).toBeInTheDocument()
   })
+
+  it("lets a long name shrink, so the row's buttons stay inside the dialog on a phone", () => {
+    render(<RunningLabsDialog open items={[item("d1", "ex1")]} onClose={vi.fn()} onEnded={vi.fn()} />)
+    const name = screen.getByText("Exercise one")
+    expect(name).toHaveClass("truncate")
+    expect(name.parentElement).toHaveClass("min-w-0")
+    expect(name.parentElement?.parentElement).toHaveClass("min-w-0", "flex-1")
+  })
+
+  it("has a close button in its header that takes the first focus, so no row tooltip opens by itself", () => {
+    const onClose = vi.fn()
+    render(<RunningLabsDialog open items={[item("d1", "ex1")]} onClose={onClose} onEnded={vi.fn()} />)
+    const close = screen.getByRole("button", { name: "admin.exTest.runningClose" })
+    expect(close).toHaveFocus()
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalled()
+  })
 })

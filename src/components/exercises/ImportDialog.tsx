@@ -9,10 +9,12 @@ import { downloadImportExample, startImport, type ArchiveStage } from "@/api/exe
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
 import { PasswordInput } from "@/components/ui/password-input"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
@@ -20,6 +22,7 @@ import { downloadBlob } from "@/lib/downloadBlob"
 import { dismissImportJob, trackImportJob, useImportJob, type TrackedImport } from "@/lib/importJobs"
 import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref } from "@/lib/exerciseRoutes"
+import type { OwnerOption } from "@/lib/exerciseRights"
 import "@/styles/import-howto.css"
 
 // 400s of the upload itself (too large, wrong chunk size, damaged file, no name): not a missing password.
@@ -44,11 +47,32 @@ function describeFailure(cause: unknown): { fileError: string | null; error: str
 }
 
 /**
+ * Where an import goes first: the requested event when it is a target; else the catalog when it is one (admins);
+ * else the only target. null = the user picks.
+ */
+export function defaultImportTarget(targets: OwnerOption[], requested: string | null): string | null {
+  if (requested && targets.some((target) => target.value === requested)) return requested
+  if (targets.some((target) => target.value === "")) return ""
+  return targets.length === 1 ? targets[0].value : null
+}
+
+/**
  * `jobId`: reopened from the catalog indicator on a background import (running: live progress; failed: the error).
  * Closing the dialog never cancels a job that is already queued; it goes on and the catalog shows its progress.
+ * `targets` are where the user may import: "" the platform catalog (admins), otherwise an event they manage; with
+ * more than one the dialog asks («Куди імпортувати»), `initialTarget` preselects one (the events filter).
  */
-export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => void; onImported?: () => void; jobId?: string }) {
+export function ImportDialog({ onClose, onImported, jobId, targets = [], initialTarget = null }: {
+  onClose: () => void
+  onImported?: () => void
+  jobId?: string
+  targets?: OwnerOption[]
+  initialTarget?: string | null
+}) {
   const router = useRouter()
+  const [target, setTarget] = useState<string | null>(() => defaultImportTarget(targets, initialTarget))
+  const [targetError, setTargetError] = useState<string | null>(null)
+  const chosenTarget = targets.find((option) => option.value === target) ?? null
   const [file, setFile] = useState<File | null>(null)
   const [password, setPassword] = useState("")
   const [passwordNeeded, setPasswordNeeded] = useState(false)
@@ -71,11 +95,15 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   // multipart path stores a fresh file each time).
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
-  // Leaving is not allowed while the archive is going up: the browser has to keep sending it.
-  const canLeave = !busy
+  // Leaving while the archive goes up stops it, so it is asked first; a repeated import of the same archive resumes.
+  const [stopAsk, setStopAsk] = useState(false)
   function leave() {
     waiting.current?.abort()
     onClose()
+  }
+  function requestLeave() {
+    if (busy) setStopAsk(true)
+    else leave()
   }
 
   useEffect(() => {
@@ -151,6 +179,10 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) return
+    if (targets.length > 0 && target === null) {
+      setTargetError(t("admin.exImport.targetRequired"))
+      return
+    }
     setBusy(true)
     setProgress(null)
     setError(null)
@@ -162,7 +194,7 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
     waiting.current = controller
     try {
       // A big archive goes up in chunks (progress shown); a repeated submit resumes it.
-      const started = await startImport(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined, setStage, controller.signal)
+      const started = await startImport(file, password, file.size > SINGLE_REQUEST_MAX ? setProgress : undefined, setStage, controller.signal, target || null)
       if (started.kind === "job") {
         // Queued: the archive is on the server, so the dialog closes and the import goes on in the background, shown
         // as a row of the catalog table (lib/importJobs follows it).
@@ -196,7 +228,7 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
   const submitLabel = busy ? (stage === "uploading" && progress !== null ? t("admin.exImport.uploadingPercent", { percent: progress }) : t("admin.exImport.importing"))
     : t("admin.exImport.submit")
 
-  return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
+  return <><Dialog open onOpenChange={(open) => { if (!open) requestLeave() }}>
     <DialogContent {...dropProps}>
       {showDrop && <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-[inherit] border-2 border-dashed border-ring bg-popover text-sm font-medium text-foreground">
         <Upload aria-hidden="true" className="h-8 w-8" />
@@ -236,6 +268,15 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
               {t("admin.exImport.example")}
             </Button>
           </div>
+          {targets.length > 1 && (
+            <Field label={t("admin.exImport.target")} required error={targetError}
+              hint={chosenTarget ? chosenTarget.event ? t("admin.exImport.targetEvent", { name: chosenTarget.label }) : t("admin.exImport.targetCatalog") : undefined}>
+              {(control) => <SelectMenu {...control} value={target ?? ""} placeholder={t("admin.exImport.targetPick")} disabled={busy}
+                onChange={(value) => { setTarget(value); setTargetError(null) }} className="h-10 w-full text-sm"
+                options={targets.map((option) => ({ value: option.value, label: option.label }))} />}
+            </Field>
+          )}
+          {targets.length === 1 && chosenTarget?.event && <p className="text-sm text-muted-foreground">{t("admin.exImport.targetEvent", { name: chosenTarget.label })}</p>}
           <Field label={t("admin.exImport.file")} required error={fileError ?? failure?.fileError}>
             {(control) => <FileInput {...control} accept=".zip,application/zip" file={file} onFile={chooseFile} />}
           </Field>
@@ -253,11 +294,15 @@ export function ImportDialog({ onClose, onImported, jobId }: { onClose: () => vo
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
+          <Button type="button" variant="outline" onClick={requestLeave}>{t("admin.exPage.dialog.cancel")}</Button>
           <Button type="submit" className="min-w-56" busy={busy} disabled={busy || !file}>{submitLabel}</Button>
         </DialogFooter>
       </form>}
       </div>
     </DialogContent>
   </Dialog>
+  <ConfirmDialog open={stopAsk} tone="danger" title={t("admin.exImport.stopTitle")} description={t("admin.exImport.stopDescription")}
+    confirmLabel={t("admin.exImport.stopConfirm")} cancelLabel={t("admin.exImport.stopKeep")}
+    onCancel={() => setStopAsk(false)} onConfirm={() => { setStopAsk(false); leave() }} />
+  </>
 }

@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   return <>
     {children}
-    <div className="pointer-events-none fixed left-1/2 top-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-2" aria-label={t("ui.toast.region")}>
+    <div className="pointer-events-none fixed left-1/2 top-4 z-(--ib-z-toast) flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-2" aria-label={t("ui.toast.region")}>
       {items.map((item) => <div key={item.id} role={item.tone === "success" ? "status" : "alert"} data-tone={item.tone}
         className={`pointer-events-auto flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${toneStyle[item.tone]}`}>
         {item.tone === "success" ? <CheckCircle2 aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${iconStyle[item.tone]}`} />

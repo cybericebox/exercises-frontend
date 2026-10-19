@@ -237,7 +237,7 @@ describe("top-bar inbox", () => {
 
   describe("categories (INBOX-DESIGN §8)", () => {
     const counts = { All: 3, Requests: 1, Personal: 1, Activity: 1 }
-    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventName: "Зимовий CTF", Type: "event.lab.failed", Category: "requests", ActionRequired: true, ResolvedAt: null }
+    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventName: "Зимовий CTF", Type: "event.lab.failed", Resolvable: true, Category: "requests", ActionRequired: true, ResolvedAt: null }
     const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:03:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u2", Name: "Іван П." } }
     const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal", ActionRequired: false }
 
@@ -254,8 +254,8 @@ describe("top-bar inbox", () => {
     it("opens on «Запити» when requests are open, lists open ones first and counts per tab", async () => {
       mockCategories()
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
-      expect(await screen.findByRole("tab", { name: "Запити: 1" })).toHaveAttribute("aria-selected", "true")
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 2" }))
+      expect(await screen.findByRole("tab", { name: "Запити, потребують дії: 1" })).toHaveAttribute("aria-selected", "true")
       expect(screen.getByRole("tab", { name: "Особисте: 1" })).toBeInTheDocument()
       await screen.findByText("Лабораторія впала")
       const rows = screen.getAllByRole("listitem")
@@ -280,7 +280,7 @@ describe("top-bar inbox", () => {
       const { ApiError } = await import("@/api/client")
       api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219)).mockResolvedValueOnce(undefined)
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 2" }))
       const row = (await screen.findByText("Лабораторія впала")).closest("li")!
       expect(within(screen.getByText("Нова заявка").closest("li")!).queryByRole("button", { name: "Вирішено" })).not.toBeInTheDocument()
       fireEvent.click(within(row).getByRole("button", { name: "Вирішено" }))

@@ -9,12 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { DraftFormValues, IdentityFormValues } from "@/lib/exerciseSchemas"
 
-/** The «Загальне» tab. Layout is frozen by the spec; read-only mode uses `disabled`. */
-export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoFocusName = false }: {
+/**
+ * The «Загальне» tab. Layout is frozen by the spec; read-only mode uses `disabled`.
+ * showNotes: the internal notes are for full access only (admins, the owner event's owners/managers); the API
+ * blanks them for everyone else, and the field is left out rather than shown empty.
+ */
+export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoFocusName = false, showNotes = true }: {
   identityForm: UseFormReturn<IdentityFormValues>
   draftForm: UseFormReturn<DraftFormValues>
   disabled: boolean
   autoFocusName?: boolean
+  showNotes?: boolean
 }) {
   const tags = useWatch({ control: identityForm.control, name: "Tags" })
   const { errors } = useFormState({ control: identityForm.control })
@@ -57,10 +62,10 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
       <Textarea id="exercise-description" rows={5} disabled={disabled} aria-invalid={Boolean(errors.Description)} aria-describedby={errors.Description ? "exercise-description-error" : undefined} {...identityForm.register("Description", { onChange: () => { if (errors.Description?.type === "server") identityForm.clearErrors("Description") } })} />
       <p id="exercise-description-error" role={errors.Description ? "alert" : undefined} className="min-h-4 text-xs text-destructive">{errors.Description?.message}</p>
     </div>
-    <div className="min-w-0 space-y-1.5">
+    {showNotes && <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" htmlFor="draft-admin-note" />
       <Textarea id="draft-admin-note" rows={5} disabled={disabled} {...draftForm.register("AdminNote")} />
       <p className="min-h-4 text-xs text-destructive" />
-    </div>
+    </div>}
   </div>
 }

@@ -16,9 +16,6 @@ export type InboxResolution = "approved" | "rejected" | "fixed" | "resolved" | "
 export const INBOX_RESOLUTIONS: readonly InboxResolution[] = ["approved", "rejected", "fixed", "resolved", "expired", "withdrawn"]
 const SYSTEM_RESOLUTIONS: readonly string[] = ["expired", "withdrawn"]
 
-/** The only request type a person may close by hand (§8.1): «Лабораторія впала». */
-export const MANUALLY_RESOLVABLE_TYPE = "event.lab.failed"
-
 export type InboxMessage = {
   ID: string
   Title: string
@@ -40,6 +37,8 @@ export type InboxMessage = {
   Category?: InboxCategory
   ActionRequired?: boolean
   ResolvedAt?: string | null
+  // The server says whether the recipient may close this open request by hand.
+  Resolvable?: boolean
   Resolution?: InboxResolution | null
   // null when the system closed the request.
   ResolvedBy?: { ID: string; Name: string } | null
@@ -74,9 +73,14 @@ export function isUnread(item: InboxMessage): boolean {
   return !item.ReadAt
 }
 
-/** «Вирішено» is offered only on open «Лабораторія впала» requests; the rest close by decision. */
+/** «Вирішено» is offered only where the server allows it (Resolvable). */
 export function canResolve(item: InboxMessage): boolean {
-  return isOpenRequest(item) && item.Type === MANUALLY_RESOLVABLE_TYPE
+  return isOpenRequest(item) && item.Resolvable === true
+}
+
+/** «Потребує дії»: an open request keeps asking for a decision even after it was read. */
+export function needsAction(item: InboxMessage): boolean {
+  return isOpenRequest(item)
 }
 
 export function resolveDefaultTab(defaultTab: InboxDefaultTab, counts: InboxCounts | null): InboxTab {
@@ -104,6 +108,18 @@ export function resolverName(item: InboxMessage): string {
 /** The bell: unread plus open requests (Counts.All); older backends send only UnreadCount. */
 export function bellCount(unread: number, counts: InboxCounts | null): number {
   return counts ? counts.all : unread
+}
+
+/** What the bell counts, for its label: open requests (they stay until decided, read or not) and the other unread items.
+ *  Counts.All = open requests + unread personal + unread activity. */
+export function bellLabel(unread: number, counts: InboxCounts | null): { key: string; vars: Record<string, number> } {
+  if (!counts) return unread ? { key: "inbox.titleUnread", vars: { count: unread } } : { key: "inbox.title", vars: {} }
+  const requests = counts.requests
+  const other = Math.max(0, counts.all - requests)
+  if (requests && other) return { key: "inbox.titleBoth", vars: { requests, unread: other } }
+  if (requests) return { key: "inbox.titleRequests", vars: { count: requests } }
+  if (other) return { key: "inbox.titleUnread", vars: { count: other } }
+  return { key: "inbox.title", vars: {} }
 }
 
 /** Optimistic counts after one item is read locally (the next poll corrects them).

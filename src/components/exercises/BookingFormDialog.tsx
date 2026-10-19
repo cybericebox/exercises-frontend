@@ -12,6 +12,7 @@ import { BOOKING_DEFAULT_MINUTES, BOOKING_MAX_ACTIVE, BOOKING_MAX_DAYS_AHEAD, BO
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { isNoTestLabRoom, nearestFromError } from "@/lib/noTestLabRoom"
 import { formatClock } from "@/lib/bookingFormat"
+import { durationLabel } from "@/lib/durations"
 
 const pad = (value: number) => String(value).padStart(2, "0")
 
@@ -33,10 +34,6 @@ export function allowedDurations(): number[] {
 export function defaultDuration(): number {
   const list = allowedDurations()
   return list.reduce((best, m) => Math.abs(m - 60) < Math.abs(best - 60) ? m : best, list[0] ?? BOOKING_DEFAULT_MINUTES)
-}
-
-function durationLabel(minutes: number): string {
-  return minutes % 60 === 0 ? t("exercises.book.duration.hours", { n: minutes / 60 }) : t("exercises.book.duration.minutes", { n: minutes })
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -95,7 +92,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
   }
 
   return <ConfirmDialog open={open} busy={busy} error={limit === "tooMany" ? limitMessage(limit) : error} title={t("exercises.book.title")} description={t("exercises.book.description")}
-    confirmLabel={t("exercises.book.confirm")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
+    confirmLabel={t("exercises.book.confirm")} busyLabel={t("exercises.book.booking")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
     <div className="grid gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="booking-start">{t("exercises.book.start")}</Label>

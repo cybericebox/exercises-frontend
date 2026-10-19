@@ -14,7 +14,7 @@ const PopoverContent = React.forwardRef<
 >(({ className, align = "start", sideOffset = 4, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content ref={ref} align={align} sideOffset={sideOffset}
-      className={cn("z-50 max-w-[calc(100vw-1.5rem)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words rounded-md border border-border bg-popover p-2 text-sm text-popover-foreground outline-none", className)}
+      className={cn("z-(--ib-z-popover) max-w-[calc(100vw-1.5rem)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain break-words rounded-md border border-border bg-popover p-2 text-sm text-popover-foreground outline-none", className)}
       {...props} />
   </PopoverPrimitive.Portal>
 ))

@@ -26,7 +26,7 @@ import { popInDuration } from "@/components/notifications/popInDuration"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import {
   INBOX_TABS, canResolve, countsAfterRead, countsAfterReadAll, countsAfterResolve, formatInboxTime, inTab, inboxQuery, isUnread, orderForTab,
-  bellCount, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
+  bellCount, bellLabel, needsAction, parseCounts, parseOtherEvents, resolutionKey, resolveDefaultTab, resolverName,
   type InboxCounts, type InboxDefaultTab, type InboxMessage as Message, type InboxTab,
 } from "@/components/notifications/inboxModel"
 import { keepBrand } from "@/i18n/brand"
@@ -276,7 +276,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
   if (!allowed) return null
 
   const badge = bellCount(unread, counts)
-  const label = badge ? t("inbox.titleUnread", { count: badge }) : t("inbox.title")
+  const bell = bellLabel(unread, counts)
+  const label = t(bell.key, bell.vars)
   const tabs = counts ? INBOX_TABS : []
   const tabHasUnread = items.some(isUnread) || (tab === "all" ? unread > 0 : tab !== "requests" && (counts?.[tab] ?? 0) > 0)
 
@@ -361,13 +362,13 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   return <><Popover.Root open={open} onOpenChange={openInbox}>
     <Popover.Trigger asChild>
-      <button type="button" aria-label={label} className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+      <button type="button" aria-label={label} className="ib-hit relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         <Bell className="h-4 w-4" />
         {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
       </button>
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content align="end" sideOffset={20} collisionPadding={12} aria-label={t("inbox.panel")} className={`z-50 flex ${panelMaxHeight} w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none`}>
+      <Popover.Content align="end" sideOffset={20} collisionPadding={12} aria-label={t("inbox.panel")} className={`z-(--ib-z-popover) flex ${panelMaxHeight} w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none`}>
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-3 pb-2">
           <h2 className="flex text-muted-foreground"><span className="sr-only">{t("inbox.title")}</span><Bell aria-hidden="true" className="h-[19px] w-[19px]" /></h2>
           <div className="flex shrink-0 items-center gap-2">
@@ -382,7 +383,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
               const count = counts?.[value] ?? 0
               const selected = tab === value
               return <button key={value} type="button" role="tab" id={`inbox-tab-${value}`} aria-controls="inbox-tabpanel" aria-selected={selected}
-                aria-label={count > 0 ? t("inbox.tabCount", { name: t(`inbox.tab.${value}`), count }) : undefined}
+                aria-label={count > 0 ? t(value === "requests" ? "inbox.tabCountRequests" : "inbox.tabCount", { name: t(`inbox.tab.${value}`), count }) : undefined}
                 onClick={() => { if (!selected) selectTab(value) }}
                 className={`inline-flex h-8 min-w-0 flex-auto items-center justify-center gap-1 rounded px-2 text-sm focus-visible:outline-2 focus-visible:outline-primary ${selected ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 <span className="truncate">{t(`inbox.tab.${value}`)}</span>
@@ -403,7 +404,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
               <NotificationMessageCard
                 icon={item.Icon} tone={item.Tone} accentColor={item.AccentColor} title={item.Title}
                 body={item.Body ? <span dangerouslySetInnerHTML={{ __html: keepBrand(DOMPurify.sanitize(item.Body, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })) }} /> : undefined}
-                unread={unreadItem} compact
+                unread={unreadItem} needsAction={needsAction(item)} compact
                 timestamp={<span className="flex min-w-0 items-center justify-between gap-2">
                   {resolved
                     ? <HoverTooltip text={formatInboxTime(item.CreatedAt)} className="min-w-0"><span className="min-w-0 truncate">{resolvedLine(item)}{" "}<span className="sr-only">{formatInboxTime(item.CreatedAt)}</span></span></HoverTooltip>
@@ -427,7 +428,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>
-  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-[70] flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
+  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-(--ib-z-toast) flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
     {popIns.slice(0, 3).map((item) => <NotificationPopIn key={item.ID} message={item} onClose={() => setPopIns((current) => current.filter((entry) => entry.ID !== item.ID))} onAction={(href) => { const safe = safeHref(href); if (safe) void followLink(item, safe) }} />)}
   </div>, document.body)}
   </>

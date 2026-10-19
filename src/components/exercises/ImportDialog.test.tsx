@@ -15,7 +15,7 @@ import { downloadImportExample, startImport } from "@/api/exercises/archive"
 import { getImportJob, type ImportJobStatus } from "@/api/exercises/archiveJobs"
 import { downloadBlob } from "@/lib/downloadBlob"
 import { IMPORT_JOBS_KEY, resetImportJobsForTests, trackImportJob } from "@/lib/importJobs"
-import { ImportDialog } from "./ImportDialog"
+import { defaultImportTarget, ImportDialog } from "./ImportDialog"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const mockImport = vi.mocked(startImport)
@@ -36,6 +36,61 @@ function chooseFile() {
     target: { files: [new File(["zip"], "web.cybericebox.zip", { type: "application/zip" })] },
   })
 }
+
+const ev = (id: string, name: string) => ({ value: id, label: name, event: { ID: id, Name: name, Tag: id, CanWrite: true, InfrastructureAllowed: true } })
+const catalog = { value: "", label: "exercises.owner.catalog", event: null }
+
+describe("defaultImportTarget", () => {
+  it("takes the requested event, else the catalog, else the only target", () => {
+    expect(defaultImportTarget([catalog, ev("a", "A")], "a")).toBe("a")
+    expect(defaultImportTarget([catalog, ev("a", "A")], "zzz")).toBe("")
+    expect(defaultImportTarget([ev("a", "A")], null)).toBe("a")
+    expect(defaultImportTarget([ev("a", "A"), ev("b", "B")], null)).toBeNull()
+    expect(defaultImportTarget([], null)).toBeNull()
+  })
+})
+
+describe("ImportDialog targets", () => {
+  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests() })
+
+  it("imports a moderator's archive into their only event and says so", async () => {
+    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
+    render(<ImportDialog onClose={vi.fn()} targets={[ev("ev1", "Winter CTF")]} />)
+    expect(screen.getByText(/admin\.exImport\.targetEvent.*Winter CTF/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /admin\.exImport\.target\b/ })).not.toBeInTheDocument()
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), "ev1"))
+  })
+
+  it("asks where to import when there are several targets and keeps the error beside the field", async () => {
+    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
+    render(<ImportDialog onClose={vi.fn()} targets={[ev("ev1", "Winter CTF"), ev("ev2", "Spring Cup")]} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    expect(await screen.findByText("admin.exImport.targetRequired")).toBeInTheDocument()
+    expect(mockImport).not.toHaveBeenCalled()
+    const field = screen.getByLabelText(/^admin\.exImport\.target/)
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    fireEvent.keyDown(field, { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Spring Cup" }))
+    expect(screen.queryByText("admin.exImport.targetRequired")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), "ev2"))
+  })
+
+  it("starts an admin on the catalog, or on the event the filter names", async () => {
+    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
+    const { unmount } = render(<ImportDialog onClose={vi.fn()} targets={[catalog, ev("ev1", "Winter CTF")]} />)
+    expect(screen.getByText("admin.exImport.targetCatalog")).toBeInTheDocument()
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    await waitFor(() => expect(mockImport).toHaveBeenLastCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), null))
+    unmount()
+    render(<ImportDialog onClose={vi.fn()} targets={[catalog, ev("ev1", "Winter CTF")]} initialTarget="ev1" />)
+    expect(screen.getByText(/admin\.exImport\.targetEvent.*Winter CTF/)).toBeInTheDocument()
+  })
+})
 
 describe("ImportDialog", () => {
   beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests() })
@@ -71,7 +126,7 @@ describe("ImportDialog", () => {
     fireEvent.change(screen.getByLabelText(/^admin\.exImport\.password/), { target: { value: "pw" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
-    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined, expect.any(Function), expect.any(AbortSignal))
+    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined, expect.any(Function), expect.any(AbortSignal), null)
     expect(onImported).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
@@ -395,5 +450,27 @@ describe("ImportDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
     expect(await screen.findByRole("alert")).toBeInTheDocument()
     expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
+  })
+
+  it("lets an upload be stopped after a danger confirmation, and keeps it going on «continue»", async () => {
+    let signal: AbortSignal | undefined
+    mockImport.mockImplementation((...args: unknown[]) => { signal = args[4] as AbortSignal; return new Promise(() => undefined) })
+    const onClose = vi.fn()
+    render(<ImportDialog onClose={onClose} />)
+    chooseFile()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
+    await waitFor(() => expect(mockImport).toHaveBeenCalled())
+    const cancel = screen.getByRole("button", { name: "admin.exPage.dialog.cancel" })
+    expect(cancel).toBeEnabled()
+    fireEvent.click(cancel)
+    expect(await screen.findByRole("dialog", { name: "admin.exImport.stopTitle" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.stopKeep" }))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "admin.exImport.stopTitle" })).not.toBeInTheDocument())
+    expect(onClose).not.toHaveBeenCalled()
+    expect(signal?.aborted).toBe(false)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exImport.stopConfirm" }))
+    expect(onClose).toHaveBeenCalled()
+    expect(signal?.aborted).toBe(true)
   })
 })

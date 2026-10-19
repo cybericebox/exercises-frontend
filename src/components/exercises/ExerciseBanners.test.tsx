@@ -26,4 +26,9 @@ describe("exercise banners", () => {
     expect(screen.queryByRole("button", { name: "admin.exPage.action.unarchive" })).not.toBeInTheDocument()
     expect(screen.getByText("admin.exPage.archived.banner")).toBeInTheDocument()
   })
+
+  it("names the restore on its busy button", () => {
+    render(<VersionBanner label="v" canRestore busy restoring onBack={vi.fn()} onRestore={vi.fn()} />)
+    expect(screen.getByRole("button", { name: /admin\.exPage\.version\.restoring/ })).toHaveAttribute("aria-busy", "true")
+  })
 })

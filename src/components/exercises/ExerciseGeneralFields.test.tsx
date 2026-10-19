@@ -9,10 +9,10 @@ vi.mock("@/api/exercises/catalog", () => ({ listExerciseTags: vi.fn().mockResolv
 import { emptyDraft, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseGeneralFields } from "./ExerciseGeneralFields"
 
-function Harness({ disabled }: { disabled: boolean }) {
+function Harness({ disabled, showNotes }: { disabled: boolean; showNotes?: boolean }) {
   const identityForm = useForm<IdentityFormValues>({ defaultValues: { Name: "Web 101", Description: "About", Tags: ["web"] } })
   const draftForm = useForm<DraftFormValues>({ defaultValues: { ...emptyDraft(), AdminNote: "Day one" } })
-  return <ExerciseGeneralFields identityForm={identityForm} draftForm={draftForm} disabled={disabled} />
+  return <ExerciseGeneralFields identityForm={identityForm} draftForm={draftForm} disabled={disabled} showNotes={showNotes} />
 }
 
 describe("ExerciseGeneralFields", () => {
@@ -32,5 +32,11 @@ describe("ExerciseGeneralFields", () => {
     expect(screen.getByLabelText("admin.ex.field.tags")).toBeDisabled()
     expect(screen.getByLabelText("admin.ex.field.description")).toBeDisabled()
     expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeDisabled()
+  })
+
+  it("leaves out the internal notes for a reader without full access", () => {
+    render(<Harness disabled showNotes={false} />)
+    expect(screen.queryByRole("textbox", { name: "admin.ex.create.notes" })).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
   })
 })

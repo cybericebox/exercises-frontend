@@ -42,8 +42,10 @@ function SkipLink() {
 }
 
 function AccessGate({ children }: { children: React.ReactNode }) {
-  const { access, loading } = useExerciseAccess()
+  const { access, loading, error, retry } = useExerciseAccess()
   const pathname = usePathname()
+  // The rights did not load (5xx, network): an error with a retry, not the no-access screen.
+  if (error) return <ErrorPage mode="page" status={500} error={error} onRetry={retry} />
   if (loading || !access) return <PageLoader label={t("admin.loading")} />
 
   // Neither admin nor an event member (403) → the no-access screen (do NOT loop to sign-in).
@@ -75,7 +77,7 @@ function CatalogLayout({ children }: { children: React.ReactNode }) {
     <SkipLink />
     <div className="flex h-dvh overflow-hidden bg-background">
       {desktop && <Sidebar />}
-      {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} onReturnFocus={() => menuButton.current?.focus()} />}
+      {!desktop && <MobileDrawer open={menuOpen} onOpenChange={setMenuOpen} anchor={menuButton} onReturnFocus={() => menuButton.current?.focus()} />}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
         <SiteBanners />
         <TopBar onMenuClick={() => setMenuOpen(true)} menuButtonRef={menuButton} />

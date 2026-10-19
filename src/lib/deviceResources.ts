@@ -6,6 +6,7 @@
  * preset is the default one. There is no custom size.
  */
 import type { ResourcesConfig } from "@/api/exercises/capabilities"
+import { t } from "@/i18n/t"
 
 export type Amount = { CPUMillicores: number; MemoryBytes: number }
 type DeviceLike = { ResourcePreset: string }
@@ -13,13 +14,18 @@ export type Preset = ResourcesConfig["Presets"][number]
 
 const MIB = 1024 ** 2
 
+// UI numbers, not Kubernetes notation: «0,5 CPU», «512 МіБ», «1,5 ГіБ».
+const number = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 3, useGrouping: false })
+
 export function formatCPU(millis: number): string {
-  return millis >= 1000 && millis % 100 === 0 ? `${millis / 1000}` : `${millis}m`
+  return number.format(millis / 1000)
 }
 
 export function formatMemory(bytes: number): string {
   const mebibytes = Math.round(bytes / MIB)
-  return mebibytes >= 1024 && mebibytes % 128 === 0 ? `${mebibytes / 1024}Gi` : `${mebibytes}Mi`
+  return mebibytes >= 1024 && mebibytes % 128 === 0
+    ? t("exercises.res.gib", { n: number.format(mebibytes / 1024) })
+    : t("exercises.res.mib", { n: mebibytes })
 }
 
 export function presetById(config: ResourcesConfig, id: string): Preset | null {

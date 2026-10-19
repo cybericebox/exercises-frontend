@@ -38,6 +38,8 @@ export function useExerciseActions({
 }: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  // Which action keeps it busy, so that action's button can name it («Публікуємо…»).
+  const [running, setRunning] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState("")
   const [usage, setUsage] = useState<{ exerciseId: string; events: ExerciseUsageEvent[] } | null>(null)
   const exerciseId = editor.exercise?.ID ?? null
@@ -57,8 +59,9 @@ export function useExerciseActions({
    * are saved first; an action returning false reports "not done" without a toast.
    * With `inline` the failure goes to `confirmError` for the open ConfirmDialog.
    */
-  async function run(action: () => Promise<boolean | void>, flushFirst = false, inline = false): Promise<boolean> {
+  async function run(action: () => Promise<boolean | void>, flushFirst = false, inline = false, name: string | null = null): Promise<boolean> {
     setBusy(true)
+    setRunning(name)
     if (inline) setConfirmError("")
     try {
       if (flushFirst && !(await flushOrWarn(inline))) return false
@@ -69,6 +72,7 @@ export function useExerciseActions({
       return false
     } finally {
       setBusy(false)
+      setRunning(null)
     }
   }
 
@@ -110,7 +114,7 @@ export function useExerciseActions({
       await publishDraft(exerciseId)
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.published"))
-    }, true)
+    }, true, false, "publish")
   }
 
   async function snapshot(note: string): Promise<boolean> {
@@ -131,14 +135,15 @@ export function useExerciseActions({
     }, true, true)
   }
 
-  async function restore(versionId: string): Promise<void> {
-    if (!exerciseId || !isStoredVersionId(versionId)) return
-    await run(async () => {
+  // Asked first (it replaces the working copy): a failure stays in the confirmation.
+  async function restore(versionId: string): Promise<boolean> {
+    if (!exerciseId || !isStoredVersionId(versionId)) return false
+    return run(async () => {
       await restoreVersion(exerciseId, versionId)
       toast.success(t("admin.exPage.toast.restored"))
       allowNavigation()
       router.push(exerciseHref(exerciseId))
-    })
+    }, false, true, "restore")
   }
 
   async function archive(): Promise<boolean> {
@@ -155,7 +160,7 @@ export function useExerciseActions({
     await run(async () => {
       editor.setExercise(await unarchiveExercise(exerciseId))
       toast.success(t("admin.exPage.toast.unarchived"))
-    })
+    }, false, false, "unarchive")
   }
 
   async function remove(): Promise<boolean> {
@@ -205,6 +210,7 @@ export function useExerciseActions({
 
   return {
     busy,
+    running,
     confirmError,
     clearConfirmError: () => setConfirmError(""),
     usageEvents: usage && usage.exerciseId === exerciseId ? usage.events : [],

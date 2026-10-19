@@ -39,7 +39,7 @@ function withLink(key: string, link: ReactNode) {
 }
 
 const BOX =
-  "fixed inset-x-2 bottom-2 z-[60] mx-auto rounded-md border border-border bg-card text-sm leading-relaxed text-muted-foreground focus-visible:outline-2 focus-visible:outline-[var(--ib-action)] sm:inset-x-4 sm:bottom-4"
+  "fixed inset-x-2 bottom-2 z-(--ib-z-consent) mx-auto rounded-md border border-border bg-card text-sm leading-relaxed text-muted-foreground focus-visible:outline-2 focus-visible:outline-[var(--ib-action)] sm:inset-x-4 sm:bottom-4"
 
 // Cookie consent in two layers, fixed to the bottom, non-blocking.
 // 1. Banner: a general line, «Налаштувати» and «Прийняти всі».

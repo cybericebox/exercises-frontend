@@ -62,6 +62,14 @@ export type ExerciseListItem = ExerciseOwnership & {
   ArchivedAt: string | null
   CreatedAt: string
   UpdatedAt: string
+  /** The creator; null when the account is gone (or from an older API). */
+  AuthorID: string | null
+  /** First and last name of the author; "" when unknown. */
+  AuthorName: string
+  /** Mean level (1 elementary … 6 insane) of the first variant's subtasks; null without one. */
+  AvgDifficulty: number | null
+  /** Subtasks of that same first variant; null without a variant. */
+  TaskCount: number | null
 }
 
 export type Exercise = ExerciseOwnership & {
@@ -95,11 +103,22 @@ export type ExerciseCreateInput = ExerciseIdentityInput & { OwnerEventID?: strin
 
 export type ExerciseTagSuggestion = { Tag: string; Count: number }
 
+/** An author of readable tasks: the name only (never the email). */
+export type ExerciseAuthorSuggestion = { ID: string; Name: string; Count: number }
+
 /** Existing tags only; an empty prefix returns the most used ones (limit: default 50, max 200). */
 export async function listExerciseTags(prefix: string, limit?: number): Promise<ExerciseTagSuggestion[]> {
   const params = new URLSearchParams({ prefix })
   if (limit) params.set("limit", String(limit))
   return apiGet<ExerciseTagSuggestion[]>(`${BASE}/tags?${params}`)
+}
+
+/** Authors by use, matching the name (default 50, max 200); `ids` asks for those authors only (chip labels). */
+export async function listExerciseAuthors(search: string, limit?: number, ids?: string[]): Promise<ExerciseAuthorSuggestion[]> {
+  const params = new URLSearchParams({ search })
+  if (limit) params.set("limit", String(limit))
+  for (const id of ids ?? []) params.append("id", id)
+  return (await apiGet<ExerciseAuthorSuggestion[] | null>(`${BASE}/authors?${params}`)) ?? []
 }
 
 export type ExercisesFilter = {
@@ -114,8 +133,18 @@ export type InfrastructureFilter = "yes" | "no" | ""
 
 export type ExercisesPageFilter = {
   search?: string
+  /** Any of these tags (legacy). */
   tags?: string[]
-  status?: string
+  /** Every one of these tags. */
+  withTags?: string[]
+  /** None of these tags. */
+  withoutTags?: string[]
+  /** Any of these server statuses (published, changed, draft_only, archived, none). */
+  statuses?: string[]
+  authors?: string[]
+  /** Rounded average difficulty level bounds 1..6, inclusive. */
+  difficultyMin?: number
+  difficultyMax?: number
   archived?: ArchivedFilter
   scope?: ScopeFilter
   /** Up to 100 events: catalog scope = available to any, event scope = owned by any, "" = union. */
@@ -128,10 +157,14 @@ export type ExercisesPageFilter = {
 }
 
 type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs" | "AccessEvents">> & { AccessEventIDs?: string[] | null; AccessEvents?: EventRef[] | null }
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | keyof ExerciseOwnership> & RawOwnership & {
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
   Status?: ExerciseStatus | null
+  AuthorID?: string | null
+  AuthorName?: string | null
+  AvgDifficulty?: number | null
+  TaskCount?: number | null
 }
 export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
@@ -160,7 +193,11 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
 }
 
 function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
-  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, Status: raw.Status ?? null }
+  return {
+    ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, Status: raw.Status ?? null,
+    AuthorID: raw.AuthorID ?? null, AuthorName: raw.AuthorName ?? "", AvgDifficulty: typeof raw.AvgDifficulty === "number" ? raw.AvgDifficulty : null,
+    TaskCount: typeof raw.TaskCount === "number" ? raw.TaskCount : null,
+  }
 }
 
 export function normalizeExercise(raw: RawExercise): Exercise {
@@ -192,7 +229,12 @@ export async function listExercisesPage(filter: ExercisesPageFilter): Promise<Of
   const p = new URLSearchParams()
   if (filter.search) p.set("search", filter.search)
   for (const tag of filter.tags ?? []) p.append("tags", tag)
-  if (filter.status) p.set("status", filter.status)
+  for (const tag of filter.withTags ?? []) p.append("withTag", tag)
+  for (const tag of filter.withoutTags ?? []) p.append("withoutTag", tag)
+  for (const status of filter.statuses ?? []) p.append("status", status)
+  for (const author of filter.authors ?? []) p.append("author", author)
+  if (filter.difficultyMin) p.set("difficultyMin", String(filter.difficultyMin))
+  if (filter.difficultyMax) p.set("difficultyMax", String(filter.difficultyMax))
   if (filter.archived === "only") p.set("archived", "only")
   if (filter.scope) p.set("scope", filter.scope)
   for (const event of filter.events ?? []) p.append("event", event)

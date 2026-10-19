@@ -28,9 +28,24 @@ const VIA_KEY = { booking: "exercises.book.via.booking", pool: "exercises.book.v
  * The sidebar's «Бронювання»: the author's upcoming test lab bookings (cancel, add) and whether
  * there is room for a test lab right now (the largest a platform device may be is the yardstick).
  */
-export function BookingsMenu() {
-  const [open, setOpen] = useState(false)
+export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, onCloseAutoFocus }: {
+  /** false: no sidebar button; the phone menu opens the dialog through open/onOpenChange. */
+  trigger?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Where focus goes when the dialog closes (its trigger may be gone with the phone menu). */
+  onCloseAutoFocus?: () => void
+} = {}) {
   const [load, setLoad] = useState<Load>({ state: "loading" })
+  const [own, setOwn] = useState(false)
+  const open = controlled ?? own
+  const setOpen = (next: boolean) => { setOwn(next); onOpenChange?.(next) }
+  const [opened, setOpened] = useState(open)
+  // Opened from outside: the list starts loading like after a click on the trigger.
+  if (open !== opened) {
+    setOpened(open)
+    if (open) setLoad({ state: "loading" })
+  }
   const [cancelling, setCancelling] = useState<Booking | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -72,16 +87,17 @@ export function BookingsMenu() {
   const items = load.state === "ready" ? load.items : []
   return <>
     <Dialog open={open} onOpenChange={(next) => { if (next) setLoad({ state: "loading" }); setOpen(next) }}>
-      <DialogTrigger asChild>
+      {trigger && <DialogTrigger asChild>
         <button type="button" className="ib-admin-side__item">
           <CalendarClock aria-hidden="true" /><span className="ib-admin-side__label">{t("exercises.book.menu")}</span>
         </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg text-foreground" aria-describedby={undefined}>
+      </DialogTrigger>}
+      <DialogContent className="max-w-lg text-foreground" aria-describedby={undefined}
+        onCloseAutoFocus={onCloseAutoFocus ? (event) => { event.preventDefault(); onCloseAutoFocus() } : undefined}>
         <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0 text-left">
           <DialogTitle>{t("exercises.book.listTitle")}</DialogTitle>
           <DialogClose asChild>
-            <button type="button" aria-label={t("exercises.book.close")} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
+            <button type="button" aria-label={t("exercises.book.close")} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
           </DialogClose>
         </DialogHeader>
         <div className="flex min-h-56 flex-col">
@@ -102,7 +118,7 @@ export function BookingsMenu() {
                       <div className="text-xs text-muted-foreground">{t("exercises.book.size", size)}</div>
                     </div>
                     <HoverTooltip text={t("exercises.book.cancel")}>
-                      <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={t("exercises.book.cancelNamed", { time: formatClock(item.From) })}
+                      <Button type="button" variant="outline" size="sm" className="w-8 p-0" aria-label={t("exercises.book.cancelNamed", { time: formatClock(item.From) })}
                         onClick={() => { setError(""); setCancelling(item) }}>
                         <X aria-hidden="true" size={16} />
                       </Button>
@@ -119,7 +135,7 @@ export function BookingsMenu() {
       </DialogContent>
     </Dialog>
     <ConfirmDialog open={cancelling !== null} tone="danger" busy={busy} error={error} title={t("exercises.book.cancelTitle")}
-      description={t("exercises.book.cancelDescription")} confirmLabel={t("exercises.book.cancel")} cancelLabel={t("exercises.book.keep")}
+      description={t("exercises.book.cancelDescription")} confirmLabel={t("exercises.book.cancel")} busyLabel={t("exercises.book.cancelling")} cancelLabel={t("exercises.book.keep")}
       onCancel={() => setCancelling(null)} onConfirm={() => void cancel()} />
     {addStart && load.state === "ready" && load.config && <BookingFormDialog open start={addStart}
       size={load.config.Frame} largestDevice={load.config.Frame} active={load.items.length}

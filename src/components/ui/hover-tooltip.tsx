@@ -8,10 +8,15 @@ type Position = { left: number; top: number; below: boolean; right?: boolean }
 
 const HOVER_DELAY = 300
 
+// A control at the tap that does its own thing (an enabled button, a link, a field): its tap is not for the bubble.
+const ACTIONABLE = 'a[href],button:not(:disabled):not([aria-disabled="true"]),input,select,textarea,summary,label,[role="button"]:not([aria-disabled="true"]),[role="menuitem"]:not([data-disabled]):not([aria-disabled="true"])'
+
 // One contract (DS tooltip.css): a real mouse opens it after 300 ms, the bubble is hoverable and stays while the
 // pointer is on the trigger or on it, Esc dismisses until the pointer leaves or focus moves, touch never opens it by hover.
 // A label tooltip opens on keyboard focus and is not toggled by clicks (the click belongs to the control).
 // help marks a field help: a tap or Enter/Space toggles it, focus does not open it, and the text always sits in aria-describedby.
+// Any other tooltip opens on a tap that runs no control of its own (a disabled control with its reason, a cut-off text):
+// a phone has no hover, so that is the only way to read it there.
 // describe links the open tooltip to the child via aria-describedby; describe="always" keeps the link while it is closed
 // (a control that is aria-disabled and carries a reason). truncated opens it only while the child's text is cut off by an ellipsis.
 export function HoverTooltip({ text, content, children, className, describe = false, truncated = false, side = "top", help = false }: { side?: "top" | "right"; text: string; content?: ReactNode; children: ReactElement; className?: string; describe?: boolean | "always"; truncated?: boolean; help?: boolean }) {
@@ -163,8 +168,8 @@ export function HoverTooltip({ text, content, children, className, describe = fa
         clearTimer()
         if (!help && !touched.current) setPosition(null)
       }}
-      onClick={() => {
-        if (!help) return
+      onClick={(event) => {
+        if (!help && (!touched.current || (event.target instanceof Element && event.target.closest(ACTIONABLE)))) return
         if (position) hide()
         else { dismissed.current = false; open() }
       }}
@@ -177,7 +182,7 @@ export function HoverTooltip({ text, content, children, className, describe = fa
         ref={tooltip}
         id={id}
         role="tooltip"
-        className={cn("fixed z-[100] rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground", "before:absolute before:content-['']", position.right ? "before:inset-y-0 before:-left-2 before:w-2" : position.below ? "before:inset-x-0 before:-top-2 before:h-2" : "before:inset-x-0 before:-bottom-2 before:h-2", short ? "whitespace-nowrap" : "max-w-72 whitespace-pre-line")}
+        className={cn("fixed z-(--ib-z-tooltip) rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground", "before:absolute before:content-['']", position.right ? "before:inset-y-0 before:-left-2 before:w-2" : position.below ? "before:inset-x-0 before:-top-2 before:h-2" : "before:inset-x-0 before:-bottom-2 before:h-2", short ? "whitespace-nowrap" : "max-w-72 whitespace-pre-line")}
         style={{ left: position.left, top: position.top, maxWidth: long ? "min(27.5rem, calc(100vw - 2rem))" : undefined,
           transform: position.right ? "translate(0, -50%)" : `translate(-50%, ${position.below ? "0" : "-100%"})` }}
       >{content ?? text}</div>,

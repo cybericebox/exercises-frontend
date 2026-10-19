@@ -2,7 +2,8 @@
  * deploy.ts — per-variant test deploy.
  *
  * Routes: POST /api/exercises/:id/versions/:versionID/variants/:variantID/deploy,
- *   GET/DELETE /api/exercises/deploys/:group.
+ *   GET/DELETE /api/exercises/deploys/:group, POST /api/exercises/deploys/:group/extend,
+ *   GET /api/exercises/test-runs/lengths.
  *
  * The deploy is async: POST returns a DeployID (the lab group) immediately and the
  * lab provisions in the background; the caller polls deployStatus until Phase is
@@ -49,6 +50,8 @@ export type DeployListItem = {
   Tasks: DeployTask[]
   /** Tasks already checked correctly; kept with the deploy, so a reload keeps the progress. */
   SolvedTaskIDs?: string[]
+  /** When the run's resource reservation deletes the lab unless it is extended; null before that notice. */
+  EndingAt?: string | null
 }
 
 /** The caller's active test deploys: of one exercise, or (no argument) of all of them. */
@@ -58,6 +61,7 @@ export function listDeploys(exerciseId?: string): Promise<DeployListItem[]> {
 
 /** Why a lab waits in the launch queue. */
 export type QueueReason = "InFlightLimit" | "WaitingForGroup" | "WaitingForTurn" | "PreparingImages" | "InsufficientResources" | "NoSchedulableNodes" | "TenantQuota"
+  | "DoesNotFitNow" | "ReservationMissing" | "ReservationNotActive" | "ReservationFull" | "NodeStarting" | "Withdrawn"
 
 /** The lab's place in the launch queue; Position 0 means every device is already dispatched. */
 export type DeployQueue = { Position: number; Length: number; Reason: QueueReason | string; Message: string; Pods: number; Pending: number }
@@ -117,14 +121,28 @@ export type DeployStatus = {
   /** End of the lease; with `Expired` the lab is only waiting to be removed (no VPN, no handshake). */
   ExpiresAt?: string
   Expired?: boolean
+  /** When the run's resource reservation deletes the lab unless it is extended; null before that notice. */
+  EndingAt?: string | null
 }
 
-/** Start a test deploy of one variant; resolves with the deploy id to poll. */
-export function deployVariant(exerciseId: string, versionId: string, variantId: string): Promise<DeployResponse> {
+/** Start a test deploy of one variant for the chosen run length (minutes; absent: the lease in force); resolves with the deploy id to poll. */
+export function deployVariant(exerciseId: string, versionId: string, variantId: string, leaseMinutes?: number): Promise<DeployResponse> {
   return apiPost<DeployResponse>(
     `${BASE}/${exerciseId}/versions/${versionId}/variants/${variantId}/deploy`,
-    {}
+    leaseMinutes ? { LeaseMinutes: leaseMinutes } : {}
   )
+}
+
+/** The run lengths an author may choose, shortest first, and the one taken when none is chosen. */
+export type TestRunLengths = { AllowedMinutes: number[]; DefaultMinutes: number }
+
+export function getTestRunLengths(): Promise<TestRunLengths> {
+  return apiGet<TestRunLengths>(`${BASE}/test-runs/lengths`)
+}
+
+/** Extend a running deploy's lease (its reservation with it); resolves with the deploy and its new end. */
+export function extendDeploy(group: string): Promise<DeployListItem> {
+  return apiPost<DeployListItem>(`${BASE}/deploys/${encodeURIComponent(group)}/extend`, {})
 }
 
 /** Poll a running deploy's status. */

@@ -61,11 +61,11 @@ const version: Version = {
   Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 const managerAccess: ExerciseAccess = {
-  IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: false,
+  IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: true, CanImport: true,
   Events: [{ ID: "ev1", Name: "Winter CTF", Tag: "winter", CanWrite: true, InfrastructureAllowed: false },
     { ID: "ev2", Name: "Spring Cup", Tag: "spring", CanWrite: true, InfrastructureAllowed: true }],
 }
-const adminAccess: ExerciseAccess = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, Events: [] }
+const adminAccess: ExerciseAccess = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] }
 
 beforeEach(() => {
   vi.useRealTimers()

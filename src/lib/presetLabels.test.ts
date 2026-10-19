@@ -13,12 +13,12 @@ describe("presetLabels", () => {
 
   it("one text for an option: name, blocks, CPU and memory", () => {
     const standard = RESOURCES_CONFIG.Presets.find((preset) => preset.ID === "standard")!
-    expect(amountLabel(2000, 2048 * 1024 ** 2)).toBe("2 CPU · 2Gi")
-    expect(blockHint(8, 250, 256 * 1024 ** 2)).toBe("8 блоків · 250m CPU · 256Mi")
-    expect(presetOptionLabel(standard)).toBe("Стандартний · 8 блоків · 62m CPU · 256Mi")
+    expect(amountLabel(2000, 2048 * 1024 ** 2)).toBe("2 CPU · 2 ГіБ")
+    expect(blockHint(8, 250, 256 * 1024 ** 2)).toBe("8 блоків · 0,25 CPU · 256 МіБ")
+    expect(presetOptionLabel(standard)).toBe("Стандартний · 8 блоків · 0,062 CPU · 256 МіБ")
   })
 
   it("explains the unit and the approval-free frame from the platform settings", () => {
-    expect(unitHelp(RESOURCES_CONFIG)).toBe("1 блок = 7m CPU і 32Mi памʼяті. Без погодження — до 32 блоків (250m CPU, 1Gi). Більше потребує погодження.")
+    expect(unitHelp(RESOURCES_CONFIG)).toBe("1 блок = 0,007 CPU і 32 МіБ памʼяті. Без погодження — до 32 блоків (0,25 CPU, 1 ГіБ). Більше потребує погодження.")
   })
 })

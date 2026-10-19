@@ -95,7 +95,7 @@ describe("exercise archive client", () => {
     const progress = vi.fn()
     await startImport(big, "pw", progress)
     expect(mockChunks).toHaveBeenCalledWith(big, progress)
-    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/uploaded", { FileID: "f1", Password: "pw" })
+    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/uploaded", { FileID: "f1", Password: "pw", OwnerEventID: null })
     expect(mockMultipart).not.toHaveBeenCalled()
   })
 
@@ -145,7 +145,7 @@ describe("exercise archive client", () => {
     expect(await startImport(huge, "pw", progress, stage)).toEqual({ kind: "job", jobID: "j5" })
     expect(mockUploadChunks).toHaveBeenCalledWith(huge, progress, undefined, { purpose: ARCHIVE_UPLOAD_PURPOSE })
     expect(stage.mock.calls.map((c) => c[0])).toEqual(["uploading"])
-    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/upload", { UploadID: "u1", Password: "pw" })
+    expect(mockPost).toHaveBeenCalledWith("/api/exercises/import/upload", { UploadID: "u1", Password: "pw", OwnerEventID: null })
     expect(mockChunks).not.toHaveBeenCalled()
     // The upload stays for a failed job to run again from it.
     expect(mockForget).not.toHaveBeenCalled()

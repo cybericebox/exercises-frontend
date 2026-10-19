@@ -1,9 +1,10 @@
 /**
  * catalogList.ts — catalog table rules: one status per row, the access label,
- * the filters ↔ URL mapping and the list query. Filtering, paging and sorting
- * (several events, every status) happen on the server.
+ * the difficulty level, the filters ↔ URL mapping and the list query. Filtering,
+ * paging and sorting (several events, statuses and authors, tags with all of /
+ * none of, the difficulty range) happen on the server.
  */
-import type { ExerciseListItem, ExerciseStatus, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
+import type { Exercise, ExerciseListItem, ExerciseStatus, InfrastructureFilter, ScopeFilter, ExercisesPageFilter } from "@/api/exercises/catalog"
 import type { OffsetPage } from "@/api/pagination"
 
 /** The single status shown in the table. */
@@ -19,6 +20,24 @@ export function catalogStatus(item: Pick<ExerciseListItem, "ArchivedAt" | "HasDr
   if (item.ArchivedAt) return "archived"
   if (item.HasPublished) return item.HasDraft ? "changed" : "published"
   return item.HasDraft ? "draft" : "none"
+}
+
+const TO_SERVER: Record<CatalogStatus, ExerciseStatus> = {
+  none: "none", draft: "draft_only", changed: "changed", published: "published", archived: "archived",
+}
+
+/**
+ * A table row after a bulk action changed its task: the archive mark, the access and the update time come from the
+ * changed card; the list-only fields (author, difficulty, the caller's rights) stay. An unarchived task gets its
+ * status from the card; after an access change the row's status stays.
+ */
+export function mergeCardIntoRow(row: ExerciseListItem, card: Exercise): ExerciseListItem {
+  const archiveChanged = Boolean(row.ArchivedAt) !== Boolean(card.ArchivedAt)
+  return {
+    ...row, ArchivedAt: card.ArchivedAt, UpdatedAt: card.UpdatedAt || row.UpdatedAt,
+    AccessLevel: card.AccessLevel, AccessEventIDs: card.AccessEventIDs, AccessEvents: card.AccessEvents,
+    Status: card.ArchivedAt ? "archived" : archiveChanged || row.Status === "archived" ? TO_SERVER[headerStatus(card)] : row.Status,
+  }
 }
 
 /** The same status for the exercise card, which knows whether the draft really differs. */
@@ -41,27 +60,47 @@ export function accessInfo(item: Pick<ExerciseListItem, "Scope" | "OwnerEventNam
   return { kind: "unknown", eventName: "", eventIds: [] }
 }
 
-export type StatusFilter = "all" | "published" | "changed" | "draft" | "archived"
-export const STATUS_FILTERS: StatusFilter[] = ["all", "published", "changed", "draft", "archived"]
+/** A status the table filters by (several at once; none chosen = every active task). */
+export type StatusFilter = "published" | "changed" | "draft" | "archived"
+export const STATUS_FILTERS: StatusFilter[] = ["published", "changed", "draft", "archived"]
 
-/** Server status/archived params of a status filter. */
-export function statusQuery(status: StatusFilter): { status: string; archived?: "only" } {
-  switch (status) {
-    case "published": return { status: "published" }
-    case "changed": return { status: "changed" }
-    case "draft": return { status: "draft_only" }
-    case "archived": return { status: "archived", archived: "only" }
-    default: return { status: "" }
-  }
+const STATUS_PARAM: Record<StatusFilter, ExerciseStatus> = {
+  published: "published", changed: "changed", draft: "draft_only", archived: "archived",
+}
+
+/** Server statuses of the chosen ones; archived among them lists archived tasks too (alone: only those). */
+export function statusQuery(statuses: StatusFilter[]): string[] {
+  return statuses.map((status) => STATUS_PARAM[status])
+}
+
+/** Difficulty levels, easiest first: the average is shown as the level it rounds to. */
+export const DIFFICULTY_LEVELS = ["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
+export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number]
+
+/** The level (1..6) an average rounds to (half up, like the server filter). */
+export function difficultyLevel(average: number): number {
+  return Math.min(6, Math.max(1, Math.floor(average + 0.5)))
+}
+
+/** The level name of an average. */
+export function difficultyName(average: number): DifficultyLevel {
+  return DIFFICULTY_LEVELS[difficultyLevel(average) - 1]
 }
 
 export type SortDir = "asc" | "desc"
-export const SORT_FIELDS = ["name", "tags", "status", "updated"] as const
+export const SORT_FIELDS = ["name", "author", "tags", "subtasks", "difficulty", "status", "updated"] as const
 
 export type CatalogFilters = {
   search: string
+  /** Tasks having every one of these tags. */
   tags: string[]
-  status: StatusFilter
+  /** Tasks having none of these tags. */
+  notTags: string[]
+  statuses: StatusFilter[]
+  authors: string[]
+  /** The rounded average difficulty, levels 1..6 inclusive; null = no bound. */
+  difficultyMin: number | null
+  difficultyMax: number | null
   scope: ScopeFilter
   events: string[]
   infrastructure: InfrastructureFilter
@@ -70,26 +109,66 @@ export type CatalogFilters = {
 }
 
 export function defaultFilters(isAdmin: boolean): CatalogFilters {
-  return { search: "", tags: [], status: "all", scope: isAdmin ? "" : "event", events: [], infrastructure: "", sortBy: "updated", sortDir: "desc" }
+  return {
+    search: "", tags: [], notTags: [], statuses: [], authors: [], difficultyMin: null, difficultyMax: null,
+    scope: isAdmin ? "" : "event", events: [], infrastructure: "", sortBy: "updated", sortDir: "desc",
+  }
+}
+
+/** Whether any filter narrows the list (search included, sorting not). */
+export function hasActiveFilters(filters: CatalogFilters, isAdmin: boolean): boolean {
+  return countActiveFilters(filters, isAdmin) > 0 || Boolean(filters.search)
+}
+
+/** How many filters (not the search) differ from the defaults: the count on the phone filter button. */
+export function countActiveFilters(filters: CatalogFilters, isAdmin: boolean): number {
+  const defaults = defaultFilters(isAdmin)
+  return [
+    filters.tags.length > 0, filters.notTags.length > 0, filters.statuses.length > 0, filters.authors.length > 0,
+    filters.difficultyMin !== null || filters.difficultyMax !== null, filters.scope !== defaults.scope,
+    filters.events.length > 0, Boolean(filters.infrastructure),
+  ].filter(Boolean).length
+}
+
+/** Every filter back to its default; the search and the sorting stay. */
+export function clearedFilters(filters: CatalogFilters, isAdmin: boolean): CatalogFilters {
+  return { ...defaultFilters(isAdmin), search: filters.search, sortBy: filters.sortBy, sortDir: filters.sortDir }
 }
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
-/** Reads ?q=&tag=&status=&scope=&event=&infra=&sort=&dir= (unknown values → defaults). */
+function level(raw: string | null): number | null {
+  const value = raw === null || raw.trim() === "" ? NaN : Number(raw)
+  return Number.isInteger(value) && value >= 1 && value <= 6 ? value : null
+}
+
+/**
+ * Reads ?q=&tag=&notag=&status=&author=&dmin=&dmax=&scope=&event=&infra=&sort=&dir= (repeated params for lists;
+ * unknown values → defaults). A reversed difficulty range is swapped.
+ */
 export function filtersFromSearch(search: string, isAdmin: boolean): CatalogFilters {
   const params = new URLSearchParams(search)
   const defaults = defaultFilters(isAdmin)
-  const status = params.get("status") as StatusFilter | null
   const scope = params.get("scope")
   const infra = params.get("infra")
   const sortBy = params.get("sort")
   const sortDir = params.get("dir")
+  const statuses = unique(params.getAll("status").flatMap((value) => value.split(",")))
+    .filter((status): status is StatusFilter => (STATUS_FILTERS as string[]).includes(status) && (status !== "archived" || isAdmin))
+  const tags = unique(params.getAll("tag"))
+  let min = level(params.get("dmin"))
+  let max = level(params.get("dmax"))
+  if (min !== null && max !== null && min > max) [min, max] = [max, min]
   return {
     search: params.get("q")?.trim() ?? "",
-    tags: unique(params.getAll("tag")),
-    status: status && STATUS_FILTERS.includes(status) && (status !== "archived" || isAdmin) ? status : defaults.status,
+    tags,
+    notTags: unique(params.getAll("notag")).filter((tag) => !tags.includes(tag)),
+    statuses,
+    authors: unique(params.getAll("author")),
+    difficultyMin: min,
+    difficultyMax: max,
     scope: scope === "catalog" || scope === "event" ? scope : scope === "all" && isAdmin ? "" : defaults.scope,
     events: unique(params.getAll("event")),
     infrastructure: infra === "yes" || infra === "no" ? infra : "",
@@ -104,7 +183,11 @@ export function filtersToSearch(filters: CatalogFilters, isAdmin: boolean): stri
   const params = new URLSearchParams()
   if (filters.search) params.set("q", filters.search)
   for (const tag of filters.tags) params.append("tag", tag)
-  if (filters.status !== defaults.status) params.set("status", filters.status)
+  for (const tag of filters.notTags) params.append("notag", tag)
+  for (const status of filters.statuses) params.append("status", status)
+  for (const author of filters.authors) params.append("author", author)
+  if (filters.difficultyMin !== null) params.set("dmin", String(filters.difficultyMin))
+  if (filters.difficultyMax !== null) params.set("dmax", String(filters.difficultyMax))
   if (filters.scope !== defaults.scope) params.set("scope", filters.scope || "all")
   for (const event of filters.events) params.append("event", event)
   if (filters.infrastructure) params.set("infra", filters.infrastructure)
@@ -117,14 +200,20 @@ export function filtersToSearch(filters: CatalogFilters, isAdmin: boolean): stri
 
 export type PageFetcher = (filter: ExercisesPageFilter) => Promise<OffsetPage<ExerciseListItem>>
 
-/** The server accepts up to 100 events per request. */
+/** The server accepts up to 100 events and 100 authors per request. */
 export const MAX_EVENTS = 100
+export const MAX_AUTHORS = 100
 
 /** One table page for the filters, straight from the server. */
 export function loadCatalogPage(fetchPage: PageFetcher, filters: CatalogFilters, page: number, pageSize: number): Promise<OffsetPage<ExerciseListItem>> {
-  const { status, archived } = statusQuery(filters.status)
   return fetchPage({
-    search: filters.search, tags: filters.tags, status, archived,
+    search: filters.search,
+    ...(filters.tags.length ? { withTags: filters.tags } : {}),
+    ...(filters.notTags.length ? { withoutTags: filters.notTags } : {}),
+    ...(filters.statuses.length ? { statuses: statusQuery(filters.statuses) } : {}),
+    ...(filters.authors.length ? { authors: filters.authors.slice(0, MAX_AUTHORS) } : {}),
+    ...(filters.difficultyMin !== null ? { difficultyMin: filters.difficultyMin } : {}),
+    ...(filters.difficultyMax !== null ? { difficultyMax: filters.difficultyMax } : {}),
     ...(filters.scope ? { scope: filters.scope } : {}),
     ...(filters.events.length ? { events: filters.events.slice(0, MAX_EVENTS) } : {}),
     ...(filters.infrastructure ? { infrastructure: filters.infrastructure } : {}),
