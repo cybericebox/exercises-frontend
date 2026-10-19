@@ -69,6 +69,39 @@ it("«Вирішено» only on open «Лабораторія впала» requ
   expect(inbox.canResolve(item("fyi", { Type: "event.lab.failed" }))).toBe(false)
 })
 
+it("«Вирішено» follows the server's Resolvable flag; older backends fall back to the lab type", () => {
+  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true }))).toBe(true)
+  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: false }))).toBe(false)
+  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised" }))).toBe(false)
+  expect(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" }))).toBe(false)
+})
+
+it("an open request needs action even when it was read; a resolved one does not", () => {
+  expect(inbox.needsAction(request("o", { ReadAt: "2026-09-29T10:00:00Z" }))).toBe(true)
+  expect(inbox.needsAction(request("o"))).toBe(true)
+  expect(inbox.needsAction(request("r", { ReadAt: "2026-09-29T10:00:00Z", ResolvedAt: "2026-09-29T10:00:00Z" }))).toBe(false)
+  expect(inbox.needsAction(item("fyi"))).toBe(false)
+})
+
+it("the bell label says what is counted: open requests, unread items or both", () => {
+  expect(inbox.bellLabel(0, null)).toEqual({ key: "inbox.title", vars: {} })
+  expect(inbox.bellLabel(3, null)).toEqual({ key: "inbox.titleUnread", vars: { count: 3 } })
+  expect(inbox.bellLabel(0, { all: 0, requests: 0, personal: 0, activity: 0 }).key).toBe("inbox.title")
+  // The owner's case: one open (already read) request and nothing unread.
+  expect(inbox.bellLabel(0, { all: 1, requests: 1, personal: 0, activity: 0 })).toEqual({ key: "inbox.titleRequests", vars: { count: 1 } })
+  expect(inbox.bellLabel(2, { all: 2, requests: 0, personal: 1, activity: 1 })).toEqual({ key: "inbox.titleUnread", vars: { count: 2 } })
+  expect(inbox.bellLabel(3, { all: 3, requests: 1, personal: 1, activity: 1 })).toEqual({ key: "inbox.titleBoth", vars: { requests: 1, unread: 2 } })
+})
+
+it("the new inbox keys exist in both catalogs", () => {
+  for (const lang of ["uk", "en"]) {
+    const catalog = messages(lang)
+    for (const key of ["inbox.unreadItem", "inbox.needsAction", "inbox.titleRequests", "inbox.titleBoth", "inbox.tabCountRequests"]) {
+      expect(catalog[key], `${lang}: ${key}`).toBeTruthy()
+    }
+  }
+})
+
 it("bell and resolver name", () => {
   expect(inbox.bellCount(3, null)).toBe(3)
   expect(inbox.bellCount(3, { all: 5, requests: 2, personal: 3, activity: 0 })).toBe(5)

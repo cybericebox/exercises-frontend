@@ -254,8 +254,8 @@ describe("top-bar inbox", () => {
     it("opens on «Запити» when requests are open, lists open ones first and counts per tab", async () => {
       mockCategories()
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
-      expect(await screen.findByRole("tab", { name: "Запити: 1" })).toHaveAttribute("aria-selected", "true")
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 2" }))
+      expect(await screen.findByRole("tab", { name: "Запити, потребують дії: 1" })).toHaveAttribute("aria-selected", "true")
       expect(screen.getByRole("tab", { name: "Особисте: 1" })).toBeInTheDocument()
       await screen.findByText("Лабораторія впала")
       const rows = screen.getAllByRole("listitem")
@@ -280,7 +280,7 @@ describe("top-bar inbox", () => {
       const { ApiError } = await import("@/api/client")
       api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219)).mockResolvedValueOnce(undefined)
       render(<InboxButton defaultTab="requestsIfOpen" />)
-      fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 3" }))
+      fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 2" }))
       const row = (await screen.findByText("Лабораторія впала")).closest("li")!
       expect(within(screen.getByText("Нова заявка").closest("li")!).queryByRole("button", { name: "Вирішено" })).not.toBeInTheDocument()
       fireEvent.click(within(row).getByRole("button", { name: "Вирішено" }))
