@@ -108,6 +108,10 @@ export const CODE_TO_KEY: Record<number, string> = {
   21010: "admin.ex.err.uploadHashMismatch",
   21011: "admin.ex.err.uploadInvalid",
   71003: "admin.ex.err.storageNotConfigured",
+  // test lab reservations
+  22516: "admin.exDeploy.lengthNotAllowed",
+  72517: "admin.exDeploy.reservationFull",
+  72518: "admin.exDeploy.notReady",
 }
 
 /**

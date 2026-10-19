@@ -145,3 +145,11 @@ describe('image archive error codes', () => {
     expect(ARCHIVE_CONTENT_ERROR_CODES.has(22829)).toBe(true)
   })
 })
+
+describe('test lab reservation errors', () => {
+  it('maps reservation errors to texts', () => {
+    expect(exerciseErrorMessage(apiError(409, 72517, 'The reservation has no room for this laboratory'))).toBe('admin.exDeploy.reservationFull')
+    expect(exerciseErrorMessage(apiError(503, 72518, 'The resources are not ready yet, try again in a minute'))).toBe('admin.exDeploy.notReady')
+    expect(exerciseErrorMessage(apiError(400, 22516, 'This run length is not offered'))).toBe('admin.exDeploy.lengthNotAllowed')
+  })
+})

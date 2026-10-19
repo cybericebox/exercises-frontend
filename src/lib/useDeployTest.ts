@@ -170,7 +170,7 @@ export function useDeployTest() {
   }, [])
 
   const start = useCallback(
-    async (exerciseId: string, versionId: string, variantId: string) => {
+    async (exerciseId: string, versionId: string, variantId: string, leaseMinutes?: number) => {
       const sequence = ++requestSequence.current
       clearTimer()
       readySeen.current = false
@@ -183,7 +183,7 @@ export function useDeployTest() {
       let tasks: DeployTask[]
       let kind: DeployKind
       try {
-        ;({ DeployID: deployID, Tasks: tasks = [], Kind: kind = "lab" } = await deployVariant(exerciseId, versionId, variantId))
+        ;({ DeployID: deployID, Tasks: tasks = [], Kind: kind = "lab" } = await (leaseMinutes ? deployVariant(exerciseId, versionId, variantId, leaseMinutes) : deployVariant(exerciseId, versionId, variantId)))
       } catch (e) {
         if (sequence === requestSequence.current) setState({ ...IDLE, error: (e as Error).message, errorCause: e })
         return
