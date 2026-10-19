@@ -95,7 +95,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
   }
 
   return <ConfirmDialog open={open} busy={busy} error={limit === "tooMany" ? limitMessage(limit) : error} title={t("exercises.book.title")} description={t("exercises.book.description")}
-    confirmLabel={t("exercises.book.confirm")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
+    confirmLabel={t("exercises.book.confirm")} busyLabel={t("exercises.book.booking")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
     <div className="grid gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="booking-start">{t("exercises.book.start")}</Label>

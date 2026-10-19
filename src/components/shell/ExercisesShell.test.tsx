@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { ExercisesShell } from "./ExercisesShell"
 
 const role = vi.hoisted(() => ({ value: { role: "admin" as string | null, isLoading: false, error: null as unknown, retry: (() => {}) as () => void, me: null as { Email: string } | null, can: ((): boolean => true) as (perm: string) => boolean } }))
+const accessFailure = vi.hoisted(() => ({ value: null as unknown }))
 const rights = vi.hoisted(() => ({ value: { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] as { ID: string; Name: string; Tag: string; CanWrite: boolean; InfrastructureAllowed: boolean }[] } }))
 
 const nav = vi.hoisted(() => ({ path: "/" }))
@@ -13,7 +14,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/client", () => ({ apiPost: vi.fn() }))
 vi.mock("./TopBar", () => ({ TopBar: () => <header>top</header> }))
 vi.mock("./SiteBanners", () => ({ SiteBanners: () => <div role="status">announcements</div> }))
-vi.mock("@/api/exercises/access", () => ({ getExerciseAccess: () => Promise.resolve(rights.value) }))
+vi.mock("@/api/exercises/access", () => ({ getExerciseAccess: () => accessFailure.value ? Promise.reject(accessFailure.value) : Promise.resolve(rights.value) }))
 
 const replace = vi.fn()
 const original = window.location
@@ -30,6 +31,7 @@ describe("exercises shell", () => {
     window.history.replaceState(null, "", "/")
     role.value = { role: "admin", isLoading: false, error: null, retry: () => {}, me: null, can: () => true }
     rights.value = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] }
+    accessFailure.value = null
   })
 
   it("gives the lab testing page the whole screen: no top bar", async () => {
@@ -104,6 +106,19 @@ describe("exercises shell", () => {
     role.value = { role: "user", isLoading: false, error: null, retry: () => {}, me: null, can: () => false }
     rights.value = { ...rights.value, IsAdmin: false, Events: [{ ID: "ev1", Name: "CTF", Tag: "ctf", CanWrite: true, InfrastructureAllowed: false }] }
     render(<ExercisesShell><span>content</span></ExercisesShell>)
+    expect(await screen.findByText("content")).toBeInTheDocument()
+  })
+
+  it("shows a load error with retry, not «no access», when the rights could not be read", async () => {
+    role.value = { role: "user", isLoading: false, error: null, retry: () => {}, me: { Email: "a@b.test" }, can: () => false }
+    rights.value = { ...rights.value, IsAdmin: false, Events: [{ ID: "ev1", Name: "CTF", Tag: "ctf", CanWrite: true, InfrastructureAllowed: false }] }
+    accessFailure.value = Object.assign(new Error("API error 503"), { status: 503 })
+    render(<ExercisesShell><span>content</span></ExercisesShell>)
+    const retry = await screen.findByRole("button", { name: "error.load.retry" })
+    expect(screen.queryByText("auth.noAccess.body")).not.toBeInTheDocument()
+    expect(screen.queryByText("content")).not.toBeInTheDocument()
+    accessFailure.value = null
+    fireEvent.click(retry)
     expect(await screen.findByText("content")).toBeInTheDocument()
   })
 })

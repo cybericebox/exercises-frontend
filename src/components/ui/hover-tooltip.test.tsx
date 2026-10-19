@@ -173,4 +173,31 @@ describe("FieldHelp", () => {
     fireEvent.pointerDown(document.body, { pointerType: "touch" })
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
+
+  it("shows the reason of a disabled control on a tap, which a phone never gets by hover", () => {
+    render(<HoverTooltip text="Needs approval" describe><button type="button" disabled className="pointer-events-none">Publish</button></HoverTooltip>)
+    const wrapper = screen.getByRole("button", { name: "Publish" }).parentElement!
+    // pointer-events:none on the disabled button: the tap lands on the wrapper.
+    fireEvent.pointerDown(wrapper, { pointerType: "touch" })
+    fireEvent.click(wrapper)
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Needs approval")
+    fireEvent.pointerDown(document.body, { pointerType: "touch" })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
+
+  it("leaves a tap on an enabled control to the control", () => {
+    render(<HoverTooltip text="Open the lab"><button type="button">Open</button></HoverTooltip>)
+    const button = screen.getByRole("button", { name: "Open" })
+    fireEvent.pointerDown(button, { pointerType: "touch" })
+    fireEvent.click(button)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
+
+  it("does not toggle on a mouse click on a disabled control's wrapper (hover already shows it)", () => {
+    render(<HoverTooltip text="Needs approval"><button type="button" disabled className="pointer-events-none">Publish</button></HoverTooltip>)
+    const wrapper = screen.getByRole("button", { name: "Publish" }).parentElement!
+    fireEvent.pointerDown(wrapper, { pointerType: "mouse" })
+    fireEvent.click(wrapper)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
 })

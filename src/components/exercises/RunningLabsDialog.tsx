@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ExternalLink, LogOut } from "lucide-react"
+import { ExternalLink, LogOut, X } from "lucide-react"
 
 import { destroyDeploy, type DeployListItem } from "@/api/exercises/deploy"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
@@ -50,6 +50,7 @@ export function RunningLabsDialog({ open, items, description, onClose, onEnded, 
   const [ending, setEnding] = useState<DeployListItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const closeRef = useRef<HTMLButtonElement>(null)
   const othersRunning = useOtherLabsRunning(ending?.DeployID ?? null, 1)
   const statusOf = (item: DeployListItem) => item.Expired || new Date(item.ExpiresAt).getTime() <= now ? t("admin.exTest.expiredMark") : t("admin.exTest.left", { time: timeLeft(item.ExpiresAt, now) })
   const nameOf = (item: DeployListItem) => names[item.ExerciseID] ?? t("admin.exTest.unknownExercise")
@@ -71,34 +72,42 @@ export function RunningLabsDialog({ open, items, description, onClose, onEnded, 
 
   return <>
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
-      <DialogContent className="max-w-lg" {...(description ? {} : { "aria-describedby": undefined })}>
-        <DialogHeader>
-          <DialogTitle>{t("admin.exTest.runningTitle")}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+      {/* The first focus goes to the close button: on a row's icon it would open that icon's tooltip over the title. */}
+      <DialogContent className="max-w-lg" {...(description ? {} : { "aria-describedby": undefined })}
+        onOpenAutoFocus={(event) => { event.preventDefault(); closeRef.current?.focus() }}>
+        <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0 text-left">
+          <div className="min-w-0 space-y-1.5">
+            <DialogTitle>{t("admin.exTest.runningTitle")}</DialogTitle>
+            {description && <DialogDescription>{description}</DialogDescription>}
+          </div>
+          <DialogClose asChild>
+            <button ref={closeRef} type="button" aria-label={t("admin.exTest.runningClose")} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
+          </DialogClose>
         </DialogHeader>
         <ul className="space-y-1.5">
           {items.map((item) => {
             const name = nameOf(item)
             const variant = variants[item.DeployID]
             return <li key={item.DeployID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-sm font-medium text-foreground">{name}</span>
-                  {item.Kind === "static" && <Badge tone="muted">{t("admin.exTest.kindStatic")}</Badge>}
                 </div>
-                <div className="text-xs tabular-nums text-muted-foreground">
-                  {variant ? t("admin.exTest.runningVariant", { variant, status: statusOf(item) }) : statusOf(item)}
+                {/* The kind goes on the second line: beside the name it would leave a phone no room for the name. */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                  <span>{variant ? t("admin.exTest.runningVariant", { variant, status: statusOf(item) }) : statusOf(item)}</span>
+                  {item.Kind === "static" && <Badge tone="muted">{t("admin.exTest.kindStatic")}</Badge>}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <HoverTooltip text={t("admin.exTest.openLab")}>
-                  <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={t("admin.exTest.openLabNamed", { name })}
+                  <Button type="button" variant="outline" size="sm" className="w-8 p-0" aria-label={t("admin.exTest.openLabNamed", { name })}
                     onClick={() => { onClose(); router.push(testLabHref(item.ExerciseID, item.DeployID)) }}>
                     <ExternalLink aria-hidden="true" size={16} />
                   </Button>
                 </HoverTooltip>
                 <HoverTooltip text={t("admin.exTest.end")}>
-                  <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={t("admin.exTest.endLabNamed", { name })}
+                  <Button type="button" variant="outline" size="sm" className="w-8 p-0" aria-label={t("admin.exTest.endLabNamed", { name })}
                     onClick={() => { setError(""); setEnding(item) }}>
                     <LogOut aria-hidden="true" size={16} />
                   </Button>
@@ -110,7 +119,7 @@ export function RunningLabsDialog({ open, items, description, onClose, onEnded, 
       </DialogContent>
     </Dialog>
     <ConfirmDialog open={ending !== null} tone="danger" busy={busy} error={error} title={t("admin.exTest.endTitle")}
-      description={t(ending?.Kind === "static" ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} cancelLabel={t("admin.exPage.dialog.cancel")}
+      description={t(ending?.Kind === "static" ? "admin.exTest.endDescriptionStatic" : othersRunning ? "admin.exTest.endDescriptionOthers" : "admin.exTest.endDescription")} confirmLabel={t("admin.exTest.endConfirm")} busyLabel={t("admin.exTest.ending")} cancelLabel={t("admin.exPage.dialog.cancel")}
       onCancel={() => setEnding(null)} onConfirm={() => void end()} />
   </>
 }

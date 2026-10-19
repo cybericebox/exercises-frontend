@@ -824,7 +824,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const openAbove = below < 160 && above > below;
     return createPortal(
       <div
-        className="fixed z-[9999] overflow-y-auto overscroll-contain break-words py-1 rounded-lg bg-popover border border-input"
+        className="fixed z-(--ib-z-popover) overflow-y-auto overscroll-contain break-words py-1 rounded-lg bg-popover border border-input"
         style={{
           width: menuWidth,
           maxHeight: Math.max(80, Math.min(240, openAbove ? above : below)),

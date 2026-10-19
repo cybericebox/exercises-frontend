@@ -4,9 +4,25 @@
 @import '../styles/ds-error-page.css';
 @import '../styles/ds-service-down.css';
 @import '../styles/ds-modal-motion.css';
+@import '../styles/layers.css';
+@import '../styles/touch.css';
 
 .exercise-settings-layout {
 	display: grid;
+}
+
+/* Viewing an exercise (no edit mode, a version, a read-only catalog task): the values are read, not typed, so a
+   disabled field shows them in full ink, without the dimming that makes them look empty or like placeholders. */
+.exercise-view :is(input, textarea):disabled {
+	opacity: 1;
+	cursor: default;
+	color: var(--ib-ink);
+	-webkit-text-fill-color: var(--ib-ink);
+}
+
+.exercise-view :is(input, textarea):disabled::placeholder {
+	color: transparent;
+	-webkit-text-fill-color: transparent;
 }
 
 .exercise-variant-tabs {

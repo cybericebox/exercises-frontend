@@ -50,4 +50,9 @@ describe("TagInput chips", () => {
     expect(chip).toHaveClass("bg-border", "rounded-[4px]")
     expect(chip).not.toHaveClass("bg-secondary/40", "rounded-full")
   })
+
+  it("shows no typing hint in read-only mode, so the field never reads as an empty input", () => {
+    render(<TagInput value={["web"]} onChange={vi.fn()} disabled />)
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("placeholder")
+  })
 })

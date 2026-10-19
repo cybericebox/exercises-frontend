@@ -57,6 +57,7 @@ describe("catalog access Save", () => {
     await act(async () => {})
     fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.none/ }))
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "exercises.access.save" })))
+    expect(screen.getByRole("button", { name: /exercises\.access\.saving/ })).toHaveAttribute("aria-busy", "true")
     expect(screen.getByRole("radio", { name: /exercises.access.level.all/ })).toBeEnabled()
     fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.all/ }))
     await act(async () => resolve({ ...exercise, AccessLevel: "none", AccessEventIDs: [], AccessEvents: [] }))

@@ -17,7 +17,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 function Drawer() {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
-  return <><button ref={trigger} onClick={() => setOpen(true)}>open</button><MobileDrawer open={open} onOpenChange={setOpen} onReturnFocus={() => trigger.current?.focus()} /></>
+  return <><header><button ref={trigger} onClick={() => setOpen(true)}>open</button></header><MobileDrawer open={open} onOpenChange={setOpen} anchor={trigger} onReturnFocus={() => trigger.current?.focus()} /></>
 }
 
 describe("catalog sidebar", () => {
@@ -68,16 +68,26 @@ describe("catalog sidebar", () => {
     expect(window.location.href).toBe(previous)
   })
 
-  it("opens the booking window over the phone drawer and restores focus after Escape", async () => {
+  it("closes the phone drawer before it opens the bookings, and returns focus to the menu button after Escape", async () => {
     render(<Drawer />)
-    fireEvent.click(screen.getByRole("button", { name: "open" }))
-    const button = screen.getByRole("button", { name: "exercises.book.menu" })
-    fireEvent.click(button)
+    const trigger = screen.getByRole("button", { name: "open" })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.book.menu" }))
     const bookings = await screen.findByRole("dialog", { name: "exercises.book.listTitle" })
+    expect(screen.queryByRole("dialog", { name: "exercises.nav.label" })).not.toBeInTheDocument()
     fireEvent.keyDown(bookings, { key: "Escape" })
-    await waitFor(() => expect(button).toHaveFocus())
-    expect(screen.getByRole("dialog", { name: "exercises.nav.label" })).toBeInTheDocument()
-    expect(screen.queryByRole("dialog", { name: "exercises.book.listTitle" })).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("opens the phone menu as an overlay under the header: the panel and its backdrop start at the header's bottom edge", () => {
+    render(<Drawer />)
+    const trigger = screen.getByRole("button", { name: "open" })
+    vi.spyOn(trigger.closest("header")!, "getBoundingClientRect").mockReturnValue({ bottom: 96 } as DOMRect)
+    fireEvent.click(trigger)
+    const panel = screen.getByRole("dialog", { name: "exercises.nav.label" })
+    expect(panel.style.top).toBe("96px")
+    expect(document.querySelector("[data-drawer-backdrop]")).toHaveStyle({ top: "96px" })
   })
 
 })

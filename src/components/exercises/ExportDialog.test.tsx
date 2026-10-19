@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/exercises/archive", () => ({ createExport: vi.fn(), downloadExport: vi.fn() }))
@@ -78,15 +78,18 @@ describe("ExportDialog", () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it("shows download progress", async () => {
+  it("names the export on its busy button and shows the download percent there", async () => {
     let finish!: (value: { blob: Blob; filename: string }) => void
+    let progress: ((percent: number) => void) | undefined
     mockDownload.mockImplementation((_stored, _count, onProgress) => {
-      onProgress?.(42)
+      progress = onProgress
       return new Promise((resolve) => { finish = resolve })
     })
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
-    expect(await screen.findByText("admin.exExport.progress")).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: /admin\.exExport\.exporting/ })).toHaveAttribute("aria-busy", "true")
+    act(() => progress?.(42))
+    expect(await screen.findByRole("button", { name: /admin\.exExport\.progress/ })).toHaveAttribute("aria-busy", "true")
     finish({ blob: new Blob(["zip"]), filename: "x.zip" })
     await waitFor(() => expect(downloadBlob).toHaveBeenCalled())
   })

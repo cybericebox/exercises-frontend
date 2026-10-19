@@ -361,13 +361,13 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   return <><Popover.Root open={open} onOpenChange={openInbox}>
     <Popover.Trigger asChild>
-      <button type="button" aria-label={label} className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+      <button type="button" aria-label={label} className="ib-hit relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         <Bell className="h-4 w-4" />
         {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
       </button>
     </Popover.Trigger>
     <Popover.Portal>
-      <Popover.Content align="end" sideOffset={20} collisionPadding={12} aria-label={t("inbox.panel")} className={`z-50 flex ${panelMaxHeight} w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none`}>
+      <Popover.Content align="end" sideOffset={20} collisionPadding={12} aria-label={t("inbox.panel")} className={`z-(--ib-z-popover) flex ${panelMaxHeight} w-[min(32rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground outline-none`}>
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-3 pb-2">
           <h2 className="flex text-muted-foreground"><span className="sr-only">{t("inbox.title")}</span><Bell aria-hidden="true" className="h-[19px] w-[19px]" /></h2>
           <div className="flex shrink-0 items-center gap-2">
@@ -427,7 +427,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>
-  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-[70] flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
+  {popIns.length > 0 && createPortal(<div className="fixed right-4 top-16 z-(--ib-z-toast) flex max-h-[calc(100vh-5rem)] flex-col gap-3 overflow-y-auto" aria-live="polite">
     {popIns.slice(0, 3).map((item) => <NotificationPopIn key={item.ID} message={item} onClose={() => setPopIns((current) => current.filter((entry) => entry.ID !== item.ID))} onAction={(href) => { const safe = safeHref(href); if (safe) void followLink(item, safe) }} />)}
   </div>, document.body)}
   </>

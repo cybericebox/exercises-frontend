@@ -37,15 +37,15 @@ describe("ResourcesPanel", () => {
 
   it("shows the totals of the task", () => {
     const { container } = view(resources({ Min: totals(375, 1536, 2, 48), Max: totals(375, 1536, 2, 48) }))
-    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("375m")
-    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("1.5Gi")
+    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("0,375")
+    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("1,5")
     expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("48")
     expect(container.querySelector("[data-frame-issues]")).toBeNull()
   })
 
   it("shows the range over variants and the server's spread warning", () => {
     const { container } = view(resources({ Min: totals(50, 128, 1), Max: totals(250, 1024, 3), Variants: [{ VariantID: "a", ...totals(50, 128, 1) }, { VariantID: "b", ...totals(250, 1024, 3) }], VariantsDiffer: true, SpreadPercent: 80 }))
-    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("50m – 250m")
+    expect(container.querySelector("[data-resource-totals]")).toHaveTextContent("0,05 – 0,25")
     expect(container.querySelector("[data-variants-differ]")).toBeInTheDocument()
   })
 

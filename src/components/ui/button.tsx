@@ -23,9 +23,10 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
+        // ib-hit (styles/touch.css): a 44px tap area on touch screens, the look unchanged.
+        sm: "ib-hit h-8 rounded-md px-3 text-xs",
         lg: "h-10 rounded-md px-8",
-        icon: "h-10 w-10",
+        icon: "ib-hit h-10 w-10",
       },
     },
     defaultVariants: {

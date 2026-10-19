@@ -11,4 +11,9 @@ describe("DialogContent", () => {
     expect(screen.getByTestId("footer")).toHaveClass("gap-2")
     expect(screen.getByText("Заголовок")).toHaveClass("leading-snug")
   })
+
+  it("keeps its one column within its width, so long unbreakable content shrinks instead of scrolling the dialog sideways", () => {
+    render(<Dialog open><DialogContent><DialogTitle>Заголовок</DialogTitle></DialogContent></Dialog>)
+    expect(screen.getByRole("dialog")).toHaveClass("grid-cols-[minmax(0,1fr)]")
+  })
 })

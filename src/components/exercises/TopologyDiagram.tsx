@@ -788,7 +788,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           {Math.round(viewport.scale * 100)}%<ChevronDown className="h-3 w-3" />
         </Button></PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal><PopoverPrimitive.Content align="center" sideOffset={6}
-          className="z-50 w-44 rounded-md border border-border bg-popover p-2">
+          className="z-(--ib-z-popover) w-44 rounded-md border border-border bg-popover p-2">
           <div className="grid grid-cols-2 gap-1">
             {[50, 75, 100, 125, 150, 200, 250].map((percent) => <Button key={percent} type="button" variant="ghost" size="sm"
               className="h-7 justify-start px-2 text-xs tabular-nums" onClick={() => setZoomPercent(percent)}>{percent}%</Button>)}
@@ -811,7 +811,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     {context && <TopologyContextMenu x={context.x} y={context.y} entries={contextEntries(context)} onClose={closeContext}
       returnFocus={context.trigger}
       label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : context.kind === "edge" ? "admin.exTopo.connectionMenu" : "admin.exTopo.diagram")} />}
-    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-[100] max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
+    {hint && createPortal(<div role="tooltip" className="pointer-events-none fixed z-(--ib-z-tooltip) max-w-72 whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-normal leading-relaxed text-popover-foreground"
       style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )
