@@ -548,7 +548,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
 
   it('shows the author and the average difficulty of each task', async () => {
     mockList.mockResolvedValue({ Items: [
-      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4 },
+      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4, TaskNames: ['One', 'Two', 'Three', 'Four'] },
       { ...item, ID: 'b', Name: 'Unrated' },
     ], Total: 2, Page: 1, PageSize: 50 })
     render(<Page />)
@@ -571,6 +571,10 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     // The subtask count of the first variant; «—» without a variant.
     expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
+    // The count opens the subtask names.
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.subtasks.show' }))
+    expect((await screen.findAllByRole('listitem')).map((li) => li.textContent)).toEqual(['One', 'Two', 'Three', 'Four'])
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.difficulty' }))

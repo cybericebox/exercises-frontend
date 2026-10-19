@@ -1510,5 +1510,9 @@
   "exercises.subtasks.none": "No variants",
   "exercises.help.difficultyCol.subtasks": "«Subtasks»: how many the same first variant has; «—»: no variants.",
   "admin.ex.updatedLine": "Updated {date}",
-  "exercises.filter.tags.cycleHint": "Click: the tag is «yes»; click again: «no» (without the tag); once more: off."
+  "exercises.filter.tags.cycleHint": "Click: the tag is «yes»; click again: «no» (without the tag); once more: off.",
+  "exercises.subtasks.show": "Subtasks: {count}. Show the names",
+  "exercises.subtasks.title": "Subtasks",
+  "exercises.subtasks.empty": "The first variant has no subtasks",
+  "exercises.subtasks.unnamed": "Untitled"
 }
