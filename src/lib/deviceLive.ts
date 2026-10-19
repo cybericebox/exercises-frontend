@@ -7,14 +7,17 @@ import type { DeployDeviceStatus, DeployQueue } from "@/api/exercises/deploy"
 import { t } from "@/i18n/t"
 
 /** Reasons that mean the cluster has no room; the author sees «not enough resources», never the code. */
-const NO_RESOURCES_REASONS = new Set(["InsufficientResources", "NoSchedulableNodes", "TenantQuota"])
+const NO_RESOURCES_REASONS = new Set(["InsufficientResources", "NoSchedulableNodes", "TenantQuota", "DoesNotFitNow", "ReservationMissing",
+  "ReservationNotActive", "ReservationFull", "Withdrawn"])
 /** How long a starting lab may take before the author gets a reassuring second line. */
 export const LONG_WAIT_MS = 30_000
 const FAILURE_REASONS = new Set(["ImagePull", "CrashLoop", "Unschedulable", "StartupTimeout", "DoesNotFit"])
 
-/** The second line of a starting lab: null before the long wait, then «not enough resources» for a resource reason or the generic «almost there». */
+/** The second line of a starting lab: null before the long wait, then «a cluster node starts» while sent pods wait for a new node,
+ * «not enough resources» for a resource reason (a withdrawn launch included) or the generic «almost there». */
 export function startingNote(queue: DeployQueue | null | undefined, longWait: boolean): string | null {
   if (!longWait) return null
+  if (queue?.Reason === "NodeStarting") return t("admin.exDeploy.startingNodeStarting")
   return t(queue && NO_RESOURCES_REASONS.has(queue.Reason) ? "admin.exDeploy.startingNoResources" : "admin.exDeploy.startingLong")
 }
 
