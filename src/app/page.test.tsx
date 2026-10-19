@@ -467,6 +467,17 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })
 
+  it('explains the tag так/ні cycle in the list and in the «?» help, which opens on a tap', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(helpButton(/exercises\.help\.tags\.cycle/))
+    const tip = await screen.findByRole('tooltip')
+    expect(within(tip).getByText('exercises.help.tags.cycle')).toBeInTheDocument()
+    expect(within(tip).getByText('exercises.help.tags.match')).toBeInTheDocument()
+    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.tags.label' }))
+    expect(await screen.findByText('exercises.filter.tags.cycleHint')).toBeInTheDocument()
+  })
+
   it('lists the most used tags when the tag field is focused', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')

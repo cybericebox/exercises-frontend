@@ -1502,10 +1502,11 @@
   "exercises.filter.tags.yes": "yes",
   "exercises.filter.tags.no": "no",
   "exercises.filter.tags.remove": "Remove tag {value} ({state})",
-  "exercises.help.tags.cycle": "Press a tag: «yes» → «no» → off.",
+  "exercises.help.tags.cycle": "Click a tag: «yes» (must have); again: «no» (must not have); once more: off.",
   "exercises.help.tags.match": "Shows tasks with every «yes» tag and none of the «no» tags.",
   "admin.ex.col.subtasks": "Subtasks",
   "exercises.subtasks.none": "No variants",
   "exercises.help.difficultyCol.subtasks": "«Subtasks»: how many the same first variant has; «—»: no variants.",
-  "admin.ex.updatedLine": "Updated {date}"
+  "admin.ex.updatedLine": "Updated {date}",
+  "exercises.filter.tags.cycleHint": "Click: the tag is «yes»; click again: «no» (without the tag); once more: off."
 }
