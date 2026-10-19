@@ -997,6 +997,7 @@
   "exercises.bulk.summary.close": "Закрити",
   "exercises.bulk.reason.alreadyArchived": "Уже в архіві",
   "exercises.bulk.reason.notArchived": "Не в архіві",
+  "exercises.bulk.reason.noRights": "Немає прав на цю дію",
   "exercises.access.button": "Доступ",
   "exercises.propose.button": "Запропонувати в каталог",
   "exercises.propose.title": "Запропонувати в каталог",

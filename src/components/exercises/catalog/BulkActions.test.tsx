@@ -115,4 +115,35 @@ describe("catalog bulk actions", () => {
     expect(bulkSetAccess).toHaveBeenCalledWith(["a", "b"], { AccessLevel: "none", EventIDs: [] })
     expect(onChanged).toHaveBeenCalledWith([expect.objectContaining({ ID: "a", AccessLevel: "none" }), expect.objectContaining({ ID: "b", AccessLevel: "none" })])
   })
+
+  it("archives only the tasks the user may edit and counts the rest as skipped with their reasons", async () => {
+    vi.mocked(bulkArchive).mockImplementation(async (ids) => ids.map((ID) => ({ ID, Exercise: card(ID, "2026-10-19T10:00:00Z"), Code: 0 })))
+    setup([row("a"), row("b", { Permissions: { ...RIGHTS, CanEdit: false } }), row("c", { ArchivedAt: "2026-10-01T00:00:00Z", Status: "archived" })])
+    fireEvent.click(screen.getByRole("button", { name: "exercises.bulk.archive.action" }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByText('exercises.bulk.archive.title {"count":1}')).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "admin.exPage.archive.confirm" })))
+    expect(bulkArchive).toHaveBeenCalledWith(["a"])
+    await waitFor(() => expect(screen.getByText('exercises.bulk.summary.counts {"changed":1,"skipped":2}')).toBeInTheDocument())
+    expect(screen.getByText('exercises.bulk.summary.reason {"reason":"exercises.bulk.reason.alreadyArchived","count":1}')).toBeInTheDocument()
+    expect(screen.getByText('exercises.bulk.summary.reason {"reason":"exercises.bulk.reason.noRights","count":1}')).toBeInTheDocument()
+  })
+
+  it("changes access only where the user manages it and counts the rest as skipped", async () => {
+    vi.mocked(bulkSetAccess).mockImplementation(async (ids) => ids.map((ID) => ({ ID, Exercise: card(ID, null), Code: 0 })))
+    setup([row("a"), row("b", { Permissions: { ...RIGHTS, CanManageAccess: false } })])
+    fireEvent.click(screen.getByRole("button", { name: "exercises.bulk.access.action" }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByText('exercises.bulk.access.description {"count":1}')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("radio", { name: /exercises.access.level.none/ }))
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "exercises.access.save" })))
+    expect(bulkSetAccess).toHaveBeenCalledWith(["a"], { AccessLevel: "none", EventIDs: [] })
+    await waitFor(() => expect(screen.getByText('exercises.bulk.summary.reason {"reason":"exercises.bulk.reason.noRights","count":1}')).toBeInTheDocument())
+  })
+
+  it("hides an action no selected task allows in its state", () => {
+    setup([row("a", { ArchivedAt: "2026-10-01T00:00:00Z", Permissions: { ...RIGHTS, CanEdit: false } }), row("b")])
+    expect(screen.getByRole("button", { name: "exercises.bulk.archive.action" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "exercises.bulk.unarchive.action" })).not.toBeInTheDocument()
+  })
 })
