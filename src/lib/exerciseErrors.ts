@@ -9,7 +9,7 @@
  * (they're intercepted by client.ts / RBAC gates).
  */
 import { ApiError } from "@/api/client"
-import { isOverloadError } from "@/api/retry"
+import { isOverloadCode, isOverloadError } from "@/api/retry"
 import { DownloadHashMismatchError } from "@/api/exercises/chunkedDownload"
 import { catalogError, localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
@@ -138,6 +138,8 @@ export function exerciseErrorMessage(e: unknown): string {
   // 429 (request limiter or auth lockout): a wait message from Retry-After, whatever the code.
   if (e instanceof ApiError && e.status === 429) return localizedError(e)
   const code = exerciseErrorCode(e)
+  // The overload codes always read as the one overloaded line (with its retry), not as their catalog texts.
+  if (isOverloadCode(code)) return t("error.overloaded")
   if (code !== null) {
     const key = CODE_TO_KEY[code]
     if (key) return t(key)
