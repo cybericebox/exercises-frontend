@@ -1,7 +1,7 @@
 /**
  * access.ts — the caller's rights in the exercise catalog app.
  *
- * GET /api/exercises/access → {IsAdmin, CanCreateCatalog, CanPublish, CanDelete, CanExport, Events}.
+ * GET /api/exercises/access → {IsAdmin, CanCreateCatalog, CanPublish, CanDelete, CanExport, CanImport, Events}.
  * Events are the events where the caller is owner/manager/viewer; CanWrite = owner|manager.
  */
 import { apiGet } from "@/api/client"
@@ -19,7 +19,10 @@ export type ExerciseAccess = {
   CanCreateCatalog: boolean
   CanPublish: boolean
   CanDelete: boolean
+  /** Export something: any task (exercises.export), or an event moderator's own event tasks (per task Permissions.CanExport). */
   CanExport: boolean
+  /** Import somewhere: the catalog (CanCreateCatalog) or an event the user manages. */
+  CanImport: boolean
   Events: AccessEvent[]
 }
 
@@ -32,6 +35,8 @@ export function normalizeAccess(raw: RawAccess | null | undefined): ExerciseAcce
     CanPublish: raw?.CanPublish ?? false,
     CanDelete: raw?.CanDelete ?? false,
     CanExport: raw?.CanExport ?? false,
+    // An older API has no CanImport: import was the catalog's, for exercises.write.
+    CanImport: raw?.CanImport ?? raw?.CanCreateCatalog ?? false,
     Events: (raw?.Events ?? []).filter((event) => event.ID).map((event) => ({
       ID: event.ID ?? "",
       Name: event.Name ?? "",

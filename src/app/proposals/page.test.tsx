@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({ isAdmin: true }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/components/shell/AccessContext", () => ({
-  useExerciseAccess: () => ({ access: { IsAdmin: h.isAdmin, CanCreateCatalog: h.isAdmin, CanPublish: false, CanDelete: false, CanExport: false, Events: [] }, loading: false }),
+  useExerciseAccess: () => ({ access: { IsAdmin: h.isAdmin, CanCreateCatalog: h.isAdmin, CanPublish: false, CanDelete: false, CanExport: false, CanImport: false, Events: [] }, loading: false }),
 }))
 vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([]), listNearestEvents: vi.fn().mockResolvedValue([]), getEventOption: vi.fn().mockRejectedValue(new Error("missing")) }))
 vi.mock("@/api/exercises/proposals", () => ({ listProposals: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn() }))

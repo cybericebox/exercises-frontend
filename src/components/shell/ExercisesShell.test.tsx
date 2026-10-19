@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { ExercisesShell } from "./ExercisesShell"
 
 const role = vi.hoisted(() => ({ value: { role: "admin" as string | null, isLoading: false, error: null as unknown, retry: (() => {}) as () => void, me: null as { Email: string } | null, can: ((): boolean => true) as (perm: string) => boolean } }))
-const rights = vi.hoisted(() => ({ value: { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, Events: [] as { ID: string; Name: string; Tag: string; CanWrite: boolean; InfrastructureAllowed: boolean }[] } }))
+const rights = vi.hoisted(() => ({ value: { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] as { ID: string; Name: string; Tag: string; CanWrite: boolean; InfrastructureAllowed: boolean }[] } }))
 
 const nav = vi.hoisted(() => ({ path: "/" }))
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }))
@@ -29,7 +29,7 @@ describe("exercises shell", () => {
     window.sessionStorage.clear()
     window.history.replaceState(null, "", "/")
     role.value = { role: "admin", isLoading: false, error: null, retry: () => {}, me: null, can: () => true }
-    rights.value = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, Events: [] }
+    rights.value = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] }
   })
 
   it("gives the lab testing page the whole screen: no top bar", async () => {
