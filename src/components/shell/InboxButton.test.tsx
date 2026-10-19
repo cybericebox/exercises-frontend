@@ -237,7 +237,7 @@ describe("top-bar inbox", () => {
 
   describe("categories (INBOX-DESIGN §8)", () => {
     const counts = { All: 3, Requests: 1, Personal: 1, Activity: 1 }
-    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventName: "Зимовий CTF", Type: "event.lab.failed", Category: "requests", ActionRequired: true, ResolvedAt: null }
+    const lab = { ID: "lab", Title: "Лабораторія впала", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z", EventName: "Зимовий CTF", Type: "event.lab.failed", Resolvable: true, Category: "requests", ActionRequired: true, ResolvedAt: null }
     const done = { ID: "done", Title: "Нова заявка", Body: "", Link: "", ReadAt: "2026-09-24T12:05:00Z", CreatedAt: "2026-09-24T12:03:00Z", Type: "event.application.submitted", Category: "requests", ActionRequired: true, ResolvedAt: "2026-09-24T12:04:00Z", Resolution: "approved", ResolvedBy: { ID: "u2", Name: "Іван П." } }
     const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal", ActionRequired: false }
 

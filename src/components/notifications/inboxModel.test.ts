@@ -62,19 +62,16 @@ it("open = ActionRequired and not resolved (§8.3)", () => {
   expect(inbox.isUnread(item("x", { ReadAt: "2026-09-29T10:00:00Z" }))).toBe(false)
 })
 
-it("«Вирішено» only on open «Лабораторія впала» requests", () => {
-  expect(inbox.canResolve(request("lab", { Type: "event.lab.failed" }))).toBe(true)
-  expect(inbox.canResolve(request("lab", { Type: "event.lab.failed", ResolvedAt: "2026-09-29T10:00:00Z" }))).toBe(false)
-  expect(inbox.canResolve(request("app", { Type: "event.application.submitted" }))).toBe(false)
-  expect(inbox.canResolve(item("fyi", { Type: "event.lab.failed" }))).toBe(false)
+it("«Вирішено» only where the server says Resolvable on an open request", () => {
+  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true }))).toBe(true)
+  expect(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" }))).toBe(false)
+  expect(inbox.canResolve(request("alarm", { Resolvable: false }))).toBe(false)
+  // No flag, no button: the type alone decides nothing.
+  expect(inbox.canResolve(request("lab", { Type: "event.lab.failed" }))).toBe(false)
+  expect(inbox.canResolve(item("fyi", { Resolvable: true }))).toBe(false)
 })
 
-it("«Вирішено» follows the server's Resolvable flag; older backends fall back to the lab type", () => {
-  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: true }))).toBe(true)
-  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised", Resolvable: false }))).toBe(false)
-  expect(inbox.canResolve(request("alarm", { Type: "resources.alarm.raised" }))).toBe(false)
-  expect(inbox.canResolve(request("alarm", { Resolvable: true, ResolvedAt: "2026-09-29T10:00:00Z" }))).toBe(false)
-})
+
 
 it("an open request needs action even when it was read; a resolved one does not", () => {
   expect(inbox.needsAction(request("o", { ReadAt: "2026-09-29T10:00:00Z" }))).toBe(true)
