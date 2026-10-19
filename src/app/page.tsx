@@ -260,11 +260,8 @@ export default function Page() {
               </label>
             </th>}
             <SortableHeader label={t("admin.ex.col.name")} field="name" {...sortProps} className={cn("max-sm:z-30", selecting ? "max-sm:left-10" : "max-sm:left-0")} />
-            <SortableHeader label={t("admin.ex.col.author")} field="author" {...sortProps}>
-              <FieldHelp lines={[t("exercises.help.authorCol.who")]} />
-            </SortableHeader>
             <SortableHeader label={t("admin.ex.col.tags")} field="tags" {...sortProps} />
-            <SortableHeader label={t("admin.ex.col.subtasks")} field="subtasks" {...sortProps} className="whitespace-nowrap text-right" />
+            <SortableHeader label={t("admin.ex.col.subtasks")} field="subtasks" {...sortProps} className="whitespace-nowrap" />
             <SortableHeader label={t("admin.ex.col.difficulty")} field="difficulty" {...sortProps} className="min-w-[7.5rem]">
               <FieldHelp lines={helpLines("exercises.help.difficultyCol", ["source", "level", "subtasks"])} />
             </SortableHeader>
@@ -273,6 +270,9 @@ export default function Page() {
             </th>
             <SortableHeader label={t("admin.ex.col.status")} field="status" {...sortProps}>
               <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />
+            </SortableHeader>
+            <SortableHeader label={t("admin.ex.col.author")} field="author" {...sortProps}>
+              <FieldHelp lines={[t("exercises.help.authorCol.who")]} />
             </SortableHeader>
             {/* Under 1440 px the date moves into the name cell, so the table fits without scrolling sideways. */}
             <SortableHeader label={t("admin.ex.col.updated")} field="updated" {...sortProps} className={WIDE_ONLY} />
@@ -309,7 +309,6 @@ export default function Page() {
                     {t("admin.ex.updatedLine", { date: formatExerciseDate(item.UpdatedAt) })}
                   </span>}
                 </td>
-                <td className={TABLE_CELL}><AuthorCell name={item.AuthorName} /></td>
                 <td className={TABLE_CELL}>
                   <span className="flex flex-wrap gap-1">
                     {item.Tags.map((tag) => (
@@ -317,10 +316,11 @@ export default function Page() {
                     ))}
                   </span>
                 </td>
-                <td className={`${TABLE_CELL} text-right`}><SubtaskCountCell count={item.TaskCount} /></td>
+                <td className={TABLE_CELL}><SubtaskCountCell count={item.TaskCount} /></td>
                 <td className={TABLE_CELL}><DifficultyCell average={item.AvgDifficulty} /></td>
                 <td className={cn(TABLE_CELL, "max-w-[9rem] [&_button]:whitespace-normal [&_button]:text-left")}><AccessCell item={item} eventName={eventName} /></td>
                 <td className={cn(TABLE_CELL, "max-w-[8.5rem]", WRAPPING_BADGES)}><StatusCell item={item} /></td>
+                <td className={TABLE_CELL}><AuthorCell name={item.AuthorName} /></td>
                 <td className={cn(TABLE_CELL, WIDE_ONLY, "whitespace-nowrap tabular-nums text-muted-foreground")}><UpdatedCell iso={item.UpdatedAt} /></td>
               </tr>
             ))}
