@@ -403,7 +403,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
       'exercises.help.statusFilter.published exercises.help.statusFilter.changed exercises.help.statusFilter.draftOnly exercises.help.status.several',
       'exercises.help.tags.cycle exercises.help.tags.match exercises.help.tags.existing',
       'exercises.help.author.who exercises.help.author.several', 'exercises.help.difficulty.average exercises.help.difficulty.none',
-      'exercises.help.authorCol.who', 'exercises.help.difficultyCol.source exercises.help.difficultyCol.level',
+      'exercises.help.authorCol.who', 'exercises.help.difficultyCol.source exercises.help.difficultyCol.level exercises.help.difficultyCol.subtasks',
       'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
       'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
       expect(helpButton(label)).toBeInTheDocument()
@@ -537,7 +537,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
 
   it('shows the author and the average difficulty of each task', async () => {
     mockList.mockResolvedValue({ Items: [
-      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5 },
+      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4 },
       { ...item, ID: 'b', Name: 'Unrated' },
     ], Total: 2, Page: 1, PageSize: 50 })
     render(<Page />)
@@ -546,6 +546,11 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByLabelText('exercises.difficulty.value')).toHaveTextContent('admin.ex.difficulty.medium3,5')
     expect(screen.getByLabelText('exercises.difficulty.none')).toHaveTextContent('—')
     expect(screen.getByLabelText('exercises.author.unknown')).toHaveTextContent('—')
+    // The subtask count of the first variant; «—» without a variant.
+    expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
+    expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.difficulty' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'difficulty', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.author' }))

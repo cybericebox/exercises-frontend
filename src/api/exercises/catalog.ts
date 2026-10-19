@@ -68,6 +68,8 @@ export type ExerciseListItem = ExerciseOwnership & {
   AuthorName: string
   /** Mean level (1 elementary … 6 insane) of the first variant's subtasks; null without one. */
   AvgDifficulty: number | null
+  /** Subtasks of that same first variant; null without a variant. */
+  TaskCount: number | null
 }
 
 export type Exercise = ExerciseOwnership & {
@@ -155,13 +157,14 @@ export type ExercisesPageFilter = {
 }
 
 type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs" | "AccessEvents">> & { AccessEventIDs?: string[] | null; AccessEvents?: EventRef[] | null }
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | keyof ExerciseOwnership> & RawOwnership & {
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
   Status?: ExerciseStatus | null
   AuthorID?: string | null
   AuthorName?: string | null
   AvgDifficulty?: number | null
+  TaskCount?: number | null
 }
 export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
@@ -193,6 +196,7 @@ function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
   return {
     ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, Status: raw.Status ?? null,
     AuthorID: raw.AuthorID ?? null, AuthorName: raw.AuthorName ?? "", AvgDifficulty: typeof raw.AvgDifficulty === "number" ? raw.AvgDifficulty : null,
+    TaskCount: typeof raw.TaskCount === "number" ? raw.TaskCount : null,
   }
 }
 

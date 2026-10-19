@@ -13,7 +13,7 @@ import {
   clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
 import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
-import { AccessCell, AuthorCell, DifficultyCell, StatusCell } from "@/components/exercises/catalog/CatalogCells"
+import { AccessCell, AuthorCell, DifficultyCell, StatusCell, SubtaskCountCell } from "@/components/exercises/catalog/CatalogCells"
 import { CatalogFilterFields, ScopeFilterField, helpLines } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
 import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
@@ -83,7 +83,7 @@ export default function Page() {
   const selecting = canExport || access.CanCreateCatalog || access.Events.some((event) => event.CanWrite)
   const pageRows = rows.filter(selectable)
   const allOnPage = pageRows.length > 0 && pageRows.every((row) => selected.has(row.ID))
-  const columns = selecting ? 8 : 7
+  const columns = selecting ? 9 : 8
 
   function toggle(item: ExerciseListItem) {
     setSelected((current) => {
@@ -247,7 +247,7 @@ export default function Page() {
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
 
-      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[64rem]">
+      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[64rem] [&_td]:px-2 [&_th]:px-2">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
             {selecting && <th scope="col" className={cn(TABLE_HEAD_CELL, "w-10", "max-sm:left-0 max-sm:z-30")}>
@@ -260,8 +260,9 @@ export default function Page() {
               <FieldHelp lines={[t("exercises.help.authorCol.who")]} />
             </SortableHeader>
             <SortableHeader label={t("admin.ex.col.tags")} field="tags" {...sortProps} />
+            <SortableHeader label={t("admin.ex.col.subtasks")} field="subtasks" {...sortProps} className="whitespace-nowrap text-right" />
             <SortableHeader label={t("admin.ex.col.difficulty")} field="difficulty" {...sortProps} className="whitespace-nowrap">
-              <FieldHelp lines={helpLines("exercises.help.difficultyCol", ["source", "level"])} />
+              <FieldHelp lines={helpLines("exercises.help.difficultyCol", ["source", "level", "subtasks"])} />
             </SortableHeader>
             <th scope="col" className={TABLE_HEAD_CELL}>
               <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "none", "event"])} /></span>
@@ -296,7 +297,7 @@ export default function Page() {
                     <InfrastructureIcon show={item.Infrastructure} />
                   </span>
                   {item.Description && (
-                    <span className="block max-w-[13rem] truncate text-xs text-muted-foreground">{item.Description}</span>
+                    <span className="block max-w-[11rem] truncate text-xs text-muted-foreground">{item.Description}</span>
                   )}
                   <div className="mt-1 empty:hidden"><OwnershipBadges exercise={item} showAccess={false} showEvent={false} /></div>
                 </td>
@@ -308,6 +309,7 @@ export default function Page() {
                     ))}
                   </span>
                 </td>
+                <td className={`${TABLE_CELL} text-right`}><SubtaskCountCell count={item.TaskCount} /></td>
                 <td className={TABLE_CELL}><DifficultyCell average={item.AvgDifficulty} /></td>
                 <td className={TABLE_CELL}><AccessCell item={item} eventName={eventName} /></td>
                 <td className={TABLE_CELL}><StatusCell item={item} /></td>

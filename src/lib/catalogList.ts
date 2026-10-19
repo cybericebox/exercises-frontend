@@ -88,7 +88,7 @@ export function difficultyName(average: number): DifficultyLevel {
 }
 
 export type SortDir = "asc" | "desc"
-export const SORT_FIELDS = ["name", "author", "tags", "difficulty", "status", "updated"] as const
+export const SORT_FIELDS = ["name", "author", "tags", "subtasks", "difficulty", "status", "updated"] as const
 
 export type CatalogFilters = {
   search: string
