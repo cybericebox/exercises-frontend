@@ -106,6 +106,8 @@ export type DeviceDTO = {
   EnvVars?: EnvVarDTO[]
   External?: ExternalDTO
   Persistence?: PersistenceDTO
+  /** The device counts as ready only once the app creates /run/ready. Absent = off (exercises saved before it). */
+  WaitReadyFile?: boolean
 }
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
@@ -213,6 +215,7 @@ export type NormalizedDevice = {
   EnvVars: NormalizedEnvVar[]
   External: ExternalDTO | null
   Persistence?: PersistenceDTO | null
+  WaitReadyFile?: boolean
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
@@ -321,6 +324,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     })),
     External: raw.External ?? null,
     Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,
+    WaitReadyFile: raw.WaitReadyFile ?? false,
   }
 }
 

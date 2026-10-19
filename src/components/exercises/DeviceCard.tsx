@@ -57,6 +57,7 @@ export function DeviceCard({
   const [panel, setPanel] = useEditorPosition("devicePanel")
   const externalId = useId()
   const persistenceId = useId()
+  const readyFileId = useId()
   const visiblePanel: DevicePanel = forwarding || (panel !== "interfaces" && panel !== "env") ? "basic" : panel
   const sections: DevicePanel[] = forwarding ? [] : ["basic", "interfaces", "env"]
 
@@ -141,6 +142,11 @@ export function DeviceCard({
             </div>
           )}
         </div>}
+        {visiblePanel === "basic" && type === "container" &&
+          <SwitchRow id={readyFileId} label={t("admin.exTopo.waitReadyFile")} help={t("admin.exTopo.waitReadyFileHelp")}>
+            <Controller control={control} name={`${base}.WaitReadyFile`}
+              render={({ field }) => <Switch id={readyFileId} checked={field.value ?? false} onCheckedChange={field.onChange} disabled={disabled} />} />
+          </SwitchRow>}
         {visiblePanel === "basic" && type === "container" && (persistenceAvailable || persistenceEnabled) &&
           <SwitchRow id={persistenceId} label={t("admin.exTopo.persistence")} help={t("admin.exTopo.persistenceHelp")}>
             <Controller control={control} name={`${base}.Persistence.Enabled`}

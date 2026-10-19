@@ -253,12 +253,13 @@ const deviceSchema = z
     EnvVars: z.array(envVarSchema),
     External: externalSchema,
     Persistence: z.object({ Enabled: z.boolean(), Debounce: z.string() }).optional(),
+    WaitReadyFile: z.boolean().optional(),
   })
   .superRefine((d, ctx) => {
     const nameError = d.Type === "container" ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
-    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
+    if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.WaitReadyFile || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
     if (!forwarding && d.Interfaces.length === 0) {
@@ -568,6 +569,7 @@ export function emptyDevice(): DeviceFormValues {
     EnvVars: [],
     External: { Enabled: false, Port: 80, Protocol: "http" },
     Persistence: { Enabled: false, Debounce: "" },
+    WaitReadyFile: false,
   }
 }
 
@@ -635,6 +637,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
             ? { Enabled: true, Port: d.External.Port, Protocol: d.External.Protocol }
             : { Enabled: false, Port: 80, Protocol: "http" as Protocol },
           Persistence: { Enabled: d.Persistence?.Enabled ?? false, Debounce: d.Persistence?.Debounce ?? "" },
+          WaitReadyFile: d.WaitReadyFile ?? false,
         })),
         Connections: v.Topology.Connections,
         VisualRender: v.Topology.VisualRender,
@@ -717,6 +720,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     EnvVars: d.EnvVars.map((ev) => ({ Name: ev.Name, Value: ev.Value, Secret: ev.Secret })),
     ...(d.External.Enabled ? { External: { Port: d.External.Port, Protocol: d.External.Protocol } } : {}),
     ...(d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } } : {}),
+    ...(d.WaitReadyFile ? { WaitReadyFile: true } : {}),
   }
 }
 
