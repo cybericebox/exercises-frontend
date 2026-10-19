@@ -549,6 +549,14 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     // Under 1440 px the name cell carries the update date; the «Оновлено» column hides there.
     expect(screen.getAllByText('admin.ex.updatedLine')[0]).toHaveClass('min-[1440px]:hidden')
     expect(screen.getByRole('button', { name: 'admin.ex.col.updated' }).closest('th')).toHaveClass('max-[1439px]:hidden')
+    // The owner's column order, every column left-aligned, the same cells in each row.
+    const heads = [...document.querySelectorAll('thead th')].map((th) => (th.textContent ?? '').split('exercises.')[0].match(/admin\.ex\.col\.[a-z]+/)?.[0] ?? '')
+    expect(heads.filter(Boolean)).toEqual(['admin.ex.col.name', 'admin.ex.col.tags', 'admin.ex.col.subtasks', 'admin.ex.col.difficulty',
+      'admin.ex.col.access', 'admin.ex.col.status', 'admin.ex.col.author', 'admin.ex.col.updated'])
+    for (const cell of document.querySelectorAll('thead th, tbody td')) expect(cell.className).not.toMatch(/\btext-right\b/)
+    const firstRow = screen.getByRole('row', { name: /Rated/ })
+    const cells = [...firstRow.querySelectorAll('td')]
+    expect(cells.findIndex((td) => td.textContent?.includes('Ада Лавлейс'))).toBe(cells.length - 2)
     // The subtask count of the first variant; «—» without a variant.
     expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
