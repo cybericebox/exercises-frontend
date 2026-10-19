@@ -45,7 +45,7 @@ export function LoadingArea({ label, message, note, noteShown = true, compact = 
 // Full-screen centered loader for page-level loading states.
 export function PageLoader({ label, message }: { label?: string; message?: string }) {
   return (
-    <div className="loading-area loading-area-page fixed inset-0 z-50 bg-background">
+    <div className="loading-area loading-area-page fixed inset-0 z-(--ib-z-loader) bg-background">
       <Spinner size="auto" label={label ?? message ?? t("admin.loading")} />
       {message && <span className="loading-area-label" aria-hidden="true">{message}</span>}
     </div>

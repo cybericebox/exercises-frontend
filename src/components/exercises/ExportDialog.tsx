@@ -123,8 +123,10 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
-          {progress !== null && <span aria-live="polite" className="mr-auto self-center text-xs text-muted-foreground">{t("admin.exExport.progress", { percent: progress })}</span>}
-          <Button type="submit" busy={busy} disabled={busy}>{t("admin.exExport.submit")}</Button>
+          {/* The busy button names the operation, with the percent while the archive comes down (as the import does). */}
+          <Button type="submit" className="min-w-48" busy={busy} disabled={busy}>
+            {!busy ? t("admin.exExport.submit") : progress !== null ? t("admin.exExport.progress", { percent: progress }) : t("admin.exExport.exporting")}
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>

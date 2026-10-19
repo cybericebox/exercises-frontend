@@ -60,9 +60,9 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
   const avatarInitials = initials(me?.FirstName, me?.LastName, me?.Email)
   const fullName = me ? `${me.FirstName} ${me.LastName}`.trim() || me.Email : ""
   return (
-    <header className="ib-topbar sticky top-0 z-40 justify-between max-md:px-4!">
+    <header className="ib-topbar sticky top-0 z-(--ib-z-header) justify-between max-md:px-4!">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button ref={menuButtonRef} type="button" aria-label={t("exercises.shell.openMenu")} onClick={onMenuClick} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
+        <button ref={menuButtonRef} type="button" aria-label={t("exercises.shell.openMenu")} onClick={onMenuClick} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"><Menu className="h-5 w-5" /></button>
         <span className="truncate text-sm font-semibold text-foreground">{t(section)}</span>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
@@ -72,7 +72,7 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
           <DropdownMenuTrigger
             ref={triggerRef}
             aria-label={t("admin.accountMenu")}
-            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
+            className="ib-hit flex h-8 w-8 items-center justify-center rounded-full bg-[var(--ib-brand)] text-sm font-medium text-[var(--ib-on-brand)]"
           >
             {me?.Picture ? (
               // eslint-disable-next-line @next/next/no-img-element -- static export, unoptimized images
@@ -80,7 +80,7 @@ export function TopBar({ onMenuClick, menuButtonRef }: { onMenuClick?: () => voi
                 src={mediaUrl(me.Picture)}
                 alt={fullName}
                 referrerPolicy="no-referrer"
-                className="h-full w-full object-cover"
+                className="h-full w-full rounded-full object-cover"
               />
             ) : (
               avatarInitials

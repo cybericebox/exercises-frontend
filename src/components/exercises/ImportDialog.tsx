@@ -9,6 +9,7 @@ import { downloadImportExample, startImport, type ArchiveStage } from "@/api/exe
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import type { Exercise } from "@/api/exercises/catalog"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileInput } from "@/components/ui/file-input"
 import { Field } from "@/components/ui/form-field"
@@ -94,11 +95,15 @@ export function ImportDialog({ onClose, onImported, jobId, targets = [], initial
   // multipart path stores a fresh file each time).
   const waiting = useRef<AbortController | null>(null)
   useEffect(() => () => waiting.current?.abort(), [])
-  // Leaving is not allowed while the archive is going up: the browser has to keep sending it.
-  const canLeave = !busy
+  // Leaving while the archive goes up stops it, so it is asked first; a repeated import of the same archive resumes.
+  const [stopAsk, setStopAsk] = useState(false)
   function leave() {
     waiting.current?.abort()
     onClose()
+  }
+  function requestLeave() {
+    if (busy) setStopAsk(true)
+    else leave()
   }
 
   useEffect(() => {
@@ -223,7 +228,7 @@ export function ImportDialog({ onClose, onImported, jobId, targets = [], initial
   const submitLabel = busy ? (stage === "uploading" && progress !== null ? t("admin.exImport.uploadingPercent", { percent: progress }) : t("admin.exImport.importing"))
     : t("admin.exImport.submit")
 
-  return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
+  return <><Dialog open onOpenChange={(open) => { if (!open) requestLeave() }}>
     <DialogContent {...dropProps}>
       {showDrop && <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-[inherit] border-2 border-dashed border-ring bg-popover text-sm font-medium text-foreground">
         <Upload aria-hidden="true" className="h-8 w-8" />
@@ -289,11 +294,15 @@ export function ImportDialog({ onClose, onImported, jobId, targets = [], initial
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={!canLeave} onClick={leave}>{t("admin.exPage.dialog.cancel")}</Button>
+          <Button type="button" variant="outline" onClick={requestLeave}>{t("admin.exPage.dialog.cancel")}</Button>
           <Button type="submit" className="min-w-56" busy={busy} disabled={busy || !file}>{submitLabel}</Button>
         </DialogFooter>
       </form>}
       </div>
     </DialogContent>
   </Dialog>
+  <ConfirmDialog open={stopAsk} tone="danger" title={t("admin.exImport.stopTitle")} description={t("admin.exImport.stopDescription")}
+    confirmLabel={t("admin.exImport.stopConfirm")} cancelLabel={t("admin.exImport.stopKeep")}
+    onCancel={() => setStopAsk(false)} onConfirm={() => { setStopAsk(false); leave() }} />
+  </>
 }

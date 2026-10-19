@@ -368,7 +368,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
   }
 
   return <section data-testid="topology-workspace" className={canvasExpanded
-    ? "fixed inset-0 z-[45] flex h-dvh min-h-0 min-w-0 flex-col bg-background p-0"
+    ? "fixed inset-0 z-(--ib-z-canvas) flex h-dvh min-h-0 min-w-0 flex-col bg-background p-0"
     : "flex min-h-[32rem] min-w-0 flex-col gap-3 lg:h-[min(72dvh,48rem)]"}>
     {!canvasExpanded && <div className="flex shrink-0 items-center justify-between gap-3">
     <nav aria-label={t("admin.exDraft.topology.title")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">

@@ -1,0 +1,15 @@
+/* Touch screens (pointer:coarse): every tap target is at least 44 × 44 px. Small controls keep their look: an invisible
+   ::after grows the hit area around them (.ib-hit, given to small and icon buttons). Rows of options (menu items, list
+   options) simply grow to 44px, and a checkbox gets a 20px box. */
+@layer components {
+  @media (pointer: coarse) {
+    .ib-hit { position: relative; }
+    .ib-hit::after {
+      content: "";
+      position: absolute;
+      inset: min(0px, calc((100% - 44px) / 2));
+    }
+    :is([role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"]) { min-height: 44px; }
+    input[type="checkbox"] { width: 20px; height: 20px; }
+  }
+}

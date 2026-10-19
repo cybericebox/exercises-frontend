@@ -102,7 +102,7 @@ export function VariantTabs({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {toolbar && <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{toolbar(active)}</div>}
+        {toolbar && <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">{toolbar(active)}</div>}
       </div>
       {fields.map((field, i) => (
         <TabsContent key={field.id} value={String(i)} className="flex-1">

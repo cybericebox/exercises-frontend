@@ -1,0 +1,13 @@
+/* One stacking scale for the whole app. A menu or popover may open from a dialog, so it sits above dialogs; the
+   consent banner and the page loader sit below them; toasts and notification pop-ins above; tooltips on top of
+   everything a person works with. Only the service-down screen (ds-service-down.css, 1000) and the skip link are higher. */
+:root {
+  --ib-z-header: 40;
+  --ib-z-canvas: 45;
+  --ib-z-loader: 50;
+  --ib-z-consent: 55;
+  --ib-z-dialog: 60;
+  --ib-z-popover: 65;
+  --ib-z-toast: 70;
+  --ib-z-tooltip: 80;
+}

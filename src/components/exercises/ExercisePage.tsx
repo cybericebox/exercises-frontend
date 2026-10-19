@@ -49,10 +49,11 @@ import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
 import { AccessCell, ResourceHeavyBadge, StatusBadges } from "./catalog/CatalogCells"
 import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
+import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "archive" | "delete" | "export" | "access" | "propose"
+type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose"
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -249,7 +250,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
 
   const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
-    return <p role="alert" className="text-sm text-destructive">{t("admin.ex.create.forbidden")}</p>
+    return <NoAccessScreen mode="block" title={t("admin.ex.create.forbidden")} />
   }
   if (editor.loadState === "loading") return <LoadingArea className="h-full" label={t("admin.loading")} />
   if (editor.loadState === "notFound") return <ErrorPage mode="block" status={404} title={t("admin.exDetail.notFound")} />
@@ -274,7 +275,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         title={exercise?.Name ?? t("admin.ex.create.title")}
         badge={badge}
         meta={exercise && !isVersion ? <>
-          <StatusBadges status={headerStatus(exercise)} />
+          {/* A reader sees the published version: the state of the working copy is not theirs to know. */}
+          <StatusBadges status={headerStatus(readOnly ? { ...exercise, HasChanges: false } : exercise)} />
           <ResourceHeavyBadge show={exercise.ResourceHeavy} />
           <InfrastructureIcon show={exercise.Infrastructure} />
           <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
@@ -287,6 +289,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         publishBlockedReason={resourceBlocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
         busy={actions.busy}
+        running={actions.running}
         testAvailable={permissions.write}
         getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
@@ -345,8 +348,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         canRestore={permissions.write && !archived}
         busy={actions.busy}
         onBack={() => void actions.openVersion(null)}
-        onRestore={() => void actions.restore(version.ID)} />}
-      {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} onUnarchive={() => void actions.unarchive()} />}
+        onRestore={() => { actions.clearConfirmError(); setDialog("restore") }} />}
+      {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} unarchiving={actions.running === "unarchive"} onUnarchive={() => void actions.unarchive()} />}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <TabsList className="w-fit shrink-0">
           <TabsTrigger value="general">{t("admin.ex.create.tab.general")}</TabsTrigger>
@@ -359,7 +362,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
           <Form {...editor.draftForm}>
             {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
             <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
-            <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-1 flex-col gap-5">
+            {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
+            <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`flex flex-1 flex-col gap-5${editing ? "" : " exercise-view"}`}>
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
               </TabsContent>
@@ -382,13 +386,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     {dialog === "snapshot" && <SnapshotDialog busy={actions.busy} onCancel={() => setDialog(null)}
       onConfirm={(note) => void actions.snapshot(note).then((ok) => { if (ok) setDialog(null) })} />}
     <ConfirmDialog open={dialog === "revert"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
-      title={t("admin.exPage.revert.title")} description={t("admin.exPage.revert.description")} confirmLabel={t("admin.exPage.revert.confirm")}
+      title={t("admin.exPage.revert.title")} description={t("admin.exPage.revert.description")} confirmLabel={t("admin.exPage.revert.confirm")} busyLabel={t("admin.exPage.revert.busy")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.revert().then((ok) => { if (ok) setDialog(null) })} />
+    {version && <ConfirmDialog open={dialog === "restore"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+      title={t("admin.exPage.restore.title", { date: formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt) })}
+      description={t("admin.exPage.restore.description")} confirmLabel={t("admin.exPage.restore.confirm")} busyLabel={t("admin.exPage.version.restoring")}
+      onCancel={() => setDialog(null)} onConfirm={() => void actions.restore(version.ID).then((ok) => { if (ok) setDialog(null) })} />}
     <ConfirmDialog open={dialog === "archive"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
-      title={t("admin.exPage.archive.title")} description={t("admin.exPage.archive.description")} confirmLabel={t("admin.exPage.archive.confirm")}
+      title={t("admin.exPage.archive.title")} description={t("admin.exPage.archive.description")} confirmLabel={t("admin.exPage.archive.confirm")} busyLabel={t("admin.exPage.archive.busy")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.archive().then((ok) => { if (ok) setDialog(null) })} />
     <ConfirmDialog open={dialog === "delete"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
-      title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")}
+      title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")} busyLabel={t("admin.exPage.delete.busy")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (ok) setDialog(null) })} />
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
     {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}

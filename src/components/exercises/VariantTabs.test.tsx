@@ -203,4 +203,17 @@ describe('VariantTabs', () => {
     expect(variants[0].LinkedTo).toBe('')
     expect(variants[0].Tasks.map((task) => task.Name)).toEqual(['First task', 'Second task'])
   })
+
+  it('lets the toolbar wrap inside a phone-wide row instead of running past its edge', () => {
+    function Toolbar() {
+      const form = useForm<DraftFormValues>({ defaultValues: emptyDraft() })
+      return <FormProvider {...form}>
+        <VariantTabs disabled={false} renderVariant={() => null} toolbar={() => <button type="button">Stats</button>} />
+      </FormProvider>
+    }
+    render(<Toolbar />)
+    const toolbar = screen.getByRole('button', { name: 'Stats' }).parentElement!
+    expect(toolbar).toHaveClass('min-w-0', 'max-w-full', 'flex-wrap')
+    expect(toolbar).not.toHaveClass('shrink-0')
+  })
 })

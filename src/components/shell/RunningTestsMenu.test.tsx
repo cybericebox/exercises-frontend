@@ -118,4 +118,14 @@ describe("RunningTestsMenu", () => {
     render(<RunningTestsMenu />)
     expect(await screen.findByRole("button", { name: /admin\.exTest\.endingLabs 1/ })).toBeInTheDocument()
   })
+
+  it("shows the number of running labs next to the icon on a phone, where the label is for screen readers only", async () => {
+    vi.mocked(listDeploys).mockResolvedValue([lab("run-1", "ex-1", 102), lab("run-2", "ex-2", 30)])
+    render(<RunningTestsMenu />)
+    const button = await screen.findByRole("button", { name: /admin\.exTest\.running 2/ })
+    const count = button.querySelector("[data-running-count]")
+    expect(count).toHaveTextContent("2")
+    expect(count).toHaveAttribute("aria-hidden", "true")
+    expect(count).toHaveClass("md:hidden")
+  })
 })

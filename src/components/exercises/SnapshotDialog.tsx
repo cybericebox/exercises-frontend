@@ -26,7 +26,7 @@ export function SnapshotDialog({ busy, onCancel, onConfirm }: { busy: boolean; o
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>{t("admin.exPage.dialog.cancel")}</Button>
-        <Button type="button" disabled={busy || tooLong} onClick={() => onConfirm(note.trim())}>{t("admin.exPage.snapshot.confirm")}</Button>
+        <Button type="button" busy={busy} disabled={tooLong} onClick={() => onConfirm(note.trim())}>{t(busy ? "admin.exPage.snapshot.busy" : "admin.exPage.snapshot.confirm")}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
