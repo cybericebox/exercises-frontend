@@ -510,6 +510,7 @@
   "admin.exDeploy.starting": "Готуємо лабораторію…",
   "admin.exDeploy.startingLong": "Ще трохи — готуємо все для вас. Це може зайняти кілька хвилин, лабораторія запуститься автоматично.",
   "admin.exDeploy.startingNoResources": "Зараз бракує ресурсів. Лабораторія запуститься, щойно вони звільняться.",
+  "admin.exDeploy.startingNodeStarting": "Готуємо додаткові потужності кластера. Це може зайняти кілька хвилин, лабораторія запуститься автоматично.",
   "admin.exDeploy.phase.ready": "Лабораторія готова",
   "admin.exDeploy.phase.suspended": "Лабораторія призупинена",
   "admin.exDeploy.phase.failed": "Розгортання не вдалося",

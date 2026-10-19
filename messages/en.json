@@ -510,6 +510,7 @@
   "admin.exDeploy.starting": "Preparing the lab…",
   "admin.exDeploy.startingLong": "Almost there — we are getting everything ready. This can take a few minutes; the lab will start by itself.",
   "admin.exDeploy.startingNoResources": "There are not enough resources right now. The lab will start as soon as they free up.",
+  "admin.exDeploy.startingNodeStarting": "Preparing extra cluster capacity. This can take a few minutes; the lab will start by itself.",
   "admin.exDeploy.phase.ready": "Lab is ready",
   "admin.exDeploy.phase.suspended": "Lab is suspended",
   "admin.exDeploy.phase.failed": "Deploy failed",
