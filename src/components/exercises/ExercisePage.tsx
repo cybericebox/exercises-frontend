@@ -257,6 +257,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   if (editor.loadState === "error") return <ErrorPage mode="block" status={500} title={t("admin.exDetail.loadError")} error={editor.loadError} onRetry={editor.retryLoad} />
 
   const headerMode: HeaderMode = readOnly ? "readonly" : isVersion ? "version" : exercise === null ? "new" : mode
+  // The internal notes are for full access only (admins, the owner event's owners/managers); the API blanks them
+  // for other readers, so the fields are left out instead of showing empty.
+  const showNotes = Boolean(access?.IsAdmin) || permissions.write
   const canManageAccess = Boolean(exercise && exercise.Scope === "catalog" && rights.manageAccess && !archived && !isVersion)
   const canPropose = Boolean(exercise && exercise.Scope === "event" && rights.propose && exercise.PublishedVersionID && !archived && !isVersion)
   const originEventName = exercise?.OriginEventID ? access?.Events.find((event) => event.ID === exercise.OriginEventID)?.Name : undefined
@@ -365,13 +368,13 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
             <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`flex flex-1 flex-col gap-5${editing ? "" : " exercise-view"}`}>
               <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} />
+                <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} showNotes={showNotes} />
               </TabsContent>
               <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
                 {infraAllowed && <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
                   config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
                   flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
-                <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} />
+                <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes} />
               </TabsContent>
             </form>
             </ImageUploadsProvider>

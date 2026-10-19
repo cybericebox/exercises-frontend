@@ -124,6 +124,17 @@ describe("exercise page — modes", () => {
     expect(screen.getByRole("button", { name: "admin.exPage.action.more" })).toHaveClass("sm:hidden")
   })
 
+  it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
+    const { unmount } = render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeInTheDocument()
+    unmount()
+    h.perms = new Set(["exercises.read"])
+    render(<Page />)
+    await screen.findByRole("heading", { name: "Web 101" })
+    expect(screen.queryByRole("textbox", { name: "admin.ex.create.notes" })).not.toBeInTheDocument()
+  })
+
   it("disables Publish when the working copy matches the publication", async () => {
     vi.mocked(getExercise).mockResolvedValue({ ...exercise, HasChanges: false })
     render(<Page />)
