@@ -3,9 +3,10 @@
  *
  * Routes: POST /api/exercises/export (JSON → stored file, then downloaded in chunks),
  *         GET  /api/exercises/import/example (application/zip),
- *         POST /api/exercises/import (multipart: archive, password?),
- *         POST /api/exercises/import/uploaded (JSON: FileID, Password) for an archive that went up in chunks,
- *         POST /api/exercises/import/upload (JSON: UploadID, Password) for an archive over 512 MiB (purpose exercise-archive).
+ *         POST /api/exercises/import (multipart: archive, password?, OwnerEventID?),
+ *         POST /api/exercises/import/uploaded (JSON: FileID, Password, OwnerEventID) for an archive that went up in chunks,
+ *         POST /api/exercises/import/upload (JSON: UploadID, Password, OwnerEventID) for an archive over 512 MiB (purpose exercise-archive).
+ * OwnerEventID null imports into the platform catalog (admins); an event id into that event (its moderators).
  * With images an export (IncludeImages) and an import that names image files run as server jobs: the start answers
  * 202 {JobID}. An export is awaited by archiveJobs.ts; an import is handed to lib/importJobs.ts, which polls its
  * progress in the background.
@@ -88,6 +89,7 @@ export async function startImport(
   onProgress?: (percent: number) => void,
   onStage?: (stage: ArchiveStage) => void,
   signal?: AbortSignal,
+  ownerEventId: string | null = null,
 ): Promise<ImportStart> {
   // An archive that may carry images goes up in chunks as an exercise-archive upload and is read where its chunks
   // lie: the server never assembles it into one file. A repeated submit resumes the upload (and a failed job).
@@ -95,7 +97,7 @@ export async function startImport(
     onStage?.("uploading")
     const uploadID = await uploadChunks(file, onProgress, signal, { purpose: ARCHIVE_UPLOAD_PURPOSE })
     try {
-      const answer = await apiPost<RawExercise[] | null | Started>(`${BASE}/import/upload`, { UploadID: uploadID, Password: password })
+      const answer = await apiPost<RawExercise[] | null | Started>(`${BASE}/import/upload`, { UploadID: uploadID, Password: password, OwnerEventID: ownerEventId })
       const started = importStarted(answer)
       // A job keeps its upload: a failed import runs again from it when the same file is submitted. The server drops
       // the upload of a finished import, so a stale id is only a 404 that starts the upload anew.
@@ -110,10 +112,11 @@ export async function startImport(
   if (file.size > SINGLE_REQUEST_MAX) {
     onStage?.("uploading")
     const uploaded = await uploadInChunks(file, onProgress)
-    return importStarted(await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password }))
+    return importStarted(await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password, OwnerEventID: ownerEventId }))
   }
   const form = new FormData()
   form.append("archive", file)
   if (password) form.append("password", password)
+  if (ownerEventId) form.append("OwnerEventID", ownerEventId)
   return importStarted(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form))
 }

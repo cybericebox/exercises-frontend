@@ -23,6 +23,7 @@ export function accessFromRbac(can: RbacCheck): ExerciseAccess {
     CanPublish: can("exercises.publish"),
     CanDelete: can("exercises.delete"),
     CanExport: can("exercises.export"),
+    CanImport: can("exercises.write"),
     Events: [],
   }
 }
