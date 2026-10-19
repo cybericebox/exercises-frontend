@@ -997,6 +997,7 @@
   "exercises.bulk.summary.close": "Close",
   "exercises.bulk.reason.alreadyArchived": "Already archived",
   "exercises.bulk.reason.notArchived": "Not archived",
+  "exercises.bulk.reason.noRights": "No right for this action",
   "exercises.access.button": "Access",
   "exercises.propose.button": "Propose to catalog",
   "exercises.propose.title": "Propose to the catalog",

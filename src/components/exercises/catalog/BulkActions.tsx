@@ -35,12 +35,27 @@ export function summarize(items: BulkItem[], local: { reason: string; count: num
 }
 
 const canEdit = (item: ExerciseListItem) => Boolean(item.Permissions?.CanEdit)
+const canManageAccess = (item: ExerciseListItem) => Boolean(item.Permissions?.CanManageAccess)
 
 /**
  * The bar over the catalog table for the selected tasks: export, «Змінити доступ», «Архівувати», «Розархівувати».
- * An action shows only when the user may perform it for at least one selected task; the server checks every task
- * by the single-task rule and skips the refused ones, which the summary lists with the reasons.
+ * An action shows only when the user may perform it for at least one selected task and runs on those tasks only (the
+ * rest are reported as skipped); the server checks every task again by the single-task rule and skips the refused
+ * ones, which the summary lists with the reasons.
  */
+/** The selected tasks an action leaves out before any request, by reason: not in the needed state, or no right. */
+export function localSkips(kind: Kind, selected: ExerciseListItem[]): { reason: string; count: number }[] {
+  const count = (keep: (item: ExerciseListItem) => boolean) => selected.filter(keep).length
+  const noRights = t("exercises.bulk.reason.noRights")
+  if (kind === "access") return [{ reason: noRights, count: count((item) => !canManageAccess(item)) }]
+  const archiving = kind === "archive"
+  const inState = (item: ExerciseListItem) => Boolean(item.ArchivedAt) !== archiving
+  return [
+    { reason: t(archiving ? "exercises.bulk.reason.alreadyArchived" : "exercises.bulk.reason.notArchived"), count: count((item) => !inState(item)) },
+    { reason: noRights, count: count((item) => inState(item) && !canEdit(item)) },
+  ]
+}
+
 export function BulkActions({ selected, canExport, atLimit, onExport, onClear, onChanged }: {
   selected: ExerciseListItem[]
   /** The export right of an older API without per-task Permissions; export shows when every selected task may be exported. */
@@ -54,19 +69,16 @@ export function BulkActions({ selected, canExport, atLimit, onExport, onClear, o
   const [dialog, setDialog] = useState<Kind | null>(null)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
-  const toArchive = selected.filter((item) => !item.ArchivedAt)
-  const toUnarchive = selected.filter((item) => item.ArchivedAt)
+  const toArchive = selected.filter((item) => !item.ArchivedAt && canEdit(item))
+  const toUnarchive = selected.filter((item) => item.ArchivedAt && canEdit(item))
+  const toAccess = selected.filter(canManageAccess)
   const showExport = selected.every((item) => item.Permissions ? item.Permissions.CanExport : canExport)
-  const showAccess = selected.some((item) => item.Permissions?.CanManageAccess)
-  const showArchive = toArchive.some(canEdit)
-  const showUnarchive = toUnarchive.some(canEdit)
   const label = t("admin.ex.selection.count", { count: selected.length })
 
   async function run(kind: Kind, input?: AccessInput) {
     if (progress) return
-    const targets = kind === "archive" ? toArchive : kind === "unarchive" ? toUnarchive : selected
-    const local = kind === "archive" ? [{ reason: t("exercises.bulk.reason.alreadyArchived"), count: selected.length - targets.length }]
-      : kind === "unarchive" ? [{ reason: t("exercises.bulk.reason.notArchived"), count: selected.length - targets.length }] : []
+    const targets = kind === "archive" ? toArchive : kind === "unarchive" ? toUnarchive : toAccess
+    const local = localSkips(kind, selected)
     const call = kind === "archive" ? bulkArchive : kind === "unarchive" ? bulkUnarchive : (ids: string[]) => bulkSetAccess(ids, input as AccessInput)
     const items = await runBulk(targets.map((item) => item.ID), call, (done, total) => setProgress({ kind, done, total }))
     const cards = items.flatMap((item) => item.Exercise ? [item.Exercise] : [])
@@ -88,14 +100,14 @@ export function BulkActions({ selected, canExport, atLimit, onExport, onClear, o
       <div role="region" aria-label={label} className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
         <span className="font-medium">{label}</span>
         {showExport && <Button type="button" size="sm" onClick={onExport}>{t("admin.ex.selection.export")}</Button>}
-        {showAccess && barButton("access")}
-        {showArchive && barButton("archive")}
-        {showUnarchive && barButton("unarchive")}
+        {toAccess.length > 0 && barButton("access")}
+        {toArchive.length > 0 && barButton("archive")}
+        {toUnarchive.length > 0 && barButton("unarchive")}
         <Button type="button" size="sm" variant="ghost" disabled={progress !== null} onClick={onClear}>{t("admin.ex.selection.clear")}</Button>
         {atLimit && <span className="text-xs text-muted-foreground">{t("admin.ex.selection.limit")}</span>}
       </div>
     )}
-    {dialog === "access" && <BulkAccessDialog items={selected} progress={progress?.kind === "access" ? progress : null}
+    {dialog === "access" && <BulkAccessDialog items={toAccess} progress={progress?.kind === "access" ? progress : null}
       onApply={(input) => void run("access", input)} onClose={() => setDialog(null)} />}
     <ConfirmDialog open={dialog === "archive"} tone="danger" onCancel={() => setDialog(null)}
       title={t("exercises.bulk.archive.title", { count: toArchive.length })} description={t("exercises.bulk.archive.description")}
