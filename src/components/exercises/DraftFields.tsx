@@ -27,6 +27,8 @@ type DraftVariantsProps = {
   exerciseId: string | null
   /** The owner event forbids lab infrastructure: the topology editor is replaced by a note. */
   infrastructureBlocked?: boolean
+  /** The variant notes are internal: only full access (admins, the owner event's owners/managers) sees them. */
+  showNotes?: boolean
 }
 
 export function DraftVariants(props: DraftVariantsProps) {
@@ -34,7 +36,7 @@ export function DraftVariants(props: DraftVariantsProps) {
   return <SharedEditorPosition><DraftVariantsEditor {...props} /></SharedEditorPosition>
 }
 
-function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked = false }: DraftVariantsProps) {
+function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked = false, showNotes = true }: DraftVariantsProps) {
   const [section, setSection] = useEditorPosition("section")
   const [, setVariant] = useEditorPosition("variant")
   const [linkedOpen, setLinkedOpen] = useState(false)
@@ -59,7 +61,7 @@ function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked
       </div>
       {exerciseId && <Button type="button" variant="outline" size="sm" onClick={() => setStatsOpen(true)}>{t("admin.exStats.open")}</Button>}
     </>} renderVariant={(variantIndex) => <VariantPanel form={form} variantIndex={variantIndex} section={section}
-      disabled={disabled} infrastructureBlocked={infrastructureBlocked} />} />
+      disabled={disabled} infrastructureBlocked={infrastructureBlocked} showNotes={showNotes} />} />
     {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     {linkedOpen && <LinkedVariantsHost form={form} onClose={() => setLinkedOpen(false)} onCreate={appendLinked} />}
   </section></ExerciseIdContext.Provider>
@@ -76,8 +78,9 @@ function LinkedVariantsHost({ form, onClose, onCreate }: {
 }
 
 /** One variant: its note, the link to a base (if any) and the selected section. */
-function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlocked }: {
+function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlocked, showNotes }: {
   form: UseFormReturn<DraftFormValues>
+  showNotes: boolean
   variantIndex: number
   section: "tasks" | "topology"
   disabled: boolean
@@ -106,7 +109,7 @@ function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlo
         <label htmlFor={`variant-unlink-${variantIndex}`} className="text-sm text-foreground">{t("admin.exDraft.unlink")}</label>
       </span>
     </div>}
-    <details className="group/notes mb-3 border-b border-border pb-2">
+    {showNotes && <details className="group/notes mb-3 border-b border-border pb-2">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-1.5 leading-5">
           <span className="text-sm font-medium leading-5">{t("admin.exDraft.variantNoteShort")}</span>
@@ -118,7 +121,7 @@ function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlo
         <label htmlFor={`variant-note-${variantIndex}`} className="sr-only">{t("admin.exDraft.variantNote")}</label>
         <Textarea id={`variant-note-${variantIndex}`} rows={5} {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
       </div>
-    </details>
+    </details>}
     <div role="tabpanel" aria-label={t(`admin.exDraft.tab.${section}`)}>
       {section === "tasks" ? <TaskAccordion variantIndex={variantIndex} disabled={disabled} linked={linked} />
         : infrastructureBlocked ? <InfrastructureBlockedNote />

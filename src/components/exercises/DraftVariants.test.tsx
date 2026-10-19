@@ -11,11 +11,11 @@ vi.mock('./VariantStatsDialog', () => ({ VariantStatsDialog: ({ exerciseId }: { 
 import { DraftVariants } from './DraftFields'
 import { emptyDraft, emptyTask, emptyVariant, type DraftFormValues } from '@/lib/exerciseSchemas'
 
-function Harness() {
+function Harness({ showNotes }: { showNotes?: boolean } = {}) {
   const draft = emptyDraft()
   draft.Variants[0].Note = 'A long private note for the variant'
   const form = useForm<DraftFormValues>({ defaultValues: draft })
-  return <FormProvider {...form}><DraftVariants form={form} disabled={false} exerciseId={null} /></FormProvider>
+  return <FormProvider {...form}><DraftVariants form={form} disabled={false} exerciseId={null} showNotes={showNotes} /></FormProvider>
 }
 
 describe('DraftVariants layout', () => {
@@ -33,6 +33,12 @@ describe('DraftVariants layout', () => {
     const input = screen.getByRole('textbox', { name: 'admin.exDraft.variantNote' })
     expect(input).toHaveClass('overflow-y-auto')
     expect(input).toHaveAttribute('rows', '5')
+  })
+
+  it('leaves out the variant notes for a reader without full access', () => {
+    render(<Harness showNotes={false} />)
+    expect(screen.queryByText('admin.exDraft.variantNoteShort')).not.toBeInTheDocument()
+    expect(screen.getByText('Task panel')).toBeInTheDocument()
   })
 })
 
