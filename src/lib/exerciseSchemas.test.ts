@@ -165,6 +165,17 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
+  it('WaitReadyFile survives reopening a draft and an old draft opens with it off', () => {
+    const version = loadedVersion()
+    version.Variants[0].Topology.Devices[0].WaitReadyFile = true
+    const reopened = toDraftFormValues(version)
+    expect(reopened.Variants[0].Topology.Devices[0].WaitReadyFile).toBe(true)
+    expect(toSaveDraftInput(reopened).Variants[0].Topology.Devices?.[0].WaitReadyFile).toBe(true)
+    const legacy = loadedVersion()
+    delete legacy.Variants[0].Topology.Devices[0].WaitReadyFile
+    expect(toDraftFormValues(legacy).Variants[0].Topology.Devices[0].WaitReadyFile).toBe(false)
+  })
+
   it('defaults a missing preset and routes when reopening an old draft', () => {
     const legacy = loadedVersion()
     delete (legacy.Variants[0].Topology.Devices[0] as Partial<typeof legacy.Variants[0]['Topology']['Devices'][0]>).ResourcePreset
@@ -1004,6 +1015,31 @@ describe('toSaveDraftInput', () => {
     expect(offDTO.Persistence).toBeUndefined()
     expect(onDTO.Persistence).toEqual({ Enabled: true, Debounce: '5s' })
     expect(plainDTO.Persistence).toEqual({ Enabled: true })
+  })
+
+  it('WaitReadyFile goes out only when on', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const off = emptyDevice()
+    off.Name = 'off'
+    const on = emptyDevice()
+    on.Name = 'on'
+    on.WaitReadyFile = true
+    draft.Variants[0].Topology.Devices = [off, on]
+    const [offDTO, onDTO] = toSaveDraftInput(draft).Variants[0].Topology.Devices!
+    expect(offDTO.WaitReadyFile).toBeUndefined()
+    expect(onDTO.WaitReadyFile).toBe(true)
+  })
+
+  it('a switch with WaitReadyFile is refused like any other setting a bare device cannot have', () => {
+    const sw = emptyDevice()
+    sw.Name = 'sw1'
+    sw.Type = 'unmanaged-switch'
+    sw.Interfaces = []
+    sw.WaitReadyFile = true
+    const draft = emptyDraft()
+    draft.Variants[0].Topology.Devices = [sw]
+    expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
   it('a bare switch goes out bare, disabled External is omitted, null Description is omitted', () => {

@@ -141,7 +141,7 @@ describe('normalizeVariant', () => {
       Image: '', ResourcePreset: '',
       Interfaces: [],
       EnvVars: [],
-      External: null, Persistence: null,
+      External: null, Persistence: null, WaitReadyFile: false,
     })
     expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'vpn', DeviceID: '', Interface: 'eth0' })
     expect(v.Topology.Connections[0].Endpoints[1]).toEqual({ Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' })
@@ -163,6 +163,24 @@ describe('normalizeVariant', () => {
     }
     const v = normalizeVariant(raw)
     expect(v.Topology.Devices[0].EnvVars[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
+  })
+
+  it('reads WaitReadyFile and defaults an old device to off', () => {
+    const raw: VariantDTO = {
+      Index: 1,
+      Tasks: [],
+      Topology: {
+        VPN: { Enabled: false, DHCP: false },
+        Internet: { Enabled: false, DHCP: false },
+        Devices: [
+          { ID: DEV_ID, Name: 'web', Type: 'container', WaitReadyFile: true },
+          { ID: DEV_ID, Name: 'old', Type: 'container' },
+        ],
+        Connections: [],
+      },
+    }
+    const v = normalizeVariant(raw)
+    expect(v.Topology.Devices.map((d) => d.WaitReadyFile)).toEqual([true, false])
   })
 })
 
