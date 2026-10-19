@@ -1503,5 +1503,8 @@
   "exercises.filter.tags.no": "ні",
   "exercises.filter.tags.remove": "Прибрати тег {value} ({state})",
   "exercises.help.tags.cycle": "Натиск на тег: «так» → «ні» → прибрати.",
-  "exercises.help.tags.match": "Показує завдання з усіма тегами «так» і без жодного тегу «ні»."
+  "exercises.help.tags.match": "Показує завдання з усіма тегами «так» і без жодного тегу «ні».",
+  "admin.ex.col.subtasks": "Підзавдання",
+  "exercises.subtasks.none": "Варіантів немає",
+  "exercises.help.difficultyCol.subtasks": "«Підзавдання» — їх кількість у тому ж першому варіанті; «—» — варіантів немає."
 }

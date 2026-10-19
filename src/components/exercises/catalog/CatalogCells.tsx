@@ -124,3 +124,10 @@ export function AuthorCell({ name }: { name: string }) {
     ? <span className="block max-w-48 truncate" title={name}>{name}</span>
     : <span aria-label={t("exercises.author.unknown")} className="text-muted-foreground">—</span>
 }
+
+/** The number of subtasks of the first variant; «—» without a variant. */
+export function SubtaskCountCell({ count }: { count: number | null }) {
+  return count === null
+    ? <span aria-label={t("exercises.subtasks.none")} className="text-muted-foreground">—</span>
+    : <span className="tabular-nums">{count}</span>
+}

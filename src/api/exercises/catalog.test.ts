@@ -91,16 +91,16 @@ describe('listExercisesPage', () => {
     mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, Tags: null }], Total: 51, Page: 2, PageSize: 25 })
     const page = await listExercisesPage({ search: 'sql', tags: ['web'], statuses: ['draft_only', 'changed'], page: 2, pageSize: 25, sortBy: 'name', sortDir: 'asc' })
     expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?search=sql&tags=web&status=draft_only&status=changed&page=2&pageSize=25&sortBy=name&sortDir=asc')
-    expect(page).toMatchObject({ Total: 51, Page: 2, PageSize: 25, Items: [{ Tags: [], Status: null, AuthorID: null, AuthorName: '', AvgDifficulty: null }] })
+    expect(page).toMatchObject({ Total: 51, Page: 2, PageSize: 25, Items: [{ Tags: [], Status: null, AuthorID: null, AuthorName: '', AvgDifficulty: null, TaskCount: null }] })
   })
 
   it('sends the table filters: all of / none of the tags, authors, the difficulty range', async () => {
-    mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, AuthorID: 'u1', AuthorName: 'Ада', AvgDifficulty: 3.5 }], Total: 1, Page: 1, PageSize: 50 })
+    mockApiGet.mockResolvedValueOnce({ Items: [{ ...rawListItem, AuthorID: 'u1', AuthorName: 'Ада', AvgDifficulty: 3.5, TaskCount: 3 }], Total: 1, Page: 1, PageSize: 50 })
     const page = await listExercisesPage({
       withTags: ['web', 'sqli'], withoutTags: ['old'], authors: ['u1', 'u2'], difficultyMin: 2, difficultyMax: 4, page: 1, pageSize: 50, sortBy: 'difficulty', sortDir: 'desc',
     })
     expect(mockApiGet).toHaveBeenCalledWith('/api/exercises?withTag=web&withTag=sqli&withoutTag=old&author=u1&author=u2&difficultyMin=2&difficultyMax=4&page=1&pageSize=50&sortBy=difficulty&sortDir=desc')
-    expect(page.Items[0]).toMatchObject({ AuthorID: 'u1', AuthorName: 'Ада', AvgDifficulty: 3.5 })
+    expect(page.Items[0]).toMatchObject({ AuthorID: 'u1', AuthorName: 'Ада', AvgDifficulty: 3.5, TaskCount: 3 })
   })
 
   it('keeps the server status, owner event and access event names', async () => {

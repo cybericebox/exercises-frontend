@@ -79,6 +79,10 @@ describe("filters and the URL", () => {
     expect(filtersFromSearch("?dmin=two&dmax=3.5", true)).toMatchObject({ difficultyMin: null, difficultyMax: null })
   })
 
+  it("keeps the subtasks sort in the URL", () => {
+    expect(filtersFromSearch("?sort=subtasks&dir=desc", true)).toMatchObject({ sortBy: "subtasks", sortDir: "desc" })
+  })
+
   it("swaps a reversed difficulty range", () => {
     expect(filtersFromSearch("?dmin=5&dmax=2", true)).toMatchObject({ difficultyMin: 2, difficultyMax: 5 })
     expect(filtersFromSearch("?dmax=3", true)).toMatchObject({ difficultyMin: null, difficultyMax: 3 })
