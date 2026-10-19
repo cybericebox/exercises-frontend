@@ -1506,5 +1506,6 @@
   "exercises.help.tags.match": "Показує завдання з усіма тегами «так» і без жодного тегу «ні».",
   "admin.ex.col.subtasks": "Підзавдання",
   "exercises.subtasks.none": "Варіантів немає",
-  "exercises.help.difficultyCol.subtasks": "«Підзавдання» — їх кількість у тому ж першому варіанті; «—» — варіантів немає."
+  "exercises.help.difficultyCol.subtasks": "«Підзавдання» — їх кількість у тому ж першому варіанті; «—» — варіантів немає.",
+  "admin.ex.updatedLine": "Оновлено {date}"
 }

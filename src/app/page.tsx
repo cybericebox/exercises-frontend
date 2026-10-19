@@ -13,7 +13,7 @@ import {
   clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
 import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
-import { AccessCell, AuthorCell, DifficultyCell, StatusCell, SubtaskCountCell } from "@/components/exercises/catalog/CatalogCells"
+import { AccessCell, AuthorCell, DifficultyCell, StatusCell, SubtaskCountCell, UpdatedCell } from "@/components/exercises/catalog/CatalogCells"
 import { CatalogFilterFields, ScopeFilterField, helpLines } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
 import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
@@ -32,7 +32,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
-import { formatExerciseDateTime } from "@/lib/exerciseStatus"
+import { formatExerciseDate } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
 
 /** Filters from the URL (static export: read once on mount, no Suspense needed). */
@@ -43,6 +43,10 @@ function initialFilters(isAdmin: boolean): CatalogFilters {
 // On a phone the first columns stay in view while the table scrolls sideways.
 const STICKY_SELECT = "max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-card"
 const STICKY_NAME = "max-sm:sticky max-sm:z-10 max-sm:bg-card"
+// «Оновлено» is a column from 1440 px; narrower, the name cell carries the date.
+const WIDE_ONLY = "max-[1439px]:hidden"
+// Long status badges («Є неопубліковані зміни») wrap instead of widening the column.
+const WRAPPING_BADGES = "[&_[data-badge]]:rounded-md [&_[data-badge]]:h-auto [&_[data-badge]]:min-h-6 [&_[data-badge]]:whitespace-normal [&_[data-badge]]:py-0.5"
 
 export default function Page() {
   const router = useRouter()
@@ -247,7 +251,7 @@ export default function Page() {
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
 
-      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[64rem] [&_td]:px-2 [&_th]:px-2">
+      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem] [&_td]:px-2 [&_th]:px-2">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
             {selecting && <th scope="col" className={cn(TABLE_HEAD_CELL, "w-10", "max-sm:left-0 max-sm:z-30")}>
@@ -261,7 +265,7 @@ export default function Page() {
             </SortableHeader>
             <SortableHeader label={t("admin.ex.col.tags")} field="tags" {...sortProps} />
             <SortableHeader label={t("admin.ex.col.subtasks")} field="subtasks" {...sortProps} className="whitespace-nowrap text-right" />
-            <SortableHeader label={t("admin.ex.col.difficulty")} field="difficulty" {...sortProps} className="whitespace-nowrap">
+            <SortableHeader label={t("admin.ex.col.difficulty")} field="difficulty" {...sortProps} className="min-w-[7.5rem]">
               <FieldHelp lines={helpLines("exercises.help.difficultyCol", ["source", "level", "subtasks"])} />
             </SortableHeader>
             <th scope="col" className={TABLE_HEAD_CELL}>
@@ -270,7 +274,8 @@ export default function Page() {
             <SortableHeader label={t("admin.ex.col.status")} field="status" {...sortProps}>
               <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />
             </SortableHeader>
-            <SortableHeader label={t("admin.ex.col.updated")} field="updated" {...sortProps} />
+            {/* Under 1440 px the date moves into the name cell, so the table fits without scrolling sideways. */}
+            <SortableHeader label={t("admin.ex.col.updated")} field="updated" {...sortProps} className={WIDE_ONLY} />
           </tr>
         </thead>
         {canWrite && <BrowserDraftRow userId={me?.ID ?? null} columns={columns} />}
@@ -297,9 +302,12 @@ export default function Page() {
                     <InfrastructureIcon show={item.Infrastructure} />
                   </span>
                   {item.Description && (
-                    <span className="block max-w-[11rem] truncate text-xs text-muted-foreground">{item.Description}</span>
+                    <span className="block max-w-[9rem] truncate text-xs text-muted-foreground">{item.Description}</span>
                   )}
                   <div className="mt-1 empty:hidden"><OwnershipBadges exercise={item} showAccess={false} showEvent={false} /></div>
+                  {item.UpdatedAt && <span className="mt-0.5 block whitespace-nowrap text-xs tabular-nums text-muted-foreground min-[1440px]:hidden">
+                    {t("admin.ex.updatedLine", { date: formatExerciseDate(item.UpdatedAt) })}
+                  </span>}
                 </td>
                 <td className={TABLE_CELL}><AuthorCell name={item.AuthorName} /></td>
                 <td className={TABLE_CELL}>
@@ -311,13 +319,9 @@ export default function Page() {
                 </td>
                 <td className={`${TABLE_CELL} text-right`}><SubtaskCountCell count={item.TaskCount} /></td>
                 <td className={TABLE_CELL}><DifficultyCell average={item.AvgDifficulty} /></td>
-                <td className={TABLE_CELL}><AccessCell item={item} eventName={eventName} /></td>
-                <td className={TABLE_CELL}><StatusCell item={item} /></td>
-                <td className={`${TABLE_CELL} whitespace-nowrap tabular-nums text-muted-foreground`}>
-                  {item.UpdatedAt
-                    ? <time dateTime={item.UpdatedAt}>{formatExerciseDateTime(item.UpdatedAt)}</time>
-                    : <span aria-label={t("admin.ex.none")}>—</span>}
-                </td>
+                <td className={cn(TABLE_CELL, "max-w-[9rem] [&_button]:whitespace-normal [&_button]:text-left")}><AccessCell item={item} eventName={eventName} /></td>
+                <td className={cn(TABLE_CELL, "max-w-[8.5rem]", WRAPPING_BADGES)}><StatusCell item={item} /></td>
+                <td className={cn(TABLE_CELL, WIDE_ONLY, "whitespace-nowrap tabular-nums text-muted-foreground")}><UpdatedCell iso={item.UpdatedAt} /></td>
               </tr>
             ))}
           </tbody>

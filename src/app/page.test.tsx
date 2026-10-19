@@ -546,6 +546,9 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByLabelText('exercises.difficulty.value')).toHaveTextContent('admin.ex.difficulty.medium3,5')
     expect(screen.getByLabelText('exercises.difficulty.none')).toHaveTextContent('—')
     expect(screen.getByLabelText('exercises.author.unknown')).toHaveTextContent('—')
+    // Under 1440 px the name cell carries the update date; the «Оновлено» column hides there.
+    expect(screen.getAllByText('admin.ex.updatedLine')[0]).toHaveClass('min-[1440px]:hidden')
+    expect(screen.getByRole('button', { name: 'admin.ex.col.updated' }).closest('th')).toHaveClass('max-[1439px]:hidden')
     // The subtask count of the first variant; «—» without a variant.
     expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
