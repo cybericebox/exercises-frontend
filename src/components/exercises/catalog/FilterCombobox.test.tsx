@@ -115,8 +115,17 @@ describe("FilterCombobox", () => {
     }
     render(<TriState />)
     fireEvent.focus(screen.getByRole("combobox", { name: "Теги" }))
+    // The list starts with what a press does, tied to the list for screen readers.
+    const hint = screen.getByText("exercises.filter.tags.cycleHint")
+    expect(screen.getByRole("listbox")).toHaveAttribute("aria-describedby", hint.id)
     const web = () => screen.getByRole("option", { name: /web/ })
+    const box = () => web().querySelector("span[aria-hidden]")!
+    // Off: an empty box, no word.
+    expect(box().querySelector("svg")).toBeNull()
+    expect(web()).not.toHaveTextContent(/exercises\.filter\.tags\.(yes|no)/)
     fireEvent.click(web())
+    // «так»: a check mark and the word.
+    expect(box().querySelector("svg.lucide-check")).not.toBeNull()
     expect(screen.getByTestId("state")).toHaveTextContent("yes=web;no=")
     expect(web()).toHaveAttribute("data-state", "yes")
     expect(web()).toHaveTextContent("exercises.filter.tags.yes")
@@ -124,6 +133,9 @@ describe("FilterCombobox", () => {
     expect(screen.getByTestId("state")).toHaveTextContent("yes=;no=web")
     expect(web()).toHaveAttribute("data-state", "no")
     expect(web()).toHaveTextContent("exercises.filter.tags.no")
+    // «ні»: a minus in a dashed box, not only another colour.
+    expect(box().querySelector("svg.lucide-minus")).not.toBeNull()
+    expect(box()).toHaveClass("border-dashed")
     // The chip says «ні» with an icon and a word, and its remove button names both.
     const chip = document.querySelector('[data-state="no"]:not([role])')!
     expect(chip).toHaveTextContent("exercises.filter.tags.no")
@@ -145,9 +157,16 @@ describe("FilterCombobox", () => {
     expect(screen.getByTestId("state")).toHaveTextContent("yes=;no=")
   })
 
+  it("shows the cycle hint only on a так/ні list", () => {
+    render(<Controlled options={STATUSES} />)
+    fireEvent.focus(screen.getByRole("combobox"))
+    expect(screen.queryByText("exercises.filter.tags.cycleHint")).not.toBeInTheDocument()
+    expect(screen.getByRole("listbox")).not.toHaveAttribute("aria-describedby")
+  })
+
   it("keeps its list above the sticky table header", () => {
     render(<Controlled options={STATUSES} />)
     fireEvent.focus(screen.getByRole("combobox"))
-    expect(screen.getByRole("listbox")).toHaveClass("z-[80]")
+    expect(screen.getByRole("listbox").parentElement).toHaveClass("z-[80]")
   })
 })
