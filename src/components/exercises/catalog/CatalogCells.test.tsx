@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { render } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
@@ -32,6 +32,18 @@ describe("compact cells", () => {
     expect(time.children).toHaveLength(2)
     expect(time.children[0].textContent).toMatch(/18\.10\.2026/)
     expect(time.children[1].textContent).toMatch(/^\d{2}:\d{2}$/)
+  })
+
+  it("opens the subtask names in a column from the count, by click or keyboard", async () => {
+    render(<SubtaskCountCell count={3} names={["Recon", "Exploit", "Report"]} />)
+    const trigger = screen.getByRole("button", { name: "exercises.subtasks.show" })
+    expect(trigger).toHaveTextContent("3")
+    expect(trigger).toHaveClass("z-10")
+    fireEvent.click(trigger)
+    const items = await screen.findAllByRole("listitem")
+    expect(items.map((item) => item.textContent)).toEqual(["Recon", "Exploit", "Report"])
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "Escape" })
+    await waitFor(() => expect(screen.queryByRole("listitem")).not.toBeInTheDocument())
   })
 
   it("shows the subtask count, «—» without a variant", () => {

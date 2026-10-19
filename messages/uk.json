@@ -1510,5 +1510,9 @@
   "exercises.subtasks.none": "Варіантів немає",
   "exercises.help.difficultyCol.subtasks": "«Підзавдання» — їх кількість у тому ж першому варіанті; «—» — варіантів немає.",
   "admin.ex.updatedLine": "Оновлено {date}",
-  "exercises.filter.tags.cycleHint": "Клік — тег «так», ще клік — «ні» (без тегу), ще раз — прибрати."
+  "exercises.filter.tags.cycleHint": "Клік — тег «так», ще клік — «ні» (без тегу), ще раз — прибрати.",
+  "exercises.subtasks.show": "Підзавдання: {count}. Показати назви",
+  "exercises.subtasks.title": "Підзавдання",
+  "exercises.subtasks.empty": "У першому варіанті немає підзавдань",
+  "exercises.subtasks.unnamed": "Без назви"
 }

@@ -40,9 +40,10 @@ function initialFilters(isAdmin: boolean): CatalogFilters {
   return typeof window === "undefined" ? defaultFilters(isAdmin) : filtersFromSearch(window.location.search, isAdmin)
 }
 
-// On a phone the first columns stay in view while the table scrolls sideways.
-const STICKY_SELECT = "max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-card"
-const STICKY_NAME = "max-sm:sticky max-sm:z-10 max-sm:bg-card"
+// On a phone the first columns stay in view while the table scrolls sideways, above the raised controls of the
+// other cells (z-10: the count, the checkboxes) and below the header (z-30).
+const STICKY_SELECT = "max-sm:sticky max-sm:left-0 max-sm:z-20 max-sm:bg-card"
+const STICKY_NAME = "max-sm:sticky max-sm:z-20 max-sm:bg-card"
 // «Оновлено» is a column from 1440 px; narrower, the name cell carries the date.
 const WIDE_ONLY = "max-[1439px]:hidden"
 // Long status badges («Є неопубліковані зміни») wrap instead of widening the column.
@@ -316,7 +317,7 @@ export default function Page() {
                     ))}
                   </span>
                 </td>
-                <td className={TABLE_CELL}><SubtaskCountCell count={item.TaskCount} /></td>
+                <td className={TABLE_CELL}><SubtaskCountCell count={item.TaskCount} names={item.TaskNames} /></td>
                 <td className={TABLE_CELL}><DifficultyCell average={item.AvgDifficulty} /></td>
                 <td className={cn(TABLE_CELL, "max-w-[9rem] [&_button]:whitespace-normal [&_button]:text-left")}><AccessCell item={item} eventName={eventName} /></td>
                 <td className={cn(TABLE_CELL, "max-w-[8.5rem]", WRAPPING_BADGES)}><StatusCell item={item} /></td>
