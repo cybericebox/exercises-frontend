@@ -22,9 +22,14 @@ export function formatExerciseDate(iso: string): string {
   return new Date(iso).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+/** The time of day (HH:MM). */
+export function formatExerciseTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })
+}
+
 export function formatExerciseDateTime(iso: string, now: Date = new Date()): string {
   const date = new Date(iso)
-  const time = date.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })
+  const time = formatExerciseTime(iso)
   if (sameDay(date, now)) return t("admin.exPage.date.today", { time })
   return `${formatExerciseDate(iso)}, ${time}`
 }

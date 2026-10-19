@@ -11,6 +11,7 @@ import { accessInfo, catalogStatus, difficultyName, type CatalogStatus } from "@
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { t } from "@/i18n/t"
+import { formatExerciseDate, formatExerciseTime } from "@/lib/exerciseStatus"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 const STATUS_BADGES: Record<CatalogStatus, { key: string; tone: BadgeTone }[]> = {
@@ -130,4 +131,13 @@ export function SubtaskCountCell({ count }: { count: number | null }) {
   return count === null
     ? <span aria-label={t("exercises.subtasks.none")} className="text-muted-foreground">—</span>
     : <span className="tabular-nums">{count}</span>
+}
+
+/** When the task changed: the date over the time, so the column stays narrow; «—» when unknown. */
+export function UpdatedCell({ iso }: { iso: string }) {
+  if (!iso) return <span aria-label={t("admin.ex.none")}>—</span>
+  return <time dateTime={iso} className="flex flex-col leading-tight">
+    <span>{formatExerciseDate(iso)}</span>
+    <span className="text-xs">{formatExerciseTime(iso)}</span>
+  </time>
 }
