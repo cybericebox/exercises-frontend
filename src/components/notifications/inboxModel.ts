@@ -16,9 +16,6 @@ export type InboxResolution = "approved" | "rejected" | "fixed" | "resolved" | "
 export const INBOX_RESOLUTIONS: readonly InboxResolution[] = ["approved", "rejected", "fixed", "resolved", "expired", "withdrawn"]
 const SYSTEM_RESOLUTIONS: readonly string[] = ["expired", "withdrawn"]
 
-/** The only request type a person may close by hand (§8.1): «Лабораторія впала». */
-export const MANUALLY_RESOLVABLE_TYPE = "event.lab.failed"
-
 export type InboxMessage = {
   ID: string
   Title: string
@@ -40,7 +37,7 @@ export type InboxMessage = {
   Category?: InboxCategory
   ActionRequired?: boolean
   ResolvedAt?: string | null
-  // The server says whether the recipient may close this open request by hand (absent on older backends).
+  // The server says whether the recipient may close this open request by hand.
   Resolvable?: boolean
   Resolution?: InboxResolution | null
   // null when the system closed the request.
@@ -76,9 +73,9 @@ export function isUnread(item: InboxMessage): boolean {
   return !item.ReadAt
 }
 
-/** «Вирішено» is offered only where the server allows it (Resolvable); older backends knew just «Лабораторія впала». */
+/** «Вирішено» is offered only where the server allows it (Resolvable). */
 export function canResolve(item: InboxMessage): boolean {
-  return isOpenRequest(item) && (item.Resolvable ?? item.Type === MANUALLY_RESOLVABLE_TYPE)
+  return isOpenRequest(item) && item.Resolvable === true
 }
 
 /** «Потребує дії»: an open request keeps asking for a decision even after it was read. */
