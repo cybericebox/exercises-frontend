@@ -9,7 +9,7 @@ describe("starting note", () => {
   })
 
   it("gives a calm line while a new cluster node starts", () => {
-    expect(startingNote({ ...queue, Reason: "NodeStarting" }, true)).toBe("Готуємо додаткові потужності кластера. Це може зайняти кілька хвилин, лабораторія запуститься автоматично.")
+    expect(startingNote({ ...queue, Reason: "NodeStarting" }, true)).toBe("Готуємо додаткові потужності кластера. Це може зайняти декілька хвилин, лабораторія запуститься автоматично.")
   })
 
   it("says resources are short for every resource wait, a withdrawn launch included", () => {

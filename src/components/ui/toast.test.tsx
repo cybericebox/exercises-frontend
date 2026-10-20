@@ -54,7 +54,7 @@ describe("ToastProvider", () => {
   it("treats the overload code (70431) as the overload signal, Retry-After or not", () => {
     render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, { Status: { Code: 70431 } }, "x", undefined, 70431), vi.fn())}>Busy</button></ToastProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Busy" }))
-    expect(screen.getByRole("alert")).toHaveTextContent("Сервер перевантажений, спробуйте за кілька секунд")
+    expect(screen.getByRole("alert")).toHaveTextContent("Сервер перевантажений, спробуйте за декілька секунд")
     expect(screen.getByRole("button", { name: "Спробувати ще раз" })).toBeInTheDocument()
   })
 

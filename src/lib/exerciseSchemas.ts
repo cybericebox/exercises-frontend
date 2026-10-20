@@ -246,7 +246,7 @@ const deviceSchema = z
     ID: z.string(),
     Name: z.string(),
     Type: z.enum(["container", "unmanaged-switch", "hub"]),
-    SecurityPreset: z.enum(["", "basic", "service", "net", "debug"]),
+    SecurityPreset: z.enum(["", "standard", "extended"]),
     Image: z.string(),
     ResourcePreset: z.string(),
     Interfaces: z.array(interfaceSchema),
