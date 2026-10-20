@@ -165,6 +165,10 @@ export interface RichTextEditorProps {
   className?: string;
   /** Default and min height of the scroll area; short fields (hints) pass a smaller one. */
   minHeightClassName?: string;
+  /** Fixed content viewport (hints), excluding the toolbar. Full text scrolls internally. */
+  contentHeight?: number;
+  /** Optional context-specific resize cap (task descriptions); other editor uses stay unchanged. */
+  maxContentHeight?: number;
   /** false: no text alignment (no toolbar control; aligned content is reset to default). */
   allowAlignment?: boolean;
   /** Accessible name of the editable area. */
@@ -1140,6 +1144,8 @@ export function RichTextEditor({
   placeholder,
   className,
   minHeightClassName = "min-h-[200px]",
+  contentHeight,
+  maxContentHeight,
   allowAlignment = true,
   ariaLabel,
   ariaDescribedBy,
@@ -1193,7 +1199,9 @@ export function RichTextEditor({
         {!disabled && <ToolbarPlugin allowAlignment={allowAlignment} variables={variables} onInsertVariable={onInsertVariable}
           highlightVariables={highlightVariables} onToggleVariableHighlight={() => setHighlightVariables((value) => !value)} />}
 
-        <div className={cn("editor-scroll relative has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring", minHeightClassName)}>
+        <div className={cn("editor-scroll relative has-focus-visible:ring-1 has-focus-visible:ring-inset has-focus-visible:ring-ring", minHeightClassName)}
+          style={contentHeight !== undefined ? { height: contentHeight, minHeight: contentHeight, maxHeight: contentHeight, resize: "none", overflowY: "auto" }
+            : maxContentHeight !== undefined ? { maxHeight: maxContentHeight, overflowY: "auto" } : undefined}>
           <RichTextPlugin
             contentEditable={
               <div className="editor-scroll__body">{placeholder ? (

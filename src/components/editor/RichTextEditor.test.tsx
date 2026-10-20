@@ -447,3 +447,21 @@ it('Backspace at the start turns a copy block into a paragraph without losing va
   { type: 'paragraph', children: [{ text: 'ssh ' }, { type: 'variable', varName: 'host' }] },
  ])
 })
+
+it('fixes hint content to 144px with internal scrolling and keeps long text lossless', async () => {
+ const text = 'A long hint with rich content '.repeat(500)
+ const editor = createEditor()
+ editor.update(() => { $getRoot().append($createParagraphNode().append($createTextNode(text))) }, { discrete: true })
+ const { container } = render(<RichTextEditor value={editor.getEditorState().toJSON() as unknown as Record<string, unknown>} onChange={vi.fn()} contentHeight={144} />)
+ const area = container.querySelector('.editor-scroll')!
+ expect(area).toHaveStyle({ height: '144px', minHeight: '144px', maxHeight: '144px', resize: 'none', overflowY: 'auto' })
+ expect(area).not.toContainElement(screen.getByRole('toolbar'))
+ expect(container.firstElementChild).toHaveClass('overflow-visible')
+ await waitFor(() => expect(area.textContent).toBe(text))
+})
+it('caps task description scrolling at 320px without applying fixed sizing to other editors', () => {
+ const { container, rerender } = render(<RichTextEditor value={null} onChange={vi.fn()} maxContentHeight={320} />)
+ expect(container.querySelector('.editor-scroll')).toHaveStyle({ maxHeight: '320px', overflowY: 'auto' })
+ rerender(<RichTextEditor value={null} onChange={vi.fn()} />)
+ expect(container.querySelector('.editor-scroll')).not.toHaveStyle({ maxHeight: '320px' })
+})

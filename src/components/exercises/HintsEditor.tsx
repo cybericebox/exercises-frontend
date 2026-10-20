@@ -34,7 +34,7 @@ const levelHelpLines = () => [
 function HintTextEditor({ text, onChange, disabled, invalid, ariaLabel, describedBy }: { text: string; onChange: (text: string) => void; disabled: boolean; invalid: boolean; ariaLabel: string; describedBy?: string }) {
   const [local, setLocal] = useState<{ text: string; state: LexicalState | null }>({ text: "", state: null })
   const value = local.text === text && local.state ? local.state : hintTextToState(text)
-  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} ariaDescribedBy={describedBy} invalid={invalid} minHeightClassName="min-h-[4.5rem]" allowAlignment={false}
+  return <RichTextEditor value={value} disabled={disabled} ariaLabel={ariaLabel} ariaDescribedBy={describedBy} invalid={invalid} contentHeight={144} allowAlignment={false}
     placeholder={t("exercises.hints.textPlaceholder")}
     onChange={(state) => {
       const next = stateToHintText(state)

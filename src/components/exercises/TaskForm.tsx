@@ -156,7 +156,7 @@ export function TaskForm({
           name={`${base}.Description`}
           render={({ field, fieldState }) => (
             <>
-            <RichTextEditor fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
+            <RichTextEditor maxContentHeight={320} fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
               onInsertVariable={(insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) }}
               onEditVariable={(key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) }} />
             {fieldState.error?.message && <p id={`task-description-${variantIndex}-${taskIndex}-error`} role="alert" className="text-xs font-medium text-destructive">{fieldState.error.message}</p>}
