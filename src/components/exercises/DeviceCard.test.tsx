@@ -299,15 +299,25 @@ describe('DeviceCard', () => {
     expect(screen.getByText('admin.exTopo.ip.dhcpPresetHelp')).toBeInTheDocument()
   })
 
-  it('shows one basic security choice for both omitted and legacy explicit basic values', () => {
+  it.each([
+    ['', 'service'], ['basic', 'service'], ['service', 'service'], ['net', 'net'], ['debug', 'net'],
+  ] as const)('shows the legacy security preset %j as the %s option', (stored, shown) => {
     const device = emptyDevice()
-    device.SecurityPreset = 'basic'
+    device.SecurityPreset = stored
     render(<Harness device={device} />)
     const select = screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })
-    expect(select).toHaveTextContent('admin.exTopo.security.default')
+    expect(select).toHaveTextContent(`admin.exTopo.security.${shown}`)
+  })
+
+  it('offers only the standard and extended profiles and writes the daemon names', () => {
+    const device = emptyDevice()
+    device.SecurityPreset = 'debug'
+    render(<Harness device={device} />)
+    const select = screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })
     fireEvent.keyDown(select, { key: 'ArrowDown' })
-    expect(screen.getByText('admin.exTopo.security.defaultHelp')).toBeInTheDocument()
-    expect(screen.queryByText('admin.exTopo.security.basicHelp')).not.toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.security.serviceHelp')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.security.netHelp')).toBeInTheDocument()
+    expect(screen.queryByText('admin.exTopo.security.debugHelp')).not.toBeInTheDocument()
   })
 
   it('stored secret env var: secret icon toggle is locked until the value is replaced', () => {
