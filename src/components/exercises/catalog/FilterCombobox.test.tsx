@@ -21,6 +21,42 @@ function Controlled(props: Partial<React.ComponentProps<typeof FilterCombobox>> 
 }
 
 describe("FilterCombobox", () => {
+  it("keeps pointer and focus interactions on its anchor open, but dismisses for real outside targets", async () => {
+    render(<><Controlled options={STATUSES} initial={["published"]} /><button>Outside</button></>)
+    const box = screen.getByRole("combobox", { name: "Статус" })
+    const outside = screen.getByRole("button", { name: "Outside" })
+    const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 10)))
+    const clickWithFocus = async (element: HTMLElement) => {
+      fireEvent.pointerDown(element, { pointerType: "mouse" })
+      act(() => element.focus())
+      fireEvent.pointerUp(element, { pointerType: "mouse" })
+      fireEvent.click(element)
+      await settle()
+    }
+    await clickWithFocus(box)
+    expect(box).toHaveFocus()
+    expect(box).toHaveAttribute("aria-expanded", "true")
+    // Repeated clicks and moving focus to a chip stay within the same field.
+    await clickWithFocus(box)
+    expect(screen.getByRole("listbox", { name: "Статус" })).toBeInTheDocument()
+    await clickWithFocus(screen.getByRole("button", { name: "exercises.filter.remove Опубліковані" }))
+    expect(box).toHaveAttribute("aria-expanded", "true")
+    await clickWithFocus(outside)
+    expect(box).toHaveAttribute("aria-expanded", "false")
+    act(() => box.focus())
+    expect(box).toHaveAttribute("aria-expanded", "true")
+    act(() => outside.focus())
+    expect(box).toHaveAttribute("aria-expanded", "false")
+    act(() => box.focus())
+    await settle()
+    // A pointer click on a non-focusing outside target still dismisses the list.
+    fireEvent.pointerDown(document.body, { pointerType: "mouse" })
+    fireEvent.pointerUp(document.body, { pointerType: "mouse" })
+    fireEvent.click(document.body)
+    await settle()
+    expect(box).toHaveAttribute("aria-expanded", "false")
+  })
+
   it("opens a list on focus, toggles several values and shows them as chips", () => {
     render(<Controlled options={STATUSES} />)
     const box = screen.getByRole("combobox", { name: "Статус" })

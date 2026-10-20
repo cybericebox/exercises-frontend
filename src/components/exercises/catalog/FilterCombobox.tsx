@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { Check, Minus, X } from "lucide-react"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -24,10 +25,10 @@ const LOAD_DEBOUNCE_MS = 200
  * values keep their labels while the list shows other matches; `labelFor` names chosen values never listed (a
  * shared link). With `excluded` it is a так/ні filter: a press on an option cycles it off → «так» (chosen, `value`) →
  * «ні» (left out, `excluded`) → off; the chips and the options name the state with an icon and a word, never by
- * colour alone. The list is in the field's own stacking context (z-[80], above the sticky table header), so a panel or a dialog
- * around it never covers it.
+ * colour alone. The anchored list is portalled above the table/dialog and constrained to the available viewport,
+ * so a scrolling filter panel cannot clip it.
  */
-export function FilterCombobox({ label, placeholder, value, onChange, excluded, onExcludedChange, options, load, labelFor, emptyMessage, errorMessage, className }: {
+export function FilterCombobox({ label, placeholder, value, onChange, excluded, onExcludedChange, options, load, labelFor, onOptionsLoaded, emptyMessage, errorMessage, className }: {
   label: string
   placeholder: string
   value: string[]
@@ -35,6 +36,7 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
   options?: FilterOption[]
   load?: (query: string) => Promise<FilterOption[]>
   labelFor?: (value: string) => string | undefined
+  onOptionsLoaded?: (options: FilterOption[]) => void
   /** The «ні» values of a так/ні filter (with onExcludedChange); absent: a plain multi-select. */
   excluded?: string[]
   onExcludedChange?: (excluded: string[]) => void
@@ -50,6 +52,7 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
   // The labels of every option an async source answered, so a chosen value keeps its name in later answers.
   const [known, setKnown] = useState<Record<string, string>>({})
   const listId = useId()
+  const anchorRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const text = query.trim()
 
@@ -62,13 +65,14 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
           if (!current) return
           setLoaded({ query: text, items, failed: null })
           setKnown((before) => ({ ...before, ...Object.fromEntries(items.map((item) => [item.value, item.label])) }))
+          onOptionsLoaded?.(items)
           setActive(-1)
         })
         .catch((cause) => { if (current) setLoaded({ query: text, items: [], failed: { cause } }) })
         .finally(() => { if (current) setReload(0) })
     }, text ? LOAD_DEBOUNCE_MS : 0)
     return () => { current = false; clearTimeout(id) }
-  }, [load, open, text, loaded?.query, reload])
+  }, [load, open, text, loaded?.query, reload, onOptionsLoaded])
 
   const source = load ? (loaded?.query === text ? loaded.items : null) : (options ?? []).filter((option) => matches(option, text))
   const shown = source
@@ -106,7 +110,8 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
   const failed = load && loaded?.query === text ? loaded.failed : null
 
   return (
-    <div className={cn("relative min-w-0", className)}>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+    <PopoverPrimitive.Anchor asChild><div ref={anchorRef} className={cn("relative min-w-0", className)}>
       <div className="flex min-h-10 items-start gap-1 rounded-md border border-border bg-card py-1 pl-2 pr-1 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]"
         onPointerDown={(event) => { if (event.target === event.currentTarget) { event.preventDefault(); inputRef.current?.focus() } }}>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 py-0.5">
@@ -139,7 +144,9 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
             placeholder={chips.length ? "" : placeholder}
             onChange={(event) => { setQuery(event.target.value); setOpen(true); setActive(-1) }}
             onFocus={() => setOpen(true)}
-            onBlur={() => { setOpen(false); setActive(-1) }}
+            onBlur={(event) => {
+              if (!anchorRef.current?.contains(event.relatedTarget)) { setOpen(false); setActive(-1) }
+            }}
             onKeyDown={(event) => {
               const count = shown?.length ?? 0
               if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); if (count) setActive((i) => (i + 1) % count) }
@@ -159,14 +166,22 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
           </button>
         )}
       </div>
-      {open && (
-        // A press inside the list must not blur the input: that would close the list before the click lands.
+      </div></PopoverPrimitive.Anchor>
+      {open && <PopoverPrimitive.Portal><PopoverPrimitive.Content
+        side="bottom" align="start" sideOffset={4} collisionPadding={12}
+        onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={(event) => {
+          if (event.target instanceof Node && anchorRef.current?.contains(event.target)) event.preventDefault()
+        }}
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+        className="z-[80] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] min-w-44 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground outline-none">
+        {/* A press inside the list must not blur the input before the click lands. */}
         <div onPointerDown={(event) => event.preventDefault()}
-          className="absolute left-0 right-0 top-full z-[80] mt-1 flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground">
+          className="z-[80] flex min-h-0 flex-col overflow-hidden">
         {/* A так/ні list says up front what a press does: the third state is not discoverable otherwise. */}
         {triState && <p id={`${listId}-hint`} className="border-b border-border px-3 py-2 text-xs leading-snug text-muted-foreground">{t("exercises.filter.tags.cycleHint")}</p>}
         <div id={listId} role="listbox" aria-multiselectable="true" aria-label={label} aria-describedby={triState ? `${listId}-hint` : undefined}
-          className="h-52 overflow-y-auto overscroll-contain p-1">
+          className="h-52 min-h-0 overflow-y-auto overscroll-contain p-1">
           {failed ? <LoadError compact message={errorMessage} error={failed.cause} className="h-full min-h-0" onRetry={() => setReload((n) => n + 1)} />
             : shown === null ? <LoadingArea compact className="h-full" label={t("admin.loading")} />
               : shown.length === 0 ? <EmptyState compact message={emptyMessage} className="h-full min-h-0" />
@@ -187,8 +202,8 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
                 })}
         </div>
         </div>
-      )}
-    </div>
+      </PopoverPrimitive.Content></PopoverPrimitive.Portal>}
+    </PopoverPrimitive.Root>
   )
 }
 

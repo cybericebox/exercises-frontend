@@ -1,57 +1,44 @@
 "use client"
-import { useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { SlidersHorizontal, Upload } from "lucide-react"
+import { Search, SlidersHorizontal, Upload, X } from "lucide-react"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
-import { listExerciseAuthors, listExercisesPage, type Exercise, type ExerciseListItem, type ScopeFilter } from "@/api/exercises/catalog"
+import { listExerciseAuthors, listExercisesPage, type Exercise, type ExerciseListItem } from "@/api/exercises/catalog"
 import { listEventOptions, type EventOption } from "@/api/events/list"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import { accessFromRbac, canCreateExercise, ownerOptions, writableEvents } from "@/lib/exerciseRights"
 import {
   clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
-import { InfrastructureIcon, OwnershipBadges } from "@/components/exercises/OwnershipBadges"
-import { AccessCell, AuthorCell, DifficultyCell, StatusCell, SubtaskCountCell, UpdatedCell } from "@/components/exercises/catalog/CatalogCells"
-import { CatalogFilterFields, ScopeFilterField, helpLines } from "@/components/exercises/catalog/CatalogFilterFields"
+import { CatalogFilterFields, ScopeFilterField } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
-import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
+import { CatalogTable } from "@/components/exercises/catalog/CatalogTable"
+import { AppliedFilters } from "@/components/exercises/catalog/AppliedFilters"
+import { useMediaQuery } from "@/components/shell/useMediaQuery"
+import type { FilterOption } from "@/components/exercises/catalog/FilterCombobox"
+import "@/styles/catalog.css"
 import { BulkActions } from "@/components/exercises/catalog/BulkActions"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
-import { ImportRows } from "@/components/exercises/catalog/ImportRows"
 import { onImportsDone } from "@/lib/importJobs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { FieldHelp } from "@/components/ui/field-help"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { TablePagination } from "@/components/ui/table-pagination"
-import { SortableHeader } from "@/components/ui/sortable-header"
-import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW, TABLE_ROW } from "@/components/ui/table"
-import { formatExerciseDate } from "@/lib/exerciseStatus"
-import { cn } from "@/utils/cn"
-
 /** Filters from the URL (static export: read once on mount, no Suspense needed). */
 function initialFilters(isAdmin: boolean): CatalogFilters {
   return typeof window === "undefined" ? defaultFilters(isAdmin) : filtersFromSearch(window.location.search, isAdmin)
 }
 
-// On a phone the first columns stay in view while the table scrolls sideways, above the raised controls of the
-// other cells (z-10: the count, the checkboxes) and below the header (z-30).
-const STICKY_SELECT = "max-sm:sticky max-sm:left-0 max-sm:z-20 max-sm:bg-card"
-const STICKY_NAME = "max-sm:sticky max-sm:z-20 max-sm:bg-card"
-// «Оновлено» is a column from 1440 px; narrower, the name cell carries the date.
-const WIDE_ONLY = "max-[1439px]:hidden"
-// Long status badges («Є неопубліковані зміни») wrap instead of widening the column.
-const WRAPPING_BADGES = "[&_[data-badge]]:rounded-md [&_[data-badge]]:h-auto [&_[data-badge]]:min-h-6 [&_[data-badge]]:whitespace-normal [&_[data-badge]]:py-0.5"
-
 export default function Page() {
   const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const mobile = useMediaQuery("(max-width: 639px)", false)
   const [rows, setRows] = useState<ExerciseListItem[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -88,7 +75,6 @@ export default function Page() {
   const selecting = canExport || access.CanCreateCatalog || access.Events.some((event) => event.CanWrite)
   const pageRows = rows.filter(selectable)
   const allOnPage = pageRows.length > 0 && pageRows.every((row) => selected.has(row.ID))
-  const columns = selecting ? 9 : 8
 
   function toggle(item: ExerciseListItem) {
     setSelected((current) => {
@@ -139,7 +125,7 @@ export default function Page() {
     if (initialAuthors.length === 0) return
     let active = true
     listExerciseAuthors("", MAX_AUTHORS, initialAuthors.slice(0, MAX_AUTHORS))
-      .then((authors) => { if (active) setAuthorNames(new Map(authors.map((author) => [author.ID, author.Name || t("exercises.filter.author.noName")]))) })
+      .then((authors) => { if (active) setAuthorNames((before) => new Map([...before, ...authors.map((author) => [author.ID, author.Name || t("exercises.filter.author.noName")] as const)])) })
       .catch(() => undefined)
     return () => { active = false }
   }, [initialAuthors])
@@ -208,126 +194,55 @@ export default function Page() {
   const activeCount = countActiveFilters(filters, isAdmin)
   const reset = () => update(clearedFilters(filters, isAdmin))
   const authorLabel = (id: string) => authorNames.get(id)
-  const fieldsProps = { filters, isAdmin, eventOptions, authorLabel, onChange: update }
+  const onAuthorsLoaded = useCallback((options: FilterOption[]) => setAuthorNames((before) => new Map([...before, ...options.map(({ value, label }) => [value, label] as const)])), [])
+  const fieldsProps = { filters, isAdmin, eventOptions, authorLabel, onAuthorsLoaded, onChange: update }
+  const clearSearch = () => { setSearch(""); update({ search: "" }) }
+  const searchControl = <CatalogSearch value={search} onChange={setSearch} onClear={clearSearch} />
+  const filterFields = <>
+    <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope) => update({ scope })} className="catalog-storage-field" />
+    <CatalogFilterFields {...fieldsProps} className="catalog-filter-grid" />
+  </>
   const sortProps = { activeField: filters.sortBy, direction: filters.sortDir, onSort: sort }
 
   return (
-    <div className="frost-panel flex min-h-full min-w-0 flex-col rounded-lg sm:h-full sm:min-h-0 sm:overflow-hidden p-3 sm:p-6">
+    <div className="catalog-screen frost-panel">
       <h1 className="sr-only">{t("exercises.nav.catalog")}</h1>
-      <div className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
-        <Input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("admin.ex.search")}
-          aria-label={t("admin.ex.search")}
-          className="w-full min-w-0 sm:w-auto sm:min-w-[14rem] sm:flex-1 lg:max-w-sm"
-        />
-        <Button type="button" variant="outline" className="h-10 px-3 sm:hidden" aria-haspopup="dialog" onClick={() => setSheetOpen(true)}>
-          <SlidersHorizontal aria-hidden="true" className="mr-1.5 h-4 w-4" />
-          {activeCount > 0 ? t("exercises.filter.openCount", { count: activeCount }) : t("exercises.filter.open")}
-        </Button>
-        {activeCount > 0 && <Button type="button" variant="ghost" className="hidden h-10 text-sm sm:inline-flex" onClick={reset}>{t("exercises.filter.reset")}</Button>}
-        {(canWrite || canImport) && (
-          <div className="ml-auto flex shrink-0 gap-2">
-            {/* On a phone the import is its icon, so the filters, import and create share one row. */}
-            {canImport && <Button type="button" variant="outline" onClick={() => { setImportJobId(undefined); setImportOpen(true) }} className="h-10 px-3 text-sm sm:px-4">
-              <Upload aria-hidden="true" className="h-4 w-4 sm:mr-1.5" /><span className="max-sm:sr-only">{t("admin.exImport.button")}</span>
-            </Button>}
-            {canWrite && <Button type="button" onClick={() => router.push(createHref())} className="h-10 shrink-0 text-sm">{t("admin.ex.create.button")}</Button>}
-          </div>
-        )}
-      </div>
-      <section aria-label={t("exercises.filter.label")} className="mb-3 hidden min-w-0 gap-x-3 gap-y-2 sm:grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-        <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope: ScopeFilter) => update({ scope })} className="sm:col-span-2" />
-        <CatalogFilterFields {...fieldsProps} className="contents" rangeClassName="sm:col-span-2" tagsClassName="sm:col-span-2" />
-      </section>
-      <FiltersSheet open={sheetOpen} onOpenChange={setSheetOpen} active={activeCount} onReset={reset}>
-        <div className="flex flex-col gap-3">
-          <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope: ScopeFilter) => update({ scope })} />
-          <CatalogFilterFields {...fieldsProps} className="contents" />
+      <div className="catalog-toolbar">
+        <div className="catalog-search-toolbar">
+          {!mobile && searchControl}
+          <Button type="button" variant="outline" aria-expanded={mobile ? sheetOpen : filtersOpen} aria-controls={mobile ? undefined : "catalog-filters"} aria-haspopup={mobile ? "dialog" : undefined} onClick={() => mobile ? setSheetOpen(true) : setFiltersOpen((open) => !open)}>
+            <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+            {activeCount > 0 ? t("exercises.filter.openCount", { count: activeCount }) : t("exercises.filter.open")}
+          </Button>
         </div>
+        {(canWrite || canImport) && <div className="catalog-create-actions">
+          {canImport && <Button type="button" variant="outline" onClick={() => { setImportJobId(undefined); setImportOpen(true) }}><Upload aria-hidden="true" className="h-4 w-4" />{t("admin.exImport.button")}</Button>}
+          {canWrite && <Button type="button" onClick={() => router.push(createHref())}>{t("admin.ex.create.button")}</Button>}
+        </div>}
+      </div>
+      <AppliedFilters filters={filters} isAdmin={isAdmin} mobile={mobile} eventLabel={eventName} authorLabel={authorLabel} onChange={update} onClearSearch={clearSearch} onReset={reset} active={activeCount} />
+      {!mobile && filtersOpen && <section id="catalog-filters" aria-label={t("exercises.filter.label")} className="catalog-filter-panel">
+        <div className="catalog-panel-heading"><h2>{t("exercises.filter.label")}</h2><Button variant="ghost" size="sm" onClick={() => setFiltersOpen(false)}><X aria-hidden="true" className="h-4 w-4" />{t("exercises.catalog.collapseFilters")}</Button></div>
+        {filterFields}
+        <div className="catalog-panel-done"><Button variant="outline" onClick={() => setFiltersOpen(false)}>{t("exercises.filter.done")}</Button></div>
+      </section>}
+      <FiltersSheet open={mobile && sheetOpen} onOpenChange={setSheetOpen} active={activeCount} onReset={reset}>
+        <div className="catalog-sheet-fields">{mobile && searchControl}{filterFields}</div>
       </FiltersSheet>
+      <div className="catalog-result-meta" role="status" aria-live="polite">
+        <span>{loading && rows.length === 0 ? t("admin.loading") : error ? t("exercises.nav.catalog") : t("exercises.catalog.total", { count: total })}</span>
+        <span>{t("exercises.catalog.storageSummary", { value: filters.scope ? t(`exercises.scope.${filters.scope}`) : t("exercises.catalog.storageAll") })}</span>
+      </div>
 
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
 
-      <Table regionClassName="min-h-64 shrink-0 sm:min-h-0 sm:shrink" label={t("accountMenu.exercises")} regionRef={tableScrollRef} busy={loading} className="min-w-[56rem] [&_td]:px-2 [&_th]:px-2">
-        <thead>
-          <tr className={TABLE_HEAD_ROW}>
-            {selecting && <th scope="col" className={cn(TABLE_HEAD_CELL, "w-10", "max-sm:left-0 max-sm:z-30")}>
-              <label className="inline-flex h-6 w-6 items-center justify-center">
-                <input type="checkbox" aria-label={t("admin.ex.select.all")} checked={allOnPage} disabled={pageRows.length === 0} onChange={toggleAll} className="h-4 w-4 accent-primary" />
-              </label>
-            </th>}
-            <SortableHeader label={t("admin.ex.col.name")} field="name" {...sortProps} className={cn("max-sm:z-30", selecting ? "max-sm:left-10" : "max-sm:left-0")} />
-            <SortableHeader label={t("admin.ex.col.tags")} field="tags" {...sortProps} />
-            <SortableHeader label={t("admin.ex.col.subtasks")} field="subtasks" {...sortProps} className="whitespace-nowrap" />
-            <SortableHeader label={t("admin.ex.col.difficulty")} field="difficulty" {...sortProps} className="min-w-[7.5rem]">
-              <FieldHelp lines={helpLines("exercises.help.difficultyCol", ["source", "level", "subtasks"])} />
-            </SortableHeader>
-            <th scope="col" className={TABLE_HEAD_CELL}>
-              <span className="inline-flex items-center gap-1.5">{t("admin.ex.col.access")}<FieldHelp lines={helpLines("exercises.help.accessCol", ["who", "none", "event"])} /></span>
-            </th>
-            <SortableHeader label={t("admin.ex.col.status")} field="status" {...sortProps}>
-              <FieldHelp lines={helpLines("exercises.help.statusCol", ["published", "draft", "archived"])} />
-            </SortableHeader>
-            <SortableHeader label={t("admin.ex.col.author")} field="author" {...sortProps}>
-              <FieldHelp lines={[t("exercises.help.authorCol.who")]} />
-            </SortableHeader>
-            {/* Under 1440 px the date moves into the name cell, so the table fits without scrolling sideways. */}
-            <SortableHeader label={t("admin.ex.col.updated")} field="updated" {...sortProps} className={WIDE_ONLY} />
-          </tr>
-        </thead>
-        {canWrite && <BrowserDraftRow userId={me?.ID ?? null} columns={columns} />}
-        {canImport && <ImportRows columns={columns} onDetails={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} />}
-        {error ? (
-          <TableState colSpan={columns}><LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} /></TableState>
-        ) : loading && rows.length === 0 ? (
-          <TableState colSpan={columns}><LoadingArea label={t("admin.loading")} /></TableState>
-        ) : rows.length === 0 ? (
-          <TableState colSpan={columns}><EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} /></TableState>
-        ) : (
-          <tbody>
-            {rows.map((item) => (
-              <tr key={item.ID} className={`relative ${TABLE_ROW} ${item.ArchivedAt ? "text-muted-foreground" : ""}`}>
-                {selecting && <td className={cn(TABLE_CELL, STICKY_SELECT)}>
-                  {selectable(item) && <label className="relative z-10 inline-flex h-6 w-6 items-center justify-center">
-                    <input type="checkbox" aria-label={t("admin.ex.select.rowNamed", { name: item.Name })} checked={selected.has(item.ID)}
-                      disabled={!selected.has(item.ID) && atLimit} onChange={() => toggle(item)} className="h-4 w-4 accent-primary" />
-                  </label>}
-                </td>}
-                <td className={cn(TABLE_CELL, STICKY_NAME, selecting ? "max-sm:left-10" : "max-sm:left-0", "max-sm:max-w-[45vw]")}>
-                  <span className="flex items-center gap-1.5">
-                    <Link href={`/detail?id=${item.ID}`} className="font-medium text-foreground after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-2 focus-visible:outline-primary">{item.Name}</Link>
-                    <InfrastructureIcon show={item.Infrastructure} />
-                  </span>
-                  {item.Description && (
-                    <span className="block max-w-[9rem] truncate text-xs text-muted-foreground">{item.Description}</span>
-                  )}
-                  <div className="mt-1 empty:hidden"><OwnershipBadges exercise={item} showAccess={false} showEvent={false} /></div>
-                  {item.UpdatedAt && <span className="mt-0.5 block whitespace-nowrap text-xs tabular-nums text-muted-foreground min-[1440px]:hidden">
-                    {t("admin.ex.updatedLine", { date: formatExerciseDate(item.UpdatedAt) })}
-                  </span>}
-                </td>
-                <td className={TABLE_CELL}>
-                  <span className="flex flex-wrap gap-1">
-                    {item.Tags.map((tag) => (
-                      <span key={tag} className="rounded-[4px] bg-border px-2 py-0.5 text-xs">{tag}</span>
-                    ))}
-                  </span>
-                </td>
-                <td className={TABLE_CELL}><SubtaskCountCell count={item.TaskCount} names={item.TaskNames} /></td>
-                <td className={TABLE_CELL}><DifficultyCell average={item.AvgDifficulty} /></td>
-                <td className={cn(TABLE_CELL, "max-w-[9rem] [&_button]:whitespace-normal [&_button]:text-left")}><AccessCell item={item} eventName={eventName} /></td>
-                <td className={cn(TABLE_CELL, "max-w-[8.5rem]", WRAPPING_BADGES)}><StatusCell item={item} /></td>
-                <td className={TABLE_CELL}><AuthorCell name={item.AuthorName} /></td>
-                <td className={cn(TABLE_CELL, WIDE_ONLY, "whitespace-nowrap tabular-nums text-muted-foreground")}><UpdatedCell iso={item.UpdatedAt} /></td>
-              </tr>
-            ))}
-          </tbody>
-        )}
-      </Table>
+      <CatalogTable rows={rows} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
+        onToggle={toggle} onToggleAll={toggleAll} sortProps={sortProps} eventName={eventName} canWrite={canWrite} canImport={canImport} userId={me?.ID ?? null}
+        onImportDetails={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} regionRef={tableScrollRef} busy={loading}
+        state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
+          : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
+          : rows.length === 0 ? <EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} /> : undefined} />
       <TablePagination page={page} pageSize={pageSize} total={total}
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
       {exportOpen && <ExportDialog exerciseIds={[...selected.keys()]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Map())} />}
@@ -336,4 +251,14 @@ export default function Page() {
         onClose={() => { setImportOpen(false); setImportJobId(undefined) }} onImported={() => setReloadKey((key) => key + 1)} />}
     </div>
   )
+}
+
+function CatalogSearch({ value, onChange, onClear }: { value: string; onChange: (value: string) => void; onClear: () => void }) {
+  return <div className="catalog-search">
+    <label className="catalog-search-label" htmlFor="catalog-search">{t("admin.ex.search")}</label>
+    <div className="catalog-search-input"><Search aria-hidden="true" />
+      <Input id="catalog-search" type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={t("admin.ex.search")} aria-label={t("admin.ex.search")} />
+      {value && <button type="button" className="catalog-icon" aria-label={t("exercises.catalog.clearSearch")} onClick={onClear}><X aria-hidden="true" /></button>}
+    </div>
+  </div>
 }

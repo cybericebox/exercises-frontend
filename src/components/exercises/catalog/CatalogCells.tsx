@@ -35,7 +35,12 @@ export function ResourceHeavyBadge({ show }: { show: boolean }) {
 }
 
 /** One status per row. */
-export function StatusCell({ item }: { item: ExerciseListItem }) {
+export function StatusCell({ item, compact = false }: { item: ExerciseListItem; compact?: boolean }) {
+  if (compact) {
+    const status = catalogStatus(item)
+    const badge = STATUS_BADGES[status].at(-1)!
+    return <span data-status={status}><Badge tone={badge.tone} data-badge={badge.tone}>{t(badge.key)}</Badge></span>
+  }
   return <span className="inline-flex flex-wrap items-center gap-1">
     <StatusBadges status={catalogStatus(item)} />
     <ResourceHeavyBadge show={item.ResourceHeavy} />
@@ -120,9 +125,9 @@ export function DifficultyCell({ average }: { average: number | null }) {
 }
 
 /** The author's name; «—» when unknown. */
-export function AuthorCell({ name }: { name: string }) {
+export function AuthorCell({ name, wrap = false }: { name: string; wrap?: boolean }) {
   return name
-    ? <span className="block max-w-48 truncate" title={name}>{name}</span>
+    ? <span className={wrap ? "break-words" : "block max-w-48 truncate"} title={name}>{name}</span>
     : <span aria-label={t("exercises.author.unknown")} className="text-muted-foreground">—</span>
 }
 

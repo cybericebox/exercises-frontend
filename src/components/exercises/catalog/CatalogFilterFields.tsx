@@ -60,11 +60,11 @@ export function ScopeFilterField({ filters, isAdmin, onChange, className }: { fi
   const tabs = scopeTabs(isAdmin)
   const scopeHelpLine = (value: ScopeFilter) => t("exercises.help.scope.line", { name: t(`exercises.scope.${value || "all"}`), text: t(`exercises.help.scope.${value || "all"}`) })
   return (
-    <FilterField label={t("exercises.scope.label")} help={tabs.map((value) => scopeHelpLine(value))} className={className}
+    <FilterField label={t("exercises.catalog.storage")} help={tabs.map((value) => scopeHelpLine(value))} className={className}
       helpContent={<ul className="space-y-1">{tabs.map((value) => (
         <li key={value || "all"}>{tRich("exercises.help.scope.line", { name: <strong className="font-semibold">{t(`exercises.scope.${value || "all"}`)}</strong>, text: t(`exercises.help.scope.${value || "all"}`) })}</li>
       ))}</ul>}>
-      <Segmented value={filters.scope} onChange={(value) => onChange(value as ScopeFilter)} ariaLabel={t("exercises.scope.label")}
+      <Segmented value={filters.scope} onChange={(value) => onChange(value as ScopeFilter)} ariaLabel={t("exercises.catalog.storage")}
         options={tabs.map((value) => ({ value, label: t(`exercises.scope.${value || "all"}`) }))} />
     </FilterField>
   )
@@ -102,12 +102,13 @@ export function DifficultyRange({ min, max, onChange }: { min: number | null; ma
  * infrastructure, tags (так / ні in one field). Multi-selects share FilterCombobox; the range and the binary
  * infrastructure filter are menus. Laid out by the caller (a grid on wide screens, a column in the phone panel).
  */
-export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabel, onChange, className, rangeClassName, tagsClassName }: {
+export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabel, onAuthorsLoaded, onChange, className, rangeClassName, tagsClassName }: {
   filters: CatalogFilters
   isAdmin: boolean
   eventOptions: EventOption[]
   /** The names of chosen authors that are not listed yet (a shared link). */
   authorLabel: (id: string) => string | undefined
+  onAuthorsLoaded?: (options: FilterOption[]) => void
   onChange: (patch: Partial<CatalogFilters>) => void
   className?: string
   /** The difficulty range field (two menus: wider in a grid). */
@@ -121,6 +122,7 @@ export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabe
   const events: FilterOption[] = eventOptions.map((event) => ({ value: event.ID, label: eventLabel(event), meta: event.Name && event.Tag ? event.Tag : undefined }))
   return (
     <div className={className}>
+      <fieldset className="catalog-filter-group"><legend>{t("exercises.catalog.group.ownership")}</legend>
       {(eventOptions.length > 0 || filters.events.length > 0) && (
         <FilterField label={t(`exercises.filter.events.${eventsMode}`)} help={[t(`exercises.help.events.${eventsMode}`)]}>
           <FilterCombobox label={t(`exercises.filter.events.${eventsMode}`)} placeholder={t("exercises.filter.events.placeholder")}
@@ -128,25 +130,18 @@ export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabe
             emptyMessage={t("exercises.access.noEvents")} />
         </FilterField>
       )}
+      <FilterField label={t("exercises.filter.author.label")} help={helpLines("exercises.help.author", ["who", "several"])}>
+        <FilterCombobox label={t("exercises.filter.author.label")} placeholder={t("exercises.filter.author.placeholder")}
+          value={filters.authors} onChange={(value) => onChange({ authors: value })} load={loadAuthors} labelFor={authorLabel} onOptionsLoaded={onAuthorsLoaded}
+          emptyMessage={t("exercises.filter.author.empty")} errorMessage={t("exercises.filter.author.loadError")} />
+      </FilterField>
+      </fieldset>
+      <fieldset className="catalog-filter-group"><legend>{t("exercises.catalog.group.state")}</legend>
       <FilterField label={t("admin.ex.col.status")} help={[...helpLines("exercises.help.statusFilter", ["published", "changed", "draftOnly"]), t("exercises.help.status.several")]}>
         <FilterCombobox label={t("admin.ex.col.status")} placeholder={t("exercises.filter.status.placeholder")}
           value={filters.statuses} onChange={(value) => onChange({ statuses: value as StatusFilter[] })}
           options={statuses.map((status) => ({ value: status, label: t(STATUS_LABEL_KEYS[status]) }))}
           emptyMessage={t("exercises.filter.status.empty")} />
-      </FilterField>
-      <FilterField label={t("exercises.filter.author.label")} help={helpLines("exercises.help.author", ["who", "several"])}>
-        <FilterCombobox label={t("exercises.filter.author.label")} placeholder={t("exercises.filter.author.placeholder")}
-          value={filters.authors} onChange={(value) => onChange({ authors: value })} load={loadAuthors} labelFor={authorLabel}
-          emptyMessage={t("exercises.filter.author.empty")} errorMessage={t("exercises.filter.author.loadError")} />
-      </FilterField>
-      <FilterField label={t("exercises.filter.difficulty.label")} help={helpLines("exercises.help.difficulty", ["average", "none"])} className={rangeClassName}>
-        <DifficultyRange min={filters.difficultyMin} max={filters.difficultyMax} onChange={(difficultyMin, difficultyMax) => onChange({ difficultyMin, difficultyMax })} />
-      </FilterField>
-      <FilterField label={t("exercises.filter.tags.label")} help={helpLines("exercises.help.tags", ["cycle", "match", "existing"])} className={tagsClassName}>
-        <FilterCombobox label={t("exercises.filter.tags.label")} placeholder={t("admin.ex.filterTags.placeholder")}
-          value={filters.tags} onChange={(value) => onChange({ tags: value })}
-          excluded={filters.notTags} onExcludedChange={(notTags) => onChange({ notTags })} load={loadTags}
-          emptyMessage={t("admin.ex.filterTags.empty")} errorMessage={t("admin.ex.filterTags.loadError")} />
       </FilterField>
       <FilterField label={t("exercises.filter.infra")} help={helpLines("exercises.help.infra", ["needed", "notNeeded"])}>
         <SelectMenu value={filters.infrastructure} onChange={(value) => onChange({ infrastructure: value as InfrastructureFilter })}
@@ -157,6 +152,18 @@ export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabe
           ]}
           ariaLabel={t("exercises.filter.infra")} className="h-10 w-full text-sm" />
       </FilterField>
+      </fieldset>
+      <fieldset className="catalog-filter-group"><legend>{t("exercises.catalog.group.content")}</legend>
+      <FilterField label={t("exercises.filter.tags.label")} help={helpLines("exercises.help.tags", ["cycle", "match", "existing"])} className={tagsClassName}>
+        <FilterCombobox label={t("exercises.filter.tags.label")} placeholder={t("admin.ex.filterTags.placeholder")}
+          value={filters.tags} onChange={(value) => onChange({ tags: value })}
+          excluded={filters.notTags} onExcludedChange={(notTags) => onChange({ notTags })} load={loadTags}
+          emptyMessage={t("admin.ex.filterTags.empty")} errorMessage={t("admin.ex.filterTags.loadError")} />
+      </FilterField>
+      <FilterField label={t("exercises.filter.difficulty.label")} help={helpLines("exercises.help.difficulty", ["average", "none"])} className={rangeClassName}>
+        <DifficultyRange min={filters.difficultyMin} max={filters.difficultyMax} onChange={(difficultyMin, difficultyMax) => onChange({ difficultyMin, difficultyMax })} />
+      </FilterField>
+      </fieldset>
     </div>
   )
 }
