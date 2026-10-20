@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Check, Copy, ExternalLink } from "lucide-react"
+import { CopyActionTooltip } from "./CopyActionTooltip"
 
 export type CopyBlockProps = {
   value: string
@@ -52,11 +53,11 @@ export function CopyBlock({ value, labels, openUrl, onOpen }: CopyBlockProps) {
   }
   return <div data-copy-block className="my-2 flex h-9 min-w-0 max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-2">
     <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre font-mono text-sm">{value}</code>
-    <button type="button" className={action} aria-label={copied ? labels.copied : labels.copy} title={copied ? labels.copied : labels.copy} onClick={() => void copy()}>
+    <CopyActionTooltip text={copied ? labels.copied : labels.copy}><button type="button" className={action} aria-label={copied ? labels.copied : labels.copy} onClick={() => void copy()}>
       {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
-    </button>
-    {href && <button type="button" className={action} aria-label={labels.open} title={labels.open}
-      onClick={() => { if (onOpen) onOpen(href); else window.open(href, "_blank", "noopener,noreferrer") }}><ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /></button>}
+    </button></CopyActionTooltip>
+    {href && <CopyActionTooltip text={labels.open}><button type="button" className={action} aria-label={labels.open}
+      onClick={() => { if (onOpen) onOpen(href); else window.open(href, "_blank", "noopener,noreferrer") }}><ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /></button></CopyActionTooltip>}
     <span role="status" className="sr-only">{copied ? labels.copied : failed ? (labels.copyFailed ?? labels.copy) : ""}</span>
   </div>
 }

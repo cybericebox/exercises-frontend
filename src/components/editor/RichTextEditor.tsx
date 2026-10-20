@@ -28,6 +28,7 @@ import {
   $applyNodeReplacement,
   $isElementNode,
   INSERT_LINE_BREAK_COMMAND,
+  type LexicalNode,
   type SerializedElementNode,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
@@ -44,6 +45,8 @@ import {
   type BaseSelection,
   type TextFormatType,
 } from "lexical";
+import { $generateNodesFromSerializedNodes } from "@lexical/clipboard";
+import { $generateNodesFromDOM } from "@lexical/html";
 import { $createCodeNode, $isCodeNode, CodeNode } from "@lexical/code";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { mergeRegister } from "@lexical/utils";
@@ -222,7 +225,56 @@ export function $normalizeCopyBlock(node: CopyBlockNode): void {
   }
 }
 
-function CopyBlockPlugin(): null {
+/** Import using the editor's registered nodes, then flatten before insertion so
+ * pasted block wrappers cannot split the enclosing copy block. */
+function $copyBlockClipboardNodes(editor: LexicalEditor, clipboard: DataTransfer, known: Set<string>): LexicalNode[] {
+  function flatten(nodes: LexicalNode[]): LexicalNode[] {
+    return nodes.flatMap((node, index) => {
+      if ($isTextNode(node)) {
+        node.setTextContent(node.getTextContent().replace(/[\r\n\t]+/g, " "));
+        return [node];
+      }
+      if ($isVariableNode(node)) return [node];
+      if ($isElementNode(node)) {
+        const children = flatten(node.getChildren());
+        return !node.isInline() && index < nodes.length - 1 ? [...children, $createTextNode(" ")] : children;
+      }
+      // Line breaks and unsupported non-text leaves cannot enter a copy block.
+      return [$createTextNode(" ")];
+    });
+  }
+  const lexical = clipboard.getData("application/x-lexical-editor");
+  if (lexical) {
+    try {
+      const payload = JSON.parse(lexical);
+      if (payload?.namespace === "RichTextEditor" && Array.isArray(payload.nodes)) {
+        const nodes = flatten($generateNodesFromSerializedNodes(payload.nodes));
+        if (nodes.length) return nodes;
+      }
+    } catch { /* Unsupported clipboard nodes fall back to HTML or plain text. */ }
+  }
+  const html = clipboard.getData("text/html");
+  if (html) {
+    try {
+      const dom = new DOMParser().parseFromString(html, "text/html");
+      const nodes = flatten($generateNodesFromDOM(editor, dom));
+      if (nodes.length) return nodes;
+    } catch { /* Malformed/unsupported HTML still has a safe plain-text fallback. */ }
+  }
+  const text = clipboard.getData("text/plain").replace(/[\r\n\t]+/g, " ");
+  const nodes: LexicalNode[] = [];
+  let offset = 0;
+  for (const match of text.matchAll(new RegExp(VARIABLE_MARKDOWN.source, "g"))) {
+    if (!known.has(match[1])) continue;
+    if (match.index > offset) nodes.push($createTextNode(text.slice(offset, match.index)));
+    nodes.push($createVariableNode(match[1]));
+    offset = match.index + match[0].length;
+  }
+  if (offset < text.length) nodes.push($createTextNode(text.slice(offset)));
+  return nodes;
+}
+
+function CopyBlockPlugin({ variables }: { variables: VariableDef[] }): null {
   const [editor] = useLexicalComposerContext();
   useEffect(() => {
     const currentBlock = () => {
@@ -236,11 +288,11 @@ function CopyBlockPlugin(): null {
       editor.registerNodeTransform(CopyBlockNode, $normalizeCopyBlock),
       editor.registerCommand(PASTE_COMMAND, (event) => {
         if (!currentBlock()) return false;
-        const text = (event as ClipboardEvent).clipboardData?.getData("text/plain");
-        if (text === undefined) return false;
+        const clipboard = (event as ClipboardEvent).clipboardData;
+        if (!clipboard) return false;
         event.preventDefault();
         const selection = $getSelection();
-        if ($isRangeSelection(selection)) selection.insertText(text.replace(/[\r\n\t]+/g, " "));
+        if ($isRangeSelection(selection)) selection.insertNodes($copyBlockClipboardNodes(editor, clipboard, new Set(variables.map(variable => variable.name))));
         return true;
       }, COMMAND_PRIORITY_CRITICAL),
       editor.registerCommand(INSERT_LINE_BREAK_COMMAND, () => {
@@ -250,7 +302,7 @@ function CopyBlockPlugin(): null {
         return true;
       }, COMMAND_PRIORITY_CRITICAL),
     );
-  }, [editor]);
+  }, [editor, variables]);
   return null;
 }
 
@@ -309,6 +361,7 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
     const el = document.createElement("span");
     el.textContent = `{{${this.__varName}}}`;
     el.dataset.variable = this.__varName;
+    if (this.__formats.length) el.dataset.variableFormats = this.__formats.join(" ");
     return { element: el };
   }
 
@@ -321,7 +374,7 @@ export class VariableNode extends DecoratorNode<JSX.Element> {
           conversion: (domNode: Node): DOMConversionOutput => {
             const span = domNode as HTMLSpanElement;
             return {
-              node: $createVariableNode(span.dataset.variable ?? ""),
+              node: $createVariableNode(span.dataset.variable ?? "", (span.dataset.variableFormats ?? "").split(" ").filter((format): format is FormatType => VARIABLE_TEXT_FORMATS.includes(format as FormatType))),
             };
           },
           priority: 1,
@@ -1224,7 +1277,7 @@ export function RichTextEditor({
           />
         </div>
 
-        <CopyBlockPlugin />
+        <CopyBlockPlugin variables={variables} />
         <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         <HistoryPlugin />
         <ListPlugin />
