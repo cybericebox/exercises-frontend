@@ -72,6 +72,22 @@ describe("top-bar inbox", () => {
     expect(plain.className).not.toContain("cursor-pointer")
   })
 
+  it("«Вирішено» sits above the card link and resolves without following it", async () => {
+    mockInbox([{ ID: "1", Title: "Збій", Body: "", Link: "https://spring.example.org/manage/", ActionRequired: true, Resolvable: true, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
+    api.post.mockResolvedValue(undefined)
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
+    const row = await screen.findByRole("listitem")
+    const resolve = within(row).getByRole("button", { name: "Вирішено" })
+    // The link's pseudo-element covers the row; the button must be positioned above it.
+    expect(resolve.className).toContain("relative")
+    expect(resolve.className).toContain("z-10")
+    fireEvent.click(resolve)
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/1/resolve", {}))
+    expect(api.patch).not.toHaveBeenCalled()
+    expect(navigation.push).not.toHaveBeenCalled()
+  })
+
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
