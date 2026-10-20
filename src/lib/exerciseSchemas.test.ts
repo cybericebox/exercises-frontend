@@ -894,17 +894,17 @@ describe('toDraftFormValues', () => {
   it('keeps dynamic network settings and canvas positions when reopening a draft', () => {
     const loaded = loadedVersion()
     loaded.Variants[0].Topology.VisualRender = { version: 1, positions: { [DEV_ID]: { x: 0.3, y: 0.4 } } }
-    loaded.Variants[0].Topology.Devices[0].SecurityPreset = 'net'
+    loaded.Variants[0].Topology.Devices[0].SecurityPreset = 'extended'
     loaded.Variants[0].Topology.Devices[0].Interfaces[0].IP.Type = 'dhcp-preset'
     loaded.Variants[0].Topology.Devices[0].Interfaces[0].IP.Addresses = []
     loaded.Variants[0].Topology.Devices[0].Interfaces[0].IP.Gateway = ''
     const values = toDraftFormValues(loaded)
     expect(values.Variants[0].Topology.VisualRender).toEqual(loaded.Variants[0].Topology.VisualRender)
-    expect(values.Variants[0].Topology.Devices[0].SecurityPreset).toBe('net')
+    expect(values.Variants[0].Topology.Devices[0].SecurityPreset).toBe('extended')
     expect(values.Variants[0].Topology.Devices[0].Interfaces[0].IP.Type).toBe('dhcp-preset')
     const saved = toSaveDraftInput(values)
     expect(saved.Variants[0].Topology.VisualRender).toEqual(loaded.Variants[0].Topology.VisualRender)
-    expect(saved.Variants[0].Topology.Devices?.[0].SecurityPreset).toBe('net')
+    expect(saved.Variants[0].Topology.Devices?.[0].SecurityPreset).toBe('extended')
     expect(saved.Variants[0].Topology.Devices?.[0].Interfaces?.[0].IP.Type).toBe('dhcp-preset')
   })
   it('maps a loaded version into form values (External → Enabled form)', () => {

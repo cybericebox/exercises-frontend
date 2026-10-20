@@ -292,7 +292,7 @@ describe('DeviceCard', () => {
     device.Name = 'web'
     render(<Harness device={device} />)
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' }), { key: 'ArrowDown' })
-    expect(screen.getByText('admin.exTopo.security.netHelp')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.security.extendedHelp')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.ipType' }), { key: 'ArrowDown' })
@@ -300,8 +300,8 @@ describe('DeviceCard', () => {
   })
 
   it.each([
-    ['', 'service'], ['basic', 'service'], ['service', 'service'], ['net', 'net'], ['debug', 'net'],
-  ] as const)('shows the legacy security preset %j as the %s option', (stored, shown) => {
+    ['', 'standard'], ['standard', 'standard'], ['extended', 'extended'],
+  ] as const)('shows the stored security profile %j as the %s option', (stored, shown) => {
     const device = emptyDevice()
     device.SecurityPreset = stored
     render(<Harness device={device} />)
@@ -309,15 +309,12 @@ describe('DeviceCard', () => {
     expect(select).toHaveTextContent(`admin.exTopo.security.${shown}`)
   })
 
-  it('offers only the standard and extended profiles and writes the daemon names', () => {
-    const device = emptyDevice()
-    device.SecurityPreset = 'debug'
-    render(<Harness device={device} />)
-    const select = screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })
-    fireEvent.keyDown(select, { key: 'ArrowDown' })
-    expect(screen.getByText('admin.exTopo.security.serviceHelp')).toBeInTheDocument()
-    expect(screen.getByText('admin.exTopo.security.netHelp')).toBeInTheDocument()
-    expect(screen.queryByText('admin.exTopo.security.debugHelp')).not.toBeInTheDocument()
+  it('offers only the standard and extended profiles', () => {
+    render(<Harness device={emptyDevice()} />)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' }), { key: 'ArrowDown' })
+    expect(screen.getByText('admin.exTopo.security.standardHelp')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.security.extendedHelp')).toBeInTheDocument()
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(2)
   })
 
   it('stored secret env var: secret icon toggle is locked until the value is replaced', () => {
