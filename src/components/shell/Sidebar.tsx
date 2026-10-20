@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowLeft, CalendarClock, ClipboardList, Puzzle, X } from "lucide-react"
+import { ArrowLeft, BookOpen, CalendarClock, ClipboardList, Puzzle, X } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { BRAND_HEAD, BRAND_ICE, BRAND_TAIL } from "@/i18n/brand"
 import { t } from "@/i18n/t"
@@ -24,7 +24,8 @@ export function Sidebar({ onNavigate, onClose, onBookings }: { onNavigate?: () =
   }, [pathname])
   const back = useBackLink(returnTo)
   const items = [
-    { href: "/", label: "exercises.nav.catalog", icon: Puzzle, active: !pathname.startsWith("/proposals") },
+    { href: "/", label: "exercises.nav.catalog", icon: Puzzle, active: !pathname.startsWith("/proposals") && !pathname.startsWith("/guide") },
+    { href: "/guide/", label: "exercises.nav.guide", icon: BookOpen, active: pathname.startsWith("/guide") },
     ...(access?.IsAdmin ? [{ href: "/proposals", label: "exercises.nav.proposals", icon: ClipboardList, active: pathname.startsWith("/proposals") }] : []),
   ]
   return (

@@ -1,4 +1,4 @@
-/* Import dialog: "how to prepare" disclosure with the example download at the end of the row. */
+/* Import dialog: "how to prepare" disclosure with the example download at the end of the row, then the guide links. */
 .import-howto{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:var(--ib-2, 8px) var(--ib-4, 16px)}
 .import-howto__details{flex:1 1 auto;min-width:0}
 .import-howto__details summary{display:flex;align-items:center;gap:var(--ib-2, 8px);min-height:32px;list-style:none;cursor:pointer;font-size:14px;font-weight:600;line-height:1.4}
@@ -11,3 +11,10 @@
 .import-howto__steps code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 .import-howto__example{flex:none;margin-left:auto}
 @media(prefers-reduced-motion:reduce){.import-howto__details summary svg{transition:none}}
+.import-howto__links{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;gap:var(--ib-1, 4px) var(--ib-4, 16px);margin:0;font-size:14px;line-height:1.4}
+.import-howto__guide{display:inline-flex;align-items:center;gap:var(--ib-2, 8px);min-height:32px;font-weight:600;color:var(--ib-action, currentColor);text-decoration:underline;text-underline-offset:3px}
+.import-howto__guide svg{width:16px;height:16px;flex:none}
+.import-howto__more{color:var(--ib-dim, inherit);text-decoration:underline;text-underline-offset:3px}
+.import-howto__more:hover{color:var(--ib-ink, inherit)}
+.import-howto__links a[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.import-howto__links a:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:4px}

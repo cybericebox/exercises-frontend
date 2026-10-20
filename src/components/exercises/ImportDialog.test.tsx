@@ -474,3 +474,15 @@ describe("ImportDialog", () => {
     expect(signal?.aborted).toBe(true)
   })
 })
+
+describe("ImportDialog guide links", () => {
+  it("links to the archive page and the whole guide, and closes the dialog on the way", () => {
+    const onClose = vi.fn()
+    render(<ImportDialog onClose={onClose} />)
+    const archive = screen.getByRole("link", { name: "admin.exImport.guideArchive" })
+    expect(archive).toHaveAttribute("href", expect.stringMatching(/^\/guide\/arkhiv\/?$/))
+    expect(screen.getByRole("link", { name: "admin.exImport.guideAll" })).toHaveAttribute("href", expect.stringMatching(/^\/guide\/?$/))
+    fireEvent.click(archive)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+})
