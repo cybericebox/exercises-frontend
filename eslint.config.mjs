@@ -50,6 +50,8 @@ const eslintConfig = tseslint.config(
     files: [
       "src/app/layout.tsx",
       "src/components/shell/BannerStack.tsx",
+      // Trusted static documentation from src/content/guide (never user or API data).
+      "src/components/guide/GuideProse.tsx",
     ],
     rules: { "@eslint-react/dom-no-dangerously-set-innerhtml": "off" },
   },

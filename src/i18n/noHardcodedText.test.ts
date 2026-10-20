@@ -24,6 +24,12 @@ const ALLOW: { file: string; text: string; reason: string }[] = [
   { file: "components/brand/Wordmark.tsx", text: "Box", reason: "brand wordmark glyphs" },
 ]
 
+/**
+ * Long-form documentation (the catalog guide) keeps its text in uk content modules; its UI chrome goes through t().
+ * Only these directories (relative to src) may hold Cyrillic literals.
+ */
+const CONTENT_DIRS = ["content/guide/"]
+
 const CYRILLIC = /[Ѐ-ӿ]/
 const LETTER = /[A-Za-zЀ-ӿ]/
 const TEXT_ATTRS = new Set(["aria-label", "title", "placeholder", "alt", "label"])
@@ -38,6 +44,7 @@ function sourceFiles(dir: string): string[] {
 
 function violations(file: string): string[] {
   const rel = path.relative(ROOT, file)
+  if (CONTENT_DIRS.some((dir) => rel.split(path.sep).join("/").startsWith(dir))) return []
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true,
     file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const found: string[] = []
