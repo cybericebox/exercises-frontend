@@ -26,11 +26,18 @@ describe("catalog sidebar", () => {
   it("links catalog, bookings and proposals with the active section and navigation callback", () => {
     const onNavigate = vi.fn()
     render(<Sidebar onNavigate={onNavigate} />)
-    expect(Array.from(screen.getByRole("navigation").querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(["/", "/proposals"])
+    expect(Array.from(screen.getByRole("navigation").querySelectorAll("a")).map((link) => link.getAttribute("href")?.replace(/(.)\/$/, "$1"))).toEqual(["/", "/guide", "/proposals"])
     expect(screen.getByRole("link", { name: "exercises.nav.catalog" })).toHaveAttribute("aria-current", "page")
     expect(screen.getByRole("button", { name: "exercises.book.menu" })).toHaveAttribute("aria-haspopup", "dialog")
     fireEvent.click(screen.getByRole("link", { name: "exercises.nav.catalog" }))
     expect(onNavigate).toHaveBeenCalledOnce()
+  })
+
+  it("marks the guide item active on /guide pages and the catalog item inactive", () => {
+    state.path = "/guide/prapory/"
+    render(<Sidebar />)
+    expect(screen.getByRole("link", { name: "exercises.nav.guide" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "exercises.nav.catalog" })).not.toHaveAttribute("aria-current")
   })
 
   it("keeps bookings available to an event author but hides admin-only proposals", () => {
