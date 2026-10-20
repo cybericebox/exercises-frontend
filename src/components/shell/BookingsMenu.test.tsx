@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => key === "exercises.book.locale" ? "uk-UA" : vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn() }))
 vi.mock("@/api/exercises/testLabs", () => ({ getRoom: vi.fn(), listBookings: vi.fn(), createBooking: vi.fn(), cancelBooking: vi.fn() }))
 
