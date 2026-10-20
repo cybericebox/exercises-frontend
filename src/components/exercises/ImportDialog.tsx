@@ -1,7 +1,7 @@
 "use client"
 
-import { ChevronDown, Download, Upload } from "lucide-react"
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react"
+import { BookOpen, ChevronDown, Download, Upload } from "lucide-react"
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type MouseEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ApiError } from "@/api/client"
@@ -99,6 +99,14 @@ export function ImportDialog({ onClose, onImported, jobId, targets = [], initial
   const [stopAsk, setStopAsk] = useState(false)
   function leave() {
     waiting.current?.abort()
+    onClose()
+  }
+  // A guide link closes the dialog and goes on; while an archive is going up it stays (leaving asks first).
+  function leaveToGuide(event: MouseEvent) {
+    if (busy) {
+      event.preventDefault()
+      return
+    }
     onClose()
   }
   function requestLeave() {
@@ -267,6 +275,12 @@ export function ImportDialog({ onClose, onImported, jobId, targets = [], initial
               {!exampleBusy && <Download aria-hidden="true" className="mr-2 h-4 w-4" />}
               {t("admin.exImport.example")}
             </Button>
+            <p className="import-howto__links">
+              <Link href="/guide/arkhiv/" className="import-howto__guide" aria-disabled={busy || undefined} onClick={leaveToGuide}>
+                <BookOpen aria-hidden="true" />{t("admin.exImport.guideArchive")}
+              </Link>
+              <Link href="/guide/" className="import-howto__more" aria-disabled={busy || undefined} onClick={leaveToGuide}>{t("admin.exImport.guideAll")}</Link>
+            </p>
           </div>
           {targets.length > 1 && (
             <Field label={t("admin.exImport.target")} required error={targetError}

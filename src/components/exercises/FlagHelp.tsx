@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { HelpCircle } from "lucide-react"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
@@ -60,6 +61,8 @@ export function FlagHelp() {
         <p>{t("admin.exTask.flag.weightHelp")}</p>
         <p className="text-muted-foreground">{t("admin.exTask.flag.selectionExample")}</p>
       </section>
+
+      <p><Link href="/guide/prapory/" className="font-medium text-primary underline underline-offset-2">{t("admin.exTask.flag.moreLink")}</Link></p>
     </div>
   }>
     <button type="button" aria-label={description} className="rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
