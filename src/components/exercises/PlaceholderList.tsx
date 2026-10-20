@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { emptyPlaceholder, type DraftFormValues } from "@/lib/exerciseSchemas"
-import { RemoveAction } from "./RemoveAction"
+import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 

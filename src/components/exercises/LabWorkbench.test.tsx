@@ -84,3 +84,11 @@ describe("LabTimer at the lease end", () => {
     expect(screen.getByRole("timer")).toHaveTextContent("admin.exTest.timerEndedStatic")
   })
 })
+
+it("keeps a long revealed hint complete inside a bounded scroll area", () => {
+ const text = 'Long rich hint '.repeat(1000)
+ render(<HintList hints={[{ hint: { ...hint('h1', 'nudge'), Text: text }, index: 0 }]} revealed={new Set(['h1'])} onReveal={vi.fn()} render={value => <p>{value}</p>} />)
+ const content = screen.getByText(text.trim())
+ expect(content.parentElement).toHaveClass('max-h-64', 'overflow-y-auto')
+ expect(content.textContent).toBe(text)
+})

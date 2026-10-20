@@ -14,8 +14,9 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { addHint, canAddHint, moveHint, removeHint, setHintLevel } from "@/lib/hintSync"
 import { hintTextToState, stateToHintText } from "@/lib/hintText"
 import { MAX_HINTS } from "@/lib/hintLimits"
+import { GuideLink } from "./GuideLink"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
-import { RemoveAction } from "./RemoveAction"
+import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 
 const levelOptions = () => HINT_LEVELS.map((level) => ({ value: level, label: t(`exercises.hints.level.${level}`) }))
 const levelHelpLines = () => [
@@ -72,6 +73,7 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
             {t("exercises.hints.title")}
           </h4>
           <span className="text-xs text-muted-foreground">{hints.length}/{MAX_HINTS}</span>
+          <GuideLink topic="pidkazky" />
         </div>
         {!disabled && (
           <Button type="button" variant="outline" size="sm" disabled={!canAddHint(hints)}

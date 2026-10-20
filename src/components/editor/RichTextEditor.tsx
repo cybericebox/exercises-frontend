@@ -24,7 +24,11 @@ import {
   COMMAND_PRIORITY_LOW,
   PASTE_COMMAND,
   ParagraphNode,
-  type ElementNode,
+  ElementNode,
+  $applyNodeReplacement,
+  $isElementNode,
+  INSERT_LINE_BREAK_COMMAND,
+  type SerializedElementNode,
   DecoratorNode,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
@@ -101,6 +105,7 @@ import {
   Strikethrough,
   Code,
   Code2,
+  ClipboardCopy,
   List,
   ListOrdered,
   Link,
@@ -170,6 +175,79 @@ export interface RichTextEditorProps {
   invalid?: boolean;
   disabled?: boolean;
   showVariableNames?: boolean;
+}
+
+// A copy block stays an ordinary editable element with the existing inline variables.
+export class CopyBlockNode extends ElementNode {
+  static getType(): string { return "copy-block"; }
+  static clone(node: CopyBlockNode): CopyBlockNode { return new CopyBlockNode(node.__key); }
+  constructor(key?: NodeKey) { super(key); }
+  createDOM(): HTMLElement {
+    const element = document.createElement("div");
+    element.dataset.copyBlockEditor = "";
+    element.className = "my-2 min-h-9 overflow-x-auto whitespace-pre rounded-md border border-border bg-muted/50 px-2 py-1.5 font-mono text-sm";
+    return element;
+  }
+  updateDOM(): boolean { return false; }
+  static importJSON(serialized: SerializedElementNode): CopyBlockNode { return $createCopyBlockNode().updateFromJSON(serialized); }
+  exportJSON(): SerializedElementNode { return { ...super.exportJSON(), type: "copy-block", version: 1 }; }
+  insertNewAfter(): ParagraphNode {
+    const paragraph = $createParagraphNode(); this.insertAfter(paragraph); return paragraph;
+  }
+  collapseAtStart(): boolean {
+    const paragraph = $createParagraphNode().setDirection(this.getDirection());
+    paragraph.append(...this.getChildren());
+    this.replace(paragraph); paragraph.selectStart(); return true;
+  }
+}
+export function $createCopyBlockNode(): CopyBlockNode { return $applyNodeReplacement(new CopyBlockNode()); }
+
+/** Flatten pasted/imported rich children while preserving text and variable chips. */
+export function $normalizeCopyBlock(node: CopyBlockNode): void {
+  for (const child of node.getChildren()) {
+    if ($isTextNode(child)) {
+      const text = child.getTextContent().replace(/[\r\n\t]+/g, " ");
+      if (text !== child.getTextContent()) child.setTextContent(text);
+    } else if (!$isVariableNode(child)) {
+      if ($isElementNode(child)) {
+        for (const descendant of child.getChildren()) child.insertBefore(descendant);
+        child.remove();
+        $normalizeCopyBlock(node);
+      } else child.replace($createTextNode(" "));
+    }
+  }
+}
+
+function CopyBlockPlugin(): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    const currentBlock = () => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return null;
+      const anchor = selection.anchor.getNode();
+      const block = anchor.getKey() === "root" ? null : anchor.getTopLevelElement();
+      return block instanceof CopyBlockNode ? block : null;
+    };
+    return mergeRegister(
+      editor.registerNodeTransform(CopyBlockNode, $normalizeCopyBlock),
+      editor.registerCommand(PASTE_COMMAND, (event) => {
+        if (!currentBlock()) return false;
+        const text = (event as ClipboardEvent).clipboardData?.getData("text/plain");
+        if (text === undefined) return false;
+        event.preventDefault();
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) selection.insertText(text.replace(/[\r\n\t]+/g, " "));
+        return true;
+      }, COMMAND_PRIORITY_CRITICAL),
+      editor.registerCommand(INSERT_LINE_BREAK_COMMAND, () => {
+        const block = currentBlock();
+        if (!block) return false;
+        block.insertNewAfter().selectStart();
+        return true;
+      }, COMMAND_PRIORITY_CRITICAL),
+    );
+  }, [editor]);
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +500,8 @@ function ToolbarPlugin({
             setBlockType(listNode.getListType() === "number" ? "ol" : "ul");
           } else if ($isQuoteNode(element)) {
             setBlockType("quote");
+          } else if (element instanceof CopyBlockNode) {
+            setBlockType("copy-block");
           } else if ($isCodeNode(element)) {
             setBlockType("code");
           } else {
@@ -462,6 +542,8 @@ function ToolbarPlugin({
           $setBlocksType(selection, () => $createHeadingNode(type as HeadingTagType));
         } else if (type === "quote") {
           $setBlocksType(selection, () => $createQuoteNode());
+        } else if (type === "copy-block") {
+          $setBlocksType(selection, () => $createCopyBlockNode());
         } else if (type === "code") {
           $setBlocksType(selection, () => $createCodeNode());
         }
@@ -667,6 +749,7 @@ function ToolbarPlugin({
 
         <div className={group}>
           {toolButton(t("admin.notif.editor.blockquote"), blockType === "quote", () => formatBlock(blockType === "quote" ? "paragraph" : "quote"), <Quote size={16} aria-hidden />)}
+          {toolButton(t("admin.notif.editor.copyBlock"), blockType === "copy-block", () => formatBlock(blockType === "copy-block" ? "paragraph" : "copy-block"), <ClipboardCopy size={16} aria-hidden />)}
           {toolButton(t("admin.notif.editor.codeBlock"), blockType === "code", () => formatBlock(blockType === "code" ? "paragraph" : "code"), <Code2 size={16} aria-hidden />)}
           {toolButton(t("admin.notif.editor.inlineCode"), formats.has("code"), () => formatText("code"), <Code size={16} aria-hidden />)}
         </div>
@@ -1074,6 +1157,7 @@ export function RichTextEditor({
       HeadingNode,
       QuoteNode,
       CodeNode,
+      CopyBlockNode,
       ListNode,
       ListItemNode,
       LinkNode,
@@ -1132,6 +1216,7 @@ export function RichTextEditor({
           />
         </div>
 
+        <CopyBlockPlugin />
         <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         <HistoryPlugin />
         <ListPlugin />

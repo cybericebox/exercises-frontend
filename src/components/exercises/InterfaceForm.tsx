@@ -1,7 +1,8 @@
 "use client"
 
+import { useId } from "react"
 import { Controller, useFieldArray, useFormContext, useFormState, useWatch } from "react-hook-form"
-import type { FieldPath } from "react-hook-form"
+import type { Control, FieldPath } from "react-hook-form"
 import { Plus } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
@@ -10,11 +11,15 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
 import { emptyInterface, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
-import { RemoveAction } from "./RemoveAction"
+import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 import { useEditorPosition } from "./EditorPosition"
 import { addressReferenceOverlapsDHCP, StaticAddressReference } from "./StaticAddressReference"
 import type { NetworkIPRefDTO, NetworkSubnetRefDTO } from "@/api/exercises/versions"
+
+type IPDraft = DraftFormValues["Variants"][number]["Topology"]["Devices"][number]["Interfaces"][number]["IP"]
+// Form-scoped UI drafts survive inspector/tab unmounts and are never sent to the server.
+const networkModeDrafts = new WeakMap<Control<DraftFormValues>, WeakMap<object, Map<string, Map<string, IPDraft>>>>()
 
 type NetworkState = { Enabled: boolean; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
 
@@ -146,7 +151,7 @@ export function InterfaceForm({
   disabled: boolean
   compact?: boolean
 }) {
-  const { control, setValue } = useFormContext<DraftFormValues>()
+  const { control, setValue, getValues } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Interfaces` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
@@ -154,6 +159,28 @@ export function InterfaceForm({
   const internet = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet` }) ?? { Enabled: false, DHCP: false }
   const [selectedIndex, setSelectedIndex] = useEditorPosition("interface")
   const activeIndex = Math.min(selectedIndex, Math.max(fields.length - 1, 0))
+  const uid = useId()
+  const deviceId = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
+  const draftPrefix = `${deviceId}:`
+  function modeDrafts() {
+    const byVariant = networkModeDrafts.get(control) ?? new WeakMap<object, Map<string, Map<string, IPDraft>>>()
+    networkModeDrafts.set(control, byVariant)
+    const variant = getValues(`Variants.${variantIndex}`)
+    const drafts = byVariant.get(variant) ?? new Map<string, Map<string, IPDraft>>()
+    byVariant.set(variant, drafts)
+    return drafts
+  }
+  function removeInterface(index: number) {
+    const drafts = modeDrafts()
+    if (drafts) {
+      for (let position = index; position < rows.length; position++) {
+        const next = drafts.get(`${draftPrefix}${position + 1}`)
+        if (next) drafts.set(`${draftPrefix}${position}`, next)
+        else drafts.delete(`${draftPrefix}${position}`)
+      }
+    }
+    remove(index); setSelectedIndex(Math.max(0, index - 1))
+  }
 
   function addInterface() {
     const used = new Set(rows.map((row) => row.Name.trim()))
@@ -177,17 +204,24 @@ export function InterfaceForm({
 
       {fields.length > 1 && <div className="flex min-w-0 flex-nowrap gap-1 overflow-x-auto border-b border-border pb-2" role="tablist" aria-label={t("admin.exTopo.interfaces")}>
         {fields.map((field, ii) => <div key={field.id} className={`group inline-flex shrink-0 items-center rounded-md ${activeIndex === ii ? "bg-accent" : ""}`}><button type="button" role="tab" aria-selected={activeIndex === ii}
+          id={`${uid}-tab-${ii}`} aria-controls={`${uid}-panel-${ii}`} tabIndex={activeIndex === ii ? 0 : -1}
+          onKeyDown={(event) => {
+            const next = event.key === "Home" ? 0 : event.key === "End" ? fields.length - 1
+              : event.key === "ArrowRight" ? (ii + 1) % fields.length : event.key === "ArrowLeft" ? (ii - 1 + fields.length) % fields.length : null
+            if (next === null) return
+            event.preventDefault(); setSelectedIndex(next); document.getElementById(`${uid}-tab-${next}`)?.focus()
+          }}
           onClick={() => setSelectedIndex(ii)}
           className={`rounded-md px-3 py-1.5 text-sm ${activeIndex === ii ? "font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
           {rows[ii]?.Name || t("admin.exTopo.interfaceItemN", { n: ii + 1 })}
-        </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => { remove(ii); setSelectedIndex(Math.max(0, ii - 1)) }} className="mr-1 h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}</div>)}
+        </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => removeInterface(ii)} className="mr-1 h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}</div>)}
       </div>}
 
       {fields.map((field, ii) => {
         if (ii !== activeIndex) return null
         const ipType = rows[ii]?.IP?.Type
         return (
-          <div key={field.id} data-interface-panel className={compact ? "space-y-2 pt-2" : "space-y-3 border-t border-border pt-3"}>
+          <div key={field.id} data-interface-panel role={fields.length > 1 ? "tabpanel" : undefined} id={`${uid}-panel-${ii}`} aria-labelledby={fields.length > 1 ? `${uid}-tab-${ii}` : undefined} tabIndex={0} className={compact ? "space-y-2 pt-2" : "space-y-3 border-t border-border pt-3"}>
             {!compact && fields.length > 1 && <p className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.interfaceItemN", { n: ii + 1 })}</p>}
             <div data-interface-grid className={`grid ${compact ? "grid-cols-1 gap-2 @min-[26rem]:grid-cols-2" : "gap-3 sm:grid-cols-2 lg:grid-cols-3"}`}>
               <FormField control={control} name={`${name}.${ii}.Name`} render={({ field: nameField, fieldState }) => (
@@ -215,16 +249,17 @@ export function InterfaceForm({
                     <SelectMenu
                       value={typeField.value}
                       onChange={(value) => {
-                        typeField.onChange(value)
-                        if (value !== "static") {
-                          setValue(`${name}.${ii}.IP.Addresses`, [], { shouldDirty: true })
-                          setValue(`${name}.${ii}.IP.AddressRef`, null, { shouldDirty: true })
-                          setValue(`${name}.${ii}.IP.Gateway`, "", { shouldDirty: true })
-                          setValue(`${name}.${ii}.IP.GatewayRef`, null, { shouldDirty: true })
-                          setValue(`${name}.${ii}.IP.Routes`, [], { shouldDirty: true })
-                        } else if (!rows[ii]?.IP?.AddressRef && rows[ii]?.IP?.Addresses.length === 0) {
-                          setValue(`${name}.${ii}.IP.Addresses`, [""], { shouldDirty: true })
-                        }
+                        const current = getValues(`${name}.${ii}.IP`)
+                        const byInterface = modeDrafts()
+                        const drafts = byInterface.get(`${draftPrefix}${ii}`) ?? new Map<string, IPDraft>()
+                        drafts.set(current.Type, structuredClone(current))
+                        byInterface.set(`${draftPrefix}${ii}`, drafts)
+                        const saved = drafts.get(value)
+                        setValue(`${name}.${ii}.IP`, saved ? structuredClone(saved) : {
+                          ...current, Type: value as typeof current.Type,
+                          Addresses: value === "static" ? [""] : [], AddressRef: null,
+                          Gateway: "", GatewayRef: null, Routes: [],
+                        }, { shouldDirty: true })
                       }}
                       disabled={disabled}
                       ariaLabel={t("admin.exTopo.ipType")}

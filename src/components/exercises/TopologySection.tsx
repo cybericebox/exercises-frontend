@@ -443,7 +443,7 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     {settingsTarget !== null && <aside role="complementary"
       aria-label={t("admin.exTopo.deviceSettings")}
       style={{ "--topology-inspector-width": `${displayedInspectorWidth}px` } as CSSProperties}
-      className="absolute inset-y-0 right-0 z-10 flex w-[min(26rem,calc(100vw-1rem))] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[22rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
+      className="absolute inset-y-0 right-0 z-10 flex w-full max-w-[26rem] min-h-0 min-w-0 flex-col border-l border-border bg-background xl:relative xl:ml-2 xl:w-[var(--topology-inspector-width)] xl:min-w-[22rem] xl:max-w-[55%] xl:flex-none xl:rounded-md xl:border">
       <div role="separator" aria-orientation="vertical" aria-label={t("admin.exTopo.resizeSettings")}
         aria-valuemin={INSPECTOR_MIN_WIDTH} aria-valuemax={inspectorMaxWidth} aria-valuenow={displayedInspectorWidth}
         tabIndex={0}

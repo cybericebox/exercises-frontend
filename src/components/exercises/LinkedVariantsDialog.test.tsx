@@ -43,7 +43,7 @@ const noteInput = (n: number) => screen.getByRole('textbox', { name: `${variantN
 const addFile = (n: number, subtask: string) => screen.getByRole('button', { name: `admin.exLinked.addFile ${variantName(n)} ${subtask}` })
 const countInput = () => screen.getByRole('spinbutton', { name: 'admin.exLinked.count' })
 // A busy button also announces the loader, so the name is matched by its end.
-const createButton = () => screen.getByRole('button', { name: /admin\.exLinked\.create$/ })
+const createButton = () => screen.getByRole('button', { name: /admin\.exLinked\.(create|uploading)/ })
 
 function type(element: HTMLElement, value: string) {
   fireEvent.change(element, { target: { value } })
@@ -71,7 +71,7 @@ describe('LinkedVariantsDialog', () => {
     upload.mockResolvedValue({ FileID: 'f1', Name: 'dump.pcap', Size: 4 })
     await act(async () => pickFile(3, 'Exploit', new File(['abcd'], 'dump.pcap')))
     expect(upload).toHaveBeenCalledWith('ex1', expect.any(File), expect.any(Function), expect.any(AbortSignal))
-    expect(screen.getByRole('link', { name: 'dump.pcap' })).toBeInTheDocument()
+    expect(screen.getByText('dump.pcap').closest('button')).toBeInTheDocument()
     fireEvent.click(createButton())
     expect(onCreate).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -116,6 +116,7 @@ describe('LinkedVariantsDialog', () => {
     expect(screen.queryByRole('columnheader', { name: 'Exploit' })).not.toBeInTheDocument()
     expect(flagInput(3, 'Other')).toHaveValue('ICE{kept}')
     fireEvent.click(createButton())
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exLinked.discardConfirm' }))
     const created = onCreate.mock.calls[0][0] as VariantFormValues[]
     expect(created).toHaveLength(1)
     expect(created[0].LinkedTo).toBe('c')
@@ -223,17 +224,17 @@ describe('LinkedVariantsDialog', () => {
     type(countInput(), '3')
     expect(flagInput(2, 'Scan')).toHaveValue('ICE{one}')
     expect(noteInput(3)).toHaveValue('two')
-    // A row that was dropped comes back empty.
-    expect(flagInput(4, 'Exploit')).toHaveValue('')
+    // A hidden row remains buffered.
+    expect(flagInput(4, 'Exploit')).toHaveValue('ICE{three}')
   })
 
   it('removes an uploaded file from its cell', async () => {
     const { onCreate } = setup()
     upload.mockResolvedValue({ FileID: 'f1', Name: 'a.bin', Size: 1 })
     await act(async () => pickFile(2, 'Scan', new File(['x'], 'a.bin')))
-    const cell = screen.getByRole('link', { name: 'a.bin' }).closest('td') as HTMLElement
+    const cell = screen.getByText('a.bin').closest('td') as HTMLElement
     fireEvent.click(within(cell).getByRole('button', { name: 'admin.exLinked.removeFile{"name":"a.bin"}' }))
-    expect(screen.queryByRole('link', { name: 'a.bin' })).not.toBeInTheDocument()
+    expect(screen.queryByText('a.bin')).not.toBeInTheDocument()
     fireEvent.click(createButton())
     expect((onCreate.mock.calls[0][0] as VariantFormValues[])[0].Tasks[0].Attachments).toEqual([])
   })
@@ -245,7 +246,7 @@ describe('LinkedVariantsDialog', () => {
     expect(onCreate).not.toHaveBeenCalled()
   })
 
-  it('a base change drops the columns that are gone and stops their uploads', async () => {
+  it('a base change preserves hidden columns and their running uploads', async () => {
     setup([base(), { ...emptyVariant(2), ID: 'c', Tasks: [task('x1', 'Other', ['ICE{other}'])] }])
     const pending = deferred<{ FileID: string; Name: string; Size: number }>()
     upload.mockReturnValueOnce(pending.promise)
@@ -254,16 +255,15 @@ describe('LinkedVariantsDialog', () => {
     const signal = upload.mock.calls[0][3] as AbortSignal
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(2) }))
-    expect(signal.aborted).toBe(true)
-    expect(createButton()).not.toHaveAttribute('aria-busy')
-    expect(createButton()).toBeEnabled()
-    // Back on the first base the dropped column is empty.
+    expect(signal.aborted).toBe(false)
+    expect(createButton()).toHaveAttribute('aria-busy', 'true')
+    // Back on the first base its pending upload is still visible.
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(1) }))
-    expect(screen.queryByText('gone.bin')).not.toBeInTheDocument()
+    expect(screen.getByText('gone.bin')).toBeInTheDocument()
   })
 
-  it('an upload that finishes after its column was dropped is not kept', async () => {
+  it('keeps an upload completed after switching away from its column', async () => {
     setup([base(), { ...emptyVariant(2), ID: 'c', Tasks: [task('x1', 'Other', ['ICE{other}'])] }])
     const pending = deferred<{ FileID: string; Name: string; Size: number }>()
     upload.mockReturnValueOnce(pending.promise)
@@ -273,10 +273,10 @@ describe('LinkedVariantsDialog', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exLinked.base' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: variantName(1) }))
     await act(async () => pending.resolve({ FileID: 'f1', Name: 'late.bin', Size: 1 }))
-    expect(screen.queryByText('late.bin')).not.toBeInTheDocument()
+    expect(screen.getByText('late.bin')).toBeInTheDocument()
   })
 
-  it('lowering the count stops uploads in the dropped rows', async () => {
+  it('only confirming a count reduction stops uploads in removed rows', async () => {
     setup()
     type(countInput(), '2')
     const pending = deferred<{ FileID: string; Name: string; Size: number }>()
@@ -284,6 +284,9 @@ describe('LinkedVariantsDialog', () => {
     await act(async () => pickFile(3, 'Scan', new File(['x'], 'row.bin')))
     const signal = upload.mock.calls[0][3] as AbortSignal
     type(countInput(), '1')
+    expect(signal.aborted).toBe(false)
+    fireEvent.blur(countInput())
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exLinked.discardConfirm' }))
     expect(signal.aborted).toBe(true)
     expect(createButton()).not.toHaveAttribute('aria-busy')
   })
@@ -318,4 +321,46 @@ describe('LinkedVariantsDialog', () => {
     expect(onCreate).not.toHaveBeenCalled()
     expect(screen.queryByText('late.bin')).not.toBeInTheDocument()
   })
+})
+
+it('preserves the last row while count 12 is edited through 2 to 20', () => {
+ setup()
+ type(countInput(), '12')
+ type(flagInput(13, 'Scan'), 'ICE{keep}')
+ type(countInput(), '2')
+ type(countInput(), '20')
+ expect(flagInput(13, 'Scan')).toHaveValue('ICE{keep}')
+})
+it('asks before closing a dirty draft and keeps it when cancelled', () => {
+ const { onClose } = setup()
+ type(noteInput(2), 'keep me')
+ fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+ expect(onClose).not.toHaveBeenCalled()
+ const confirmation = screen.getAllByRole('dialog').at(-1)!
+ fireEvent.click(within(confirmation).getByRole('button', { name: 'confirm.cancel' }))
+ expect(noteInput(2)).toHaveValue('keep me')
+})
+
+it('cancels a consequential reduction without dropping flags or notes', () => {
+ setup()
+ type(countInput(), '3')
+ type(flagInput(4, 'Scan'), 'ICE{retain}')
+ type(noteInput(4), 'retain note')
+ type(countInput(), '1')
+ fireEvent.blur(countInput())
+ fireEvent.click(within(screen.getByRole('dialog', { name: 'admin.exLinked.discardTitle' })).getByRole('button', { name: 'confirm.cancel' }))
+ expect(countInput()).toHaveValue(3)
+ expect(flagInput(4, 'Scan')).toHaveValue('ICE{retain}')
+ expect(noteInput(4)).toHaveValue('retain note')
+})
+it('keeps dirty drafts when the outside-dismiss confirmation is cancelled', async () => {
+ const { onClose } = setup()
+ type(flagInput(2, 'Scan'), 'ICE{retain}')
+ const overlay = document.querySelector('[data-state="open"].fixed.inset-0')
+ expect(overlay).toBeInTheDocument()
+ await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+ fireEvent(overlay!, new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+ expect(onClose).not.toHaveBeenCalled()
+ fireEvent.click(within(screen.getByRole('dialog', { name: 'admin.exLinked.discardTitle' })).getByRole('button', { name: 'confirm.cancel' }))
+ expect(flagInput(2, 'Scan')).toHaveValue('ICE{retain}')
 })

@@ -28,6 +28,21 @@ describe("BookingsMenu", () => {
     expect(screen.getByText(/exercises\.book\.room\.none/)).toBeTruthy()
   })
 
+  it.each(["button", "Escape"])("returns focus to New booking after cancelling its nested form with %s", async (method) => {
+    vi.mocked(listBookings).mockResolvedValue([])
+    render(<BookingsMenu />)
+    fireEvent.click(screen.getByRole("button", { name: "exercises.book.menu" }))
+    const trigger = await screen.findByRole("button", { name: "exercises.book.new" })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const cancel = await screen.findByRole("button", { name: "admin.exPage.dialog.cancel" })
+    expect(cancel).toHaveFocus()
+    if (method === "button") fireEvent.click(cancel)
+    else fireEvent.keyDown(cancel, { key: "Escape" })
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(screen.getByRole("dialog", { name: "exercises.book.listTitle" })).toBeInTheDocument()
+  })
+
   it("cancels a booking only after the danger confirmation", async () => {
     vi.mocked(listBookings).mockResolvedValueOnce([booking("b1")]).mockResolvedValue([])
     vi.mocked(cancelBooking).mockResolvedValue(undefined)

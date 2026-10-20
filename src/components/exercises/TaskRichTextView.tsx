@@ -1,3 +1,7 @@
+"use client"
+
+import { t } from "@/i18n/t"
+import { CopyBlock } from "./CopyBlock"
 import type { CSSProperties, ReactNode } from "react"
 
 import type { ExternalTarget } from "@/lib/placeholderResolve"
@@ -80,6 +84,15 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
     if (!node) return null
     const children = Array.isArray(node.children) ? node.children.map((child, index) => render(child, index, inCode || node.type === "code")) : null
     switch (node.type) {
+      case "copy-block": {
+        const parts = Array.isArray(node.children) ? node.children.map(asNode).filter((child): child is Node => child !== null) : []
+        const text = parts.map((child) => child.type === "variable" && typeof child.varName === "string"
+          ? (variables[child.varName] ?? child.varName) : typeof child.text === "string" ? child.text : "").join("")
+        const unresolved = parts.some((child) => child.type === "variable" && typeof child.varName === "string" && (!variables[child.varName] || variables[child.varName] === "—"))
+        const proxyName = parts.find((child) => child.type === "variable" && typeof child.varName === "string" && external[child.varName])?.varName
+        return <CopyBlock key={key} value={text} openUrl={unresolved ? "" : undefined} labels={{ copy: t("admin.exCopy.copy"), copied: t("admin.exCopy.copied"), open: t("admin.exCopy.open"), copyFailed: t("admin.exCopy.failed") }}
+          onOpen={typeof proxyName === "string" ? () => { if (onOpenExternal && !openingKey) onOpenExternal(external[proxyName], proxyName) } : undefined} />
+      }
       case "text": return <span key={key}>{formattedText(typeof node.text === "string" ? node.text : "", node.format)}</span>
       case "variable": {
         const name = typeof node.varName === "string" ? node.varName : ""

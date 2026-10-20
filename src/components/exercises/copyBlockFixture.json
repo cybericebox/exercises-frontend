@@ -1,0 +1,13 @@
+{
+  "root": {
+    "type": "root", "version": 1, "direction": "ltr", "format": "", "indent": 0,
+    "children": [{
+      "type": "copy-block", "version": 1, "direction": "ltr", "format": "", "indent": 0,
+      "children": [
+        {"type": "text", "version": 1, "text": "https://", "format": 0, "detail": 0, "mode": "normal", "style": ""},
+        {"type": "variable", "version": 1, "varName": "host", "formats": ["bold"]},
+        {"type": "text", "version": 1, "text": "/panel?x=1&y=2", "format": 0, "detail": 0, "mode": "normal", "style": ""}
+      ]
+    }]
+  }
+}

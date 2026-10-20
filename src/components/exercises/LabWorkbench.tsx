@@ -2,9 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowLeft, Check, ChevronsLeft, ChevronsRight, Download, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Check, ChevronsLeft, ChevronsRight, Eye, LogOut, Network, Shield, ShieldCheck } from "lucide-react"
 
-import { exerciseFileURL } from "@/api/exercises/files"
+import { GuideLink } from "./GuideLink"
+import { AttachmentDownload } from "./AttachmentDownload"
 import type { NormalizedHint, NormalizedTask } from "@/api/exercises/versions"
 import { TaskRichTextView, richTextHasBlocks } from "@/components/exercises/TaskRichTextView"
 import { TestFlagCheck } from "@/components/exercises/TestFlagCheck"
@@ -197,7 +198,7 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
         const key = hint.ID || String(index)
         const open = revealed.has(key)
         const price = cost?.(hint)
-        return <li key={key} className="rounded-md border border-border p-3">
+        return <li key={key} className="rounded-md border border-border dark:border-[var(--ib-control)] p-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-foreground">{price ? t("exercises.hints.itemLinePriced", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`), price }) : t("exercises.hints.itemLine", { n: index + 1, level: t(`exercises.hints.level.${hint.Level}`) })}</span>
             {!open && <HoverTooltip text={t("admin.exTest.hintShow")}>
@@ -207,7 +208,7 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
               </Button>
             </HoverTooltip>}
           </div>
-          {open && <div className="mt-2">{render(hint.Text)}</div>}
+          {open && <div className="mt-2 max-h-64 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-primary" tabIndex={0}>{render(hint.Text)}</div>}
         </li>
       })}
     </ol>
@@ -244,6 +245,7 @@ export function TaskView({ task, values, deployId, flagLinked, randomFlag = fals
     <header className="flex flex-wrap items-center gap-2.5">
       <h2 className="text-2xl font-semibold text-foreground">{task.Name}</h2>
       <Badge tone="muted">{t(`admin.ex.difficulty.${task.Difficulty}`)}</Badge>
+      <GuideLink topic="rekomendatsii" />
     </header>
 
     <div className="[overflow-wrap:anywhere]">{richTextHasBlocks(task.Description) ? view(task.Description) : <p className="text-sm text-muted-foreground">{t("admin.exTest.noDescription")}</p>}</div>
@@ -251,13 +253,7 @@ export function TaskView({ task, values, deployId, flagLinked, randomFlag = fals
     {task.Attachments.length > 0 && <section>
       <h3 className={HEADING}>{t("admin.exTest.attachments")}</h3>
       <ul className="mt-2 space-y-1.5">
-        {task.Attachments.map((file) => <li key={file.FileID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-          <span className="min-w-0 truncate">{file.Name}</span>
-          <HoverTooltip text={t("admin.exTest.download")}>
-            <a href={exerciseFileURL(file.FileID)} download={file.Name} aria-label={t("admin.exTest.downloadFile", { name: file.Name })}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted"><Download aria-hidden="true" size={16} /></a>
-          </HoverTooltip>
-        </li>)}
+        {task.Attachments.map((file) => <li key={file.FileID}><AttachmentDownload file={file} /></li>)}
       </ul>
     </section>}
 

@@ -42,10 +42,12 @@ export interface ButtonProps
   asChild?: boolean
   /** Busy state: disables the button and shows the crest loader before the label. */
   busy?: boolean
+  /** Reserve the idle and operation labels so busy state never resizes the button. */
+  busyLabel?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, busy = false, disabled, children, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, busy = false, busyLabel, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
@@ -55,7 +57,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={busy || undefined}
         {...props}
       >
-        {busy && !asChild ? <><Spinner size="sm" className="mr-2" />{children}</> : children}
+        {busyLabel && !asChild ? <span className="inline-grid items-center justify-items-center">
+          <span aria-hidden="true" className="invisible col-start-1 row-start-1">{children}</span>
+          <span data-busy-size aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center"><span className="mr-2 h-4 w-4" />{busyLabel}</span>
+          <span className="col-start-1 row-start-1 inline-flex items-center">{busy ? <><Spinner size="sm" className="mr-2" />{busyLabel}</> : children}</span>
+        </span> : busy && !asChild ? <><Spinner size="sm" className="mr-2" />{children}</> : children}
       </Comp>
     )
   }

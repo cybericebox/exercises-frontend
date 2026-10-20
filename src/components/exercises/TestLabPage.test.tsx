@@ -260,9 +260,9 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("lists attachments for download and the hints as text", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const file = await screen.findByRole("link", { name: "admin.exTest.downloadFile notes.pdf" })
-    expect(file).toHaveAttribute("download", "notes.pdf")
-    expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
+    const file = await screen.findByRole("button", { name: "admin.exTest.downloadFile notes.pdf" })
+    expect(file).toHaveTextContent("notes.pdf")
+    expect(file).not.toHaveAttribute("href")
     // hints start collapsed; an empty hint is not listed
     expect(screen.getByText(/exercises\.hints\.level\.nudge/)).toBeInTheDocument()
     expect(screen.queryByText(/exercises\.hints\.level\.steps/)).not.toBeInTheDocument()
@@ -782,7 +782,7 @@ describe("TestLabPage — static test", () => {
   it("shows tasks at once without lab parts", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /notes\.pdf/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /notes\.pdf/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.topologyShow/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()

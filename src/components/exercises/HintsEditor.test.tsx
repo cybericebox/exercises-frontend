@@ -54,6 +54,7 @@ describe("HintsEditor", () => {
     expect(hints(0)[1].Text).toContain("Look at headers")
 
     fireEvent.click(screen.getAllByRole("button", { name: "exercises.hints.remove" })[0])
+    fireEvent.click(screen.getByRole("dialog").querySelector("button:last-child")!)
     expect(hints(0)).toHaveLength(1)
     expect(hints(1)).toHaveLength(1)
   })

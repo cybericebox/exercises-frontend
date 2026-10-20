@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, onTestFinished } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $setSelection } from 'lexical'
+import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $isRangeSelection, $setSelection } from 'lexical'
 import {
   RichTextEditor,
+  CopyBlockNode,
+  $createCopyBlockNode,
+  $normalizeCopyBlock,
   VariableNode,
   $createVariableNode,
   $isVariableNode,
@@ -385,4 +388,62 @@ describe('VariableNode', () => {
     })
     expect(result).toBe(true)
   })
+})
+
+describe('CopyBlockNode', () => {
+ it('round trips a standard element container with inline variable children', () => {
+  const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+  editor.update(() => { $getRoot().append($createCopyBlockNode().append($createTextNode('ssh '), $createVariableNode('host'))) }, { discrete: true })
+  const json = editor.getEditorState().toJSON()
+  expect(json.root.children[0]).toMatchObject({ type: 'copy-block', version: 1, children: [ { text: 'ssh ' }, { type: 'variable', varName: 'host' } ] })
+  editor.setEditorState(editor.parseEditorState(JSON.stringify(json)))
+  expect(editor.getEditorState().toJSON()).toEqual(json)
+ })
+ it('provides a translated toolbar action in the code group', () => {
+  render(<RichTextEditor value={null} onChange={vi.fn()} />)
+  expect(screen.getByRole('button', { name: 'Блок для копіювання' })).toBeInTheDocument()
+ })
+})
+
+it('flattens rich copy-block children and line breaks while retaining variable chips', () => {
+ const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+ editor.update(() => {
+  const block = $createCopyBlockNode().append($createParagraphNode().append($createTextNode('one\ntwo'), $createVariableNode('host')))
+  $getRoot().append(block)
+  $normalizeCopyBlock(block)
+ }, { discrete: true })
+ const block = editor.getEditorState().toJSON().root.children[0] as unknown as { children: {type: string; text?: string; varName?: string}[] }
+ expect(block.children.map(n => n.type)).toEqual(['text', 'variable'])
+ expect(block.children[0].text).toBe('one two')
+ expect(block.children[1].varName).toBe('host')
+})
+
+it('Enter leaves a copy block for a normal paragraph and preserves the trailing text', () => {
+ const editor = createEditor({ nodes: [CopyBlockNode] })
+ editor.update(() => {
+  const text = $createTextNode('beforeafter')
+  $getRoot().append($createCopyBlockNode().append(text))
+  text.select(6, 6)
+  const selection = $getSelection()
+  if ($isRangeSelection(selection)) selection.insertParagraph()
+ }, { discrete: true })
+ expect(editor.getEditorState().toJSON().root.children).toMatchObject([
+  { type: 'copy-block', children: [{ text: 'before' }] },
+  { type: 'paragraph', children: [{ text: 'after' }] },
+ ])
+})
+it('Backspace at the start turns a copy block into a paragraph without losing variable children', () => {
+ const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+ const root = document.createElement('div'); document.body.append(root); editor.setRootElement(root)
+ onTestFinished(() => { editor.setRootElement(null); root.remove() })
+ editor.update(() => {
+  const text = $createTextNode('ssh ')
+  $getRoot().append($createCopyBlockNode().append(text, $createVariableNode('host')))
+  text.select(0, 0)
+  const selection = $getSelection()
+  if ($isRangeSelection(selection)) selection.deleteCharacter(true)
+ }, { discrete: true })
+ expect(editor.getEditorState().toJSON().root.children).toMatchObject([
+  { type: 'paragraph', children: [{ text: 'ssh ' }, { type: 'variable', varName: 'host' }] },
+ ])
 })

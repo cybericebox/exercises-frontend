@@ -47,10 +47,10 @@ describe('AttachmentList', () => {
     expect(screen.queryByText('admin.exFiles.empty')).not.toBeInTheDocument()
   })
 
-  it('renders existing attachments with a download link', () => {
+  it('renders existing attachments as a filename download button', () => {
     render(<Harness attachments={[{ FileID: 'f1', Name: 'notes.pdf' }]} />)
-    const link = screen.getByText('notes.pdf').closest('a')
-    expect(link).toHaveAttribute('href', '/api/exercises/files/f1')
+    const button = screen.getByText('notes.pdf').closest('button')
+    expect(button).not.toHaveAttribute('href')
     expect(screen.getByRole('button', { name: 'admin.exFiles.remove' })).toHaveClass('opacity-0')
   })
 
@@ -92,6 +92,7 @@ describe('AttachmentList', () => {
     // The row exists before removal.
     const row = screen.getByText('a.pdf').closest('li') as HTMLElement
     fireEvent.click(within(row).getByRole('button', { name: 'admin.exFiles.remove' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'admin.exFiles.remove' }))
     // After removing, the row (and its name) is gone.
     expect(screen.queryByText('a.pdf')).not.toBeInTheDocument()
   })
@@ -102,7 +103,7 @@ describe('AttachmentList', () => {
     expect(screen.queryByTestId('attachment-file-input')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exFiles.remove' })).not.toBeInTheDocument()
     // The download link is still rendered so existing files stay reachable.
-    expect(screen.getByText('a.pdf').closest('a')).toHaveAttribute('href', '/api/exercises/files/f1')
+    expect(screen.getByText('a.pdf').closest('button')).toBeEnabled()
   })
 
   it('a known file is attached without an upload', async () => {
@@ -121,4 +122,18 @@ describe('AttachmentList', () => {
     await screen.findByRole('progressbar')
     expect(screen.getByRole('button', { name: 'admin.exFiles.remove' })).toBeEnabled()
   })
+})
+
+it('asks before removing an attachment and preserves it on cancel', () => {
+ render(<Harness attachments={[{ FileID: 'f1', Name: 'keep.pdf' }]} />)
+ fireEvent.click(screen.getByRole('button', { name: 'admin.exFiles.remove' }))
+ expect(screen.getByText('keep.pdf')).toBeInTheDocument()
+ fireEvent.click(screen.getByRole('button', { name: 'confirm.cancel' }))
+ expect(screen.getByText('keep.pdf')).toBeInTheDocument()
+})
+it('downloads using the whole filename button, without exposing the route', async () => {
+ render(<Harness attachments={[{ FileID: 'f1', Name: 'notes.pdf' }]} />)
+ const download = screen.getByText('notes.pdf').closest('button')
+ expect(download).not.toHaveAttribute('href')
+ expect(screen.queryByRole('link')).not.toBeInTheDocument()
 })

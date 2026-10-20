@@ -13,3 +13,11 @@ describe("FlagHelp", () => {
     expect(link).toHaveAttribute("href", expect.stringMatching(/^\/guide\/prapory\/?$/))
   })
 })
+
+it("opens a bounded dialog with a short trigger name and a keyboard reachable guide link", () => {
+ render(<FlagHelp />)
+ const trigger = screen.getByRole("button")
+ expect(trigger.getAttribute("aria-label")!.length).toBeLessThan(100)
+ fireEvent.click(trigger)
+ expect(screen.getByRole("dialog")).toContainElement(screen.getByRole("link"))
+})

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useWatch, type UseFormReturn } from "react-hook-form"
 import { ChevronDown } from "lucide-react"
 import { t } from "@/i18n/t"
+import { GuideLink } from "./GuideLink"
+import { DuplicateVariantAdvice } from "./DuplicateVariantAdvice"
 import { VariantTabs } from "./VariantTabs"
 import { TaskAccordion } from "./TaskAccordion"
 import { TopologySection } from "./TopologySection"
@@ -37,6 +39,7 @@ export function DraftVariants(props: DraftVariantsProps) {
 }
 
 function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked = false, showNotes = true }: DraftVariantsProps) {
+  const uid = useId()
   const [section, setSection] = useEditorPosition("section")
   const [, setVariant] = useEditorPosition("variant")
   const [linkedOpen, setLinkedOpen] = useState(false)
@@ -51,16 +54,25 @@ function DraftVariantsEditor({ form, disabled, exerciseId, infrastructureBlocked
   }
 
   return <ExerciseIdContext.Provider value={exerciseId}><section data-testid="draft-variants" className="flex min-h-[min(36rem,calc(100dvh-20rem))] min-w-0 flex-1 flex-col">
+    <DuplicateVariantAdvice control={form.control} />
     <VariantTabs disabled={disabled} onAddLinked={() => setLinkedOpen(true)} toolbar={() => <>
       <div role="tablist" aria-label={t("admin.exDraft.sections")} className="inline-flex h-9 items-center rounded-md bg-muted p-1">
-        {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value}
+        {(["tasks", "topology"] as const).map((value) => <button key={value} type="button" role="tab" aria-selected={section === value} id={`${uid}-tab-${value}`} aria-controls={`${uid}-panel-${value}`} tabIndex={section === value ? 0 : -1}
+          onKeyDown={(event) => {
+            const next = event.key === "Home" ? "tasks" : event.key === "End" ? "topology"
+              : event.key === "ArrowRight" || event.key === "ArrowLeft" ? (value === "tasks" ? "topology" : "tasks") : null
+            if (!next) return
+            event.preventDefault(); setSection(next); document.getElementById(`${uid}-tab-${next}`)?.focus()
+          }}
           onClick={() => setSection(value)}
           className={`h-7 rounded px-3 text-sm ${section === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           {t(`admin.exDraft.tab.${value}`)}
         </button>)}
       </div>
+      <GuideLink topic="variant" />
+      {section === "topology" && <GuideLink topic="infrastruktura" />}
       {exerciseId && <Button type="button" variant="outline" size="sm" onClick={() => setStatsOpen(true)}>{t("admin.exStats.open")}</Button>}
-    </>} renderVariant={(variantIndex) => <VariantPanel form={form} variantIndex={variantIndex} section={section}
+    </>} renderVariant={(variantIndex) => <VariantPanel form={form} variantIndex={variantIndex} section={section} uid={uid}
       disabled={disabled} infrastructureBlocked={infrastructureBlocked} showNotes={showNotes} />} />
     {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     {linkedOpen && <LinkedVariantsHost form={form} onClose={() => setLinkedOpen(false)} onCreate={appendLinked} />}
@@ -78,10 +90,11 @@ function LinkedVariantsHost({ form, onClose, onCreate }: {
 }
 
 /** One variant: its note, the link to a base (if any) and the selected section. */
-function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlocked, showNotes }: {
+function VariantPanel({ form, variantIndex, section, uid, disabled, infrastructureBlocked, showNotes }: {
   form: UseFormReturn<DraftFormValues>
   showNotes: boolean
   variantIndex: number
+  uid: string
   section: "tasks" | "topology"
   disabled: boolean
   infrastructureBlocked: boolean
@@ -122,7 +135,7 @@ function VariantPanel({ form, variantIndex, section, disabled, infrastructureBlo
         <Textarea id={`variant-note-${variantIndex}`} rows={5} {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
       </div>
     </details>}
-    <div role="tabpanel" aria-label={t(`admin.exDraft.tab.${section}`)}>
+    <div role="tabpanel" id={`${uid}-panel-${section}`} aria-labelledby={`${uid}-tab-${section}`} tabIndex={0}>
       {section === "tasks" ? <TaskAccordion variantIndex={variantIndex} disabled={disabled} linked={linked} />
         : infrastructureBlocked ? <InfrastructureBlockedNote />
         : <TopologySection variantIndex={variantIndex} disabled={disabled || linked} />}
