@@ -3,9 +3,9 @@ type ChunkRecovery = {
   retry: (error: unknown, fallback: () => void) => void
   subscribe: (listener: (error: Error) => void) => () => void
 }
-type RecoveryWindow = Window & {__cibChunkRecovery?: ChunkRecovery}
+type RecoveryWindow = Window & {__cibChunkRecovery?: ChunkRecovery; PerformanceObserver?: typeof PerformanceObserver}
 
-/** Self-contained: also serialized into the head, before the Next runtime loads. */
+/** Self-contained: serialized into the head without depending on the Next runtime. */
 export function installChunkRecovery(browser: Window): ChunkRecovery {
   const win = browser as RecoveryWindow
   if (win.__cibChunkRecovery) return win.__cibChunkRecovery
@@ -66,7 +66,7 @@ export function installChunkRecovery(browser: Window): ChunkRecovery {
   }
   win.__cibChunkRecovery = recovery
   const handleFailure = (reason: unknown) => {
-    if (!isChunkFailure(reason) || recovery.recover(reason)) return
+    if (!isChunkFailure(reason) || recovery.recover(reason) || failure) return
     failure = reason instanceof Error ? reason : Object.assign(new Error(typeof reason === "string" ? reason : "ChunkLoadError"), {name: "ChunkLoadError"})
     subscribers.forEach(listener => listener(failure!))
   }
@@ -78,6 +78,25 @@ export function installChunkRecovery(browser: Window): ChunkRecovery {
       handleFailure({name: "ChunkLoadError", message: `Loading chunk failed: ${target.src}`})
     } else if (event.error) handleFailure(event.error)
   }, true)
+  // React can emit async Next scripts before layout head children. Replay only
+  // confirmed HTTP failures, including resources that failed before this script ran.
+  const inspectResource = (entry: PerformanceEntry) => {
+    const resource = entry as PerformanceResourceTiming & {responseStatus?: number}
+    if (resource.initiatorType === "script" && typeof resource.responseStatus === "number" &&
+        resource.responseStatus >= 400 && isChunkURL(resource.name)) {
+      handleFailure({name: "ChunkLoadError", message: `Loading chunk failed: ${resource.name}`})
+    }
+  }
+  try {
+    const Observer = win.PerformanceObserver
+    if (Observer) {
+      const observer = new Observer(list => list.getEntries().forEach(inspectResource))
+      observer.observe({type: "resource", buffered: true})
+    }
+  } catch { /* Older browsers still have the synchronous error listeners. */ }
+  try {
+    win.performance?.getEntriesByType?.("resource").forEach(inspectResource)
+  } catch { /* Restricted/missing timing APIs must not break normal recovery. */ }
   return recovery
 }
 

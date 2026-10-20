@@ -57,6 +57,8 @@ describe("stale chunk recovery", () => {
     const failed = vi.fn()
     recovery.subscribe(failed)
     after.emit("unhandledrejection", {reason: chunkError()})
+    after.emit("error", {error: chunkError()})
+    expect(failed).toHaveBeenCalledTimes(1)
     expect(after.reload).not.toHaveBeenCalled()
     expect(failed.mock.calls[0][0].name).toBe("ChunkLoadError")
     const lateSubscriber = vi.fn()
@@ -126,6 +128,75 @@ describe("stale chunk recovery", () => {
     ]) emit("error", {target: {tagName, src}})
     expect(reload).not.toHaveBeenCalled()
     emit("error", {target: {tagName: "SCRIPT", src: "https://catalog.example/_next/static/chunks/missing.js?v=old"}})
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+
+  it("recovers a missing initial Next script that finished before the bootstrap installed", () => {
+    const {win, reload} = browser()
+    Object.defineProperty(win, "performance", {value: {getEntriesByType: () => [
+      {name: "https://catalog.example/_next/static/chunks/runtime.js", initiatorType: "script", responseStatus: 404},
+    ]}})
+    new Function("window", CHUNK_RECOVERY_BOOT_SCRIPT)(win)
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(installChunkRecovery(win).recover(chunkError())).toBe(false)
+  })
+
+  it("does not infer failed scripts from successful or unknown-status timing entries", () => {
+    const {win, reload} = browser()
+    Object.defineProperty(win, "performance", {value: {getEntriesByType: () => [
+      {name: "https://catalog.example/_next/static/chunks/good.js", initiatorType: "script", responseStatus: 200},
+      {name: "https://catalog.example/_next/static/chunks/cached.js", initiatorType: "script", responseStatus: 0},
+      {name: "https://catalog.example/_next/static/chunks/unknown.js", initiatorType: "script"},
+      {name: "https://catalog.example/api/tasks", initiatorType: "fetch", responseStatus: 404},
+      {name: "https://catalog.example/_next/static/chunks/image.js", initiatorType: "img", responseStatus: 404},
+      {name: "https://external.example/_next/static/chunks/runtime.js", initiatorType: "script", responseStatus: 404},
+      {name: "https://catalog.example/analytics.js", initiatorType: "script", responseStatus: 500},
+    ]}})
+    installChunkRecovery(win)
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it.each([400, 410])("observes buffered HTTP %i scripts without reloading again for observer/event duplicates", status => {
+    const {win, reload, emit} = browser()
+    let deliver: ((list: {getEntries: () => object[]}) => void) | undefined
+    Object.defineProperty(win, "PerformanceObserver", {value: class {
+      constructor(callback: typeof deliver) { deliver = callback }
+      observe() {}
+    }})
+    installChunkRecovery(win)
+    deliver?.({getEntries: () => [
+      {name: "https://catalog.example/_next/static/chunks/runtime.js", initiatorType: "script", responseStatus: status},
+    ]})
+    expect(reload).toHaveBeenCalledTimes(1)
+    emit("error", {target: {tagName: "SCRIPT", src: "https://catalog.example/_next/static/chunks/runtime.js"}})
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it("preserves the persisted guard when a reloaded document reports the same buffered failure", () => {
+    const storage = new Map<string, string>()
+    const first = browser(storage)
+    installChunkRecovery(first.win).recover(chunkError())
+    const after = browser(storage)
+    Object.defineProperty(after.win, "performance", {value: {getEntriesByType: () => [
+      {name: "https://catalog.example/_next/static/chunks/runtime.js", initiatorType: "script", responseStatus: 404},
+    ]}})
+    const recovery = installChunkRecovery(after.win)
+    const failed = vi.fn()
+    recovery.subscribe(failed)
+    expect(after.reload).not.toHaveBeenCalled()
+    expect(failed).toHaveBeenCalledTimes(1)
+    expect(failed.mock.calls[0][0].name).toBe("ChunkLoadError")
+  })
+
+  it("retains synchronous error recovery if timing inspection and observer installation are unavailable", () => {
+    const {win, reload, emit} = browser()
+    Object.defineProperty(win, "performance", {value: {getEntriesByType: () => {throw new Error("unsupported")}}})
+    Object.defineProperty(win, "PerformanceObserver", {value: class {
+      observe() {throw new Error("unsupported")}
+    }})
+    installChunkRecovery(win)
+    emit("error", {target: {tagName: "SCRIPT", src: "https://catalog.example/_next/static/chunks/runtime.js"}})
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
