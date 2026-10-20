@@ -208,7 +208,7 @@ export function HintList({ hints, revealed, onReveal, render, onUnlock, cost }: 
               </Button>
             </HoverTooltip>}
           </div>
-          {open && <div className="mt-2 max-h-64 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-primary" tabIndex={0}>{render(hint.Text)}</div>}
+          {open && <div className="mt-2 max-h-36 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-primary" tabIndex={0}>{render(hint.Text)}</div>}
         </li>
       })}
     </ol>
