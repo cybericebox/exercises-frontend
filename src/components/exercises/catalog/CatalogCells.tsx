@@ -127,10 +127,23 @@ export function AuthorCell({ name }: { name: string }) {
 }
 
 /** The number of subtasks of the first variant; «—» without a variant. */
-export function SubtaskCountCell({ count }: { count: number | null }) {
-  return count === null
-    ? <span aria-label={t("exercises.subtasks.none")} className="text-muted-foreground">—</span>
-    : <span className="tabular-nums">{count}</span>
+export function SubtaskCountCell({ count, names = [] }: { count: number | null; names?: string[] }) {
+  if (count === null) return <span aria-label={t("exercises.subtasks.none")} className="text-muted-foreground">—</span>
+  // A click, tap, Enter or Space opens the names in a column; above the row's link overlay (z-10).
+  return <Popover>
+    <PopoverTrigger asChild>
+      <button type="button" aria-label={t("exercises.subtasks.show", { count })}
+        className="relative z-10 inline-flex h-6 min-w-7 items-center justify-center rounded-md border border-border px-1.5 tabular-nums underline decoration-dotted underline-offset-4 hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-primary">
+        {count}
+      </button>
+    </PopoverTrigger>
+    <PopoverContent className="w-auto min-w-48 max-w-80" aria-label={t("exercises.subtasks.title")}>
+      <p className="mb-1 text-xs text-muted-foreground">{t("exercises.subtasks.title")}</p>
+      {names.length === 0
+        ? <p className="text-muted-foreground">{t("exercises.subtasks.empty")}</p>
+        : <ol className="list-decimal space-y-0.5 pl-5">{names.map((name, index) => <li key={`${index}-${name}`}>{name || t("exercises.subtasks.unnamed")}</li>)}</ol>}
+    </PopoverContent>
+  </Popover>
 }
 
 /** When the task changed: the date over the time, so the column stays narrow; «—» when unknown. */

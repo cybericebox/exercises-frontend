@@ -1244,6 +1244,8 @@
   "admin.ex.err.deployNoPersistence": "This device does not keep its state",
   "admin.ex.err.deployDeviceNotFound": "The device was not found in the lab",
   "admin.ex.err.deployDeviceRestarting": "The device is still restarting. Try again in a moment.",
+  "admin.exTopo.waitReadyFile": "Wait for the /run/ready file",
+  "admin.exTopo.waitReadyFileHelp": "The device counts as ready once the app creates the /run/ready file. Ports published through the web proxy are checked automatically, with or without this switch.",
   "admin.exTopo.persistence": "Keep state after a restart",
   "admin.ex.err.persistenceInvalid": "State persistence is only for container devices, and the snapshot delay must be 1 s to 24 h.",
   "feedback.link": "Send feedback",
@@ -1502,10 +1504,15 @@
   "exercises.filter.tags.yes": "yes",
   "exercises.filter.tags.no": "no",
   "exercises.filter.tags.remove": "Remove tag {value} ({state})",
-  "exercises.help.tags.cycle": "Press a tag: «yes» → «no» → off.",
+  "exercises.help.tags.cycle": "Click a tag: «yes» (must have); again: «no» (must not have); once more: off.",
   "exercises.help.tags.match": "Shows tasks with every «yes» tag and none of the «no» tags.",
   "admin.ex.col.subtasks": "Subtasks",
   "exercises.subtasks.none": "No variants",
   "exercises.help.difficultyCol.subtasks": "«Subtasks»: how many the same first variant has; «—»: no variants.",
-  "admin.ex.updatedLine": "Updated {date}"
+  "admin.ex.updatedLine": "Updated {date}",
+  "exercises.filter.tags.cycleHint": "Click: the tag is «yes»; click again: «no» (without the tag); once more: off.",
+  "exercises.subtasks.show": "Subtasks: {count}. Show the names",
+  "exercises.subtasks.title": "Subtasks",
+  "exercises.subtasks.empty": "The first variant has no subtasks",
+  "exercises.subtasks.unnamed": "Untitled"
 }

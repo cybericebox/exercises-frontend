@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
-import { Ban, Check, X } from "lucide-react"
+import { Check, Minus, X } from "lucide-react"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -115,7 +115,7 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
               className={cn("inline-flex max-w-[calc(100%-2.25rem)] items-center gap-1 rounded-[4px] py-0 pl-1.5 pr-0.5 text-sm text-foreground",
                 no ? "border border-dashed border-[var(--ib-dim)]" : "bg-border")}>
               {triState && <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-muted-foreground">
-                {no ? <Ban aria-hidden="true" className="h-3 w-3" /> : <Check aria-hidden="true" className="h-3 w-3" />}
+                {no ? <Minus aria-hidden="true" className="h-3 w-3" /> : <Check aria-hidden="true" className="h-3 w-3" />}
                 {t(no ? "exercises.filter.tags.no" : "exercises.filter.tags.yes")}
               </span>}
               <span className="truncate">{chipLabel(item)}</span>
@@ -160,10 +160,13 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
         )}
       </div>
       {open && (
-        <div id={listId} role="listbox" aria-multiselectable="true" aria-label={label}
-          // A press inside the list must not blur the input: that would close the list before the click lands.
-          onPointerDown={(event) => event.preventDefault()}
-          className="absolute left-0 right-0 top-full z-[80] mt-1 h-52 overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1 text-popover-foreground">
+        // A press inside the list must not blur the input: that would close the list before the click lands.
+        <div onPointerDown={(event) => event.preventDefault()}
+          className="absolute left-0 right-0 top-full z-[80] mt-1 flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground">
+        {/* A так/ні list says up front what a press does: the third state is not discoverable otherwise. */}
+        {triState && <p id={`${listId}-hint`} className="border-b border-border px-3 py-2 text-xs leading-snug text-muted-foreground">{t("exercises.filter.tags.cycleHint")}</p>}
+        <div id={listId} role="listbox" aria-multiselectable="true" aria-label={label} aria-describedby={triState ? `${listId}-hint` : undefined}
+          className="h-52 overflow-y-auto overscroll-contain p-1">
           {failed ? <LoadError compact message={errorMessage} error={failed.cause} className="h-full min-h-0" onRetry={() => setReload((n) => n + 1)} />
             : shown === null ? <LoadingArea compact className="h-full" label={t("admin.loading")} />
               : shown.length === 0 ? <EmptyState compact message={emptyMessage} className="h-full min-h-0" />
@@ -175,13 +178,14 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
                     <span aria-hidden="true" className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border",
                       now === "yes" && "border-primary bg-primary text-primary-foreground", now === "no" && "border-dashed border-[var(--ib-dim)] text-foreground")}>
                       {now === "yes" && <Check className="h-3 w-3" />}
-                      {now === "no" && <Ban className="h-3 w-3" />}
+                      {now === "no" && <Minus className="h-3 w-3" />}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{option.label}</span>
                     {triState && now && <span className="shrink-0 text-xs font-medium">{t(now === "no" ? "exercises.filter.tags.no" : "exercises.filter.tags.yes")}</span>}
                     {option.meta && <span className="shrink-0 text-xs text-muted-foreground">{option.meta}</span>}
                   </div>
                 })}
+        </div>
         </div>
       )}
     </div>

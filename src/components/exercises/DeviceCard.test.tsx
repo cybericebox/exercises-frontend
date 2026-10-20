@@ -529,3 +529,31 @@ describe('DeviceCard persistence option', () => {
     expect(screen.queryByLabelText('admin.exTopo.persistence')).toBeNull()
   })
 })
+
+describe('DeviceCard wait-for-ready-file option', () => {
+  it('is off by default and writes WaitReadyFile when switched on', () => {
+    render(<Harness device={emptyDevice()} />)
+    const toggle = screen.getByLabelText('admin.exTopo.waitReadyFile')
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).WaitReadyFile).toBe(true)
+  })
+
+  it('explains the marker and the automatic port check in its hint', () => {
+    render(<Harness device={emptyDevice()} />)
+    expect(helpButton('admin.exTopo.waitReadyFileHelp')).toBeTruthy()
+  })
+
+  it('is offered without any platform feature switch', () => {
+    render(<DevicePersistenceProvider value={false}><Harness device={emptyDevice()} /></DevicePersistenceProvider>)
+    expect(screen.getByLabelText('admin.exTopo.waitReadyFile')).toBeTruthy()
+  })
+
+  it('is not offered for a switch', () => {
+    const device = emptyDevice()
+    device.Type = 'unmanaged-switch'
+    device.Interfaces = []
+    render(<Harness device={device} />)
+    expect(screen.queryByLabelText('admin.exTopo.waitReadyFile')).toBeNull()
+  })
+})

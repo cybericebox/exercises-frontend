@@ -27,6 +27,11 @@ export const OVERLOAD_STATUSES = [429, 503]
  */
 const OVERLOAD_DETAIL_CODES = [431, 432]
 
+/** An overload error code (ServiceOverloaded 431, DatabaseBusy 432), in its full or detail form. */
+export function isOverloadCode(code: unknown): boolean {
+  return typeof code === "number" && OVERLOAD_DETAIL_CODES.includes(code % 10_000)
+}
+
 /** A Retry-After longer than this is not worth waiting for in a pending request. */
 const MAX_RETRY_AFTER_MS = 10_000
 const BASE_DELAY_MS = 500

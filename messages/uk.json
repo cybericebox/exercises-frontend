@@ -1244,6 +1244,8 @@
   "admin.ex.err.deployNoPersistence": "Цей пристрій не зберігає стан",
   "admin.ex.err.deployDeviceNotFound": "Пристрій не знайдено в лабораторії",
   "admin.ex.err.deployDeviceRestarting": "Пристрій ще перезапускається. Спробуйте за мить.",
+  "admin.exTopo.waitReadyFile": "Чекати на файл /run/ready",
+  "admin.exTopo.waitReadyFileHelp": "Пристрій вважається готовим, коли застосунок створить файл /run/ready. Порти, відкриті через вебпроксі, перевіряються автоматично, без цього перемикача.",
   "admin.exTopo.persistence": "Зберігати стан після перезапуску",
   "admin.ex.err.persistenceInvalid": "Збереження стану доступне лише для контейнерних пристроїв, а затримка знімка має бути від 1 с до 24 год.",
   "feedback.link": "Надіслати відгук",
@@ -1502,10 +1504,15 @@
   "exercises.filter.tags.yes": "так",
   "exercises.filter.tags.no": "ні",
   "exercises.filter.tags.remove": "Прибрати тег {value} ({state})",
-  "exercises.help.tags.cycle": "Натиск на тег: «так» → «ні» → прибрати.",
+  "exercises.help.tags.cycle": "Клік по тегу — «так» (має бути), ще клік — «ні» (не має бути), ще раз — прибрати.",
   "exercises.help.tags.match": "Показує завдання з усіма тегами «так» і без жодного тегу «ні».",
   "admin.ex.col.subtasks": "Підзавдання",
   "exercises.subtasks.none": "Варіантів немає",
   "exercises.help.difficultyCol.subtasks": "«Підзавдання» — їх кількість у тому ж першому варіанті; «—» — варіантів немає.",
-  "admin.ex.updatedLine": "Оновлено {date}"
+  "admin.ex.updatedLine": "Оновлено {date}",
+  "exercises.filter.tags.cycleHint": "Клік — тег «так», ще клік — «ні» (без тегу), ще раз — прибрати.",
+  "exercises.subtasks.show": "Підзавдання: {count}. Показати назви",
+  "exercises.subtasks.title": "Підзавдання",
+  "exercises.subtasks.empty": "У першому варіанті немає підзавдань",
+  "exercises.subtasks.unnamed": "Без назви"
 }

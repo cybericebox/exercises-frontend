@@ -467,6 +467,17 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
   })
 
+  it('explains the tag так/ні cycle in the list and in the «?» help, which opens on a tap', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(helpButton(/exercises\.help\.tags\.cycle/))
+    const tip = await screen.findByRole('tooltip')
+    expect(within(tip).getByText('exercises.help.tags.cycle')).toBeInTheDocument()
+    expect(within(tip).getByText('exercises.help.tags.match')).toBeInTheDocument()
+    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.tags.label' }))
+    expect(await screen.findByText('exercises.filter.tags.cycleHint')).toBeInTheDocument()
+  })
+
   it('lists the most used tags when the tag field is focused', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
@@ -537,7 +548,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
 
   it('shows the author and the average difficulty of each task', async () => {
     mockList.mockResolvedValue({ Items: [
-      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4 },
+      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4, TaskNames: ['One', 'Two', 'Three', 'Four'] },
       { ...item, ID: 'b', Name: 'Unrated' },
     ], Total: 2, Page: 1, PageSize: 50 })
     render(<Page />)
@@ -549,9 +560,21 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     // Under 1440 px the name cell carries the update date; the «Оновлено» column hides there.
     expect(screen.getAllByText('admin.ex.updatedLine')[0]).toHaveClass('min-[1440px]:hidden')
     expect(screen.getByRole('button', { name: 'admin.ex.col.updated' }).closest('th')).toHaveClass('max-[1439px]:hidden')
+    // The owner's column order, every column left-aligned, the same cells in each row.
+    const heads = [...document.querySelectorAll('thead th')].map((th) => (th.textContent ?? '').split('exercises.')[0].match(/admin\.ex\.col\.[a-z]+/)?.[0] ?? '')
+    expect(heads.filter(Boolean)).toEqual(['admin.ex.col.name', 'admin.ex.col.tags', 'admin.ex.col.subtasks', 'admin.ex.col.difficulty',
+      'admin.ex.col.access', 'admin.ex.col.status', 'admin.ex.col.author', 'admin.ex.col.updated'])
+    for (const cell of document.querySelectorAll('thead th, tbody td')) expect(cell.className).not.toMatch(/\btext-right\b/)
+    const firstRow = screen.getByRole('row', { name: /Rated/ })
+    const cells = [...firstRow.querySelectorAll('td')]
+    expect(cells.findIndex((td) => td.textContent?.includes('Ада Лавлейс'))).toBe(cells.length - 2)
     // The subtask count of the first variant; «—» without a variant.
     expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
+    // The count opens the subtask names.
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.subtasks.show' }))
+    expect((await screen.findAllByRole('listitem')).map((li) => li.textContent)).toEqual(['One', 'Two', 'Three', 'Four'])
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.difficulty' }))
