@@ -135,3 +135,5 @@
 .g-slot{max-width:860px;margin-top:var(--ib-5)}
 .g-slot+.g-prose{margin-top:var(--ib-5)}
 .g-code__state{height:min(560px,70vh)}
+
+.g-prose .g-sublead{margin-top:var(--ib-2)}
