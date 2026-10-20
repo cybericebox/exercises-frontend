@@ -122,6 +122,14 @@ export function bellLabel(unread: number, counts: InboxCounts | null): { key: st
   return { key: "inbox.title", vars: {} }
 }
 
+/** A link the inbox may open: a site path, an anchor, http(s) or mailto; anything else is dropped. */
+export function safeHref(value: string): string | null {
+  const href = value.trim()
+  if (href.startsWith("/") && !href.startsWith("//")) return href
+  if (href.startsWith("#") || /^https?:\/\/|^mailto:/i.test(href)) return href
+  return null
+}
+
 /** Optimistic counts after one item is read locally (the next poll corrects them).
  *  Counts.All = open requests + unread personal + unread activity. */
 export function countsAfterRead(counts: InboxCounts, item: InboxMessage): InboxCounts {
