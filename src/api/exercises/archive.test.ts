@@ -10,7 +10,7 @@ import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercis
 import { waitForExportJob } from "@/api/exercises/archiveJobs"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
-import { ARCHIVE_UPLOAD_PURPOSE, MAX_PLAIN_ARCHIVE_BYTES, EXPORT_LIMIT, downloadImportExample, exportExercises, startImport } from "./archive"
+import { ARCHIVE_UPLOAD_PURPOSE, MAX_PLAIN_ARCHIVE_BYTES, EXPORT_LIMIT, downloadImportExample, exportExercises, getImportExampleDocument, startImport } from "./archive"
 
 const mockExportPost = vi.mocked(client.apiPost)
 const mockDownload = vi.mocked(downloadInChunks)
@@ -172,5 +172,13 @@ describe("exercise archive client", () => {
     mockPost.mockRejectedValueOnce(gone)
     await expect(startImport(huge, "")).rejects.toBe(gone)
     expect(mockForget).toHaveBeenCalledWith(huge)
+  })
+})
+
+describe("getImportExampleDocument", () => {
+  it("reads the PascalCase example document", async () => {
+    vi.mocked(client.apiGet).mockResolvedValueOnce({ Yaml: "schema: x", Json: "{}" })
+    expect(await getImportExampleDocument()).toEqual({ Yaml: "schema: x", Json: "{}" })
+    expect(client.apiGet).toHaveBeenCalledWith("/api/exercises/import/example/document")
   })
 })
