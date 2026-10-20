@@ -15,7 +15,8 @@ export function FlagHelp() {
     <button type="button" aria-label={t("admin.exTask.flag.helpTitle")} className="rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
       <HelpCircle aria-hidden="true" className="h-3.5 w-3.5" />
     </button>
-  </PopoverTrigger><PopoverContent ref={contentRef} onOpenAutoFocus={(event) => { event.preventDefault(); contentRef.current?.focus() }} aria-label={t("admin.exTask.flag.helpTitle")} className="w-[min(32rem,calc(100vw-1.5rem))] max-h-[min(36rem,80dvh)] p-4">
+  </PopoverTrigger><PopoverContent ref={contentRef} side="bottom" sideOffset={6} avoidCollisions collisionPadding={12}
+    style={{ maxHeight: "min(36rem, 80dvh, var(--radix-popover-content-available-height))" }} onOpenAutoFocus={(event) => { event.preventDefault(); contentRef.current?.focus() }} aria-label={t("admin.exTask.flag.helpTitle")} className="w-[min(32rem,calc(100vw-1.5rem))] p-4">
     <div className="w-full space-y-3 text-left normal-case tracking-normal">
       <section className="space-y-1">
         <h3 className="font-semibold text-foreground">{t("admin.exTask.flag.sectionFormat")}</h3>

@@ -21,3 +21,12 @@ it("opens a bounded dialog with a short trigger name and a keyboard reachable gu
  fireEvent.click(trigger)
  expect(screen.getByRole("dialog")).toContainElement(screen.getByRole("link"))
 })
+
+it("bounds long help by the collision-aware available height on tablets", () => {
+ render(<FlagHelp />)
+ fireEvent.click(screen.getByRole("button"))
+ const content = screen.getByRole("dialog")
+ expect(content.style.maxHeight).toBe("min(36rem, 80dvh, var(--radix-popover-content-available-height))")
+ expect(content).toHaveClass("overflow-y-auto")
+ expect(screen.getByRole("link")).toBeInTheDocument()
+})
