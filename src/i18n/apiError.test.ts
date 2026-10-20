@@ -40,7 +40,7 @@ describe("localizedError on a 503", () => {
   })
 
   it("has the exact copy for the overloaded keys", () => {
-    expect(t("error.overloaded")).toBe("Сервер перевантажений, спробуйте за кілька секунд")
+    expect(t("error.overloaded")).toBe("Сервер перевантажений, спробуйте за декілька секунд")
     expect(t("error.overloaded.retry")).toBe("Спробувати ще раз")
   })
 })
