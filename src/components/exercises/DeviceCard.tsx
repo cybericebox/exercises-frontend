@@ -31,9 +31,10 @@ import { LoadingArea } from "@/components/ui/spinner"
 const PROTOCOLS: Protocol[] = ["http", "https"]
 /** How long the result of an .env import stays on screen. */
 const IMPORT_RESULT_MS = 8000
-// The operator treats an omitted preset and explicit "basic" identically.
-// Keep accepting legacy "basic" values, but offer only one basic choice.
-const SECURITY_PRESETS: SecurityPreset[] = ["", "service", "net", "debug"]
+// The laboratory maps basic+service to the standard profile and net+debug to the extended one; the daemon still
+// validates the four old names, so the editor offers two choices and writes "service" / "net".
+const SECURITY_PRESETS: SecurityPreset[] = ["service", "net"]
+const shownPreset = (value: SecurityPreset): SecurityPreset => (value === "net" || value === "debug" ? "net" : "service")
 /** One device with focused settings; switch/hub expose only basic properties. */
 export function DeviceCard({
   variantIndex,
@@ -83,9 +84,9 @@ export function DeviceCard({
         {visiblePanel === "basic" && !forwarding && <FormField control={control} name={`${base}.SecurityPreset`} render={({ field, fieldState }) => (
           <FormItem className={compact ? "space-y-1" : undefined}>
             <ExerciseFieldLabel labelKey="admin.exTopo.securityPreset" form />
-            <FormControl><SelectMenu value={field.value === "basic" ? "" : field.value} onChange={field.onChange} disabled={disabled}
+            <FormControl><SelectMenu value={shownPreset(field.value)} onChange={field.onChange} disabled={disabled}
               ariaLabel={t("admin.exTopo.securityPreset")}
-              options={SECURITY_PRESETS.map((preset) => ({ value: preset, label: t(`admin.exTopo.security.${preset || "default"}`), description: t(`admin.exTopo.security.${preset || "default"}Help`) }))}
+              options={SECURITY_PRESETS.map((preset) => ({ value: preset, label: t(`admin.exTopo.security.${preset}`), description: t(`admin.exTopo.security.${preset}Help`) }))}
               className="h-10 w-full" /></FormControl>
             {fieldState.error && <FormMessage className="leading-5" />}
           </FormItem>
