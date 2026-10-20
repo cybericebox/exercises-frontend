@@ -41,6 +41,20 @@ describe("proposals page", () => {
     await waitFor(() => expect(listProposals).toHaveBeenLastCalledWith("approved"))
   })
 
+  it("keeps the full rationale and actions with the proposal in a phone-sized row", async () => {
+    const note = "First line\nSecond line\nThird line\nThe full rationale must remain reachable."
+    vi.mocked(listProposals).mockResolvedValue([{ ...proposal, Note: note }])
+    render(<ProposalsPage />)
+    const identity = await screen.findByText("Header tricks")
+    const row = identity.closest("tr")!
+    expect(row).toHaveClass("block", "md:table-row")
+    expect(row).toContainElement(screen.getByRole("button", { name: "exercises.proposals.approve" }))
+    const rationale = screen.getByText(/The full rationale must remain reachable/)
+    expect(row).toContainElement(rationale)
+    expect(rationale).not.toHaveClass("line-clamp-3")
+    expect(screen.getByRole("table")).not.toHaveClass("min-w-[44rem]")
+  })
+
   it("approves with the prefilled name and links to the new catalog exercise", async () => {
     vi.mocked(approveProposal).mockResolvedValue({ ...proposal, Status: "approved", CatalogExerciseID: "c9" })
     render(<ProposalsPage />)

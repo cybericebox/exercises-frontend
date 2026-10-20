@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, ChevronDown, Globe, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, ChevronDown, Globe, HelpCircle, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -231,6 +231,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   const W = Math.max(size.width, 680)
   const ignoreClick = useRef(false)
   const clipPrefix = useId().replaceAll(":", "")
+  const controlsHelpId = useId()
   const editingLabelKey = editingLabel?.key
   useEffect(() => {
     if (!editingLabelKey) return
@@ -364,6 +365,9 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     const svg = svgRef.current
     if (!svg) return
     const onWheel = (event: WheelEvent) => {
+      // Leave ordinary wheel/trackpad movement to native page and canvas scrolling.
+      // Ctrl also covers trackpad pinch gestures; Meta supports the macOS shortcut.
+      if (!event.ctrlKey && !event.metaKey) return
       event.preventDefault()
       viewportTouched.current = true
       const rect = svg.getBoundingClientRect()
@@ -468,6 +472,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       viewBox={`0 0 ${W} ${H}`}
       role="group"
       aria-label={t("admin.exTopo.diagram")}
+      aria-describedby={controlsHelpId}
       className={`block h-full w-full min-w-[680px] ${pan ? "cursor-grabbing" : "cursor-grab"}`}
       style={{ minHeight: H }}
       onPointerEnter={() => { pointerInside.current = true }}
@@ -622,7 +627,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             {onEdgeSelect && <path data-edge-hit={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
               fill="none" stroke="transparent" strokeWidth={16} pointerEvents="stroke" />}
             <path data-edge={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
-              className={selectedConnectionIndex === edge.index ? "fill-none stroke-primary" : "fill-none stroke-muted-foreground/70 group-hover:stroke-primary"}
+              className={selectedConnectionIndex === edge.index ? "fill-none stroke-primary" : "fill-none stroke-muted-foreground/70 group-hover:stroke-primary group-focus-visible:stroke-primary"}
               strokeWidth={selectedConnectionIndex === edge.index ? 3 : 2} />
             {renderPortLabel(edge.labelA, edge.a, start, end)}
             {renderPortLabel(edge.labelB, edge.b, end, start)}
@@ -806,8 +811,14 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       <HoverTooltip text={t("admin.exTopo.fitCanvas")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
+      <HoverTooltip help text={t("admin.exTopo.canvasControlsHelp")}>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.exTopo.canvasControls")}>
+          <HelpCircle aria-hidden="true" className="h-4 w-4" />
+        </Button>
+      </HoverTooltip>
       {toolbarExtra}
     </div>
+    <p id={controlsHelpId} className="sr-only">{t("admin.exTopo.canvasControlsHelp")}</p>
     {context && <TopologyContextMenu x={context.x} y={context.y} entries={contextEntries(context)} onClose={closeContext}
       returnFocus={context.trigger}
       label={t(context.kind === "node" ? "admin.exTopo.deviceSettings" : context.kind === "edge" ? "admin.exTopo.connectionMenu" : "admin.exTopo.diagram")} />}

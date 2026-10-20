@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, onTestFinished } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $setSelection } from 'lexical'
+import { $getHtmlContent, $getLexicalContent } from '@lexical/clipboard'
+import { TaskRichTextView } from '../exercises/TaskRichTextView'
+import { createEditor, $createNodeSelection, $createParagraphNode, $createRangeSelection, $createTextNode, $getRoot, $getSelection, $isRangeSelection, $setSelection } from 'lexical'
 import {
   RichTextEditor,
+  CopyBlockNode,
+  $createCopyBlockNode,
+  $normalizeCopyBlock,
   VariableNode,
   $createVariableNode,
   $isVariableNode,
@@ -385,4 +390,150 @@ describe('VariableNode', () => {
     })
     expect(result).toBe(true)
   })
+})
+
+describe('CopyBlockNode', () => {
+ it('round trips a standard element container with inline variable children', () => {
+  const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+  editor.update(() => { $getRoot().append($createCopyBlockNode().append($createTextNode('ssh '), $createVariableNode('host'))) }, { discrete: true })
+  const json = editor.getEditorState().toJSON()
+  expect(json.root.children[0]).toMatchObject({ type: 'copy-block', version: 1, children: [ { text: 'ssh ' }, { type: 'variable', varName: 'host' } ] })
+  editor.setEditorState(editor.parseEditorState(JSON.stringify(json)))
+  expect(editor.getEditorState().toJSON()).toEqual(json)
+ })
+ it('provides a translated toolbar action in the code group', () => {
+  render(<RichTextEditor value={null} onChange={vi.fn()} />)
+  expect(screen.getByRole('button', { name: 'Блок для копіювання' })).toBeInTheDocument()
+ })
+})
+
+it('flattens rich copy-block children and line breaks while retaining variable chips', () => {
+ const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+ editor.update(() => {
+  const block = $createCopyBlockNode().append($createParagraphNode().append($createTextNode('one\ntwo'), $createVariableNode('host')))
+  $getRoot().append(block)
+  $normalizeCopyBlock(block)
+ }, { discrete: true })
+ const block = editor.getEditorState().toJSON().root.children[0] as unknown as { children: {type: string; text?: string; varName?: string}[] }
+ expect(block.children.map(n => n.type)).toEqual(['text', 'variable'])
+ expect(block.children[0].text).toBe('one two')
+ expect(block.children[1].varName).toBe('host')
+})
+
+it('Enter leaves a copy block for a normal paragraph and preserves the trailing text', () => {
+ const editor = createEditor({ nodes: [CopyBlockNode] })
+ editor.update(() => {
+  const text = $createTextNode('beforeafter')
+  $getRoot().append($createCopyBlockNode().append(text))
+  text.select(6, 6)
+  const selection = $getSelection()
+  if ($isRangeSelection(selection)) selection.insertParagraph()
+ }, { discrete: true })
+ expect(editor.getEditorState().toJSON().root.children).toMatchObject([
+  { type: 'copy-block', children: [{ text: 'before' }] },
+  { type: 'paragraph', children: [{ text: 'after' }] },
+ ])
+})
+it('Backspace at the start turns a copy block into a paragraph without losing variable children', () => {
+ const editor = createEditor({ nodes: [VariableNode, CopyBlockNode] })
+ const root = document.createElement('div'); document.body.append(root); editor.setRootElement(root)
+ onTestFinished(() => { editor.setRootElement(null); root.remove() })
+ editor.update(() => {
+  const text = $createTextNode('ssh ')
+  $getRoot().append($createCopyBlockNode().append(text, $createVariableNode('host')))
+  text.select(0, 0)
+  const selection = $getSelection()
+  if ($isRangeSelection(selection)) selection.deleteCharacter(true)
+ }, { discrete: true })
+ expect(editor.getEditorState().toJSON().root.children).toMatchObject([
+  { type: 'paragraph', children: [{ text: 'ssh ' }, { type: 'variable', varName: 'host' }] },
+ ])
+})
+
+it('fixes hint content to 144px with internal scrolling and keeps long text lossless', async () => {
+ const text = 'A long hint with rich content '.repeat(500)
+ const editor = createEditor()
+ editor.update(() => { $getRoot().append($createParagraphNode().append($createTextNode(text))) }, { discrete: true })
+ const { container } = render(<RichTextEditor value={editor.getEditorState().toJSON() as unknown as Record<string, unknown>} onChange={vi.fn()} contentHeight={144} />)
+ const area = container.querySelector('.editor-scroll')!
+ expect(area).toHaveStyle({ height: '144px', minHeight: '144px', maxHeight: '144px', resize: 'none', overflowY: 'auto' })
+ expect(area).not.toContainElement(screen.getByRole('toolbar'))
+ expect(container.firstElementChild).toHaveClass('overflow-visible')
+ await waitFor(() => expect(area.textContent).toBe(text))
+})
+it('caps task description scrolling at 320px without applying fixed sizing to other editors', () => {
+ const { container, rerender } = render(<RichTextEditor value={null} onChange={vi.fn()} maxContentHeight={320} />)
+ expect(container.querySelector('.editor-scroll')).toHaveStyle({ maxHeight: '320px', overflowY: 'auto' })
+ rerender(<RichTextEditor value={null} onChange={vi.fn()} />)
+ expect(container.querySelector('.editor-scroll')).not.toHaveStyle({ maxHeight: '320px' })
+})
+
+
+describe('copy-block clipboard import', () => {
+ async function paste(data: Record<string, string>) {
+  const rect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
+  const rangeProto = Range.prototype as Partial<Range>
+  rangeProto.getBoundingClientRect = rect
+  onTestFinished(() => { delete rangeProto.getBoundingClientRect })
+  const initial = createEditor({ nodes: [CopyBlockNode] })
+  initial.update(() => { $getRoot().append($createCopyBlockNode()) }, { discrete: true })
+  const onChange = vi.fn()
+  const rendered = render(<RichTextEditor value={initial.getEditorState().toJSON() as unknown as Record<string, unknown>} onChange={onChange}
+   variables={[{ name: 'host', description: 'Host', example: 'example.test' }]} />)
+  const editable = rendered.container.querySelector('[contenteditable="true"]') as HTMLElement
+  editable.focus()
+  const block = await waitFor(() => { const node = editable.querySelector('[data-copy-block-editor]'); expect(node).not.toBeNull(); return node! })
+  const range = document.createRange()
+  range.setStart(block, 0); range.collapse(true)
+  window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range)
+  fireEvent(document, new Event('selectionchange'))
+  fireEvent.paste(editable, { clipboardData: { getData: (type: string) => data[type] ?? '' } })
+  await waitFor(() => expect(onChange).toHaveBeenCalled())
+  return { value: onChange.mock.calls.at(-1)![0], rendered }
+ }
+ function copiedFragment() {
+  const source = createEditor({ namespace: 'RichTextEditor', nodes: [VariableNode] })
+  let lexical = '', html = ''
+  source.update(() => {
+   const paragraph = $createParagraphNode().append($createTextNode('https://'), $createVariableNode('host', ['bold', 'code']), $createTextNode('/panel\nnext'))
+   $getRoot().append(paragraph)
+   paragraph.select(0, paragraph.getChildrenSize())
+   lexical = $getLexicalContent(source)!
+   html = $getHtmlContent(source)
+  }, { discrete: true })
+  return { lexical, html }
+ }
+ it.each(['lexical', 'html'] as const)('pastes a real %s clipboard fragment as text and formatted variables, resolving the saved preview', async (format) => {
+  const fragment = copiedFragment()
+  const { value, rendered } = await paste({
+   ...(format === 'lexical' ? { 'application/x-lexical-editor': fragment.lexical } : {}),
+   'text/html': fragment.html, 'text/plain': 'https://{{host}}/panel\nnext',
+  })
+  expect(value.root.children).toHaveLength(1)
+  expect(value.root.children[0]).toMatchObject({ type: 'copy-block', children: [
+   { type: 'text', text: 'https://' }, { type: 'variable', varName: 'host', formats: ['bold', 'code'] }, { type: 'text', text: '/panel next' },
+  ] })
+  rendered.unmount()
+  render(<TaskRichTextView value={value} variables={{ host: 'example.test' }} />)
+  expect(screen.getByText('https://example.test/panel next')).toBeInTheDocument()
+ })
+ it('flattens HTML wrappers and line breaks while retaining supported variable chips', async () => {
+  const { value } = await paste({ 'text/html': '<p>ssh <strong><span data-variable="host" data-variable-formats="italic code">{{host}}</span></strong></p><p>--verbose<br>now<script>alert(1)</script></p>', 'text/plain': 'fallback' })
+  expect(value.root.children).toHaveLength(1)
+  expect(value.root.children[0].children).toMatchObject([
+   { type: 'text', text: 'ssh ' }, { type: 'variable', varName: 'host', formats: ['italic', 'code'] }, { type: 'text', text: ' --verbose now' },
+  ])
+  expect(JSON.stringify(value)).not.toContain('alert')
+ })
+ it('recognizes only known plain-text placeholder tokens, retaining unknown text and flattening newlines', async () => {
+  const { value } = await paste({ 'text/plain': 'ssh {{host}}\n{{unknown}}\t{{ .host }}' })
+  expect(value.root.children[0].children).toMatchObject([
+   { type: 'text', text: 'ssh ' }, { type: 'variable', varName: 'host' },
+   { type: 'text', text: ' {{unknown}} ' }, { type: 'variable', varName: 'host' },
+  ])
+ })
+ it.each(['{broken', JSON.stringify({ namespace: 'RichTextEditor', nodes: [{ type: 'unsupported-widget', version: 1 }] })])('safely falls back from unsupported or malformed structured data (%s)', async (lexical) => {
+  const { value } = await paste({ 'application/x-lexical-editor': lexical, 'text/plain': 'safe {{host}}' })
+  expect(value.root.children[0].children).toMatchObject([{ text: 'safe ' }, { type: 'variable', varName: 'host' }])
+ })
 })

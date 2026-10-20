@@ -216,3 +216,9 @@ describe('TaskForm inline placeholders', () => {
     expect(screen.getByRole('button', { name: 'Завантажити файл' })).toBeEnabled()
   })
 })
+
+it("bounds the task description editor at 320px", async () => {
+ render(<Harness />)
+ const editor = screen.getByRole('textbox', { name: 'Опис' })
+ expect(editor.closest('.editor-scroll')).toHaveStyle({ maxHeight: '320px' })
+})

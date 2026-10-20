@@ -5,16 +5,19 @@ import { Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Table, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW } from "@/components/ui/table"
-import { exerciseFileURL, uploadExerciseAttachment } from "@/api/exercises/files"
+import { uploadExerciseAttachment } from "@/api/exercises/files"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { baseCandidates, linkedFlagConflicts, newLinkedVariant } from "@/lib/linkedVariants"
 import type { VariantFormValues } from "@/lib/exerciseSchemas"
 import { RemoveAction } from "./RemoveAction"
+import { GuideLink } from "./GuideLink"
+import { AttachmentDownload } from "./AttachmentDownload"
 import { useExerciseId } from "./ExerciseIdContext"
 
 /** Most linked variants one dialog creates at once. */
@@ -44,11 +47,7 @@ export function LinkedVariantsDialog({ open, variants, onClose, onCreate }: {
   onClose: () => void
   onCreate: (created: VariantFormValues[]) => void
 }) {
-  return <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
-    <DialogContent className="max-w-[min(72rem,calc(100vw-2rem))]">
-      {open && <LinkedVariantsForm variants={variants} onClose={onClose} onCreate={onCreate} />}
-    </DialogContent>
-  </Dialog>
+  return open ? <LinkedVariantsForm variants={variants} onClose={onClose} onCreate={onCreate} /> : null
 }
 
 function LinkedVariantsForm({ variants, onClose, onCreate }: {
@@ -70,6 +69,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
   const uploadSeq = useRef(0)
   // Running uploads by id, with the cell they belong to, so a dropped row or column can stop its own.
   const controllers = useRef(new Map<number, { controller: AbortController; rowKey: number; column: number }>())
+  const [confirmation, setConfirmation] = useState<"close" | "reduce" | "create" | null>(null)
   const fileInputs = useRef(new Map<string, HTMLInputElement | null>())
 
   // Closing the dialog stops uploads that are still running; their files are left to the media garbage collector.
@@ -80,17 +80,24 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
 
   const columns = base?.Tasks ?? []
   const shownRows = rows.slice(0, parseCount(countText) ?? rows.length)
-  const uploading = shownRows.some((row) => columns.some((_, column) => (row.cells[column]?.uploads.length ?? 0) > 0))
+  const uploading = rows.some((row) => row.cells.some((cell) => (cell?.uploads.length ?? 0) > 0))
+  const hasCell = (cell: Cell | undefined) => Boolean(cell && (cell.flag || cell.files.length || cell.uploads.length || cell.uploadError))
+  const hasRow = (row: Row) => Boolean(row.note || row.cells.some(hasCell))
+  const dirty = rows.some(hasRow)
+  const uploadProgress = Math.min(...rows.flatMap((row) => row.cells.flatMap((cell) => cell?.uploads.map((entry) => entry.progress) ?? [])), 100)
+  const hiddenData = () => rows.some((row, index) => index >= (parseCount(countText) ?? rows.length) ? hasRow(row) : row.cells.some((cell, column) => column >= columns.length && hasCell(cell)))
+  function requestClose() { if (dirty) setConfirmation("close"); else onClose() }
+  function commitCount() {
+    const count = parseCount(countText)
+    if (count !== null && rows.slice(count).some(hasRow)) setConfirmation("reduce")
+  }
 
   function abortUploads(drop: (rowKey: number, column: number) => boolean) {
     for (const { controller, rowKey, column } of controllers.current.values()) if (drop(rowKey, column)) controller.abort()
   }
 
   function changeBase(id: string) {
-    const width = variants.find((variant) => variant.ID === id)?.Tasks.length ?? 0
-    // Cells carry over by position; columns the new base does not have are dropped with their uploads.
-    abortUploads((_, column) => column >= width)
-    setRows((current) => current.map((row) => row.cells.length > width ? { ...row, cells: row.cells.slice(0, width) } : row))
+    // Keep all column buffers, including in-flight uploads, when choosing another base.
     setBaseId(id)
     setFlagErrors({})
   }
@@ -109,9 +116,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
     setCountError(null)
     const count = parseCount(text)
     if (count === null) return
-    const kept = new Set(rows.slice(0, count).map((row) => row.key))
-    abortUploads((rowKey) => !kept.has(rowKey))
-    setRows((current) => count <= current.length ? current.slice(0, count) : [...current, ...Array.from({ length: count - current.length }, newRow)])
+    setRows((current) => count <= current.length ? current : [...current, ...Array.from({ length: count - current.length }, newRow)])
   }
 
   function changeFlag(rowKey: number, column: number, flag: string) {
@@ -148,13 +153,14 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
     }
   }
 
-  function create() {
+  function create(discardHidden = false) {
     const count = parseCount(countText)
     if (count === null) {
       setCountError(t("admin.exLinked.val.count", { max: LINKED_BULK_MAX }))
       return
     }
     if (!base || uploading) return
+    if (!discardHidden && hiddenData()) { setConfirmation("create"); return }
     const shown = rows.slice(0, count)
     const errors: Record<string, string> = {}
     const created = shown.map((row, k) => newLinkedVariant(base, variants.length + k + 1, {
@@ -185,10 +191,12 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
   const countId = `${uid}-count`
   const countErrorId = `${uid}-count-error`
 
-  return <>
+  return <><Dialog open onOpenChange={(next) => { if (!next) requestClose() }}><DialogContent className="max-w-[min(72rem,calc(100vw-2rem))]"
+      onOverlayPointerDown={(event) => { if (event.target === event.currentTarget && event.button === 0) { event.preventDefault(); event.stopPropagation(); requestClose() } }}>
     <DialogHeader>
       <DialogTitle>{t("admin.exLinked.title")}</DialogTitle>
       <DialogDescription>{t("admin.exLinked.description")}</DialogDescription>
+      <GuideLink topic="variant" />
     </DialogHeader>
     <span id={flagLabelId} className="sr-only">{t("admin.exLinked.flag")}</span>
     <div className="flex flex-wrap items-start gap-4">
@@ -201,7 +209,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
       <div className="flex w-32 flex-col gap-1.5">
         <label htmlFor={countId} className="text-sm font-medium text-foreground">{t("admin.exLinked.count")}</label>
         <Input id={countId} type="number" inputMode="numeric" min={1} max={LINKED_BULK_MAX} step={1} value={countText}
-          onChange={(event) => changeCount(event.target.value)}
+          onChange={(event) => changeCount(event.target.value)} onBlur={commitCount}
           aria-invalid={countError ? true : undefined} aria-describedby={countError ? countErrorId : undefined} />
         {countError && <p id={countErrorId} className="text-xs text-destructive">{countError}</p>}
       </div>
@@ -239,7 +247,7 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
                   {flagError && <p id={flagErrorId} className="text-xs text-destructive">{flagError}</p>}
                   {cell.files.length > 0 && <ul className="space-y-1">
                     {cell.files.map((file, index) => <li key={`${file.FileID}-${index}`} className="flex min-w-0 items-center gap-2 text-sm">
-                      <a href={exerciseFileURL(file.FileID)} download={file.Name} className="min-w-0 truncate text-primary hover:underline">{file.Name}</a>
+                      <AttachmentDownload file={file} />
                       <RemoveAction ariaLabel={t("admin.exLinked.removeFile", { name: file.Name })} className="h-7 w-7"
                         onClick={() => updateCell(row.key, column, (current) => ({ ...current, files: current.files.filter((_, i) => i !== index) }))} />
                     </li>)}
@@ -278,8 +286,26 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
       </tbody>
     </Table>
     <DialogFooter>
-      <Button type="button" variant="outline" onClick={onClose}>{t("confirm.cancel")}</Button>
-      <Button type="button" busy={uploading} onClick={create}>{t("admin.exLinked.create")}</Button>
+      <Button type="button" variant="outline" onClick={requestClose}>{t("confirm.cancel")}</Button>
+      <Button type="button" busy={uploading} busyLabel={t("admin.exLinked.uploading", { percent: uploadProgress })} onClick={() => create()}>{t("admin.exLinked.create")}</Button>
     </DialogFooter>
+    </DialogContent></Dialog>
+    <ConfirmDialog open={confirmation !== null} tone="danger" title={t("admin.exLinked.discardTitle")}
+      description={t(confirmation === "close" ? "admin.exLinked.discardDescription" : "admin.exLinked.reduceDescription")}
+      confirmLabel={t("admin.exLinked.discardConfirm")} onCancel={() => {
+        if (confirmation === "reduce") setCountText(String(rows.length))
+        setConfirmation(null)
+      }} onConfirm={() => {
+        const action = confirmation
+        setConfirmation(null)
+        if (action === "close") onClose()
+        else if (action === "create") create(true)
+        else if (action === "reduce") {
+          const count = parseCount(countText) ?? rows.length
+          const kept = new Set(rows.slice(0, count).map((row) => row.key))
+          abortUploads((rowKey) => !kept.has(rowKey))
+          setRows((current) => current.slice(0, count))
+        }
+      }} />
   </>
 }

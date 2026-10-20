@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useFormState, useWatch, type UseFormReturn } from "react-hook-form"
 import { listExerciseTags, type ExerciseTagSuggestion } from "@/api/exercises/catalog"
+import { GuideLink } from "./GuideLink"
 import { ExerciseFieldLabel } from "@/components/exercises/ExerciseFieldLabel"
 import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
@@ -46,6 +47,7 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
     : tagError?.message ?? (tagError as { 0?: { message?: string } } | undefined)?.[0]?.message
 
   return <div className="grid w-full gap-x-6 gap-y-3 pt-3 lg:grid-cols-2">
+    <div className="flex justify-end lg:col-span-2"><GuideLink topic="zavdannia" /></div>
     <div className="min-w-0 space-y-1.5">
       <ExerciseFieldLabel labelKey="admin.ex.field.name" helpKey="admin.ex.help.name" htmlFor="exercise-name" required />
       <Input id="exercise-name" autoFocus={autoFocusName} disabled={disabled} aria-invalid={Boolean(errors.Name)} aria-describedby={errors.Name ? "exercise-name-error" : undefined} {...identityForm.register("Name", { onChange: () => { if (errors.Name?.type === "server") identityForm.clearErrors("Name") } })} />

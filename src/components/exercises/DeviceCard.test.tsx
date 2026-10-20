@@ -196,6 +196,9 @@ describe('DeviceCard', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin\.exTopo\.ip\.dhcp(?!Preset)/ }))
     const cleared = JSON.parse(screen.getByTestId('device-values').textContent || '{}').Interfaces[0].IP
     expect(cleared).toEqual({ Type: 'dhcp', Addresses: [], AddressRef: null, Gateway: '', GatewayRef: null, Routes: [] })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.ipType' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^admin\.exTopo\.ip\.static/ }))
+    expect(JSON.parse(screen.getByTestId('device-values').textContent || '{}').Interfaces[0].IP).toEqual(ip)
   })
 
   it('shows a full-width DHCP overlap warning only for the device address, not its gateway', () => {

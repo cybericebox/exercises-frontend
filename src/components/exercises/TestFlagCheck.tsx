@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 
 import { checkDeployFlag } from "@/api/exercises/deploy"
 import { Button } from "@/components/ui/button"
@@ -15,13 +15,20 @@ export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onRe
   const [flag, setFlag] = useState("")
   const [state, setState] = useState<CheckState>(solved ? "correct" : "idle")
 
+  const pending = useRef(false)
+  const inputRevision = useRef(0)
+  const [checking, setChecking] = useState(false)
+
   function check() {
-    if (!flag || state === "checking") return
+    if (!flag || pending.current) return
+    pending.current = true
+    setChecking(true)
+    const revision = inputRevision.current
     setState("checking")
     checkDeployFlag(deployId, taskId, flag).then(
-      (answer) => { setState(answer.Correct ? "correct" : "wrong"); onResult?.(answer.Correct) },
-      () => setState("error")
-    )
+      (answer) => { if (inputRevision.current === revision) setState(answer.Correct ? "correct" : "wrong"); onResult?.(answer.Correct) },
+      () => { if (inputRevision.current === revision) setState("error") }
+    ).finally(() => { pending.current = false; setChecking(false) })
   }
 
   return (
@@ -36,10 +43,10 @@ export function TestFlagCheck({ deployId, taskId, taskName, solved = false, onRe
           autoComplete="off"
           spellCheck={false}
           className="h-9 min-w-0 flex-1 font-mono"
-          onChange={(event) => { setFlag(event.target.value); setState("idle") }}
+          onChange={(event) => { inputRevision.current++; setFlag(event.target.value); setState("idle") }}
           onKeyDown={(event) => { if (event.key === "Enter") check() }}
         />
-        <Button type="button" variant="outline" size="sm" busy={state === "checking"} disabled={!flag}
+        <Button type="button" variant="outline" size="sm" busy={checking} busyLabel={t("admin.exDeploy.checking")} disabled={!flag}
           aria-label={t("admin.exDeploy.checkFlag", { name: taskName })} onClick={check}>
           {t("admin.exDeploy.check")}
         </Button>

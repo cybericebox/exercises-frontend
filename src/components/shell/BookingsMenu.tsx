@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { CalendarClock, X } from "lucide-react"
 
 import { getExerciseCapabilities, type ResourcesConfig } from "@/api/exercises/capabilities"
@@ -8,6 +8,7 @@ import { cancelBooking, getRoom, listBookings, type Booking, type Room } from "@
 import { BookingFormDialog } from "@/components/exercises/BookingFormDialog"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { GuideLink } from "@/components/exercises/GuideLink"
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -50,6 +51,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   // The suggested start of a new booking; set when «Нове бронювання» is pressed (null: the form is closed).
+  const newBookingRef = useRef<HTMLButtonElement>(null)
   const [addStart, setAddStart] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
@@ -100,6 +102,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
             <button type="button" aria-label={t("exercises.book.close")} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
           </DialogClose>
         </DialogHeader>
+        <div className="flex justify-end"><GuideLink topic="infrastruktura" /></div>
         <div className="flex min-h-56 flex-col">
           {load.state === "loading" ? <LoadingArea className="min-h-0 flex-1" label={t("admin.loading")} />
             : load.state === "error" ? <LoadError className="min-h-0 flex-1" error={load.cause} message={t("exercises.book.loadFailed")} onRetry={() => { setLoad({ state: "loading" }); void refresh() }} />
@@ -128,7 +131,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
               </ul>}
               <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
                 <span className="text-xs text-muted-foreground">{t("exercises.book.count", { n: items.length, max: BOOKING_MAX_ACTIVE })}</span>
-                <Button type="button" size="sm" disabled={!load.config || items.length >= BOOKING_MAX_ACTIVE} onClick={() => setAddStart(load.room?.NearestFrom ?? new Date(Math.ceil((Date.now() + 15 * 60_000) / 900_000) * 900_000).toISOString())}>{t("exercises.book.new")}</Button>
+                <Button ref={newBookingRef} type="button" size="sm" disabled={!load.config || items.length >= BOOKING_MAX_ACTIVE} onClick={() => setAddStart(load.room?.NearestFrom ?? new Date(Math.ceil((Date.now() + 15 * 60_000) / 900_000) * 900_000).toISOString())}>{t("exercises.book.new")}</Button>
               </div>
             </>}
         </div>
@@ -139,6 +142,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
       onCancel={() => setCancelling(null)} onConfirm={() => void cancel()} />
     {addStart && load.state === "ready" && load.config && <BookingFormDialog open start={addStart}
       size={load.config.Frame} largestDevice={load.config.Frame} active={load.items.length}
+      onCloseAutoFocus={(event) => { event.preventDefault(); newBookingRef.current?.focus() }}
       onCancel={() => setAddStart(null)}
       onBooked={(created) => { setAddStart(null); toast.success(t("exercises.book.booked", { time: formatClock(created.From) })); void refresh() }} />}
   </>

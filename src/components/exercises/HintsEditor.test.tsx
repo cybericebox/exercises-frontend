@@ -9,8 +9,8 @@ import { HintsEditor } from "./HintsEditor"
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 // Lexical does not type in jsdom: a textarea stands in and emits a document.
 vi.mock("@/components/editor/RichTextEditor", () => ({
-  default: ({ ariaLabel, disabled, invalid, allowAlignment, onChange }: { ariaLabel: string; disabled: boolean; invalid: boolean; allowAlignment: boolean; onChange: (state: unknown) => void }) => (
-    <textarea aria-label={ariaLabel} disabled={disabled} aria-invalid={invalid} data-alignment={String(allowAlignment)} onChange={(event) => onChange({
+  default: ({ ariaLabel, disabled, invalid, allowAlignment, contentHeight, onChange }: { ariaLabel: string; disabled: boolean; invalid: boolean; allowAlignment: boolean; contentHeight?: number; onChange: (state: unknown) => void }) => (
+    <textarea aria-label={ariaLabel} disabled={disabled} aria-invalid={invalid} data-alignment={String(allowAlignment)} data-content-height={contentHeight} onChange={(event) => onChange({
       root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: event.target.value }] }] },
     })} />
   ),
@@ -54,6 +54,7 @@ describe("HintsEditor", () => {
     expect(hints(0)[1].Text).toContain("Look at headers")
 
     fireEvent.click(screen.getAllByRole("button", { name: "exercises.hints.remove" })[0])
+    fireEvent.click(screen.getByRole("dialog").querySelector("button:last-child")!)
     expect(hints(0)).toHaveLength(1)
     expect(hints(1)).toHaveLength(1)
   })
@@ -88,4 +89,10 @@ describe("HintsEditor", () => {
     render(<Harness disabled />)
     expect(screen.queryByRole("button", { name: "exercises.hints.add" })).not.toBeInTheDocument()
   })
+})
+
+it("uses a fixed 144px hint text viewport", () => {
+ render(<Harness />)
+ fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
+ expect(screen.getByLabelText("exercises.hints.textAria")).toHaveAttribute("data-content-height", "144")
 })

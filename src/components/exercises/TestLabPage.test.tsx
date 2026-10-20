@@ -260,9 +260,9 @@ describe("TestLabPage — task as a participant sees it", () => {
 
   it("lists attachments for download and the hints as text", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={attached} />)
-    const file = await screen.findByRole("link", { name: "admin.exTest.downloadFile notes.pdf" })
-    expect(file).toHaveAttribute("download", "notes.pdf")
-    expect(file.getAttribute("href")).toMatch(/\/api\/exercises\/files\/f1$/)
+    const file = await screen.findByRole("button", { name: "admin.exTest.downloadFile notes.pdf" })
+    expect(file).toHaveTextContent("notes.pdf")
+    expect(file).not.toHaveAttribute("href")
     // hints start collapsed; an empty hint is not listed
     expect(screen.getByText(/exercises\.hints\.level\.nudge/)).toBeInTheDocument()
     expect(screen.queryByText(/exercises\.hints\.level\.steps/)).not.toBeInTheDocument()
@@ -782,7 +782,7 @@ describe("TestLabPage — static test", () => {
   it("shows tasks at once without lab parts", async () => {
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     expect(await screen.findByRole("heading", { name: "Login" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /notes\.pdf/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /notes\.pdf/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.topologyShow/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /admin\.exTest\.vpnOpen/ })).not.toBeInTheDocument()
     expect(screen.queryByText("admin.exDeploy.starting")).not.toBeInTheDocument()
@@ -1038,4 +1038,37 @@ describe("TestLabPage — run length and ending", () => {
     expect(await screen.findByText(/admin\.exDeploy\.ending/)).toBeInTheDocument()
     expect(await screen.findByText("admin.exDeploy.ended", {}, { timeout: 6000 })).toBeInTheDocument()
   }, 10000)
+})
+
+describe("composed copy-block navigation", () => {
+ const copyDoc = (children: unknown[]) => ({ root: { type: "root", children: [{ type: "copy-block", version: 1, children }] } })
+ function composedVersion(children: unknown[]): Version {
+  const updated = structuredClone(version)
+  updated.Variants[1].Tasks[0].Description = copyDoc(children)
+  return updated
+ }
+ it("carries the displayed device path, query and fragment into the actual fresh auth tab URL", async () => {
+  const tab = { location: { href: "about:blank" }, close: vi.fn(), opener: "self" }
+  vi.stubGlobal("open", vi.fn(() => tab))
+  vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=fresh", ExpiresAt: "" })
+  vi.mocked(getVersion).mockResolvedValue(composedVersion([variable("panel"), text("/panel?x=1#details")]))
+  render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+  await screen.findByText("https://web-1.example.com/panel?x=1#details")
+  fireEvent.click(screen.getByRole("button", { name: "admin.exCopy.open" }))
+  await waitFor(() => expect(new URL(tab.location.href).searchParams.get("next")).toBe("/panel?x=1#details"))
+  expect(new URL(tab.location.href).searchParams.get("t")).toBe("fresh")
+  expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443)
+  vi.unstubAllGlobals()
+ })
+ it("opens a docs URL containing a device query value without minting a device auth link", async () => {
+  const direct = vi.fn(() => null)
+  vi.stubGlobal("open", direct)
+  vi.mocked(getVersion).mockResolvedValue(composedVersion([text("https://docs.test/?device="), variable("panel")]))
+  render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+  await screen.findByText("https://docs.test/?device=https://web-1.example.com")
+  fireEvent.click(screen.getByRole("button", { name: "admin.exCopy.open" }))
+  expect(direct).toHaveBeenCalledWith("https://docs.test/?device=https://web-1.example.com", "_blank", "noopener,noreferrer")
+  expect(openDeployLink).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+ })
 })

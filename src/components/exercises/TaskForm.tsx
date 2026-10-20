@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
 import RichTextEditor from "@/components/editor/RichTextEditor"
+import { GuideLink } from "./GuideLink"
 import { AttachmentList, type AttachmentListHandle } from "./AttachmentList"
 import { FlagInput } from "./FlagInput"
 import { PlaceholderDialog } from "./PlaceholderDialog"
@@ -107,6 +108,7 @@ export function TaskForm({
         if (file) void attachmentRef.current?.upload(file)
       }}>
       {dragDepth > 0 && <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-md border-2 border-dashed border-primary bg-accent/90 text-sm font-medium text-foreground">{t("admin.exFiles.dropHere")}</div>}
+      <div className="flex justify-end"><GuideLink topic="pidzavdannia" /></div>
       <section className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
         {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
@@ -154,7 +156,7 @@ export function TaskForm({
           name={`${base}.Description`}
           render={({ field, fieldState }) => (
             <>
-            <RichTextEditor fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
+            <RichTextEditor maxContentHeight={320} fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
               onInsertVariable={(insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) }}
               onEditVariable={(key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) }} />
             {fieldState.error?.message && <p id={`task-description-${variantIndex}-${taskIndex}-error`} role="alert" className="text-xs font-medium text-destructive">{fieldState.error.message}</p>}

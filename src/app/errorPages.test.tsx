@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+import {StrictMode} from "react"
+import {afterEach} from "vitest"
+import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 
@@ -49,5 +53,26 @@ describe("error pages", () => {
       expect(uk[key]).toBeTruthy()
       expect(en[key]).toBeTruthy()
     }
+  })
+})
+
+
+const recovery = vi.hoisted(() => ({recover: vi.fn(() => false), retry: (_error: unknown, fallback: () => void) => fallback()}))
+vi.mock("@/lib/chunkRecovery", () => ({installChunkRecovery: () => recovery}))
+
+afterEach(() => { cleanup(); vi.restoreAllMocks(); recovery.recover.mockClear() })
+
+describe("chunk failure boundaries", () => {
+  it.each(["segment", "global"] as const)("keeps the shared %s screen and manual retry after automatic recovery is exhausted", kind => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const error = Object.assign(new Error("Loading chunk 42 failed."), {name: "ChunkLoadError"})
+    const retry = vi.fn()
+    const Screen = kind === "segment" ? ErrorPage : GlobalError
+    render(<StrictMode><Screen error={error} retry={retry} /></StrictMode>)
+    expect(recovery.recover).toHaveBeenCalledWith(error)
+    expect(screen.getByText("Не вдалося завантажити сторінку")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", {name: "Спробувати ще раз"}))
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText("Loading chunk 42 failed.")).toBeNull()
   })
 })

@@ -103,7 +103,7 @@ export function DeviceLiveInfo({ deployId, device }: { deployId: string; device:
         <RotateCw aria-hidden="true" size={14} />{t("admin.exLive.reset")}
       </Button>
       <ConfirmDialog open={resetOpen} tone="danger" busy={resetting} error={resetError} title={t("admin.exLive.resetTitle")}
-        description={t("admin.exLive.resetDescription")} confirmLabel={t("admin.exLive.reset")} cancelLabel={t("admin.exPage.dialog.cancel")}
+        description={t("admin.exLive.resetDescription")} confirmLabel={t("admin.exLive.reset")} busyLabel={t("admin.exLive.resetting")} cancelLabel={t("admin.exPage.dialog.cancel")}
         onCancel={() => setResetOpen(false)} onConfirm={() => void reset()} />
     </div>}
   </>

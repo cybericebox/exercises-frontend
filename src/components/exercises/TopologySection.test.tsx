@@ -401,6 +401,20 @@ describe("topology workspace", () => {
     expect(screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })).toBe(panel)
   })
 
+  it("bounds the mobile inspector to its editor panel instead of the viewport", () => {
+    render(<Harness />)
+    addNode("container")
+    fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
+    const panel = screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })
+    expect(panel).toHaveClass("w-full", "max-w-[26rem]")
+    expect(panel.className).not.toContain("100vw")
+    expect(diagram()).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.closeSettings" }))
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument()
+    expect(diagram()).toBeInTheDocument()
+  })
+
   it("resizes the canvas inspector and restores its width from this browser", () => {
     const storageKey = "cib_topology_inspector_width"
     const values = new Map([[storageKey, "400"]])

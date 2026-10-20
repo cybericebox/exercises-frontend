@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
+import copyBlockFixture from "./copyBlockFixture.json"
 import { TaskRichTextView } from "./TaskRichTextView"
 
 const doc = (...names: string[]) => ({ root: { type: "root", children: [{ type: "paragraph", children: names.map((varName) => ({ type: "variable", varName })) }] } })
@@ -32,4 +33,52 @@ describe("TaskRichTextView variables", () => {
     fireEvent.click(screen.getByText("web.lab"))
     expect(open).toHaveBeenCalledWith(target, "x")
   })
+})
+
+it("renders resolved copy-block children and copies plain text with a safe open action", async () => {
+ const write = vi.fn().mockResolvedValue(undefined)
+ Object.defineProperty(navigator, "clipboard", { value: { writeText: write }, configurable: true })
+ const value = { root: { type: "root", children: [{ type: "copy-block", version: 1, direction: null, format: "", indent: 0, children: [
+  { type: "text", text: "http://", format: 1 }, { type: "variable", varName: "ip" }, { type: "text", text: ":8080" },
+ ] }] } }
+ render(<TaskRichTextView value={value} variables={{ ip: "10.0.0.5" }} />)
+ fireEvent.click(screen.getByRole("button", { name: "Скопіювати" }))
+ expect(write).toHaveBeenCalledWith("http://10.0.0.5:8080")
+ expect(screen.getByRole("button", { name: "Відкрити в новій вкладці" })).toBeInTheDocument()
+})
+it("never offers to open a copy-block with an unsafe scheme", () => {
+ render(<TaskRichTextView value={{ root: { type: "root", children: [{ type: "copy-block", children: [{ type: "text", text: "javascript:alert(1)" }] }] } }} />)
+ expect(screen.getByRole("button", { name: "Скопіювати" })).toBeInTheDocument()
+ expect(screen.queryByRole("button", { name: "Відкрити в новій вкладці" })).not.toBeInTheDocument()
+})
+
+it("reads the exact cross-app JSON fixture and opens the complete destination", () => {
+ const open = vi.spyOn(window, "open").mockImplementation(() => null)
+ render(<TaskRichTextView value={copyBlockFixture} variables={{ host: "example.test" }} />)
+ expect(screen.getByText("https://example.test/panel?x=1&y=2")).toBeInTheDocument()
+ fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
+ expect(open).toHaveBeenCalledWith("https://example.test/panel?x=1&y=2", "_blank", "noopener,noreferrer")
+ open.mockRestore()
+})
+it("does not open an unresolved variable that syntactically resembles a URL", () => {
+ render(<TaskRichTextView value={copyBlockFixture} variables={{ host: "—" }} />)
+ expect(screen.queryByRole("button", { name: "Відкрити в новій вкладці" })).not.toBeInTheDocument()
+})
+
+it("opens a composed URL on another host directly even when its query contains a device variable", () => {
+ const direct = vi.spyOn(window, "open").mockImplementation(() => null)
+ const proxy = vi.fn()
+ const value = { root: { type: "root", children: [{ type: "copy-block", children: [{ type: "text", text: "https://docs.test/?device=" }, { type: "variable", varName: "web" }] }] } }
+ render(<TaskRichTextView value={value} variables={{ web: "https://web.lab.test" }} external={{ web: { device: "web", port: 443 } }} onOpenExternal={proxy} />)
+ fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
+ expect(direct).toHaveBeenCalledWith("https://docs.test/?device=https://web.lab.test", "_blank", "noopener,noreferrer")
+ expect(proxy).not.toHaveBeenCalled()
+ direct.mockRestore()
+})
+it("passes a composed device destination with its path, query and fragment to fresh proxy opening", () => {
+ const proxy = vi.fn()
+ const value = { root: { type: "root", children: [{ type: "copy-block", children: [{ type: "variable", varName: "web" }, { type: "text", text: "/panel?x=1#details" }] }] } }
+ render(<TaskRichTextView value={value} variables={{ web: "https://web.lab.test" }} external={{ web: { device: "web", port: 443 } }} onOpenExternal={proxy} />)
+ fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
+ expect(proxy).toHaveBeenCalledWith({ device: "web", port: 443 }, "web", "/panel?x=1#details")
 })

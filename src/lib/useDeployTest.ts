@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { proxyHandoffURL } from "./proxyDestination"
 import { ApiError } from "@/api/client"
 import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus, type DeployKind } from "@/api/exercises/deploy"
@@ -73,14 +74,14 @@ export function useDeployTest() {
     }
   }
 
-  const lastLink = useRef<{ device: string; port: number } | null>(null)
+  const lastLink = useRef<{ device: string; port: number; destination?: string } | null>(null)
 
   // The tab is opened synchronously inside the click, before the request, so the
   // browser treats it as user-initiated; its location is set once the link arrives.
-  const openLink = useCallback((device: string, port: number) => {
+  const openLink = useCallback((device: string, port: number, destination?: string) => {
     const id = activeId.current
     if (!id) return
-    lastLink.current = { device, port }
+    lastLink.current = { device, port, destination }
     const tab = window.open("about:blank", "_blank")
     if (!tab) {
       setState((p) => ({ ...p, link: "error", linkKey: null, linkError: new PopupBlockedError() }))
@@ -88,20 +89,17 @@ export function useDeployTest() {
     }
     tab.opener = null
     setState((p) => ({ ...p, link: "opening", linkKey: `${device}:${port}`, linkError: null }))
-    openDeployLink(id, device, port).then(
-      (l) => {
-        tab.location.href = l.URL
-        if (activeId.current === id) setState((p) => ({ ...p, link: "idle", linkKey: null }))
-      },
-      (e) => {
-        tab.close()
-        if (activeId.current === id) setState((p) => ({ ...p, link: "error", linkKey: null, linkError: e }))
-      }
-    )
+    openDeployLink(id, device, port).then((link) => {
+      tab.location.href = proxyHandoffURL(link.URL, destination)
+      if (activeId.current === id) setState((p) => ({ ...p, link: "idle", linkKey: null }))
+    }).catch((error) => {
+      tab.close()
+      if (activeId.current === id) setState((p) => ({ ...p, link: "error", linkKey: null, linkError: error }))
+    })
   }, [])
 
   const retryLink = useCallback(() => {
-    if (lastLink.current) openLink(lastLink.current.device, lastLink.current.port)
+    if (lastLink.current) openLink(lastLink.current.device, lastLink.current.port, lastLink.current.destination)
   }, [openLink])
 
   const pollRef = useRef<(id: string) => Promise<void>>(async () => {})
