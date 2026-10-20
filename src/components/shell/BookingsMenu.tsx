@@ -9,21 +9,18 @@ import { BookingFormDialog } from "@/components/exercises/BookingFormDialog"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { GuideLink } from "@/components/exercises/GuideLink"
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
-import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { BOOKING_MAX_ACTIVE } from "@/lib/bookingLimits"
-import { formatAmount, formatClock } from "@/lib/bookingFormat"
+import { formatAmount, formatBookingRange, formatBookingStart, formatClock } from "@/lib/bookingFormat"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
-import { formatExerciseDateTime } from "@/lib/exerciseStatus"
+import "@/styles/bookings.css"
 
-type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; items: Booking[]; room: Room | null; config: ResourcesConfig | null }
-
-const VIA_KEY = { booking: "exercises.book.via.booking", pool: "exercises.book.via.pool", free: "exercises.book.via.free", "": "exercises.book.via.free" } as const
+type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; items: Booking[]; room: Room | null; config: ResourcesConfig | null; asOf: number }
 
 /**
  * The sidebar's «Бронювання»: the author's upcoming test lab bookings (cancel, add) and whether
@@ -53,6 +50,19 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
   // The suggested start of a new booking; set when «Нове бронювання» is pressed (null: the form is closed).
   const newBookingRef = useRef<HTMLButtonElement>(null)
   const [addStart, setAddStart] = useState<string | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const headerActionsRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const cancelReturnRef = useRef<HTMLButtonElement | null>(null)
+  const cancelIndexRef = useRef(0)
+  const pendingFocus = useRef<{ id: string; index: number; element: HTMLButtonElement | null; restore: boolean } | null>(null)
+  const [announcement, setAnnouncement] = useState("")
+  const [overflow, setOverflow] = useState(false)
+  const focusRow = useCallback((index: number) => {
+    const actions = bodyRef.current?.querySelectorAll<HTMLButtonElement>("[data-booking-cancel]")
+    const next = actions?.[Math.min(index, actions.length - 1)] ?? newBookingRef.current ?? titleRef.current
+    next?.focus()
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
@@ -60,7 +70,10 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
       const frame = caps.Resources.Frame
       // Availability is a hint: its failure never hides the list.
       const room = await getRoom(frame, frame).catch(() => null)
-      setLoad({ state: "ready", items, room, config: caps.Resources })
+      const pending = pendingFocus.current
+      // Capture ownership before React removes the row and the browser moves its focus to body.
+      if (pending && !items.some((item) => item.ID === pending.id)) pending.restore = document.activeElement === pending.element
+      setLoad({ state: "ready", items, room, config: caps.Resources, asOf: Date.now() })
     } catch (cause) {
       setLoad({ state: "error", cause })
     }
@@ -71,13 +84,37 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
     if (open) void refresh()
   }, [open, refresh])
 
+  useEffect(() => {
+    if (!open) { pendingFocus.current = null; return }
+    const pending = pendingFocus.current
+    if (pending && load.state === "ready" && !load.items.some((item) => item.ID === pending.id)) {
+      const active = document.activeElement
+      const dialog = bodyRef.current?.closest('[role="dialog"]')
+      const listActive = !cancelling && !addStart && dialog && !dialog.closest('[aria-hidden="true"], [inert]')
+      if (pending.restore && listActive && (active === pending.element || active === document.body || active === dialog)) focusRow(pending.index)
+      pendingFocus.current = null
+    }
+  }, [load, open, cancelling, addStart, focusRow])
+
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!open || !body) return
+    const check = () => setOverflow(body.scrollHeight > body.clientHeight)
+    queueMicrotask(check)
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(check)
+    observer?.observe(body)
+    return () => observer?.disconnect()
+  }, [open, load])
+
   async function cancel() {
     if (!cancelling) return
     setBusy(true)
     setError("")
     try {
       await cancelBooking(cancelling.ID)
+      pendingFocus.current = { id: cancelling.ID, index: cancelIndexRef.current, element: cancelReturnRef.current, restore: false }
       setCancelling(null)
+      setAnnouncement(t("exercises.book.cancelled"))
       void refresh()
     } catch (cause) {
       setError(exerciseErrorMessage(cause))
@@ -87,6 +124,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
   }
 
   const items = load.state === "ready" ? load.items : []
+  const asOf = load.state === "ready" ? load.asOf : 0
   return <>
     <Dialog open={open} onOpenChange={(next) => { if (next) setLoad({ state: "loading" }); setOpen(next) }}>
       {trigger && <DialogTrigger asChild>
@@ -94,51 +132,62 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
           <CalendarClock aria-hidden="true" /><span className="ib-admin-side__label">{t("exercises.book.menu")}</span>
         </button>
       </DialogTrigger>}
-      <DialogContent className="max-w-lg text-foreground" aria-describedby={undefined}
+      <DialogContent className="bookings-dialog max-w-lg text-foreground" aria-describedby={undefined}
+        onOpenAutoFocus={(event) => { event.preventDefault(); titleRef.current?.focus() }}
+        onEscapeKeyDown={(event) => {
+          const descriptions = headerActionsRef.current?.querySelector("a")?.getAttribute("aria-describedby")?.split(/\s+/) ?? []
+          if (descriptions.some((id) => document.getElementById(id)?.getAttribute("role") === "tooltip")) event.preventDefault()
+        }}
         onCloseAutoFocus={onCloseAutoFocus ? (event) => { event.preventDefault(); onCloseAutoFocus() } : undefined}>
-        <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0 text-left">
-          <DialogTitle>{t("exercises.book.listTitle")}</DialogTitle>
+        <header className="bookings-header">
+          <DialogTitle ref={titleRef} tabIndex={-1} className="bookings-title">{t("exercises.book.listTitle")}</DialogTitle>
+          <div ref={headerActionsRef} className="bookings-header-actions"><GuideLink topic="infrastruktura" iconOnly />
           <DialogClose asChild>
             <button type="button" aria-label={t("exercises.book.close")} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
           </DialogClose>
-        </DialogHeader>
-        <div className="flex justify-end"><GuideLink topic="infrastruktura" /></div>
-        <div className="flex min-h-56 flex-col">
-          {load.state === "loading" ? <LoadingArea className="min-h-0 flex-1" label={t("admin.loading")} />
-            : load.state === "error" ? <LoadError className="min-h-0 flex-1" error={load.cause} message={t("exercises.book.loadFailed")} onRetry={() => { setLoad({ state: "loading" }); void refresh() }} />
+          </div>
+        </header>
+        <div ref={bodyRef} className="bookings-body" aria-busy={load.state === "loading"}>
+          {load.state === "loading" ? <LoadingArea className="bookings-state min-h-0" label={t("admin.loading")} />
+            : load.state === "error" ? <LoadError className="bookings-state min-h-0" error={load.cause} message={t("exercises.book.loadFailed")} onRetry={() => { setLoad({ state: "loading" }); void refresh() }} />
             : <>
-              {load.room && <p data-room className="mb-3 text-sm text-muted-foreground">
-                {load.room.Available
-                  ? t("exercises.book.room.free", { via: t(VIA_KEY[load.room.Via]) })
-                  : load.room.NearestFrom ? t("exercises.book.room.none", { time: formatClock(load.room.NearestFrom) }) : t("exercises.book.room.noneNoWindow")}
+              {load.room && !load.room.Available && <p data-room className="bookings-room">
+                {load.room.NearestFrom ? t("exercises.book.room.none", { time: formatBookingStart(load.room.NearestFrom) }) : t("exercises.book.room.noneNoWindow")}
               </p>}
-              {items.length === 0 ? <EmptyState className="min-h-0 flex-1" message={t("exercises.book.empty")} /> : <ul className="space-y-1.5">
-                {items.map((item) => {
+              {items.length === 0 ? <EmptyState className="bookings-state min-h-0" message={t("exercises.book.empty")} /> : <ul className="bookings-list">
+                {items.map((item, index) => {
                   const size = formatAmount(item.Size)
-                  return <li key={item.ID} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+                  const windowState = new Date(item.From).getTime() > asOf ? "scheduled" : new Date(item.To).getTime() > asOf ? "current" : null
+                  const range = formatBookingRange(item.From, item.To)
+                  return <li key={item.ID} className="bookings-row">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium tabular-nums text-foreground">{formatExerciseDateTime(item.From)} – {formatClock(item.To)}</div>
-                      <div className="text-xs text-muted-foreground">{t("exercises.book.size", size)}</div>
+                      <div className="bookings-time">{range}</div>
+                      {windowState && <p className="bookings-window" data-current={windowState === "current" || undefined}>{t(`exercises.book.window.${windowState}`)}</p>}
+                      <p className="bookings-resources">{t("exercises.book.allocation", size)}</p>
                     </div>
-                    <HoverTooltip text={t("exercises.book.cancel")}>
-                      <Button type="button" variant="outline" size="sm" className="w-8 p-0" aria-label={t("exercises.book.cancelNamed", { time: formatClock(item.From) })}
-                        onClick={() => { setError(""); setCancelling(item) }}>
-                        <X aria-hidden="true" size={16} />
+                      <Button type="button" variant="ghost" size="sm" className="bookings-cancel" data-booking-cancel aria-label={t("exercises.book.cancelNamed", { time: range })}
+                        onClick={(event) => { cancelReturnRef.current = event.currentTarget; cancelIndexRef.current = index; setAnnouncement(""); setError(""); setCancelling(item) }}>
+                        {t("exercises.book.cancelShort")}
                       </Button>
-                    </HoverTooltip>
                   </li>
                 })}
               </ul>}
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
-                <span className="text-xs text-muted-foreground">{t("exercises.book.count", { n: items.length, max: BOOKING_MAX_ACTIVE })}</span>
-                <Button ref={newBookingRef} type="button" size="sm" disabled={!load.config || items.length >= BOOKING_MAX_ACTIVE} onClick={() => setAddStart(load.room?.NearestFrom ?? new Date(Math.ceil((Date.now() + 15 * 60_000) / 900_000) * 900_000).toISOString())}>{t("exercises.book.new")}</Button>
-              </div>
             </>}
         </div>
+        <footer className="bookings-footer" data-overflow={overflow || undefined}>
+          {load.state === "ready" && <>
+            <div className="bookings-footer-copy"><p className="bookings-used">{t("exercises.book.used", { n: items.length, max: BOOKING_MAX_ACTIVE })}</p>
+              {items.length >= BOOKING_MAX_ACTIVE && <p id="bookings-limit" className="bookings-limit">{t("exercises.book.limitReached")}</p>}
+            </div>
+            <Button ref={newBookingRef} type="button" size="sm" className="bookings-new" aria-describedby={items.length >= BOOKING_MAX_ACTIVE ? "bookings-limit" : undefined} disabled={!load.config || items.length >= BOOKING_MAX_ACTIVE} onClick={() => setAddStart(load.room?.NearestFrom ?? new Date(Math.ceil((Date.now() + 15 * 60_000) / 900_000) * 900_000).toISOString())}>{t("exercises.book.new")}</Button>
+          </>}
+        </footer>
+        <span className="sr-only" role="status">{announcement}</span>
       </DialogContent>
     </Dialog>
     <ConfirmDialog open={cancelling !== null} tone="danger" busy={busy} error={error} title={t("exercises.book.cancelTitle")}
-      description={t("exercises.book.cancelDescription")} confirmLabel={t("exercises.book.cancel")} busyLabel={t("exercises.book.cancelling")} cancelLabel={t("exercises.book.keep")}
+      description={<>{t("exercises.book.cancelDescription")}{cancelling && <span className="mt-3 block">{formatBookingRange(cancelling.From, cancelling.To)}</span>}</>} confirmLabel={t("exercises.book.cancel")} busyLabel={t("exercises.book.cancelling")} cancelLabel={t("exercises.book.keep")}
+      onCloseAutoFocus={(event) => { event.preventDefault(); if (cancelReturnRef.current?.isConnected) cancelReturnRef.current.focus(); else focusRow(cancelIndexRef.current) }}
       onCancel={() => setCancelling(null)} onConfirm={() => void cancel()} />
     {addStart && load.state === "ready" && load.config && <BookingFormDialog open start={addStart}
       size={load.config.Frame} largestDevice={load.config.Frame} active={load.items.length}
