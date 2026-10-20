@@ -17,6 +17,7 @@ describe("attachment download block", () => {
   expect(button).toHaveAttribute("aria-busy", "true")
   expect(button).toBeDisabled()
   expect(button).toHaveAccessibleName(/Завантажуємо/)
+  expect(button).toHaveTextContent("Завантажуємо…")
   const blob = new Blob(["data"])
   await act(async () => resolve({ blob, filename: "server-name" }))
   expect(apiGetBlob).toHaveBeenCalledTimes(1)

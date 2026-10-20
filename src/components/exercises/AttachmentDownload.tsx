@@ -28,7 +28,7 @@ export function AttachmentDownload({ file, className }: { file: { FileID: string
       aria-label={t(busy ? "admin.exFiles.downloading" : "admin.exTest.downloadFile", { name: file.Name })}
       className="flex min-h-9 w-full min-w-0 items-center justify-between gap-3 rounded-md border border-border dark:border-[var(--ib-control)] px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait">
       <span className="min-w-0 truncate">{file.Name}</span>
-      {busy ? <Spinner size="sm" /> : <Download aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />}
+      {busy ? <span className="inline-flex shrink-0 items-center gap-2 text-xs text-muted-foreground">{t("admin.exFiles.downloadingShort")}<Spinner size="sm" /></span> : <Download aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />}
     </button>
     {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
   </div>

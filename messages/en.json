@@ -1585,5 +1585,6 @@
   "admin.exGuide.pidkazky": "About hints",
   "admin.exGuide.infrastruktura": "About infrastructure",
   "admin.exGuide.obrazy": "About images",
-  "admin.exGuide.rekomendatsii": "Testing tips"
+  "admin.exGuide.rekomendatsii": "Testing tips",
+  "admin.exFiles.downloadingShort": "Downloading…"
 }
