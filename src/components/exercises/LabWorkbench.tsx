@@ -226,7 +226,7 @@ export function TaskView({ task, values, deployId, flagLinked, randomFlag = fals
   /** The answer was already checked correctly (kept with the deploy). */
   solved?: boolean
   openingKey: string | null
-  onOpenExternal: (target: ExternalTarget) => void
+  onOpenExternal: (target: ExternalTarget, destination?: string) => void
   onSolved: (taskId: string) => void
   revealedHints: ReadonlySet<string>
   onRevealHint: (key: string) => void
@@ -238,7 +238,7 @@ export function TaskView({ task, values, deployId, flagLinked, randomFlag = fals
 }) {
   const hints = task.Hints.map((hint, index) => ({ hint, index })).filter(({ hint }) => hintTextHasContent(hint.Text))
   const view = (value: unknown): ReactNode => <TaskRichTextView value={value} variables={values.variables} links={values.links}
-    external={values.external} openingKey={openingKey} onOpenExternal={onOpenExternal} />
+    external={values.external} openingKey={openingKey} onOpenExternal={(target, _key, destination) => onOpenExternal(target, destination)} />
   const scoped = (hintKey: string) => `${task.ID}:${hintKey}`
   const scopedRevealed = new Set([...revealedHints].filter((k) => k.startsWith(`${task.ID}:`)).map((k) => k.slice(task.ID.length + 1)))
   return <article className="min-w-0 max-w-[820px] space-y-6">

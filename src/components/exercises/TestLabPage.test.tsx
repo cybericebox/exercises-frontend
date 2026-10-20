@@ -1039,3 +1039,36 @@ describe("TestLabPage — run length and ending", () => {
     expect(await screen.findByText("admin.exDeploy.ended", {}, { timeout: 6000 })).toBeInTheDocument()
   }, 10000)
 })
+
+describe("composed copy-block navigation", () => {
+ const copyDoc = (children: unknown[]) => ({ root: { type: "root", children: [{ type: "copy-block", version: 1, children }] } })
+ function composedVersion(children: unknown[]): Version {
+  const updated = structuredClone(version)
+  updated.Variants[1].Tasks[0].Description = copyDoc(children)
+  return updated
+ }
+ it("carries the displayed device path, query and fragment into the actual fresh auth tab URL", async () => {
+  const tab = { location: { href: "about:blank" }, close: vi.fn(), opener: "self" }
+  vi.stubGlobal("open", vi.fn(() => tab))
+  vi.mocked(openDeployLink).mockResolvedValue({ URL: "https://web-1.example.com/_auth?t=fresh", ExpiresAt: "" })
+  vi.mocked(getVersion).mockResolvedValue(composedVersion([variable("panel"), text("/panel?x=1#details")]))
+  render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+  await screen.findByText("https://web-1.example.com/panel?x=1#details")
+  fireEvent.click(screen.getByRole("button", { name: "admin.exCopy.open" }))
+  await waitFor(() => expect(new URL(tab.location.href).searchParams.get("next")).toBe("/panel?x=1#details"))
+  expect(new URL(tab.location.href).searchParams.get("t")).toBe("fresh")
+  expect(openDeployLink).toHaveBeenCalledWith("run-1", "web", 443)
+  vi.unstubAllGlobals()
+ })
+ it("opens a docs URL containing a device query value without minting a device auth link", async () => {
+  const direct = vi.fn(() => null)
+  vi.stubGlobal("open", direct)
+  vi.mocked(getVersion).mockResolvedValue(composedVersion([text("https://docs.test/?device="), variable("panel")]))
+  render(<TestLabPage exerciseId="ex-1" initial={attached} />)
+  await screen.findByText("https://docs.test/?device=https://web-1.example.com")
+  fireEvent.click(screen.getByRole("button", { name: "admin.exCopy.open" }))
+  expect(direct).toHaveBeenCalledWith("https://docs.test/?device=https://web-1.example.com", "_blank", "noopener,noreferrer")
+  expect(openDeployLink).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+ })
+})

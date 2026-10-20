@@ -182,6 +182,23 @@ describe("useDeployTest", () => {
       expect(result.current.link).toBe("idle")
     })
 
+    it("navigates to a fresh auth URL carrying the composed destination and retains it on retry", async () => {
+      mocked.openDeployLink.mockRejectedValueOnce(new Error("retry"))
+        .mockResolvedValueOnce({ URL: "https://fresh-web.lab.test/_auth?t=fresh", ExpiresAt: "x" })
+      const { result } = await readyDeploy()
+      act(() => result.current.openLink("web", 443, "/panel?x=1#details"))
+      await waitFor(() => expect(result.current.link).toBe("error"))
+      act(() => result.current.retryLink())
+      await waitFor(() => expect(result.current.link).toBe("idle"))
+      const actual = new URL(tab.location.href)
+      expect(actual.origin).toBe("https://fresh-web.lab.test")
+      expect(actual.pathname).toBe("/_auth")
+      expect(actual.searchParams.get("t")).toBe("fresh")
+      expect(actual.searchParams.get("next")).toBe("/panel?x=1#details")
+      // This is the destination the proxy's same-origin redirect must navigate to after authentication.
+      expect(new URL(actual.searchParams.get("next")!, actual.origin).href).toBe("https://fresh-web.lab.test/panel?x=1#details")
+    })
+
     it("closes the blank tab, keeps the error and retries on demand", async () => {
       mocked.openDeployLink.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ URL: "https://web-1x.example.com/_auth?t=y", ExpiresAt: "x" })
       const { result } = await readyDeploy()

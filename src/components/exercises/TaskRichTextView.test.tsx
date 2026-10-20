@@ -52,15 +52,33 @@ it("never offers to open a copy-block with an unsafe scheme", () => {
  expect(screen.queryByRole("button", { name: "Відкрити в новій вкладці" })).not.toBeInTheDocument()
 })
 
-it("reads the exact cross-app JSON fixture and preserves proxy opening", () => {
- const open = vi.fn()
- const target = { device: "web", port: 443 }
- render(<TaskRichTextView value={copyBlockFixture} variables={{ host: "example.test" }} external={{ host: target }} onOpenExternal={open} />)
+it("reads the exact cross-app JSON fixture and opens the complete destination", () => {
+ const open = vi.spyOn(window, "open").mockImplementation(() => null)
+ render(<TaskRichTextView value={copyBlockFixture} variables={{ host: "example.test" }} />)
  expect(screen.getByText("https://example.test/panel?x=1&y=2")).toBeInTheDocument()
  fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
- expect(open).toHaveBeenCalledWith(target, "host")
+ expect(open).toHaveBeenCalledWith("https://example.test/panel?x=1&y=2", "_blank", "noopener,noreferrer")
+ open.mockRestore()
 })
 it("does not open an unresolved variable that syntactically resembles a URL", () => {
  render(<TaskRichTextView value={copyBlockFixture} variables={{ host: "—" }} />)
  expect(screen.queryByRole("button", { name: "Відкрити в новій вкладці" })).not.toBeInTheDocument()
+})
+
+it("opens a composed URL on another host directly even when its query contains a device variable", () => {
+ const direct = vi.spyOn(window, "open").mockImplementation(() => null)
+ const proxy = vi.fn()
+ const value = { root: { type: "root", children: [{ type: "copy-block", children: [{ type: "text", text: "https://docs.test/?device=" }, { type: "variable", varName: "web" }] }] } }
+ render(<TaskRichTextView value={value} variables={{ web: "https://web.lab.test" }} external={{ web: { device: "web", port: 443 } }} onOpenExternal={proxy} />)
+ fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
+ expect(direct).toHaveBeenCalledWith("https://docs.test/?device=https://web.lab.test", "_blank", "noopener,noreferrer")
+ expect(proxy).not.toHaveBeenCalled()
+ direct.mockRestore()
+})
+it("passes a composed device destination with its path, query and fragment to fresh proxy opening", () => {
+ const proxy = vi.fn()
+ const value = { root: { type: "root", children: [{ type: "copy-block", children: [{ type: "variable", varName: "web" }, { type: "text", text: "/panel?x=1#details" }] }] } }
+ render(<TaskRichTextView value={value} variables={{ web: "https://web.lab.test" }} external={{ web: { device: "web", port: 443 } }} onOpenExternal={proxy} />)
+ fireEvent.click(screen.getByRole("button", { name: "Відкрити в новій вкладці" }))
+ expect(proxy).toHaveBeenCalledWith({ device: "web", port: 443 }, "web", "/panel?x=1#details")
 })
