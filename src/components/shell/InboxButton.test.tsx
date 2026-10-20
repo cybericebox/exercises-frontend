@@ -56,6 +56,22 @@ describe("top-bar inbox", () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/1/read", {}))
   })
 
+  it("a card with a link is clickable as a whole through its link; a card without one is not", async () => {
+    mockInbox([
+      { ID: "1", Title: "Доступ", Body: "", Link: "https://spring.example.org/manage/", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" },
+      { ID: "2", Title: "Без посилання", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z" },
+    ])
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 2" }))
+    const [linked, plain] = await screen.findAllByRole("listitem")
+    const link = within(linked).getByRole("link", { name: "Відкрити" })
+    expect(link).toHaveAttribute("href", "https://spring.example.org/manage/")
+    expect(link.className).toContain("after:inset-0")
+    expect(linked.className).toContain("cursor-pointer")
+    expect(within(plain).queryByRole("link")).not.toBeInTheDocument()
+    expect(plain.className).not.toContain("cursor-pointer")
+  })
+
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))

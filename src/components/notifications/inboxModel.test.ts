@@ -98,6 +98,16 @@ it("the new inbox keys exist in both catalogs", () => {
     }
   }
 })
+it("a card link is opened only when it is a site path, an anchor, http(s) or mailto", () => {
+  expect(inbox.safeHref("/manage/")).toBe("/manage/")
+  expect(inbox.safeHref("https://spring.example.org/manage/")).toBe("https://spring.example.org/manage/")
+  expect(inbox.safeHref(" #top ")).toBe("#top")
+  expect(inbox.safeHref("mailto:a@b.c")).toBe("mailto:a@b.c")
+  expect(inbox.safeHref("//evil.example")).toBe(null)
+  expect(inbox.safeHref("javascript:alert(1)")).toBe(null)
+  expect(inbox.safeHref("")).toBe(null)
+})
+
 
 it("bell and resolver name", () => {
   expect(inbox.bellCount(3, null)).toBe(3)
