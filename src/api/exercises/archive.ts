@@ -3,6 +3,7 @@
  *
  * Routes: POST /api/exercises/export (JSON → stored file, then downloaded in chunks),
  *         GET  /api/exercises/import/example (application/zip),
+ *         GET  /api/exercises/import/example/document (JSON {Yaml, Json}: the guide's full example),
  *         POST /api/exercises/import (multipart: archive, password?, OwnerEventID?),
  *         POST /api/exercises/import/uploaded (JSON: FileID, Password, OwnerEventID) for an archive that went up in chunks,
  *         POST /api/exercises/import/upload (JSON: UploadID, Password, OwnerEventID) for an archive over 512 MiB (purpose exercise-archive).
@@ -12,7 +13,7 @@
  * progress in the background.
  * Import never overwrites: every archive creates new exercises.
  */
-import { ApiError, apiGetBlob, apiPost, apiPostMultipart } from "@/api/client"
+import { ApiError, apiGet, apiGetBlob, apiPost, apiPostMultipart } from "@/api/client"
 import { waitForExportJob } from "@/api/exercises/archiveJobs"
 import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
@@ -119,4 +120,12 @@ export async function startImport(
   if (password) form.append("password", password)
   if (ownerEventId) form.append("OwnerEventID", ownerEventId)
   return importStarted(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form))
+}
+
+/** The full example task document in both formats (the real example/exercise.yaml and its JSON form). */
+export type ImportExampleDocument = { Yaml: string; Json: string }
+
+/** The guide's complete example: GET /import/example/document answers {Yaml, Json}; same rights as the example archive. */
+export function getImportExampleDocument(): Promise<ImportExampleDocument> {
+  return apiGet<ImportExampleDocument>(`${BASE}/import/example/document`)
 }
