@@ -11,11 +11,12 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
+import { GuideLink } from "./GuideLink"
 import { InterfaceForm } from "./InterfaceForm"
 import { DeviceImageField } from "./ImageUpload"
 import { SecretInput } from "./SecretInput"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
-import { RemoveAction } from "./RemoveAction"
+import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 import { useEditorPosition } from "./EditorPosition"
 import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -62,6 +63,7 @@ export function DeviceCard({
   return (
     <div className="min-w-0">
       <div className={`min-w-0 ${compact ? "space-y-2" : "space-y-4"}`}>
+        <div className="flex flex-wrap justify-end gap-3"><GuideLink topic="infrastruktura" />{visiblePanel === "basic" && !forwarding && <GuideLink topic="obrazy" />}</div>
         {sections.length > 0 && <nav aria-label={t("admin.exTopo.deviceSettings")} className={`flex min-w-0 flex-nowrap gap-1 overflow-x-auto border-b border-border ${compact ? "pb-1" : "pb-2"}`}>
           {sections.map((section) => {
             const labelKey = section === "basic" ? "admin.exTopo.basic" : section === "interfaces" ? "admin.exTopo.interfaces" : "admin.exEnv.title"

@@ -258,7 +258,7 @@ describe('FlagInput', () => {
     expect(main).toHaveClass('flex', 'flex-wrap', 'items-start')
     expect(screen.getByTestId('flag-candidate-meta')).toHaveClass('flex-[1_1_16rem]', 'flex', 'min-h-10', 'flex-col', 'justify-center')
     expect(main.querySelector('p[role="status"]')).toBeNull()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.templateExclusionRules/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' })).toBeInTheDocument()
   })
 
   it('keeps only the example on the right and combines errors with weak-template feedback below the input', () => {
@@ -287,19 +287,19 @@ describe('FlagInput', () => {
     expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
     rerender(<FlagInput value={[String.raw`template:ICE{\d[abc1-3]\l\u}`]} onChange={onChange} linkedDeviceID="vm-1" />)
     expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.templateRules/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.allowedCharacters/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.escapeRules/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.templateCodes/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /admin.exTask.flag.weightHelp/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /\\d/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
+    const help = screen.getByRole('dialog')
+    for (const key of ['templateRules', 'allowedCharacters', 'escapeRules', 'weightHelp']) {
+      expect(within(help).getByText(`admin.exTask.flag.${key}`)).toBeInTheDocument()
+    }
+    expect(within(help).getByText(String.raw`\d`)).toBeInTheDocument()
   })
 
   it('groups the flag help into scannable rules and keeps syntax examples distinct', () => {
     render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" />)
-    fireEvent.mouseEnter(screen.getByRole('button', { name: /admin.exTask.flag.help/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
 
-    const tooltip = screen.getByRole('tooltip')
+    const tooltip = screen.getByRole('dialog')
     expect(within(tooltip).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
       'admin.exTask.flag.sectionFormat',
       'admin.exTask.flag.modeFixed',

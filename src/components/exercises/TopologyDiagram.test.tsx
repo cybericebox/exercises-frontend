@@ -758,11 +758,31 @@ describe('TopologyDiagram', () => {
     expect(onCanvasAddNode.mock.calls[0][1].x).toBeCloseTo(256 / 960, 3)
   })
 
-  it('zooms the wheel around the pointer and keeps the same world point beneath it', () => {
+  it('leaves ordinary wheel scrolling native without changing the diagram viewport', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const svg = screen.getByRole('group', { name: 'admin.exTopo.diagram' })
+    const initial = container.querySelector('[data-viewport-content]')!.getAttribute('transform')
+    const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 })
+    fireEvent(svg, wheel)
+    expect(wheel.defaultPrevented).toBe(false)
+    expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', initial)
+    expect(svg).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
+    expect(screen.getByRole('button', { name: 'admin.exTopo.canvasControls' })).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
+  })
+
+  it('shows a visible stroke for a keyboard-focused connection', () => {
+    const { container } = render(<TopologyDiagram topology={topology} onEdgeSelect={() => {}} />)
+    const edge = container.querySelector('[data-edge="e0"]')!
+    expect(edge).toHaveClass('group-focus-visible:stroke-primary')
+  })
+
+  it.each(['ctrlKey', 'metaKey'])('zooms the wheel with %s around the pointer and keeps the same world point beneath it', (modifier) => {
     const { container } = render(<TopologyDiagram topology={topology} />)
     const svg = container.querySelector('svg[role="group"]')!
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
-    fireEvent.wheel(svg, { clientX: 200, clientY: 150, deltaY: -500 })
+    const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: 200, clientY: 150, deltaY: -500, [modifier]: true })
+    fireEvent(svg, wheel)
+    expect(wheel.defaultPrevented).toBe(true)
     const transform = container.querySelector('[data-viewport-content]')!.getAttribute('transform')!
     const match = /translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)/.exec(transform)!
     const [, tx, ty, scale] = match.map(Number)

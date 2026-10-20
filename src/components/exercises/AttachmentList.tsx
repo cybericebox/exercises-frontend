@@ -5,16 +5,17 @@ import { useFieldArray, useFormContext } from "react-hook-form"
 import { Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { uploadExerciseAttachment, exerciseFileURL } from "@/api/exercises/files"
+import { uploadExerciseAttachment } from "@/api/exercises/files"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { RemoveAction } from "./RemoveAction"
+import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
+import { AttachmentDownload } from "./AttachmentDownload"
 import { useExerciseId } from "./ExerciseIdContext"
 
 /**
  * AttachmentList — task attachments. Upload: a hash lookup on the task (a known file is
  * attached without sending bytes), else POST /api/exercises/files; size limit is enforced by the backend (ErrFileTooLarge →
- * i18n dictionary). Download: a plain link (cookie-auth). The files
+ * i18n dictionary). Download: a filename button (cookie-auth). The files
  * themselves don't live in the form — only {FileID, Name}.
  */
 export type AttachmentListHandle = { upload: (file: File) => Promise<void> }
@@ -81,8 +82,8 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
               type="button"
               variant="outline"
               size="sm"
-              aria-label={t("admin.exFiles.upload")}
-              disabled={uploading}
+              aria-label={t(uploading ? "admin.exFiles.uploadingProgress" : "admin.exFiles.upload", { percent: progress ?? 0 })}
+              busy={uploading} busyLabel={t("admin.exFiles.uploadingProgress", { percent: progress ?? 0 })}
               onClick={() => fileRef.current?.click()}
             >
               <Paperclip className="mr-1 h-4 w-4" />
@@ -107,13 +108,7 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
         <ul className="space-y-1">
           {fields.map((field, ai) => (
             <li key={field.id} className="group flex min-w-0 items-center gap-2 text-sm">
-              <a
-                href={exerciseFileURL(field.FileID)}
-                download={field.Name}
-                className="min-w-0 truncate text-primary hover:underline"
-              >
-                {field.Name}
-              </a>
+              <AttachmentDownload file={field} />
               {!disabled && (
                 <RemoveAction ariaLabel={t("admin.exFiles.remove")} onClick={() => remove(ai)}
                   className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />

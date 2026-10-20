@@ -54,7 +54,7 @@ export function limitMessage(error: BookingLimitError): string {
  * Books a time slot for the author's test labs: start and length, checked against the booking
  * limits before the request. If the window no longer fits (72509) it moves to the nearest one.
  */
-export function BookingFormDialog({ open, start, size, largestDevice, active, onCancel, onBooked }: {
+export function BookingFormDialog({ open, start, size, largestDevice, active, onCancel, onBooked, onCloseAutoFocus }: {
   open: boolean
   /** The suggested start, RFC3339. */
   start: string
@@ -64,6 +64,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
   active: number
   onCancel: () => void
   onBooked: (booking: Booking) => void
+  onCloseAutoFocus?: (event: Event) => void
 }) {
   const [startValue, setStartValue] = useState(() => toLocalInput(start))
   const [minutes, setMinutes] = useState(String(defaultDuration()))
@@ -91,7 +92,7 @@ export function BookingFormDialog({ open, start, size, largestDevice, active, on
     }
   }
 
-  return <ConfirmDialog open={open} busy={busy} error={limit === "tooMany" ? limitMessage(limit) : error} title={t("exercises.book.title")} description={t("exercises.book.description")}
+  return <ConfirmDialog onCloseAutoFocus={onCloseAutoFocus} open={open} busy={busy} error={limit === "tooMany" ? limitMessage(limit) : error} title={t("exercises.book.title")} description={t("exercises.book.description")}
     confirmLabel={t("exercises.book.confirm")} busyLabel={t("exercises.book.booking")} cancelLabel={t("admin.exPage.dialog.cancel")} onCancel={onCancel} onConfirm={() => void submit()}>
     <div className="grid gap-3">
       <div className="grid gap-1.5">

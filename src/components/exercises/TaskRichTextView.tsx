@@ -1,3 +1,7 @@
+"use client"
+
+import { t } from "@/i18n/t"
+import { CopyBlock, copyBlockUrl } from "./CopyBlock"
 import type { CSSProperties, ReactNode } from "react"
 
 import type { ExternalTarget } from "@/lib/placeholderResolve"
@@ -67,7 +71,7 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
   variables?: Record<string, string>
   links?: Record<string, string>
   external?: Record<string, ExternalTarget>
-  onOpenExternal?: (target: ExternalTarget, key: string) => void
+  onOpenExternal?: (target: ExternalTarget, key: string, destination?: string) => void
   /** The external variable whose link is being fetched. */
   openingKey?: string | null
   className?: string
@@ -80,6 +84,22 @@ export function TaskRichTextView({ value, variables = {}, links = {}, external =
     if (!node) return null
     const children = Array.isArray(node.children) ? node.children.map((child, index) => render(child, index, inCode || node.type === "code")) : null
     switch (node.type) {
+      case "copy-block": {
+        const parts = Array.isArray(node.children) ? node.children.map(asNode).filter((child): child is Node => child !== null) : []
+        const text = parts.map((child) => child.type === "variable" && typeof child.varName === "string"
+          ? (variables[child.varName] ?? child.varName) : typeof child.text === "string" ? child.text : "").join("")
+        const unresolved = parts.some((child) => child.type === "variable" && typeof child.varName === "string" && (!variables[child.varName] || variables[child.varName] === "—"))
+        const href = copyBlockUrl(text)
+        const destination = href ? new URL(href) : null
+        // An external value in a query or body must not hijack another site's URL.
+        const proxyName = destination ? parts.find((child) => {
+          if (child.type !== "variable" || typeof child.varName !== "string" || !external[child.varName]) return false
+          const deviceURL = variableHref(variables[child.varName])
+          return deviceURL !== null && new URL(deviceURL).origin === destination.origin
+        })?.varName : undefined
+        return <CopyBlock key={key} value={text} openUrl={unresolved ? "" : undefined} labels={{ copy: t("admin.exCopy.copy"), copied: t("admin.exCopy.copied"), open: t("admin.exCopy.open"), copyFailed: t("admin.exCopy.failed") }}
+          onOpen={typeof proxyName === "string" ? () => { if (onOpenExternal && !openingKey) onOpenExternal(external[proxyName], proxyName, destination ? `${destination.pathname}${destination.search}${destination.hash}` : undefined) } : undefined} />
+      }
       case "text": return <span key={key}>{formattedText(typeof node.text === "string" ? node.text : "", node.format)}</span>
       case "variable": {
         const name = typeof node.varName === "string" ? node.varName : ""
