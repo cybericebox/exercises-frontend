@@ -75,5 +75,9 @@ export function rememberDismissed(banner: SiteBanner, storage: StorageLike | nul
 /** Tolerant parse of the response: anything that is not a list of banners with text yields nothing. */
 export function parseBanners(data: unknown): SiteBanner[] {
   if (!Array.isArray(data)) return []
-  return data.filter((item): item is SiteBanner => !!item && typeof item === "object" && typeof item.ID === "string" && typeof item.Text === "string" && item.Text !== "")
+  return data
+    .filter((item): item is SiteBanner => !!item && typeof item === "object" && typeof item.ID === "string")
+    // A personal banner may carry only a Title: it is shown as the text.
+    .map((item) => item.Kind === "personal" && !item.Text && typeof item.Title === "string" && item.Title !== "" ? { ...item, Text: item.Title } : item)
+    .filter((item) => typeof item.Text === "string" && item.Text !== "")
 }

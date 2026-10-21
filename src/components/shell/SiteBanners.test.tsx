@@ -106,6 +106,12 @@ describe("site banners", () => {
     expect(await screen.findByText("Оновлено")).toBeInTheDocument()
   })
 
+  it("shows a personal banner with only a Title", async () => {
+    list.get.mockResolvedValue([banner({ ID: "p2", Kind: "personal", Text: "", Title: "Лише заголовок" })])
+    render(<SiteBanners />)
+    expect(await screen.findByText("Лише заголовок")).toBeInTheDocument()
+  })
+
   it("dismisses a personal banner on the server and does not store it locally", async () => {
     api.patch.mockResolvedValue(undefined)
     list.get.mockResolvedValue([banner({ ID: "p1", Kind: "personal", Text: "Особисте" })])

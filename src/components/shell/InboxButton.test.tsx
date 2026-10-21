@@ -389,6 +389,21 @@ describe("top-bar inbox", () => {
     ]))
   })
 
+  it("after an empty baseline the next request uses the epoch cursor and new items pop in", async () => {
+    const EPOCH = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
+    const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+    mockRoutes({
+      pulse: () => ({ Cursor: "", Unread: 0 }),
+      since: (since) => since === "" ? { Cursor: "", Items: [], Unread: 0 } : { Cursor: NEXT, Items: [fresh], Unread: 1 },
+      list: () => ({ Items: [], NextCursor: "" }),
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
+    expect(sinceCalls()[1]).toBe(`/api/notifications/inbox?site=exercises&since=${encodeURIComponent(EPOCH)}`)
+  })
+
   it("is absent without access to own notifications", () => {
     access.allowed = false
     render(<InboxButton />)
