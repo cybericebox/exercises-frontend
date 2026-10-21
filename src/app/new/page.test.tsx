@@ -75,6 +75,7 @@ describe("new exercise page", () => {
     expect(screen.getByRole("link", { name: "admin.ex.create.cancel" })).toHaveAttribute("href", "/")
     expect(screen.queryByRole("button", { name: "admin.exPage.action.more" })).not.toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveFocus()
     expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()
   })
 
@@ -91,7 +92,8 @@ describe("new exercise page", () => {
     expect(screen.getByRole("heading", { name: "Buffer overflow" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.save.saved")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
+    fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.more" }), { key:"ArrowDown" })
+    expect(screen.getByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
   })
 
   it("blocks Publish on an invalid name with the name toast, not a save failure", async () => {

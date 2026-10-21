@@ -44,7 +44,7 @@ describe("ExerciseHeader", () => {
     render(<ExerciseHeader {...makeProps()} />)
     expect(screen.getByRole("heading", { name: "Web 101" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.badge.changes")).toBeInTheDocument()
-    for (const name of ["admin.exPage.action.test", "admin.exPage.action.history", "admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.more"]) {
+    for (const name of ["admin.exPage.action.test", "admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.more"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled()
     }
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
@@ -99,10 +99,20 @@ describe("ExerciseHeader", () => {
     expect(props.onTest).toHaveBeenCalledWith(0)
   })
 
-  it("keeps only History in version view", () => {
-    render(<ExerciseHeader {...makeProps({ mode: "version", badge: { kind: "version", label: "Version of 12.09.2026" } })} />)
+  it("keeps historical History reachable as an icon utility without a primary action row", () => {
+    const props = makeProps({ mode:"version", badge:{ kind:"version", label:"Version of 12.09.2026" } })
+    const { container } = render(<ExerciseHeader {...props} />)
     expect(screen.getByText("Version of 12.09.2026")).toBeInTheDocument()
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["admin.exPage.action.history"])
+    const history = screen.getByRole("button", { name:"admin.exPage.action.history" })
+    expect(history.textContent).toBe("")
+    expect(history.closest(".general-utilities")).toContainElement(screen.getByRole("link", { name:"admin.exGuide.zavdannia" }))
+    expect(container.querySelector(".general-primary-actions")).not.toBeInTheDocument()
+    fireEvent.focus(history)
+    expect(history).toHaveAccessibleDescription("admin.exPage.action.history")
+    fireEvent.click(history)
+    expect(props.onHistory).toHaveBeenCalledOnce()
+    expect(screen.queryByRole("button", { name:"admin.exPage.action.edit" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"admin.exPage.action.publish" })).not.toBeInTheDocument()
   })
 
   it("hides creation-only actions on a new exercise and links Cancel to the catalog", () => {
@@ -141,9 +151,9 @@ describe("ExerciseHeader", () => {
     expect(await screen.findByRole("menuitem", { name: "admin.exPage.action.revert" })).toBeInTheDocument()
   })
 
-  it("disables Publish without changes and hides Revert then", async () => {
+  it("omits Publish without changes and hides Revert then", async () => {
     render(<ExerciseHeader {...makeProps({ publishable: false, revertable: false, badge: { kind: "published" } })} />)
-    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     openMenu("admin.exPage.action.more")
     await screen.findByRole("menuitem", { name: "admin.exPage.action.snapshot" })
     expect(screen.queryByRole("menuitem", { name: "admin.exPage.action.revert" })).not.toBeInTheDocument()
@@ -181,17 +191,30 @@ describe("ExerciseHeader", () => {
     expect(publish).toBeDisabled()
   })
 
-  it("keeps History and Access in the more menu too, for phones, where the buttons are hidden", async () => {
+  it("groups phone Test first, then History/Snapshot/Discard and separate Access", async () => {
     render(<ExerciseHeader {...makeProps({ onAccess: vi.fn() })} />)
-    expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toHaveClass("max-sm:hidden")
-    expect(screen.getByRole("button", { name: "exercises.access.button" })).toHaveClass("max-sm:hidden")
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.history" })).not.toBeInTheDocument()
     openMenu("admin.exPage.action.more")
-    expect(await screen.findByRole("menuitem", { name: "admin.exPage.action.history" })).toHaveClass("sm:hidden")
-    expect(screen.getByRole("menuitem", { name: "exercises.access.button" })).toHaveClass("sm:hidden")
+    const groups = await screen.findAllByRole("group")
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
+      "admin.exPage.action.test", "admin.exGeneral.versions", "admin.exGeneral.access", "admin.exGeneral.transfer", "admin.exGeneral.lifecycle",
+    ])
+    expect(Array.from(groups[1].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toEqual([
+      "admin.exPage.action.history", "admin.exPage.action.snapshot", "admin.exPage.action.revert",
+    ])
+    expect(screen.getByRole("menuitem", { name: "exercises.access.button" })).toBeInTheDocument()
+    expect(screen.queryByText("admin.exGeneral.importUpdate")).not.toBeInTheDocument()
   })
 
-  it("shows a more menu only on phones when it holds nothing but History", () => {
+  it("retains History in More when no other permission exists", async () => {
     render(<ExerciseHeader {...makeProps({ permissions: { write: false, publish: false, delete: false, export: false }, testAvailable: false })} />)
-    expect(screen.getByRole("button", { name: "admin.exPage.action.more" })).toHaveClass("sm:hidden")
+    openMenu("admin.exPage.action.more")
+    expect(await screen.findByRole("menuitem", { name: "admin.exPage.action.history" })).toBeInTheDocument()
+    expect(screen.getAllByRole("group")).toHaveLength(1)
+  })
+
+  it("keeps busy publication visible after publishable becomes false", () => {
+    render(<ExerciseHeader {...makeProps({ publishable: false, running: "publish", busy: true })} />)
+    expect(screen.getByRole("button", { name: /admin.exPage.action.publishing/ })).toHaveAttribute("aria-busy", "true")
   })
 })

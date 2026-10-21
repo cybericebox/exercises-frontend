@@ -256,6 +256,10 @@ export type VersionResources = {
 }
 
 export type Version = {
+  /** Absent only on legacy responses; explicit empty values belong to this snapshot. */
+  Name?: string
+  Description?: string
+  Tags?: string[]
   ID: string
   ExerciseID: string
   Status: VersionStatus
@@ -355,8 +359,9 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
   }
 }
 
-type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation"> & {
+type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation" | "Tags"> & {
   Variants: VariantDTO[] | null
+  Tags?: string[] | null
   Label?: string
   Resources?: (Omit<VersionResources, "Outside" | "Variants"> & { Outside: DeviceOutside[] | null; Variants: VersionResources["Variants"] | null }) | null
   Elevation?: Parameters<typeof normalizeElevation>[0] | null
@@ -368,7 +373,9 @@ export function normalizeResources(raw: RawVersion["Resources"]): VersionResourc
 
 function normalizeVersion(raw: RawVersion): Version {
   return {
-    ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
+    ...raw,
+    Name: raw.Name, Description: raw.Description, Tags: raw.Tags === undefined ? undefined : [...(raw.Tags ?? [])],
+    Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
     Resources: normalizeResources(raw.Resources), Elevation: raw.Elevation ? normalizeElevation(raw.Elevation) : null,
   }
 }

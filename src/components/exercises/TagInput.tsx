@@ -1,6 +1,7 @@
 "use client"
 
-import { useId, useState, type Ref } from "react"
+import { useId, useState, useRef, useLayoutEffect, type Ref } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
@@ -40,12 +41,31 @@ export function TagInput({
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
   const listId = useId()
+  const anchor = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ left: number; top: number; width: number; maxHeight: number; above: boolean } | null>(null)
   const draft = draftValue ?? internalDraft
   const setDraft = onDraftValueChange ?? setInternalDraft
   const matchingSuggestions = suggestions?.filter(({ Tag }) =>
     draft.trim() && Tag.toLocaleLowerCase().startsWith(draft.trim().toLocaleLowerCase()) &&
     !value.some((selected) => selected.toLocaleLowerCase() === Tag.toLocaleLowerCase())) ?? []
   const showSuggestions = !suggestionsDismissed && matchingSuggestions.length > 0
+
+  useLayoutEffect(() => {
+    if (!showSuggestions) return
+    const place = () => {
+      const rect = anchor.current?.getBoundingClientRect()
+      if (!rect) return
+      const below = window.innerHeight - rect.bottom - 12
+      const above = rect.top - 12
+      const useAbove = below < 208 && above > below
+      setPosition({ left: Math.max(8, rect.left), top: useAbove ? rect.top - 4 : rect.bottom + 4,
+        width: Math.min(rect.width, window.innerWidth - 16), maxHeight: Math.max(40, Math.min(208, useAbove ? above : below)), above: useAbove })
+    }
+    place()
+    window.addEventListener("resize", place)
+    window.addEventListener("scroll", place, true)
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true) }
+  }, [showSuggestions])
 
   function commit(selectedTag?: string) {
     const tag = (selectedTag ?? draft).trim()
@@ -57,7 +77,7 @@ export function TagInput({
   }
 
   return (
-    <div className="relative min-w-0">
+    <div ref={anchor} className="relative min-w-0">
     <div className={cn("flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]", className)}>
       {value.map((tag) => (
         <span
@@ -117,12 +137,12 @@ export function TagInput({
         className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-placeholder"
       />
     </div>
-    {showSuggestions && <div id={listId} role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground">
+    {showSuggestions && position && createPortal(<div id={listId} role="listbox" style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight, transform: position.above ? "translateY(-100%)" : undefined }} className="fixed z-(--ib-z-popover) overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1 text-popover-foreground">
       {matchingSuggestions.map(({ Tag, Count }, index) => <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={activeSuggestion === index}
         onPointerDown={(event) => { event.preventDefault(); commit(Tag) }}
         className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-[var(--ib-hover)]", activeSuggestion === index && "bg-[var(--ib-soft)]")}
       ><span>{Tag}</span><span className="text-xs text-muted-foreground">· {Count}</span></div>)}
-    </div>}
+    </div>, document.body)}
     </div>
   )
 }

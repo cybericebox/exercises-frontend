@@ -83,6 +83,82 @@ beforeEach(() => {
 })
 
 describe("useExerciseEditor", () => {
+  it.each([null, "history-1"])("hydrates selected version identity including empty values (%s)", async (versionId) => {
+    const selected = { ...serverVersion, Name: "Selected snapshot", Description: "", Tags: [] }
+    mockGetExercise.mockResolvedValue({ ...exercise, Description: "Public description", Tags: ["public"] })
+    mockGetDraft.mockResolvedValue(selected)
+    mockGetVersion.mockResolvedValue(selected)
+    render(<Harness exerciseId="ex-1" versionId={versionId} editable={!versionId} />)
+    await screen.findByDisplayValue("Selected snapshot")
+    expect(latest.identityForm.getValues()).toEqual({ Name: "Selected snapshot", Description: "", Tags: [] })
+  })
+
+  it("uses published identity for published-only readers", async () => {
+    mockGetExercise.mockResolvedValue({ ...exercise, PublishedVersionID: "pub-1" })
+    mockGetVersion.mockResolvedValue({ ...serverVersion, Name: "Published name", Description: "Published description", Tags: ["published"] })
+    render(<Harness exerciseId="ex-1" publishedOnly={() => true} />)
+    await screen.findByDisplayValue("Published name")
+    expect(latest.identityForm.getValues("Description")).toBe("Published description")
+  })
+
+  it("advances the authoritative draft ID on metadata-only PATCH and rejects a late card regression", async () => {
+    let refresh: (value: Exercise) => void = () => undefined
+    mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve }))
+    mockUpdate.mockResolvedValue({ ...exercise, Name: "New metadata", DraftVersionID: "draft-2", HasChanges: true })
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "New metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+    expect(latest.getDraftVersionId()).toBe("draft-2")
+    await act(async () => { refresh({ ...exercise, HasChanges: false }) })
+    expect(latest.exercise?.DraftVersionID).toBe("draft-2")
+    expect(latest.exercise?.HasChanges).toBe(true)
+  })
+
+  it("preserves edits made during metadata PATCH and sends only acknowledged snapshots", async () => {
+    let acknowledge: (value: Exercise) => void = () => undefined
+    mockUpdate.mockReturnValueOnce(new Promise((resolve) => { acknowledge = resolve }))
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "First metadata" } })
+    let flushed: Promise<boolean>
+    act(() => { flushed = latest.autosave.flush() })
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Newer metadata" } })
+    expect(screen.getByLabelText("name")).toBeEnabled()
+    await act(async () => { acknowledge({ ...exercise, Name: "First metadata", DraftVersionID: "draft-2" }); await flushed })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] })
+    expect(latest.identityForm.getValues("Name")).toBe("Newer metadata")
+  })
+
+  it("reloads restored working-copy identity from the returned draft snapshot", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    mockGetDraft.mockResolvedValue({ ...serverVersion, ID:"restored-draft", Name:"Restored metadata", Description:"", Tags:[] })
+    mockGetExercise.mockResolvedValue({ ...exercise, Name:"Public metadata", Description:"Public text", Tags:["public"] })
+    await act(async () => { await latest.reloadWorkingCopy() })
+    expect(latest.identityForm.getValues()).toEqual({ Name:"Restored metadata", Description:"", Tags:[] })
+    expect(latest.getDraftVersionId()).toBe("restored-draft")
+  })
+
+  it("does not let a late card refresh undo a newer acknowledged save", async () => {
+    let refresh: (value: Exercise) => void = () => undefined
+    mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve })).mockResolvedValue(exercise)
+    mockUpdate.mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-2", Name:"First metadata" }).mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-3", Name:"Latest metadata", HasChanges:true })
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target:{ value:"First metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    fireEvent.change(screen.getByLabelText("name"), { target:{ value:"Latest metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    await act(async () => { refresh({ ...exercise, DraftVersionID:"draft-2", HasChanges:false }) })
+    expect(latest.identityForm.getValues("Name")).toBe("Latest metadata")
+    expect(latest.getDraftVersionId()).toBe("draft-3")
+    expect(latest.exercise?.DraftVersionID).toBe("draft-3")
+    expect(latest.exercise?.HasChanges).toBe(true)
+  })
+
   it("does not PUT a draft when an edit is reverted before the debounce drains", async () => {
     render(<Harness exerciseId="ex-1" />)
     await screen.findByDisplayValue("Web 101")

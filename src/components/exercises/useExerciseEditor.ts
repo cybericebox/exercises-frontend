@@ -69,8 +69,8 @@ export type ExerciseEditor = {
   hasLocalDraft: () => boolean
 }
 
-function identityOf(exercise: Exercise): IdentityFormValues {
-  return { Name: exercise.Name, Description: exercise.Description, Tags: exercise.Tags }
+function identityOf(exercise: Exercise, version?: Version): IdentityFormValues {
+  return { Name: version?.Name ?? exercise.Name, Description: version?.Description ?? exercise.Description, Tags: version?.Tags ?? exercise.Tags }
 }
 
 // JSON object key order is not an edit (rich-text documents arrive as JSON); array order is.
@@ -107,7 +107,12 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
   const [loadError, setLoadError] = useState<unknown>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
-  const [exercise, setExercise] = useState<Exercise | null>(null)
+  const [exercise, setExerciseState] = useState<Exercise | null>(null)
+  const authorityRevisionRef = useRef(0)
+  const setExercise = useCallback((value: Exercise) => {
+    authorityRevisionRef.current += 1
+    setExerciseState(value)
+  }, [])
   const [version, setVersion] = useState<Version | null>(null)
   // Set once a buffer is restored; the effect below marks the change against the live
   // queue. Calling markChanged() inside the load effect itself would, under StrictMode,
@@ -190,7 +195,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (JSON.stringify(fullIdentity.data) !== savedIdentityRef.current) {
             const updated = await updateExercise(id, fullIdentity.data)
             savedIdentityRef.current = JSON.stringify(fullIdentity.data)
-            if (mountedRef.current) setExercise(updated)
+            rememberDraftVersion(updated.DraftVersionID ?? "")
+            if (mountedRef.current) {
+              setExercise(updated)
+              setVersion((current) => current && { ...current, ID: updated.DraftVersionID ?? current.ID, ...fullIdentity.data })
+            }
           }
         } else if (JSON.stringify(identity) !== savedIdentityRef.current) {
           // Invalid identity edit: never send it, but don't report the round as "saved"
@@ -209,8 +218,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         // made while this request was pending. Include assigned IDs for subsequent saves.
         savedDraftRef.current = payloadSignature(toSaveDraftInput(toDraftFormValues(saved)))
         rememberDraftVersion(saved.ID)
+        authorityRevisionRef.current += 1
+        if (mountedRef.current) setExerciseState((current) => current && { ...current, DraftVersionID: saved.ID, HasChanges: true })
         // The server recounts the resources and the elevation state on every save.
-        if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
+        if (mountedRef.current) setVersion((current) => current && { ...current, ID: saved.ID, Resources: saved.Resources, Elevation: saved.Elevation })
         const updates = serverIdUpdates(sent, saved, draftForm.getValues())
         if (updates.length > 0) {
           // An edit still waiting for its check is marked first: the baseline reset below must not swallow it.
@@ -246,13 +257,20 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       }
       throw error
     }
-  }, [identityForm, draftForm, signature, userId, rememberDraftVersion])
+  }, [identityForm, draftForm, signature, userId, rememberDraftVersion, setExercise])
 
   const autosave = useExerciseAutosave({
     save,
     onSaved: () => {
       const id = exerciseIdRef.current
-      if (id) void getExercise(id).then(setExercise).catch(() => undefined)
+      const revision = authorityRevisionRef.current
+      if (id) void getExercise(id).then((refreshed) => {
+        if (!mountedRef.current || revision !== authorityRevisionRef.current) return
+        // A late card from an earlier snapshot must not undo acknowledged state.
+        // A matching post-save card may still supply truthful HasChanges and ACL data.
+        if ((refreshed.DraftVersionID ?? "") !== draftVersionIdRef.current) return
+        setExerciseState(refreshed)
+      }).catch(() => undefined)
     },
     writeBuffer: () => {
       const key = bufferKey()
@@ -325,7 +343,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
             setReadOnly(true)
             setExercise(loaded)
             setVersion(loadedVersion)
-            applyValues(identityOf(loaded), workingCopyValues(loadedVersion))
+            applyValues(identityOf(loaded, loadedVersion), workingCopyValues(loadedVersion))
             setLoadState("ready")
             return
           }
@@ -336,10 +354,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           setExercise(loaded)
           setVersion(loadedVersion)
           if (!versionId) rememberDraftVersion(loadedVersion.ID)
-          savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+          savedIdentityRef.current = JSON.stringify(identityOf(loaded, loadedVersion))
           const serverDraft = workingCopyValues(loadedVersion)
           savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
-          applyValues(apply ? pending.identity : identityOf(loaded), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
+          applyValues(apply ? pending.identity : identityOf(loaded, loadedVersion), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
           setLoadState("ready")
           if (apply) {
             toast.success(t("admin.exPage.toast.pendingRestored"))
@@ -437,10 +455,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     setExercise(loaded)
     setVersion(draft)
     rememberDraftVersion(draft.ID)
-    savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+    savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
     savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
-    applyValues(identityOf(loaded), workingCopyValues(draft))
-  }, [applyValues, rememberDraftVersion])
+    applyValues(identityOf(loaded, draft), workingCopyValues(draft))
+  }, [applyValues, rememberDraftVersion, setExercise])
 
   const retryLoad = useCallback(() => {
     loadStartedRef.current = false

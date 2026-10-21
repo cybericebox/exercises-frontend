@@ -26,12 +26,29 @@ describe("ExerciseGeneralFields", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
   })
 
-  it("disables every field in read-only mode", () => {
+  it("reads natural selectable values without a duplicate Name or disabled form", () => {
     render(<Harness disabled />)
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
-    expect(screen.getByLabelText("admin.ex.field.tags")).toBeDisabled()
-    expect(screen.getByLabelText("admin.ex.field.description")).toBeDisabled()
-    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeDisabled()
+    expect(screen.queryByText("Web 101")).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    expect(screen.getByText("About")).toBeInTheDocument()
+    expect(screen.getByText("Day one")).toBeInTheDocument()
+    expect(screen.getByText("web")).toBeInTheDocument()
+  })
+
+  it.each([true, false])("exposes read sections to heading navigation (private notes=%s)", (showNotes) => {
+    render(<Harness disabled showNotes={showNotes} />)
+    const titles = screen.getAllByRole("heading", { level:2 }).map((heading) => heading.textContent)
+    expect(titles).toEqual(["admin.ex.field.description", "admin.ex.field.tags", ...(showNotes ? ["admin.ex.create.notes"] : [])])
+    expect(screen.queryByRole("heading", { name:"admin.ex.field.name" })).not.toBeInTheDocument()
+  })
+
+  it("retains edit field labels and associations without turning them into section headings", () => {
+    render(<Harness disabled={false} />)
+    expect(screen.queryByRole("heading", { level:2 })).not.toBeInTheDocument()
+    expect(screen.getByLabelText("admin.ex.field.description")).toHaveAttribute("id", "exercise-description")
+    expect(screen.getByLabelText("admin.ex.field.tags")).toHaveAttribute("id", "exercise-tags")
+    expect(screen.getByLabelText("admin.ex.create.notes")).toHaveAttribute("id", "draft-admin-note")
+    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
   })
 
   it("leaves out the internal notes for a reader without full access", () => {

@@ -77,6 +77,45 @@ beforeEach(() => {
 })
 
 describe("exercise editor — W4 rights", () => {
+  it.each([null, "history-1"])("keeps H1 and General on the selected snapshot (%s)", async (versionId) => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Description:"Public description", Tags:["public"], Permissions:all })
+    const selected = { ...version, Name:"Selected authored name", Description:"", Tags:[] }
+    vi.mocked(getDraft).mockResolvedValue({ ...selected, ID:"draft-1", Status:"draft" })
+    vi.mocked(getVersion).mockResolvedValue(selected)
+    render(<ExercisePage exerciseId="ex-1" versionId={versionId} />)
+    expect(await screen.findByRole("heading", { name:"Selected authored name", level:1 })).toBeInTheDocument()
+    expect(screen.queryByText("Public description")).not.toBeInTheDocument()
+    expect(screen.queryByText("public")).not.toBeInTheDocument()
+    expect(screen.getByText("admin.exGeneral.noDescription")).toBeInTheDocument()
+    expect(screen.getByText("admin.exGeneral.noTags")).toBeInTheDocument()
+    if (!versionId) {
+      fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.edit" }))
+      expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveValue("Selected authored name")
+      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"New local name" } })
+      expect(screen.getByRole("heading", { level:1 })).toHaveTextContent("New local name")
+    }
+  })
+
+  it("hides draft notes and uses published authored fields for published-only access", async () => {
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Name:"Draft projection", Permissions:{ ...all, CanEdit:false, CanPublish:false, CanDelete:false, CanManageAccess:false } })
+    vi.mocked(getVersion).mockResolvedValue({ ...version, Name:"Published authored name", Description:"Published text", Tags:["published"], AdminNote:"PRIVATE" })
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    expect(await screen.findByRole("heading", { name:"Published authored name" })).toBeInTheDocument()
+    expect(screen.getByText("Published text")).toBeInTheDocument()
+    expect(screen.queryByText("PRIVATE")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exPage.badge.changes")).not.toBeInTheDocument()
+  })
+
+  it.each(["denied", "unpublished", "archived", "history"])("omits event Propose when %s", async (reason) => {
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Scope:"event", OwnerEventID:"ev2", OwnerEventName:"Spring Cup", Permissions:{ ...managerRights, CanPropose:reason !== "denied" }, PublishedVersionID:reason === "unpublished" ? null : "pub-1", ArchivedAt:reason === "archived" ? "2026-10-21" : null })
+    render(<ExercisePage exerciseId="ex-1" versionId={reason === "history" ? "history-1" : null} />)
+    await screen.findByRole("heading", { level:1 })
+    if (reason !== "history") fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.more" }), { key:"ArrowDown" })
+    expect(screen.queryByRole("menuitem", { name:"exercises.propose.button" })).not.toBeInTheDocument()
+  })
+
   it("shows a catalog exercise read-only to managers from its published version", async () => {
     h.returnUrl = "https://winter.cybericebox.local/manage/exercises"
     vi.mocked(getExercise).mockResolvedValue({ ...base, Permissions: { ...all, CanEdit: false, CanPublish: false, CanDelete: false, CanManageAccess: false } })
@@ -97,15 +136,17 @@ describe("exercise editor — W4 rights", () => {
       ProposedBy: null, ProposedByName: "", ProposedAt: "", DecidedAt: null, DecisionNote: "", CatalogExerciseID: null,
     })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
-    expect(await screen.findByText("exercises.accessCol.event")).toBeInTheDocument()
-    expect(screen.getByRole("heading", { level: 1 }).parentElement).toContainElement(screen.getByText("exercises.accessCol.event"))
+    await screen.findByRole("heading", { level: 1 })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.more" }), { key: "ArrowDown" })
     expect(getDraft).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole("button", { name: "exercises.propose.button" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "exercises.propose.button" }))
     fireEvent.change(screen.getByLabelText("exercises.propose.note"), { target: { value: "Good for juniors" } })
     fireEvent.click(screen.getByRole("button", { name: "exercises.propose.submit" }))
     await waitFor(() => expect(proposeExercise).toHaveBeenCalledWith("ex-1", "Good for juniors"))
-    expect(await screen.findByText("exercises.badge.pending")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "exercises.propose.button" })).toBeDisabled()
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.more" }), { key: "ArrowDown" })
+    expect(await screen.findByRole("menuitem", { name: "exercises.propose.button" })).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByText("exercises.badge.pending")).toBeInTheDocument()
   })
 
   it("replaces the topology when the owner event forbids infrastructure", async () => {
@@ -152,11 +193,15 @@ describe("exercise editor — W4 rights", () => {
     vi.mocked(getExercise).mockResolvedValue({ ...base, AccessLevel: "all", Permissions: all })
     vi.mocked(setExerciseAccess).mockResolvedValue({ ...base, AccessLevel: "selected", AccessEventIDs: ["ev9"], Permissions: all })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
-    fireEvent.click(await screen.findByRole("button", { name: "exercises.access.button" }))
+    await screen.findByRole("heading", { level: 1 })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.more" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitem", { name: "exercises.access.button" }))
     fireEvent.click(screen.getByRole("radio", { name: /exercises.access.level.selected/ }))
     fireEvent.click(await screen.findByRole("checkbox", { name: /Spring Cup/ }))
     fireEvent.click(screen.getByRole("button", { name: "exercises.access.save" }))
     await waitFor(() => expect(setExerciseAccess).toHaveBeenCalledWith("ex-1", { AccessLevel: "selected", EventIDs: ["ev9"] }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole("button", { name: "admin.exGeneral.access" }))
     expect(await screen.findByText("exercises.access.level.selected")).toBeInTheDocument()
   })
 })
@@ -180,5 +225,111 @@ describe("new exercise — W4 owner", () => {
     render(<ExercisePage exerciseId={null} versionId={null} />)
     expect(screen.getByText("exercises.owner.required")).toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+  })
+})
+
+
+const withPublishedProperties = (network: boolean, heavy: boolean): Version => {
+  const totals = { Devices:network ? 1 : 0, Blocks:1, CPUMillicores:1000, MemoryBytes:1073741824 }
+  return { ...version, Resources:{ Min:totals, Max:totals, Variants:[], SpreadPercent:0, VariantsDiffer:false, Outside:[], ResourceHeavy:heavy },
+    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], EnvVars:[], External:null }] : [] } }],
+  }
+}
+
+describe("General published snapshot facts — review regressions", () => {
+  it.each([false, true])("uses actual publication properties when published network/heavy=%s and draft card differs", async (publishedHasProperties) => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Permissions:all, DraftVersionID:"draft-1", HasChanges:true, Infrastructure:!publishedHasProperties, ResourceHeavy:!publishedHasProperties })
+    vi.mocked(getDraft).mockResolvedValue({ ...withPublishedProperties(!publishedHasProperties, !publishedHasProperties), ID:"draft-1", Status:"draft", Name:"Working task", PublishedAt:null })
+    vi.mocked(getVersion).mockResolvedValue(withPublishedProperties(publishedHasProperties, publishedHasProperties))
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    await screen.findByRole("heading", { name:"Working task" })
+    // Wait for the actual current publication rather than confusing absence while loading with false.
+    await screen.findByText("admin.exPage.meta.published")
+    if (publishedHasProperties) {
+      expect(screen.getByRole("button", { name:"admin.exGeneral.network" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name:"exercises.res.heavy" })).toBeInTheDocument()
+    } else {
+      expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+    }
+    expect(getVersion).toHaveBeenCalledWith("ex-1", "pub-1")
+    expect(getVersion).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps unknown publication separate from unpublished or draft properties", async () => {
+    h.access = adminAccess
+    let resolvePublished: (value:Version) => void = () => undefined
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Permissions:all, Infrastructure:true, ResourceHeavy:true })
+    vi.mocked(getVersion).mockReturnValue(new Promise((resolve) => { resolvePublished = resolve }))
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    await screen.findByRole("heading", { level:1 })
+    expect(screen.getByText("admin.exPage.badge.published")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exPage.badge.none")).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name:"admin.exGeneral.access" })).toBeInTheDocument()
+    await act(async () => { resolvePublished(withPublishedProperties(false, false)) })
+    expect(await screen.findByText("admin.exPage.meta.published")).toHaveAttribute("datetime", version.PublishedAt)
+  })
+
+  it("does not substitute card flags when publication lookup fails", async () => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Permissions:all, Infrastructure:true, ResourceHeavy:true })
+    vi.mocked(getVersion).mockRejectedValue(new Error("synthetic publication unavailable"))
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    await screen.findByRole("heading", { level:1 })
+    await act(async () => {})
+    expect(screen.getByText("admin.exPage.badge.published")).toBeInTheDocument()
+    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+  })
+
+  it("reuses the loaded published-only snapshot without another lookup", async () => {
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Infrastructure:false, ResourceHeavy:false, Permissions:{ ...all, CanEdit:false, CanPublish:false, CanDelete:false, CanManageAccess:false } })
+    vi.mocked(getVersion).mockResolvedValue({ ...withPublishedProperties(true, true), Name:"Published reader task" })
+    render(<ExercisePage exerciseId="ex-1" versionId={null} />)
+    await screen.findByRole("heading", { name:"Published reader task" })
+    expect(screen.getByRole("button", { name:"admin.exGeneral.network" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name:"exercises.res.heavy" })).toBeInTheDocument()
+    expect(getVersion).toHaveBeenCalledTimes(1)
+    expect(getDraft).not.toHaveBeenCalled()
+  })
+
+  it.each([null, "2026-09-10T10:00:00Z"])("uses only selected historical PublishedAt=%s and hides current publication properties", async (selectedAt) => {
+    h.access = adminAccess
+    vi.mocked(getExercise).mockResolvedValue({ ...base, Permissions:all, Infrastructure:true, ResourceHeavy:true })
+    vi.mocked(getVersion).mockResolvedValue({ ...withPublishedProperties(true, true), ID:"history-1", Name:"Selected historical task", Status:selectedAt ? "unpublished" : "checkpoint", PublishedAt:selectedAt })
+    vi.mocked(listVersions).mockResolvedValue([{ ...version, VariantCount:1 }])
+    render(<ExercisePage exerciseId="ex-1" versionId="history-1" />)
+    await screen.findByRole("heading", { name:"Selected historical task" })
+    await act(async () => {})
+    if (selectedAt) expect(screen.getByText("admin.exPage.meta.published")).toHaveAttribute("datetime", selectedAt)
+    else expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+  })
+
+  it("ignores late publication responses after switching task or historical selection", async () => {
+    h.access = adminAccess
+    let resolveOld: (value:Version) => void = () => undefined
+    vi.mocked(getExercise).mockResolvedValueOnce({ ...base, Permissions:all }).mockResolvedValue({ ...base, ID:"ex-2", PublishedVersionID:"pub-2", Permissions:all })
+    vi.mocked(getVersion).mockImplementation(async (exerciseId, versionId) => {
+      if (exerciseId === "ex-1") return new Promise<Version>((resolve) => { resolveOld = resolve })
+      return { ...version, ExerciseID:exerciseId, ID:versionId, Name:"Second selected checkpoint", Status:"checkpoint", PublishedAt:null }
+    })
+    const { rerender } = render(<ExercisePage key="ex-1:working" exerciseId="ex-1" versionId={null} />)
+    await screen.findByRole("heading", { name:"Web 101" })
+    await waitFor(() => expect(getVersion).toHaveBeenCalledWith("ex-1", "pub-1"))
+    // The owning detail route keys the screen by task/version; use the same boundary here.
+    rerender(<ExercisePage key="ex-2:history" exerciseId="ex-2" versionId="checkpoint-2" />)
+    await screen.findByRole("heading", { name:"Second selected checkpoint" })
+    await act(async () => { resolveOld(withPublishedProperties(true, true)) })
+    expect(screen.getByRole("heading", { level:1 })).toHaveTextContent("Second selected checkpoint")
+    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
   })
 })

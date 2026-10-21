@@ -90,9 +90,9 @@ describe("exercise page — modes", () => {
   it("opens an existing exercise read-only with the viewing actions", async () => {
     render(<Page />)
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
-    expect(screen.getByText("admin.ex.status.published")).toHaveAttribute("data-badge", "ok")
-    expect(screen.getByText("admin.ex.status.changedBadge")).toHaveAttribute("data-badge", "warn")
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByText("admin.exPage.badge.changes")).toHaveAttribute("data-badge", "changes")
+    expect(screen.queryByText("admin.exPage.badge.published")).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
@@ -109,7 +109,7 @@ describe("exercise page — modes", () => {
     expect(saveDraft).not.toHaveBeenCalled() // A name-only edit does not rewrite the unchanged working copy.
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
   })
 
   it("hides every action the user has no permission for", async () => {
@@ -119,27 +119,27 @@ describe("exercise page — modes", () => {
     for (const name of ["admin.exPage.action.edit", "admin.exPage.action.publish", "admin.exPage.action.test"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument()
     }
-    expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
-    // Only History is left: the more menu that carries it on phones is hidden from sm up.
-    expect(screen.getByRole("button", { name: "admin.exPage.action.more" })).toHaveClass("sm:hidden")
+    openMore()
+    expect(await screen.findByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
+    expect(screen.getAllByRole("group")).toHaveLength(1)
   })
 
   it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
     const { unmount } = render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeInTheDocument()
+    expect(screen.getByText("admin.ex.create.notes")).toBeInTheDocument()
     unmount()
     h.perms = new Set(["exercises.read"])
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByRole("textbox", { name: "admin.ex.create.notes" })).not.toBeInTheDocument()
+    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
   })
 
-  it("disables Publish when the working copy matches the publication", async () => {
+  it("omits Publish when the working copy matches the publication", async () => {
     vi.mocked(getExercise).mockResolvedValue({ ...exercise, HasChanges: false })
     render(<Page />)
-    expect(await screen.findByText("admin.ex.status.published")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
+    expect(await screen.findByText("admin.exPage.badge.published")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
   })
 
   it("restores unsent edits from the browser buffer, switches to editing and saves them", async () => {
@@ -157,7 +157,7 @@ describe("exercise page — modes", () => {
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
     expect(screen.queryByText("admin.exPage.version.banner")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
-    expect(getVersion).not.toHaveBeenCalled()
+    expect(getVersion).not.toHaveBeenCalledWith("ex-1", "")
     expect(getDraft).toHaveBeenCalledWith("ex-1")
   })
 })
@@ -202,7 +202,9 @@ describe("exercise page — publishing and history", () => {
       listItem({ ID: "snap-1", Status: "checkpoint", Label: "Before topology rework" }),
     ])
     render(<Page />)
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.history" }))
+    await screen.findByRole("heading", { name:"Web 101" })
+    openMore()
+    fireEvent.click(await screen.findByRole("menuitem", { name:"admin.exPage.action.history" }))
     expect(await screen.findByText("«Before topology rework»")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exHistory.view" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/detail?id=ex-1&version=snap-1"))
@@ -215,7 +217,7 @@ describe("exercise page — publishing and history", () => {
     render(<Page />)
     expect(await screen.findByText("admin.exPage.version.banner")).toBeInTheDocument()
     expect(getDraft).not.toHaveBeenCalled()
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.version.restore" }))
@@ -297,6 +299,19 @@ describe("exercise page — publishing and history", () => {
     expect(test).toBeEnabled()
     fireEvent.keyDown(test, { key: "ArrowDown" })
     expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("tests the authoritative draft produced by a metadata-only PATCH after flush", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(updateExercise).mockResolvedValue({ ...exercise, DraftVersionID:"metadata-draft-2" })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name:"admin.exPage.action.edit" }))
+    fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"Web 103" } })
+    fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.test" }), { key:"ArrowDown" })
+    fireEvent.click(await screen.findByRole("menuitem", { name:"admin.exDraft.variantN" }))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1"))
+    expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] })
+    expect(saveDraft).not.toHaveBeenCalled()
   })
 
   it("opens the testing page for the chosen variant from the header", async () => {
@@ -381,9 +396,9 @@ describe("exercise page — archive and delete", () => {
     vi.mocked(unarchiveExercise).mockResolvedValue(exercise)
     render(<Page />)
     expect(await screen.findByText("admin.exPage.archived.banner")).toBeInTheDocument()
-    expect(screen.getByText("admin.ex.status.archived")).toBeInTheDocument()
+    expect(screen.getByText("admin.exPage.badge.archived")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeDisabled()
+    expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.unarchive" }))
     await waitFor(() => expect(unarchiveExercise).toHaveBeenCalledWith("ex-1"))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
