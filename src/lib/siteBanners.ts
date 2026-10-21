@@ -1,12 +1,15 @@
 import { siteBannerDismissedKey } from "@/lib/storageKeys"
 // Site banners (docs/BROADCASTS.md, «Банери»): pure model shared in spirit by every frontend.
-// GET /api/banners is public; the server already filters by activity, window and audience.
-// Dismissal lives in the browser only, under `${ID}:${Version}` (an edited banner gets a new Version).
+// GET /api/notifications/banners is public; the server already filters by activity, window and audience.
+// Site/system banners are dismissed in the browser only, under `${ID}:${Version}` (an edited banner gets a new Version);
+// personal banners are dismissed on the server (PATCH /api/notifications/banners/:id/dismiss).
 
 export type BannerLevel = "info" | "warning" | "critical"
 
 export type SiteBanner = {
   ID: string
+  Kind?: "site" | "system" | "personal"
+  Title?: string
   Text: string
   LinkURL?: string
   LinkLabel?: string
@@ -15,7 +18,6 @@ export type SiteBanner = {
   Version?: string | number
 }
 
-export const BANNER_POLL_MS = 60_000
 const SEVERITY: Record<BannerLevel, number> = { critical: 0, warning: 1, info: 2 }
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">
@@ -53,7 +55,7 @@ function browserStorage(): StorageLike | null {
 }
 
 export function isDismissed(banner: SiteBanner, storage: StorageLike | null = browserStorage()): boolean {
-  if (!banner.Dismissible || !storage) return false
+  if (!banner.Dismissible || banner.Kind === "personal" || !storage) return false
   try {
     return storage.getItem(dismissKey(banner)) === "1"
   } catch {
@@ -62,7 +64,7 @@ export function isDismissed(banner: SiteBanner, storage: StorageLike | null = br
 }
 
 export function rememberDismissed(banner: SiteBanner, storage: StorageLike | null = browserStorage()): void {
-  if (!storage) return
+  if (!storage || banner.Kind === "personal") return
   try {
     storage.setItem(dismissKey(banner), "1")
   } catch {
@@ -73,5 +75,9 @@ export function rememberDismissed(banner: SiteBanner, storage: StorageLike | nul
 /** Tolerant parse of the response: anything that is not a list of banners with text yields nothing. */
 export function parseBanners(data: unknown): SiteBanner[] {
   if (!Array.isArray(data)) return []
-  return data.filter((item): item is SiteBanner => !!item && typeof item === "object" && typeof item.ID === "string" && typeof item.Text === "string" && item.Text !== "")
+  return data
+    .filter((item): item is SiteBanner => !!item && typeof item === "object" && typeof item.ID === "string")
+    // A personal banner may carry only a Title: it is shown as the text.
+    .map((item) => item.Kind === "personal" && !item.Text && typeof item.Title === "string" && item.Title !== "" ? { ...item, Text: item.Title } : item)
+    .filter((item) => typeof item.Text === "string" && item.Text !== "")
 }

@@ -9,16 +9,36 @@ vi.mock("@/api/client", async (importOriginal) => ({ ...(await importOriginal<ty
 vi.mock("@/lib/useRole", () => ({ useRole: () => ({ can: () => access.allowed }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }))
 
-const BASE_CURSOR = { ID: "old", CreatedAt: "2026-09-24T12:00:00Z" }
-const NEW_CURSOR = { ID: "new", CreatedAt: "2026-09-24T12:01:00Z" }
+const BASE = "2026-09-24T12:00:00Z|old"
+const NEXT = "2026-09-24T12:01:00Z|new"
 let autoIntersect = false
 let observers: Array<{ trigger: () => void }> = []
 
-function mockInbox(items: Record<string, unknown>[]) {
-  api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
-    ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: items.filter((item) => !item.ReadAt).length }
-    : { Items: items, NextCursor: null }))
+type Route = { pulse?: (n: number) => { Cursor: string; Unread: number }; since?: (since: string, n: number) => Record<string, unknown>; list?: (url: URL) => Record<string, unknown> }
+
+/** Routes the three inbox endpoints: pulse, since (news) and the list. */
+function mockRoutes(route: Route) {
+  const counter = { pulse: 0, since: 0 }
+  api.get.mockImplementation((path: string) => {
+    const url = new URL(path, "http://x")
+    if (url.pathname.endsWith("/pulse")) return Promise.resolve({ Banners: "1", Inbox: (route.pulse ?? (() => ({ Cursor: BASE, Unread: 0 })))(counter.pulse++) })
+    if (url.searchParams.has("since")) return Promise.resolve((route.since ?? (() => ({ Cursor: BASE, Items: [], Unread: 0 })))(url.searchParams.get("since")!, counter.since++))
+    return Promise.resolve((route.list ?? (() => ({ Items: [], NextCursor: "" })))(url))
+  })
 }
+
+function mockInbox(items: Record<string, unknown>[]) {
+  const unread = items.filter((item) => !item.ReadAt).length
+  mockRoutes({ pulse: () => ({ Cursor: BASE, Unread: unread }), since: () => ({ Cursor: BASE, Items: [], Unread: unread }), list: () => ({ Items: items, NextCursor: "" }) })
+}
+
+/** Baseline for the empty cursor, the news for the baseline cursor, nothing after that. */
+const newsOnce = (items: Record<string, unknown>[], unread: number, baselineUnread = 0) => (since: string) =>
+  since === "" ? { Cursor: BASE, Items: [], Unread: baselineUnread }
+    : since === BASE ? { Cursor: NEXT, Items: items, Unread: unread }
+      : { Cursor: NEXT, Items: [], Unread: unread }
+
+const sinceCalls = () => api.get.mock.calls.map(([path]) => String(path)).filter((path) => path.includes("since="))
 
 describe("top-bar inbox", () => {
   beforeEach(() => {
@@ -72,12 +92,28 @@ describe("top-bar inbox", () => {
     expect(plain.className).not.toContain("cursor-pointer")
   })
 
+  it("«Вирішено» sits above the card link and resolves without following it", async () => {
+    mockInbox([{ ID: "1", Title: "Збій", Body: "", Link: "https://spring.example.org/manage/", ActionRequired: true, Resolvable: true, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
+    api.post.mockResolvedValue(undefined)
+    render(<InboxButton />)
+    fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
+    const row = await screen.findByRole("listitem")
+    const resolve = within(row).getByRole("button", { name: "Вирішено" })
+    // The link's pseudo-element covers the row; the button must be positioned above it.
+    expect(resolve.className).toContain("relative")
+    expect(resolve.className).toContain("z-10")
+    fireEvent.click(resolve)
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/1/resolve", {}))
+    expect(api.patch).not.toHaveBeenCalled()
+    expect(navigation.push).not.toHaveBeenCalled()
+  })
+
   it("marks all messages read without leaving the current page", async () => {
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
     await screen.findByText("Запрошення")
     fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all", {}))
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?site=exercises", {}))
     expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument()
   })
 
@@ -104,29 +140,31 @@ describe("top-bar inbox", () => {
     autoIntersect = true
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
-      ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 25 }
-      : path.includes("before_id=")
-        ? { Items: [older], NextCursor: null }
-        : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 25 }),
+      since: () => ({ Cursor: BASE, Items: [], Unread: 25 }),
+      list: (url) => url.searchParams.has("before") ? { Items: [older], NextCursor: "" } : { Items: [first], NextCursor: "recent" },
+    })
     render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 25" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(await screen.findByText("Раніше")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Вхідні, непрочитані: 25" })).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before_id=recent"))
+    expect(api.get).toHaveBeenCalledWith(expect.stringContaining("before=recent"))
     expect(screen.queryByRole("button", { name: "Завантажити ще" })).not.toBeInTheDocument()
   })
 
   it("loads the next page when the last row becomes visible", async () => {
     const first = { ID: "recent", Title: "Останнє", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-25T12:00:00Z" }
     const older = { ID: "older", Title: "Раніше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.endsWith("/poll")
-      ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2 }
-      : path.includes("before_id=")
-        ? { Items: [older], NextCursor: null }
-        : { Items: [first], NextCursor: { ID: first.ID, CreatedAt: first.CreatedAt } }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 2 }),
+      since: () => ({ Cursor: BASE, Items: [], Unread: 2 }),
+      list: (url) => url.searchParams.has("before") ? { Items: [older], NextCursor: "" } : { Items: [first], NextCursor: "recent" },
+    })
     render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
     fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(screen.queryByText("Раніше")).not.toBeInTheDocument()
@@ -153,11 +191,11 @@ describe("top-bar inbox", () => {
   it("pops only fresh unread messages with a configured duration", async () => {
     const old = { ID: "old", Title: "Старе", Body: "Вже було", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
     const fresh = { ID: "new", Title: "Нове", Body: "Щойно прийшло", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 2 }
-      : path.endsWith("/poll")
-        ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 1 }
-        : { Items: [old], NextCursor: null }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 1 }),
+      since: newsOnce([fresh], 2, 1),
+      list: () => ({ Items: [old], NextCursor: "" }),
+    })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" })).toBeInTheDocument()
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
@@ -170,13 +208,12 @@ describe("top-bar inbox", () => {
 
   it("pops a fresh message for five seconds when the template duration is empty", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: null, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [], NextCursor: null }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      since: newsOnce([fresh], 1),
+    })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
   })
@@ -184,19 +221,18 @@ describe("top-bar inbox", () => {
   it("removes a pop-in when another tab reads its message", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     let delta = 0
-    api.get.mockImplementation((path: string) => {
-      if (path.includes("/poll?")) {
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      since: (since) => {
+        if (since === "") return { Cursor: BASE, Items: [], Unread: 0 }
         delta += 1
-        return Promise.resolve(delta === 1
-          ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-          : { Cursor: NEW_CURSOR, NewInbox: [], UnreadCount: 0 })
-      }
-      if (path.endsWith("/poll")) return Promise.resolve({ Cursor: null, NewInbox: [], UnreadCount: 0 })
-      return Promise.resolve({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: null })
+        return delta === 1 ? { Cursor: BASE, Items: [fresh], Unread: 1 } : { Cursor: BASE, Items: [], Unread: 0 }
+      },
+      list: () => ({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: "" }),
     })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні" })).toBeInTheDocument()
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
 
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     await screen.findByRole("status", { name: "Нове повідомлення" })
@@ -209,27 +245,26 @@ describe("top-bar inbox", () => {
 
   it("does not flash a fresh message already read in another tab", async () => {
     const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 0 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }], NextCursor: null }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      since: newsOnce([fresh], 0),
+      list: () => ({ Items: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }], NextCursor: "" }),
+    })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(6))
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
   })
 
   it("marks a pop-in action read before navigating", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
-    api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll?")
-      ? { Cursor: NEW_CURSOR, NewInbox: [fresh], UnreadCount: 1 }
-      : path.endsWith("/poll")
-        ? { Cursor: null, NewInbox: [], UnreadCount: 0 }
-        : { Items: [], NextCursor: null }))
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      since: newsOnce([fresh], 1),
+    })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     fireEvent.click(within(popIn).getByRole("button", { name: "Перейти" }))
@@ -258,12 +293,14 @@ describe("top-bar inbox", () => {
     const personal = { ID: "p", Title: "Особисте повідомлення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T11:00:00Z", Category: "personal", ActionRequired: false }
 
     function mockCategories(pollCounts: typeof counts = counts) {
-      api.get.mockImplementation((path: string) => {
-        const url = new URL(path, "http://x")
-        if (url.pathname.endsWith("/poll")) return Promise.resolve({ Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: pollCounts, OtherEventsCount: 0 })
-        const category = url.searchParams.get("category")
-        const all = [done, lab, personal]
-        return Promise.resolve({ Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: null })
+      const all = [done, lab, personal]
+      mockRoutes({
+        pulse: () => ({ Cursor: BASE, Unread: 2 }),
+        since: () => ({ Cursor: BASE, Items: [], Unread: 2, Counts: pollCounts, OtherEventsCount: 0 }),
+        list: (url) => {
+          const category = url.searchParams.get("category")
+          return { Items: category ? all.filter((item) => item.Category === category) : all, NextCursor: "" }
+        },
       })
     }
 
@@ -277,7 +314,7 @@ describe("top-bar inbox", () => {
       const rows = screen.getAllByRole("listitem")
       expect(rows.map((row) => row.textContent)).toEqual([expect.stringContaining("Лабораторія впала"), expect.stringContaining("Схвалив Іван П.")])
       expect(rows[1]).toHaveClass("opacity-60")
-      expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?category=requests")
+      expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=exercises&category=requests")
     })
 
     it("opens on «Усі» without open requests and marks only the current tab read", async () => {
@@ -288,7 +325,7 @@ describe("top-bar inbox", () => {
       fireEvent.click(screen.getByRole("tab", { name: "Особисте: 1" }))
       await screen.findByText("Особисте повідомлення")
       fireEvent.click(screen.getAllByRole("button", { name: "Позначити прочитаним" })[0])
-      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?category=personal", {}))
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?site=exercises&category=personal", {}))
     })
 
     it("resolves an open «Лабораторія впала» request and shows why a resolve failed", async () => {
@@ -307,9 +344,11 @@ describe("top-bar inbox", () => {
 
     it("keeps other requests resolvable while one resolve is pending", async () => {
       const lab2 = { ...lab, ID: "lab2", Title: "Друга лабораторія" }
-      api.get.mockImplementation((path: string) => Promise.resolve(path.includes("/poll")
-        ? { Cursor: BASE_CURSOR, NewInbox: [], UnreadCount: 2, Counts: counts, OtherEventsCount: 0 }
-        : { Items: [lab, lab2], NextCursor: null }))
+      mockRoutes({
+        pulse: () => ({ Cursor: BASE, Unread: 2 }),
+        since: () => ({ Cursor: BASE, Items: [], Unread: 2, Counts: counts, OtherEventsCount: 0 }),
+        list: () => ({ Items: [lab, lab2], NextCursor: "" }),
+      })
       api.post.mockReturnValueOnce(new Promise(() => undefined)).mockResolvedValueOnce(undefined)
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
@@ -328,6 +367,41 @@ describe("top-bar inbox", () => {
       await screen.findByText("Запрошення")
       expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
     })
+  })
+
+  it("asks the news again while the answer cursor is behind the pulse cursor, and only when the pulse changed", async () => {
+    const first = { ID: "a", Title: "Перше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+    const second = { ID: "b", Title: "Друге", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:02:00Z" }
+    mockRoutes({
+      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      since: (since) => since === "" || since === "end" ? { Cursor: since === "" ? BASE : "end", Items: [], Unread: 0 }
+        : since === BASE ? { Cursor: "mid", Items: [first], Unread: 1 } : { Cursor: "end", Items: [second], Unread: 2 },
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    expect(sinceCalls()).toEqual(["/api/notifications/inbox?site=exercises&since="])
+    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    await waitFor(() => expect(sinceCalls().slice(1)).toEqual([
+      `/api/notifications/inbox?site=exercises&since=${encodeURIComponent(BASE)}`,
+      "/api/notifications/inbox?site=exercises&since=mid",
+      // the cursor stopped moving, so the loop ends even though it is still behind the pulse
+      "/api/notifications/inbox?site=exercises&since=end",
+    ]))
+  })
+
+  it("after an empty baseline the next request uses the epoch cursor and new items pop in", async () => {
+    const EPOCH = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
+    const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+    mockRoutes({
+      pulse: () => ({ Cursor: "", Unread: 0 }),
+      since: (since) => since === "" ? { Cursor: "", Items: [], Unread: 0 } : { Cursor: NEXT, Items: [fresh], Unread: 1 },
+      list: () => ({ Items: [], NextCursor: "" }),
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
+    expect(sinceCalls()[1]).toBe(`/api/notifications/inbox?site=exercises&since=${encodeURIComponent(EPOCH)}`)
   })
 
   it("is absent without access to own notifications", () => {
