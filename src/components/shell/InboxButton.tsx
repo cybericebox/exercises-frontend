@@ -40,6 +40,7 @@ type InboxSince = { Cursor: string; Items: Message[]; Unread: number; Counts?: u
 type InboxPage = { Items: Message[]; NextCursor: string }
 // Safety stop for the since-loop when the server keeps answering with a cursor that is behind the pulse.
 const MAX_SINCE_ROUNDS = 20
+const EPOCH_CURSOR = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
 // A link here with ?inbox opens the dropdown on arrival (the event site's «Ще N в інших заходах»).
 const OPEN_PARAM = "inbox"
 
@@ -170,7 +171,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         if (!initialized) {
           const baseline = await fetchSince("")
           if (!active) return
-          cursorRef.current = baseline.Cursor ?? ""
+          // Only the very first call may send an empty since; an empty inbox holds the epoch cursor.
+          cursorRef.current = baseline.Cursor || EPOCH_CURSOR
           unreadCountRef.current = baseline.Unread
           setUnread(baseline.Unread)
           applyCounts(parseCounts(baseline.Counts))
@@ -181,10 +183,10 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           if (target === undefined || (baseline.Cursor ?? "") === target) return
         }
         for (let round = 0; round < MAX_SINCE_ROUNDS; round++) {
-          const since = cursorRef.current ?? ""
+          const since = cursorRef.current ?? EPOCH_CURSOR
           const result = await fetchSince(since)
           if (!active) return
-          cursorRef.current = result.Cursor ?? since
+          cursorRef.current = result.Cursor || since
           const items = result.Items ?? []
           const fresh = items.filter(isUnread)
           if (openRef.current && items.length) {
@@ -209,7 +211,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           if (result.OtherEventsCount !== undefined) setOtherEvents(parseOtherEvents(result.OtherEventsCount))
           if (active && poppable.length) setPopIns((previous) => [...previous, ...poppable.filter((item) => !previous.some((entry) => entry.ID === item.ID))])
           const target = pulseState?.Cursor ?? latestPulse(eventId)?.Inbox?.Cursor
-          if (target === undefined || (result.Cursor ?? since) === target || (result.Cursor ?? since) === since) break
+          if (target === undefined || (result.Cursor ?? "") === target || (result.Cursor || since) === since) break
         }
       } catch (err) {
         if (active) { setLoadFailure({ error: err }); setLoading(false) }
