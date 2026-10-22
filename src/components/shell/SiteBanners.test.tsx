@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen } from "@testing-library/react"
-import { SiteBanners } from "./SiteBanners"
+import { forgetHeldBanners, SiteBanners } from "./SiteBanners"
 
 // Fires the pulse loop's next tick: focus asks for an immediate pulse once the 5 s gap has passed.
 async function advancePulse() {
@@ -12,13 +12,13 @@ vi.mock("@/api/client", () => ({ apiGet: api.get, apiPatch: api.patch }))
 
 // The pulse answers with a banner version; the list endpoint answers with what the test queued.
 const list = vi.hoisted(() => ({ get: vi.fn() }))
-let version = 1
+let version: number | string = 1
 
 const banner = (fields: Record<string, unknown> = {}) => ({ ID: "b1", Text: "Планові роботи", LinkURL: "", LinkLabel: "", Level: "info", Dismissible: true, Version: 1, ...fields })
 
 describe("site banners", () => {
   beforeEach(() => {
-    api.get.mockReset(); api.patch.mockReset(); list.get.mockReset(); localStorage.clear(); version = 1
+    api.get.mockReset(); api.patch.mockReset(); list.get.mockReset(); localStorage.clear(); version = 1; forgetHeldBanners()
     api.get.mockImplementation((path: string) => path.startsWith("/api/notifications/pulse") ? Promise.resolve({ Banners: String(version), Inbox: null }) : list.get(path))
   })
   afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
@@ -104,6 +104,34 @@ describe("site banners", () => {
     // The failed fetch did not record the version, so the next pulse retries.
     await advancePulse()
     expect(await screen.findByText("Оновлено")).toBeInTheDocument()
+  })
+
+  it("never asks for the list while the pulse reports no banners, and clears it without a request", async () => {
+    version = "e3b0c44298fc1c14"
+    list.get.mockResolvedValue([banner()])
+    const { container } = render(<SiteBanners />)
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
+    version = ""
+    await advancePulse()
+    expect(list.get).not.toHaveBeenCalled()
+    version = 2
+    await advancePulse()
+    expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
+    version = "e3b0c44298fc1c14"
+    await advancePulse()
+    await vi.waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(list.get).toHaveBeenCalledTimes(1)
+  })
+
+  it("a remount with the version already held shows the list without a request", async () => {
+    list.get.mockResolvedValue([banner()])
+    const first = render(<SiteBanners />)
+    await screen.findByText("Планові роботи")
+    first.unmount()
+    render(<SiteBanners />)
+    expect(screen.getByText("Планові роботи")).toBeInTheDocument()
+    await vi.waitFor(() => expect(api.get.mock.calls.filter(([path]) => String(path).includes("/pulse"))).toHaveLength(2))
+    expect(list.get).toHaveBeenCalledTimes(1)
   })
 
   it("shows a personal banner with only a Title", async () => {

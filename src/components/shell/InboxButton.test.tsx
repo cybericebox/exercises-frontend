@@ -146,7 +146,7 @@ describe("top-bar inbox", () => {
       list: (url) => url.searchParams.has("before") ? { Items: [older], NextCursor: "" } : { Items: [first], NextCursor: "recent" },
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 25" }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(await screen.findByText("Раніше")).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe("top-bar inbox", () => {
       list: (url) => url.searchParams.has("before") ? { Items: [older], NextCursor: "" } : { Items: [first], NextCursor: "recent" },
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     fireEvent.click(await screen.findByRole("button", { name: /Вхідні/ }))
     expect(await screen.findByText("Останнє")).toBeInTheDocument()
     expect(screen.queryByText("Раніше")).not.toBeInTheDocument()
@@ -176,7 +176,7 @@ describe("top-bar inbox", () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "/events", Actions: [{ label: "Інша дія", href: "/other" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
-    expect(screen.getByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
+    expect(await screen.findByRole("link", { name: "Відкрити" })).toHaveAttribute("href", "/events")
     expect(screen.queryByRole("link", { name: "Інша дія" })).not.toBeInTheDocument()
   })
 
@@ -184,15 +184,16 @@ describe("top-bar inbox", () => {
     mockInbox([{ ID: "1", Title: "Подія", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     render(<InboxButton />)
     fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
+    const title = await screen.findByText("Подія")
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
-    expect(within(screen.getByText("Подія").closest("li")!).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
+    expect(within(title.closest("li")!).getByRole("button", { name: "Позначити прочитаним" })).toBeInTheDocument()
   })
 
   it("pops only fresh unread messages with a configured duration", async () => {
     const old = { ID: "old", Title: "Старе", Body: "Вже було", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }
     const fresh = { ID: "new", Title: "Нове", Body: "Щойно прийшло", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 1 }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 1 } : { Cursor: NEXT, Unread: 2 },
       since: newsOnce([fresh], 2, 1),
       list: () => ({ Items: [old], NextCursor: "" }),
     })
@@ -209,62 +210,85 @@ describe("top-bar inbox", () => {
   it("pops a fresh message for five seconds when the template duration is empty", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: null, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 0 } : { Cursor: NEXT, Unread: 1 },
       since: newsOnce([fresh], 1),
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
   })
 
-  it("removes a pop-in when another tab reads its message", async () => {
+  it("removes a pop-in when another tab reads its message while the dropdown is open", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     let delta = 0
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 0 } : n === 1 ? { Cursor: NEXT, Unread: 1 } : { Cursor: NEXT, Unread: 0 },
       since: (since) => {
         if (since === "") return { Cursor: BASE, Items: [], Unread: 0 }
         delta += 1
-        return delta === 1 ? { Cursor: BASE, Items: [fresh], Unread: 1 } : { Cursor: BASE, Items: [], Unread: 0 }
+        return delta === 1 ? { Cursor: NEXT, Items: [fresh], Unread: 1 } : { Cursor: NEXT, Items: [], Unread: 0 }
       },
       list: () => ({ Items: delta > 1 ? [{ ...fresh, ReadAt: "2026-09-24T12:02:00Z" }] : [], NextCursor: "" }),
     })
     render(<InboxButton />)
     expect(await screen.findByRole("button", { name: "Вхідні" })).toBeInTheDocument()
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
 
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     await screen.findByRole("status", { name: "Нове повідомлення" })
+    fireEvent.click(screen.getByRole("button", { name: "Вхідні, непрочитані: 1" }))
 
-    // A second tab reads the same message; a refresh must keep it out of pop-ins.
+    // A second tab reads the same message; the refreshed list keeps it out of pop-ins.
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
-    await waitFor(() => expect(screen.getByRole("button", { name: "Вхідні" })).toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument())
+  })
+
+  it("never pops a fresh message that arrives already read", async () => {
+    const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: "2026-09-24T12:01:01Z", CreatedAt: "2026-09-24T12:01:00Z" }
+    mockRoutes({
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 0 } : { Cursor: NEXT, Unread: 0 },
+      since: newsOnce([fresh], 0),
+    })
+    render(<InboxButton />)
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    await waitFor(() => expect(sinceCalls()).toHaveLength(2))
     expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
   })
 
-  it("does not flash a fresh message already read in another tab", async () => {
-    const fresh = { ID: "new", Title: "Вже прочитане", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
+  it("never reads the list while the dropdown is closed, and reads it behind the crest when it opens", async () => {
+    let answer: () => void = () => {}
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 0 }),
-      since: newsOnce([fresh], 0),
-      list: () => ({ Items: [{ ...fresh, ReadAt: "2026-09-24T12:01:01Z" }], NextCursor: "" }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 1 } : { Cursor: BASE, Unread: 0 },
+      since: (since) => ({ Cursor: BASE, Items: [], Unread: since === "" ? 1 : 0 }),
     })
+    const routed = api.get.getMockImplementation()!
+    const lists = () => api.get.mock.calls.map(([path]) => String(path)).filter((path) => path.includes("/inbox") && !path.includes("since="))
+    api.get.mockImplementation((path: string) => path.includes("/inbox") && !path.includes("since=")
+      ? new Promise((resolve) => { answer = () => resolve({ Items: [{ ID: "1", Title: "Запрошення", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }], NextCursor: "" }) })
+      : routed(path))
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(sinceCalls()).toHaveLength(1))
+    // Unread moved without news (read elsewhere): only the since call.
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(6))
-    expect(screen.queryByRole("status", { name: "Нове повідомлення" })).not.toBeInTheDocument()
+    await waitFor(() => expect(sinceCalls()).toHaveLength(2))
+    expect(lists()).toHaveLength(0)
+    fireEvent.click(screen.getByRole("button", { name: /Вхідні/ }))
+    expect(lists()).toHaveLength(1)
+    await waitFor(() => expect(document.querySelector(".crest-loader")).not.toBeNull())
+    await act(async () => { answer() })
+    expect(await screen.findByText("Запрошення")).toBeInTheDocument()
   })
 
   it("marks a pop-in action read before navigating", async () => {
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", Actions: [{ label: "Перейти", href: "/events" }], AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 0 } : { Cursor: NEXT, Unread: 1 },
       since: newsOnce([fresh], 1),
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     const popIn = await screen.findByRole("status", { name: "Нове повідомлення" })
     fireEvent.click(within(popIn).getByRole("button", { name: "Перейти" }))
@@ -373,12 +397,12 @@ describe("top-bar inbox", () => {
     const first = { ID: "a", Title: "Перше", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     const second = { ID: "b", Title: "Друге", Body: "", Link: "", ReadAt: null, CreatedAt: "2026-09-24T12:02:00Z" }
     mockRoutes({
-      pulse: () => ({ Cursor: BASE, Unread: 0 }),
+      pulse: (n) => n === 0 ? { Cursor: BASE, Unread: 0 } : { Cursor: "far", Unread: 2 },
       since: (since) => since === "" || since === "end" ? { Cursor: since === "" ? BASE : "end", Items: [], Unread: 0 }
         : since === BASE ? { Cursor: "mid", Items: [first], Unread: 1 } : { Cursor: "end", Items: [second], Unread: 2 },
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     expect(sinceCalls()).toEqual(["/api/notifications/inbox?site=exercises&since="])
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     await waitFor(() => expect(sinceCalls().slice(1)).toEqual([
@@ -393,15 +417,27 @@ describe("top-bar inbox", () => {
     const EPOCH = "1970-01-01T00:00:00Z_00000000-0000-0000-0000-000000000000"
     const fresh = { ID: "new", Title: "Нове", Body: "Деталі", Link: "", AutoDismissMs: 5000, ReadAt: null, CreatedAt: "2026-09-24T12:01:00Z" }
     mockRoutes({
-      pulse: () => ({ Cursor: "", Unread: 0 }),
+      pulse: (n) => n === 0 ? { Cursor: "", Unread: 0 } : { Cursor: NEXT, Unread: 1 },
       since: (since) => since === "" ? { Cursor: "", Items: [], Unread: 0 } : { Cursor: NEXT, Items: [fresh], Unread: 1 },
       list: () => ({ Items: [], NextCursor: "" }),
     })
     render(<InboxButton />)
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
     act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
     expect(await screen.findByRole("status", { name: "Нове повідомлення" })).toHaveTextContent("Нове")
     expect(sinceCalls()[1]).toBe(`/api/notifications/inbox?site=exercises&since=${encodeURIComponent(EPOCH)}`)
+  })
+
+  it("a local change or a restored API asks the pulse, never the inbox directly", async () => {
+    render(<InboxButton />)
+    await waitFor(() => expect(sinceCalls()).toHaveLength(1))
+    const pulses = () => api.get.mock.calls.filter(([path]) => String(path).includes("/pulse")).length
+    const before = pulses()
+    act(() => window.dispatchEvent(new Event("cybericebox:inbox-updated")))
+    await waitFor(() => expect(pulses()).toBe(before + 1))
+    // The pulse is unchanged, so no news are asked for.
+    await act(async () => { await Promise.resolve() })
+    expect(sinceCalls()).toHaveLength(1)
   })
 
   it("is absent without access to own notifications", () => {
