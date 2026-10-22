@@ -17,7 +17,6 @@ import { LoadError } from "@/components/ui/load-error"
 
 import { apiGet, apiPatch, apiPost } from "@/api/client"
 import { useRole } from "@/lib/useRole"
-import { onServiceRestored } from "@/lib/serviceStatus"
 import { localizedError } from "@/i18n/apiError"
 import { t } from "@/i18n/t"
 import { NotificationMessageCard } from "@/components/notifications/NotificationMessageCard"
@@ -31,7 +30,7 @@ import {
 } from "@/components/notifications/inboxModel"
 import { keepBrand } from "@/i18n/brand"
 import { STORAGE_INBOX_READ } from "@/lib/storageKeys"
-import { PULSE_SITE, subscribePulse, latestPulse } from "@/lib/pulse"
+import { PULSE_SITE, pulseNow, subscribePulse, latestPulse } from "@/lib/pulse"
 
 // Dropdown height cap, the same in every app: tune it here.
 const panelMaxHeight = "max-h-[min(28rem,calc(100vh-6rem))]"
@@ -178,7 +177,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
           applyCounts(parseCounts(baseline.Counts))
           setOtherEvents(parseOtherEvents(baseline.OtherEventsCount))
           initialized = true
-          await refresh()
+          // The list itself is read only when the dropdown opens (openInbox → refresh).
           const target = pulseState?.Cursor ?? latestPulse(eventId)?.Inbox?.Cursor
           if (target === undefined || (baseline.Cursor ?? "") === target) return
         }
@@ -198,7 +197,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
             })
           }
           let poppable = fresh.filter((item) => popInDuration(item.AutoDismissMs) > 0)
-          if (result.Unread !== unreadCountRef.current + fresh.length) {
+          if (result.Unread !== unreadCountRef.current + fresh.length && openRef.current) {
             const latest = await refresh()
             poppable = latest ? poppable.filter((item) => latest.some((entry) => entry.ID === item.ID && isUnread(entry))) : []
           } else {
@@ -220,7 +219,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         if (pending && active) { pending = false; queueMicrotask(() => { void sync() }) }
       }
     }
-    syncNowRef.current = () => { void sync() }
+    // A local change asks the shared pulse; only a moved cursor or unread count then fetches news.
+    syncNowRef.current = () => { pulseNow(eventId) }
     const onPulse = (pulse: { Inbox: { Cursor: string; Unread: number } | null }) => {
       const inbox = pulse.Inbox
       if (!inbox) return
@@ -229,8 +229,8 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       if (!initialized || !previous || previous.Cursor !== inbox.Cursor || previous.Unread !== inbox.Unread) void sync()
     }
     const unsubscribePulse = subscribePulse(onPulse, eventId)
-    const syncWhenVisible = () => { if (document.visibilityState !== "hidden") void sync() }
-    const unsubscribe = onServiceRestored(syncWhenVisible)
+    // A restored API pulses through the loop itself (lib/pulse).
+    const syncWhenVisible = () => { if (document.visibilityState !== "hidden") pulseNow(eventId) }
     window.addEventListener("cybericebox:inbox-updated", syncWhenVisible)
     const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_INBOX_READ) { syncWhenVisible(); if (openRef.current) void refresh() } }
     window.addEventListener("storage", onStorage)
@@ -238,7 +238,6 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
       active = false
       syncNowRef.current = () => {}
       unsubscribePulse()
-      unsubscribe()
       window.removeEventListener("cybericebox:inbox-updated", syncWhenVisible)
       window.removeEventListener("storage", onStorage)
     }
