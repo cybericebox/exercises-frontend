@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { X } from "lucide-react"
 import { apiGet, apiPatch } from "@/api/client"
-import { pulseQuery, subscribePulse } from "@/lib/pulse"
+import { hasBanners, pulseQuery, subscribePulse } from "@/lib/pulse"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { bannerHref, bannerLevel, dismissKey, isDismissed, parseBanners, rememberDismissed, type SiteBanner } from "@/lib/siteBanners"
@@ -59,31 +59,38 @@ export function SiteBannerList({ banners, onDismiss }: { banners: SiteBanner[]; 
   )
 }
 
-// Site banners: the list is fetched on load and again only when the pulse's Banners version changes.
-// A banner outage never blocks the page: errors are ignored and nothing renders until data arrives.
+// The list last fetched in this tab and the pulse version it stands for: a remount (another layout) reuses it.
+let held: { version: string; banners: SiteBanner[] } | null = null
+
+/** Test helper: forget the held list, as on a fresh page load. */
+export function forgetHeldBanners(): void { held = null }
+
+// Site banners: the list is fetched on load and again only when the pulse's Banners version changes; never for
+// a version of an empty list. A banner outage never blocks the page: errors are ignored and nothing renders until data arrives.
 export function SiteBanners() {
-  const [banners, setBanners] = useState<SiteBanner[]>([])
+  const [banners, setBanners] = useState<SiteBanner[]>(() => held?.banners ?? [])
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set())
 
   useEffect(() => {
     let active = true
-    let version: string | null = null
     let fetching = false
     let wanted: string | null = null
     const load = (next: string) => {
       wanted = next
-      if (fetching) return
+      if (fetching || next === held?.version) return
+      // No banners at all: nothing to ask, the list is simply empty.
+      if (!hasBanners(next)) { held = { version: next, banners: [] }; setBanners([]); return }
       fetching = true
       const requested = next
       apiGet<unknown>(`/api/notifications/banners${pulseQuery()}`, undefined, { required: false })
-        .then((data) => { if (active) { version = requested; setBanners(parseBanners(data)) } })
+        .then((data) => { const list = parseBanners(data); held = { version: requested, banners: list }; if (active) setBanners(list) })
         .catch(() => { /* ignored on purpose; the version stays unknown, so the next pulse retries */ })
         .finally(() => {
           fetching = false
           if (active && wanted !== null && wanted !== requested) load(wanted)
         })
     }
-    const unsubscribe = subscribePulse((pulse) => { if (pulse.Banners !== version) load(pulse.Banners) })
+    const unsubscribe = subscribePulse((pulse) => { if (pulse.Banners !== held?.version) load(pulse.Banners) })
     return () => { active = false; unsubscribe() }
   }, [])
 
