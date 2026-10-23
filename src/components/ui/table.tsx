@@ -4,10 +4,10 @@ import { cn } from "@/utils/cn"
  * The one table of the app (DS `table`): the scroll region is focusable and named, `<thead>` stays
  * in every state, a state (loading, empty, error) is one full-width row in its own `<tbody>`.
  */
-export function Table({ label, className, regionClassName, regionRef, busy, children }: { label: string; className?: string; regionClassName?: string; regionRef?: React.Ref<HTMLDivElement>; busy?: boolean; children: React.ReactNode }) {
+export function Table({ label, className, regionClassName, regionRef, busy, style, children }: { label: string; className?: string; regionClassName?: string; regionRef?: React.Ref<HTMLDivElement>; busy?: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
   return (
     <div ref={regionRef} role="region" aria-label={label} aria-busy={busy} tabIndex={0} className={cn("@container relative min-h-0 min-w-0 max-w-full flex-initial overflow-auto focus-visible:outline-2 focus-visible:outline-primary", regionClassName)}>
-      <table aria-label={label} className={cn("w-full border-separate border-spacing-0 text-sm", className)}>{children}</table>
+      <table aria-label={label} style={style} className={cn("w-full border-separate border-spacing-0 text-sm", className)}>{children}</table>
     </div>
   )
 }

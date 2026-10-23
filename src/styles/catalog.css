@@ -74,7 +74,11 @@
 /* The table fills the rest of the screen; the box stays put, its rows scroll, the footer stays at the bottom. */
 .catalog-table-box{display:flex;flex:1;min-height:240px;flex-direction:column;overflow:hidden;border:1px solid var(--ib-line);border-radius:var(--ib-r-lg);background:var(--card)}
 .catalog-table{flex:1;min-height:0}
-.catalog-data{table-layout:fixed;width:max-content;min-width:100%}
+.catalog-data{table-layout:fixed;width:100%}
+/* A state (loading, empty, error) fills the whole block under the header, centred; the header row keeps 40px. */
+.catalog-data-state{height:100%}
+.catalog-data-state thead tr{height:40px}
+.catalog-data-state .ib-table__state td{height:auto;vertical-align:middle}
 .catalog-data th,.catalog-data td{height:40px;padding:0 12px;border-bottom:1px solid var(--ib-line);text-align:left;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .catalog-data tbody td{background:var(--card)}
 .catalog-th{position:sticky;top:0;z-index:20;background:var(--ib-paper)!important;font-size:13px;font-weight:500;color:var(--ib-dim)}
@@ -85,9 +89,6 @@
 .catalog-th-sort:hover .catalog-sort-icon,.catalog-th-sort:focus-visible .catalog-sort-icon{opacity:.45}
 .catalog-th-on .catalog-sort-icon,.catalog-th-on .catalog-th-sort:hover .catalog-sort-icon{opacity:1}
 @media(pointer:coarse){.catalog-sort-icon{opacity:.45}}
-.catalog-col-select{width:44px}.catalog-col-name{width:320px}
-.catalog-col-access{width:200px}.catalog-col-status{width:150px}.catalog-col-subtasks{width:140px}.catalog-col-variants{width:110px}
-.catalog-col-author{width:180px}.catalog-col-updated{width:120px}.catalog-col-difficulty{width:160px}.catalog-col-tags{width:220px}.catalog-col-owner{width:200px}
 .catalog-data .catalog-select{position:sticky;left:0;z-index:10;padding:0 0 0 8px}
 .catalog-data .catalog-name{position:sticky;left:0;z-index:10;border-right:1px solid var(--ib-line)}
 .catalog-has-selection .catalog-name{left:44px}

@@ -13,6 +13,11 @@ import { AccessCell, AuthorCell, DifficultyCell, StatusCell, SubtaskCountCell, U
 import { columnLabel } from "./ColumnsMenu"
 import { cn } from "@/utils/cn"
 
+/** Column widths in px (the name takes the rest, at least NAME_MIN): fixed, so states and long values never move them. */
+const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 140, subtasks: 134, variants: 112, author: 160, updated: 124, difficulty: 160, tags: 200, owner: 190 }
+const SELECT_WIDTH = 44
+const NAME_MIN = 240
+
 type SortProps = { activeField: string; direction: "asc" | "desc"; onSort: (field: string) => void }
 
 /** A header cell; a sortable column shows ↕ on hover/focus and ↑/↓ once it sorts the table. */
@@ -82,12 +87,15 @@ export function CatalogTable({ rows, columns, selected, selecting, selectable, a
 }) {
   const shown = columns.filter((column) => column.visible).map((column) => column.key)
   const span = shown.length + (selecting ? 2 : 1)
+  // The table fills the block; below this width it scrolls sideways (the name and the selection stay).
+  const minWidth = (selecting ? SELECT_WIDTH : 0) + NAME_MIN + shown.reduce((sum, key) => sum + COLUMN_WIDTH[key], 0)
   return <div className="catalog-table-box">
-    <Table label={t("accountMenu.exercises")} regionRef={regionRef} busy={busy} regionClassName="catalog-table" className={cn("catalog-data", selecting && "catalog-has-selection")}>
+    <Table label={t("accountMenu.exercises")} regionRef={regionRef} busy={busy} regionClassName="catalog-table" style={{ minWidth }}
+      className={cn("catalog-data", selecting && "catalog-has-selection", state && "catalog-data-state")}>
       <colgroup>
-        {selecting && <col className="catalog-col-select" />}
-        <col className="catalog-col-name" />
-        {shown.map((key) => <col key={key} className={`catalog-col-${key}`} />)}
+        {selecting && <col style={{ width: SELECT_WIDTH }} />}
+        <col />
+        {shown.map((key) => <col key={key} style={{ width: COLUMN_WIDTH[key] }} />)}
       </colgroup>
       <thead><tr>
         {selecting && <th scope="col" className="catalog-th catalog-select"><label className="catalog-check">
