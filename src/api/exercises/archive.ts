@@ -74,13 +74,14 @@ export async function downloadImportExample(): Promise<ExportedArchive> {
 }
 
 /** What an import start came to: the tasks created at once, or (an archive naming image files) a job to follow. */
-export type ImportResult = { ItemKey: string; Mode: "new" | "update"; ExerciseID: string }
-export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number }
-export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number } | { kind: "job"; jobID: string }
+/** «unchanged»: an update the server skipped because the archive brought nothing new. */
+export type ImportResult = { ItemKey: string; Mode: "new" | "update" | "unchanged"; ExerciseID: string }
+export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number; Unchanged?: number }
+export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number; unchanged?: number } | { kind: "job"; jobID: string }
 
 export function normalizeImportStart(answer: ImportAnswer): ImportStart {
   if (isJob(answer)) return { kind: "job", jobID: answer.JobID }
-  if (answer && !Array.isArray(answer)) return { kind: "done", exercises: (answer.Exercises ?? []).map(normalizeExercise), results: answer.Results ?? [], created: answer.Created, updated: answer.Updated }
+  if (answer && !Array.isArray(answer)) return { kind: "done", exercises: (answer.Exercises ?? []).map(normalizeExercise), results: answer.Results ?? [], created: answer.Created, updated: answer.Updated, unchanged: answer.Unchanged ?? 0 }
   return { kind: "done", exercises: (answer ?? []).map(normalizeExercise) }
 }
 

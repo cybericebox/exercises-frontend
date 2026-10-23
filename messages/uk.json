@@ -1869,5 +1869,7 @@
   "admin.exImport.update.error.22909": "Архів захищено паролем. Введіть пароль і перевірте ще раз.",
   "admin.exImport.update.error.22910": "Пароль не підходить до цього архіву.",
   "admin.exImport.update.replaceTasksMore": "{names} і ще {count}",
-  "admin.exImport.dismiss": "Прибрати"
+  "admin.exImport.dismiss": "Прибрати",
+  "admin.exImport.update.unchangedResult": "Без змін",
+  "admin.exImport.update.doneCountsUnchanged": "Оновлено {updated} · Створено {created} · Без змін {unchanged}"
 }

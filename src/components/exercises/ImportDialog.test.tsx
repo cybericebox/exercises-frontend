@@ -291,3 +291,13 @@ it("asks for the password when the archive is protected and keeps a wrong one be
  expect(previewArchiveImport).toHaveBeenLastCalledWith(expect.objectContaining({ Password: "nope" }), expect.any(AbortSignal))
  expect(screen.getByLabelText(/^admin.exImport.file/)).not.toHaveAttribute("aria-invalid")
 })
+it("reports an update the server skipped as unchanged", async () => {
+ const second = { ...item, Name: "Second source task", ItemKey: "second", Target: { ItemKey: "second", Mode: "new" as const }, TargetExercise: null, ReplacesDraft: false }
+ vi.mocked(previewArchiveImport).mockResolvedValue({ Items: [item, second] })
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "unchanged", ExerciseID: "target" }, { ItemKey: "second", Mode: "new", ExerciseID: "created" }], created: 1, updated: 0, unchanged: 1 })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ expect(await screen.findByText('admin.exImport.update.doneCountsUnchanged {"created":1,"updated":0,"unchanged":1}')).toBeInTheDocument()
+ expect(screen.getByText("admin.exImport.update.unchangedResult")).toBeInTheDocument()
+})
