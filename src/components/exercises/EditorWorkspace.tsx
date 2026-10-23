@@ -16,7 +16,6 @@ import { baseCandidates, copyVariant, dependentsOf } from "@/lib/linkedVariants"
 import { cn } from "@/utils/cn"
 import { useEditorPosition } from "./EditorPosition"
 import { ExerciseIdContext } from "./ExerciseIdContext"
-import { DuplicateVariantAdvice } from "./DuplicateVariantAdvice"
 import { InfrastructureBlockedNote } from "./EventBanners"
 import { LinkedVariantsDialog } from "./LinkedVariantsDialog"
 import { TaskAccordion } from "./TaskAccordion"
@@ -66,6 +65,7 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
   const [tab, setTab] = useEditorPosition("tab")
   const [selected, setSelected] = useEditorPosition("variant")
   const [linkedOpen, setLinkedOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
   const active = Math.min(selected, Math.max(fields.length - 1, 0))
   // Only the link structure: a keystroke inside a variant leaves it equal, so no re-render.
   const links = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => variants.map((variant) => ({ ID: variant.ID, LinkedTo: variant.LinkedTo, Weight: variant.Weight })) })
@@ -101,6 +101,26 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
     setSelected(active > index ? active - 1 : Math.min(active, fields.length - 2))
   }
 
+  // The add-variant choices, shared by the «+» in the tab row and «Додати варіант» above the all-variants table.
+  const addMenu = (align: "start" | "end") => <DropdownMenuContent align={align} className="w-80">
+    <DropdownMenuItem className="flex-col items-start gap-0.5" onSelect={addCopy}>
+      <span>{t("admin.exDraft.addIndependent", { n: active + 1 })}</span>
+      <span className="text-xs text-muted-foreground">{t("admin.exDraft.addIndependentHint")}</span>
+    </DropdownMenuItem>
+    {canLink
+      ? <DropdownMenuItem className="flex-col items-start gap-0.5" onSelect={() => setLinkedOpen(true)}>
+        <span>{t("admin.exDraft.addBased")}</span>
+        <span className="text-xs text-muted-foreground">{t("admin.exDraft.addBasedHint")}</span>
+      </DropdownMenuItem>
+      // Not `disabled`: Radix would drop it from keyboard focus, and the reason must stay reachable.
+      : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right" describe="always" className="w-full">
+        <DropdownMenuItem aria-disabled="true" className="flex-col items-start gap-0.5 opacity-50" onSelect={(event) => event.preventDefault()}>
+          <span>{t("admin.exDraft.addBased")}</span>
+          <span className="text-xs text-muted-foreground">{t("admin.exDraft.addBasedHint")}</span>
+        </DropdownMenuItem>
+      </HoverTooltip>}
+  </DropdownMenuContent>
+
   const variantLabel = (index: number) => {
     const base = baseOf(index)
     const label = base >= 0 ? t("admin.exDraft.variantBasedOn", { n: index + 1, base: base + 1 }) : t("admin.exDraft.variantN", { n: index + 1 })
@@ -132,28 +152,18 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
         <HoverTooltip text={t("admin.exDraft.addVariant")}>
           <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={t("admin.exDraft.addVariant")}><Plus aria-hidden="true" className="h-4 w-4" /></Button></DropdownMenuTrigger>
         </HoverTooltip>
-        <DropdownMenuContent align="start" className="w-80">
-          <DropdownMenuItem className="flex-col items-start gap-0.5" onSelect={addCopy}>
-            <span>{t("admin.exDraft.addIndependent", { n: active + 1 })}</span>
-            <span className="text-xs text-muted-foreground">{t("admin.exDraft.addIndependentHint")}</span>
-          </DropdownMenuItem>
-          {canLink
-            ? <DropdownMenuItem className="flex-col items-start gap-0.5" onSelect={() => setLinkedOpen(true)}>
-              <span>{t("admin.exDraft.addBased")}</span>
-              <span className="text-xs text-muted-foreground">{t("admin.exDraft.addBasedHint")}</span>
-            </DropdownMenuItem>
-            // Not `disabled`: Radix would drop it from keyboard focus, and the reason must stay reachable.
-            : <HoverTooltip text={t("admin.exDraft.linkedNeedsSavedBase")} side="right" describe="always" className="w-full">
-              <DropdownMenuItem aria-disabled="true" className="flex-col items-start gap-0.5 opacity-50" onSelect={(event) => event.preventDefault()}>
-                <span>{t("admin.exDraft.addBased")}</span>
-                <span className="text-xs text-muted-foreground">{t("admin.exDraft.addBasedHint")}</span>
-              </DropdownMenuItem>
-            </HoverTooltip>}
-        </DropdownMenuContent>
+        {addMenu("start")}
       </DropdownMenu>}
     </div>
     <div role="tabpanel" id={`${uid}-general-panel`} aria-labelledby={`${uid}-general`} hidden={tab !== "general"} className="editor-panel">{general}</div>
-    {onAll && <div role="tabpanel" id={`${uid}-all-panel`} aria-labelledby={`${uid}-all`} className="editor-panel"><AllVariantsTable form={form} disabled={disabled} onOpen={open} /></div>}
+    {onAll && <div role="tabpanel" id={`${uid}-all-panel`} aria-labelledby={`${uid}-all`} className="editor-panel"><AllVariantsTable form={form} disabled={disabled} onOpen={open} actions={<>
+      {exerciseId && <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setStatsOpen(true)}><BarChart3 aria-hidden="true" className="h-4 w-4" />{t("admin.exStats.open")}</Button>}
+      {!disabled && <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button type="button" size="sm" className="gap-2"><Plus aria-hidden="true" className="h-4 w-4" />{t("admin.exDraft.addVariant")}</Button></DropdownMenuTrigger>
+        {addMenu("end")}
+      </DropdownMenu>}
+    </>} /></div>}
+    {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     {onVariants && fields[active] && <div role="tabpanel" id={`${uid}-variant-panel`} aria-labelledby={`${uid}-variant-${active}`} className="editor-panel">
       <VariantWorkspace key={fields[active].id} form={form} variantIndex={active} count={fields.length} baseIndex={baseOf(active)} weight={links[active]?.Weight ?? 1} disabled={disabled}
         exerciseId={exerciseId} infrastructureBlocked={infrastructureBlocked} showNotes={showNotes} resources={resources}
@@ -221,7 +231,6 @@ function VariantWorkspace({ form, variantIndex, count, baseIndex, weight, disabl
         </DropdownMenuContent>
       </DropdownMenu>}
     </div>
-    <DuplicateVariantAdvice control={form.control} />
     <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${section}`} className="variant-mode-panel">
       {section === "tasks" ? <TaskAccordion variantIndex={variantIndex} disabled={disabled} linked={linked} />
         : section === "note" ? <div className="variant-note">

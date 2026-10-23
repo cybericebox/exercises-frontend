@@ -224,4 +224,14 @@ describe('variant modes', () => {
     fireEvent.click(screen.getByRole('tab', { name: /labelWithWeight/ }))
     expect(screen.getByText('admin.exDraft.summaryWithWeight{"summary":"admin.exDraft.summaryIndependent","weight":2}')).toBeInTheDocument()
   })
+
+  it('offers statistics and «Додати варіант» above the all-variants table', () => {
+    render(<Harness exerciseId="ex-1" start="all" prepare={(draft) => draft.Variants.push({ ...emptyVariant(2), Note: 'n', Tasks: draft.Variants[0].Tasks })} />)
+    const panel = screen.getByRole('region', { name: 'admin.exDraft.allVariants' }).closest('[role="tabpanel"]') as HTMLElement
+    fireEvent.click(within(panel).getByRole('button', { name: 'admin.exStats.open' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('stats for ex-1')
+    fireEvent.keyDown(within(panel).getByRole('button', { name: 'admin.exDraft.addVariant' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitem', { name: /admin\.exDraft\.addIndependent/ }))
+    expect(variantsJson()).toHaveLength(3)
+  })
 })

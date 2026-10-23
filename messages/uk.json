@@ -1907,5 +1907,8 @@
   "admin.exTopo.resourcesDefault": "Типовий розмір платформи",
   "exercises.hints.row": "{n}. {text}",
   "exercises.hints.rowEmpty": "без тексту",
-  "exercises.hints.rowLevel": "· рівень: {level}"
+  "exercises.hints.rowLevel": "· рівень: {level}",
+  "admin.exSimplify.stripMerge": "Варіантів: {before}, але частина з них однакові. Можна звести до {after} без зміни пропорцій видачі.",
+  "admin.exSimplify.stripLink": "Деякі варіанти відрізняються від варіанта 1 лише прапорами чи файлами: їх можна створити на його основі.",
+  "admin.exSimplify.review": "Переглянути"
 }

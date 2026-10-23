@@ -1,8 +1,8 @@
 "use client"
 
-import { useId, useMemo, useState } from "react"
+import { useId, useMemo, useState, type ReactNode } from "react"
 import { useFormState, useWatch, type UseFormReturn } from "react-hook-form"
-import { Layers, Paperclip } from "lucide-react"
+import { Layers, Paperclip, TriangleAlert } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -55,7 +55,7 @@ function WeightInput({ form, index, value, disabled, formError }: { form: UseFor
  * Every variant in one table: what makes each one different at a glance — the first flag of every subtask
  * (edited in place), its files, the infrastructure (own or the base's) and the note. A number opens the variant.
  */
-export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormReturn<DraftFormValues>; disabled: boolean; onOpen: (index: number) => void }) {
+export function AllVariantsTable({ form, disabled, onOpen, actions }: { form: UseFormReturn<DraftFormValues>; disabled: boolean; onOpen: (index: number) => void; actions?: ReactNode }) {
   const watched = useWatch({ control: form.control, name: "Variants" })
   const variants = useMemo(() => watched ?? [], [watched])
   const { errors } = useFormState({ control: form.control, name: "Variants" })
@@ -66,15 +66,24 @@ export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormRetu
   const [simplifyOpen, setSimplifyOpen] = useState(false)
   return <div className="all-variants">
     <div className="all-variants-toolbar">
+      <h3 className="all-variants-title">{t("admin.exDraft.allVariants")}<span className="all-variants-count">{variants.length}</span></h3>
       <HoverTooltip text={t("admin.exDraft.issueOrderRule")}>
         <p className="all-variants-order" tabIndex={0}>{t("admin.exDraft.issueOrder", { order: order.join(" ") })}</p>
       </HoverTooltip>
+      <div className="all-variants-actions">
       {!disabled && plan && plan.count > 0 && <HoverTooltip text={t("admin.exSimplify.openHint")}>
-        <Button type="button" variant="outline" size="sm" className="ml-auto gap-2" onClick={() => setSimplifyOpen(true)}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setSimplifyOpen(true)}>
           <Layers aria-hidden="true" className="h-4 w-4" />{t("admin.exSimplify.open", { count: plan.count })}
         </Button>
       </HoverTooltip>}
+      {actions}
+      </div>
     </div>
+    {!disabled && plan && plan.count > 0 && <div className="all-variants-strip" role="status">
+      <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
+      <p>{plan.merges.length > 0 ? t("admin.exSimplify.stripMerge", { before: variants.length, after: plan.variants.length }) : t("admin.exSimplify.stripLink")}</p>
+      <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => setSimplifyOpen(true)}>{t("admin.exSimplify.review")}</Button>
+    </div>}
     {simplifyOpen && plan && <SimplifyVariantsDialog plan={plan} before={variants.length} onClose={() => setSimplifyOpen(false)} onApply={() => {
       // At once in the form; the autosave queue saves it.
       form.setValue("Variants", plan.variants, { shouldDirty: true })
@@ -122,7 +131,7 @@ export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormRetu
               </div></td>
             })}
             <td className="text-muted-foreground">{base >= 0 ? t("admin.exDraft.infraAsIn", { n: base + 1 }) : vi === 0 ? t("admin.exDraft.infraMain") : t("admin.exDraft.infraOwn")}</td>
-            <td className="all-variants-note">{variant.Note && <HoverTooltip text={variant.Note} truncated><span className="block truncate">{variant.Note}</span></HoverTooltip>}</td>
+            <td className="all-variants-note">{variant.Note && <HoverTooltip text={variant.Note} truncated><span className="all-variants-note-text" tabIndex={0}>{variant.Note}</span></HoverTooltip>}</td>
           </tr>
         })}</tbody>
       </table>

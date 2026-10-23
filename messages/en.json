@@ -1907,5 +1907,8 @@
   "admin.exTopo.resourcesDefault": "The platform default size",
   "exercises.hints.row": "{n}. {text}",
   "exercises.hints.rowEmpty": "no text",
-  "exercises.hints.rowLevel": "· level: {level}"
+  "exercises.hints.rowLevel": "· level: {level}",
+  "admin.exSimplify.stripMerge": "Variants: {before}, but some of them are identical. They can be reduced to {after} without changing the issue proportions.",
+  "admin.exSimplify.stripLink": "Some variants differ from variant 1 only by flags or files: they can be based on it.",
+  "admin.exSimplify.review": "Review"
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, within } from "@testing-library/react"
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useForm, useWatch } from "react-hook-form"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}${JSON.stringify(vars)}` : key }))
@@ -111,6 +111,22 @@ describe("AllVariantsTable", () => {
     expect(screen.queryByRole("button", { name: /admin\.exSimplify\.open/ })).not.toBeInTheDocument()
   })
 
+  it("heads the table with its title, count and actions, and offers the review strip", () => {
+    render(<SimplifyHarness actions={<button type="button">extra action</button>} />)
+    expect(screen.getByRole("heading", { name: "admin.exDraft.allVariants4" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "extra action" })).toBeInTheDocument()
+    expect(screen.getByText('admin.exSimplify.stripMerge{"before":4,"after":2}').closest(".all-variants-strip")).toHaveAttribute("role", "status")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exSimplify.review" }))
+    expect(screen.getByRole("dialog", { name: "admin.exSimplify.title" })).toBeInTheDocument()
+  })
+
+  it("cuts a long note with an ellipsis and keeps it reachable", () => {
+    render(<Harness />)
+    const note = screen.getByText("Base")
+    expect(note).toHaveClass("all-variants-note-text")
+    expect(note).toHaveAttribute("tabindex", "0")
+  })
+
   it("closes the dialog without changes on «Не зараз»", () => {
     render(<SimplifyHarness />)
     fireEvent.click(screen.getByRole("button", { name: /admin\.exSimplify\.open/ }))
@@ -120,7 +136,7 @@ describe("AllVariantsTable", () => {
   })
 })
 
-function SimplifyHarness({ disabled = false }: { disabled?: boolean }) {
+function SimplifyHarness({ disabled = false, actions }: { disabled?: boolean; actions?: ReactNode }) {
   const [defaults] = useState(() => {
     const value = emptyDraft()
     const make = (id: string, flag: string) => ({ ...emptyVariant(1), ID: id, Tasks: [{ ...emptyTask(), ID: "t1", Name: "Scan", Flag: [flag] }] })
@@ -130,7 +146,7 @@ function SimplifyHarness({ disabled = false }: { disabled?: boolean }) {
   const form = useForm<DraftFormValues>({ defaultValues: defaults })
   const variants = useWatch({ control: form.control, name: "Variants" })
   return <>
-    <AllVariantsTable form={form} disabled={disabled} onOpen={vi.fn()} />
+    <AllVariantsTable form={form} disabled={disabled} onOpen={vi.fn()} actions={actions} />
     <output data-testid="simplified">{JSON.stringify(variants.map((variant) => [variant.ID, variant.LinkedTo, variant.Weight]))}</output>
   </>
 }
