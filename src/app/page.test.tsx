@@ -344,6 +344,9 @@ describe('exercises catalog page', () => {
     expect(await screen.findByText('SQLi basics')).toBeInTheDocument()
     expect(screen.getByText('exercises.status.short.draft')).toBeInTheDocument()
     expect(document.querySelector('tbody time')).toHaveAttribute('datetime', item.UpdatedAt)
+    // One page: the footer names the rows, no page arrows.
+    expect(screen.getByText('exercises.catalog.range')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.table.next' })).not.toBeInTheDocument()
   })
 
   it('renders the empty state, and after a filter a way back to every task', async () => {

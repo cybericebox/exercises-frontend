@@ -26,6 +26,8 @@ it("requires Cancel/Replace consent before committing a complete selected target
  await preview()
  fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
  const confirm = await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })
+ // The confirmation names the task whose unpublished work goes.
+ expect(confirm).toHaveTextContent("Chosen task")
  expect(within(confirm).getByRole("button", { name: "confirm.cancel" })).toHaveFocus()
  expect(commitArchiveImport).not.toHaveBeenCalled()
  fireEvent.click(within(confirm).getByRole("button", { name: "confirm.cancel" }))
@@ -83,9 +85,11 @@ it("broad ambiguous 400 stays general and fixed multi-item refusal stays at the 
  render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} />)
  pick()
  await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(1))
- await waitFor(() => expect(screen.getByRole("button", { name: "admin.exImport.update.check" })).toBeEnabled())
+ // One retry, in the error block: the footer does not repeat it.
+ await waitFor(() => expect(screen.getByRole("button", { name: "error.load.retry" })).toBeEnabled())
+ expect(screen.queryByRole("button", { name: "admin.exImport.update.check" })).not.toBeInTheDocument()
  expect(screen.queryByLabelText("admin.exImport.password")).toBeNull()
- fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.check" }))
+ fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
  await screen.findByText("admin.exImport.update.error.22904")
  expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-invalid", "true")
 })
@@ -119,6 +123,10 @@ it("batch completion presents exact mixed result destinations and counts without
  expect(await screen.findByText('admin.exImport.update.doneCounts {"created":1,"updated":1}')).toBeInTheDocument()
  expect(screen.getAllByRole("link", { name: "admin.exImport.update.open" }).map(link => link.getAttribute("href"))).toEqual(["/detail?id=target", "/detail?id=created"])
  expect(push).not.toHaveBeenCalled()
+ // A synchronous answer is a known outcome: no «unknown» note, no recovery, just «Закрити».
+ expect(screen.queryByText("admin.exImport.update.unknownFoot")).not.toBeInTheDocument()
+ expect(screen.queryByRole("button", { name: "admin.exImport.update.recover" })).not.toBeInTheDocument()
+ expect(within(document.querySelector("footer")!).getByRole("button", { name: "admin.exImport.close" })).toBeInTheDocument()
 })
 
 it.each([20978,20979,20980,20981,20982,20983,20984,20985,20986,20987,20988,20989,20990,20991,22829])("keeps canonical archive-content failure %i beside the archive", async code => {

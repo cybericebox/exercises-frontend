@@ -80,7 +80,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
   const result = resultState ?? (job?.state === "done" ? { kind: "done" as const, exercises: job.exercises, results: job.results, created: job.created, updated: job.updated } : null)
   const busy = flow.busy || dispatching
   const running = job?.state === "running" || dispatching
-  const uncertain = recovery?.state === "unknown" || Boolean(recovery && activeJob && !job)
+  const uncertain = !resultState && (recovery?.state === "unknown" || Boolean(recovery && activeJob && !job))
   const compact = !flow.sourceReady && !activeJob && !recovery && !result
   const hasNew = flow.items.some(item => item.Target.Mode === "new")
   async function downloadExample() {
@@ -119,7 +119,8 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
       if (actorID) clearImportReplacement(actorID, "__catalog__")
       onClose(); router.push(exerciseHref(destinations[0])); return
     }
-    if (mounted.current) setResult(done)
+    // The answer came: the outcome is known, so nothing is left to recover.
+    if (mounted.current) { setRecovery(null); setResult(done) }
   }
   async function dispatch(input: ArchiveCommitInput, autoNavigate: boolean) {
     if (inFlight.current) return
@@ -200,6 +201,8 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
   const progress = job ? importStagePercent(job) : flow.uploadProgress
   const busyLabel = flow.phase === "saving" ? t("admin.exImport.update.saving") : flow.uploadProgress !== null ? t("admin.exImport.uploadingPercent", { percent: flow.uploadProgress }) : dispatching ? t("admin.exImport.importing") : t("admin.exImport.update.checking")
   const errorCount = Object.keys(flow.targetErrors).length + (ownerError ? 1 : 0)
+  // The tasks whose unpublished work an update replaces, named in the confirmation.
+  const replacedNames = flow.items.filter(item => item.ReplacesDraft && item.Target.Mode === "update").map(item => item.TargetExercise?.Name ?? fixedExercise?.Name ?? item.Name)
   const updates = flow.items.filter(item => item.Target.Mode === "update").length
   const creates = flow.items.length - updates
   const applyLabel = updates && creates ? t("admin.exImport.update.applyBoth", { updates, created: creates })
@@ -265,15 +268,17 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
           </section>
         </>}
       </div>
-      {!(compact && !flow.busy) && <footer className="exercise-import-footer"><p>{!compact && t(uncertain ? "admin.exImport.update.unknownFoot" : running ? "admin.exImport.update.runningFoot" : flow.items.some(item => item.Target.Mode === "update") ? "admin.exImport.update.publishNote" : "admin.exImport.update.atomic")}</p><div>
+      {!(compact && !flow.busy) && <footer className="exercise-import-footer"><p>{!compact && !result && t(uncertain ? "admin.exImport.update.unknownFoot" : running ? "admin.exImport.update.runningFoot" : flow.items.some(item => item.Target.Mode === "update") ? "admin.exImport.update.publishNote" : "admin.exImport.update.atomic")}</p><div>
         {errorCount > 0 && choosing && <span className="exercise-import-error-count" role="status">{t("admin.exImport.update.fixErrors", { count: errorCount })}</span>}
-        <Button type="button" variant="outline" onClick={close}>{t(running || uncertain ? "admin.exImport.update.minimize" : result ? "admin.exImport.close" : "admin.exPage.dialog.cancel")}</Button>
+        <Button type="button" variant="outline" onClick={close}>{t(running || uncertain ? "admin.exImport.update.minimize" : result || job?.state === "failed" ? "admin.exImport.close" : "admin.exPage.dialog.cancel")}</Button>
         {!compact && !activeJob && !result && !uncertain && flow.preview && <Button type="button" busy={busy} busyLabel={busyLabel} disabled={busy || !flow.file || errorCount > 0} onClick={apply}><span className="hidden sm:inline">{applyLabel}</span><span className="sm:hidden">{t("admin.exImport.update.apply")}</span></Button>}
-        {!compact && !activeJob && !result && !uncertain && !flow.preview && !passwordShown && <Button type="button" busy={busy} busyLabel={busyLabel} disabled={busy || !flow.file} onClick={() => void flow.previewArchive()}>{t("admin.exImport.update.check")}</Button>}
+        {!compact && !activeJob && !result && !uncertain && !flow.preview && !passwordShown && !(flow.error && !flow.items.length) && <Button type="button" busy={busy} busyLabel={busyLabel} disabled={busy || !flow.file} onClick={() => void flow.previewArchive()}>{t("admin.exImport.update.check")}</Button>}
       </div></footer>}
     </DialogContent>
   </Dialog>
-  <ConfirmDialog open={confirm} tone="danger" title={t("admin.exImport.update.replaceTitle")} description={t("admin.exImport.update.replaceBody")} confirmLabel={t("admin.exImport.update.replace")} busyLabel={t("admin.exImport.importing")} onCancel={() => setConfirm(false)} onConfirm={() => void dispatch(flow.commitInput(true), true)} />
+  <ConfirmDialog open={confirm} tone="danger" title={t("admin.exImport.update.replaceTitle")} description={<>{t("admin.exImport.update.replaceBody")}{replacedNames.length > 0 && <span className="mt-2 block font-medium text-foreground">{replacedNames.length > 3
+    ? t("admin.exImport.update.replaceTasksMore", { names: replacedNames.slice(0, 3).join(", "), count: replacedNames.length - 3 })
+    : replacedNames.join(", ")}</span>}</>} confirmLabel={t("admin.exImport.update.replace")} busyLabel={t("admin.exImport.importing")} onCancel={() => setConfirm(false)} onConfirm={() => void dispatch(flow.commitInput(true), true)} />
   <ConfirmDialog open={stopAsk} tone="danger" title={t("admin.exImport.stopTitle")} description={t("admin.exImport.stopDescription")} confirmLabel={t("admin.exImport.stopConfirm")} cancelLabel={t("admin.exImport.stopKeep")} onCancel={() => setStopAsk(false)} onConfirm={() => { flow.invalidate(); flow.releaseEditors(); cancelReplacement?.(); onClose() }} />
   </>
 }

@@ -30,7 +30,9 @@ export function CatalogFooter({ page, pageSize, total, shown, onPage, onPageSize
     {onPageSize && <><span className="hidden sm:inline">{t("admin.table.perPage")}</span>
     <SelectMenu value={String(pageSize)} onChange={(value) => onPageSize(Number(value))}
       options={PAGE_SIZES.map((value) => ({ value: String(value), label: String(value) }))} ariaLabel={t("admin.table.perPage")} className="w-20" /></>}
-    {arrow(t("admin.table.previous"), page <= 1, page - 1, ChevronLeft)}
-    {arrow(t("admin.table.next"), page >= pages, page + 1, ChevronRight)}
+    {pages > 1 && <>
+      {arrow(t("admin.table.previous"), page <= 1, page - 1, ChevronLeft)}
+      {arrow(t("admin.table.next"), page >= pages, page + 1, ChevronRight)}
+    </>}
   </div>
 }

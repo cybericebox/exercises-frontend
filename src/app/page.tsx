@@ -233,7 +233,7 @@ export default function Page() {
           state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
             : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
             : rows.length === 0 ? <EmptyFiltered filtered={filtered} onReset={() => { setSearch(""); update({ ...clearedFilters(filters, isAdmin), search: "" }) }} /> : undefined}
-          footer={<CatalogFooter page={page} pageSize={pageSize} total={total} shown={rows.length} onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />} />}
+          footer={!error && total > 0 && <CatalogFooter page={page} pageSize={pageSize} total={total} shown={rows.length} onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />} />}
       {exportOpen && <ExportDialog exerciseIds={[...selected.keys()]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Map())} />}
       {importOpen && <ImportDialog key={importJobId ?? "new"} jobId={importJobId}
         isOriginActive={() => originActive.current} targets={ownerOptions(access, t("exercises.owner.catalog"))} initialTarget={filteredEvent}

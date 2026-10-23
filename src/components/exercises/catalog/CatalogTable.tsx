@@ -78,7 +78,7 @@ export function CatalogTable({ rows, columns, selected, selecting, selectable, a
   regionRef: RefObject<HTMLDivElement | null>
   busy: boolean
   state?: ReactNode
-  footer: ReactNode
+  footer?: ReactNode
 }) {
   const shown = columns.filter((column) => column.visible).map((column) => column.key)
   const span = shown.length + (selecting ? 2 : 1)
