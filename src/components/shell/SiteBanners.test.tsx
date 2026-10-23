@@ -1,32 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
-import { SiteBanners } from "./SiteBanners"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import { forgetHeldBanners, SiteBanners } from "./SiteBanners"
 
-const api = vi.hoisted(() => ({ get: vi.fn() }))
-vi.mock("@/api/client", () => ({ apiGet: api.get }))
+// Fires the pulse loop's next tick: focus asks for an immediate pulse once the 5 s gap has passed.
+async function advancePulse() {
+  await act(async () => { vi.setSystemTime(Date.now() + 6_000); window.dispatchEvent(new Event("focus")) })
+}
+
+const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }))
+vi.mock("@/api/client", () => ({ apiGet: api.get, apiPatch: api.patch }))
+
+// The pulse answers with a banner version; the list endpoint answers with what the test queued.
+const list = vi.hoisted(() => ({ get: vi.fn() }))
+let version: number | string = 1
 
 const banner = (fields: Record<string, unknown> = {}) => ({ ID: "b1", Text: "Планові роботи", LinkURL: "", LinkLabel: "", Level: "info", Dismissible: true, Version: 1, ...fields })
 
 describe("site banners", () => {
-  beforeEach(() => { api.get.mockReset(); localStorage.clear() })
-  afterEach(() => vi.restoreAllMocks())
+  beforeEach(() => {
+    api.get.mockReset(); api.patch.mockReset(); list.get.mockReset(); localStorage.clear(); version = 1; forgetHeldBanners()
+    api.get.mockImplementation((path: string) => path.startsWith("/api/notifications/pulse") ? Promise.resolve({ Banners: String(version), Inbox: null }) : list.get(path))
+  })
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 
   it("renders nothing without banners", async () => {
-    api.get.mockResolvedValue([])
+    list.get.mockResolvedValue([])
     const { container } = render(<SiteBanners />)
-    await vi.waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/banners?site=exercises", undefined, { required: false }))
+    await vi.waitFor(() => expect(list.get).toHaveBeenCalledWith("/api/notifications/banners?site=exercises"))
     expect(container).toBeEmptyDOMElement()
   })
 
   it("renders nothing when the request fails", async () => {
-    api.get.mockRejectedValue(new Error("down"))
+    list.get.mockRejectedValue(new Error("down"))
     const { container } = render(<SiteBanners />)
-    await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
+    await vi.waitFor(() => expect(list.get).toHaveBeenCalled())
     expect(container).toBeEmptyDOMElement()
   })
 
   it("renders the text and a safe link with the default label", async () => {
-    api.get.mockResolvedValue([banner({ LinkURL: "/status" })])
+    list.get.mockResolvedValue([banner({ LinkURL: "/status" })])
     render(<SiteBanners />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
     expect(screen.getByRole("status", { name: "Оголошення" })).toBeInTheDocument()
@@ -34,20 +46,20 @@ describe("site banners", () => {
   })
 
   it("uses the custom link label and accepts https links", async () => {
-    api.get.mockResolvedValue([banner({ LinkURL: "https://example.com/x", LinkLabel: "Деталі" })])
+    list.get.mockResolvedValue([banner({ LinkURL: "https://example.com/x", LinkLabel: "Деталі" })])
     render(<SiteBanners />)
     expect(await screen.findByRole("link", { name: "Деталі" })).toHaveAttribute("href", "https://example.com/x")
   })
 
   it.each(["javascript:alert(1)", "//evil.example", "data:text/html,x"])("refuses the link %s", async (url) => {
-    api.get.mockResolvedValue([banner({ LinkURL: url })])
+    list.get.mockResolvedValue([banner({ LinkURL: url })])
     render(<SiteBanners />)
     await screen.findByText("Планові роботи")
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
 
   it("preserves the authoritative server priority order", async () => {
-    api.get.mockResolvedValue([banner({ ID: "c", Text: "Критично", Level: "critical" }), banner({ ID: "i", Text: "Інфо" })])
+    list.get.mockResolvedValue([banner({ ID: "c", Text: "Критично", Level: "critical" }), banner({ ID: "i", Text: "Інфо" })])
     render(<SiteBanners />)
     await screen.findByText("Критично")
     const texts = screen.getAllByText(/Інфо|Критично/).map((el) => el.textContent)
@@ -57,7 +69,7 @@ describe("site banners", () => {
   })
 
   it("dismiss hides the banner and persists it; only dismissible banners have the button", async () => {
-    api.get.mockResolvedValue([banner(), banner({ ID: "b2", Text: "Без закриття", Dismissible: false })])
+    list.get.mockResolvedValue([banner(), banner({ ID: "b2", Text: "Без закриття", Dismissible: false })])
     const view = render(<SiteBanners />)
     await screen.findByText("Планові роботи")
     expect(screen.getAllByRole("button", { name: "Закрити оголошення" })).toHaveLength(1)
@@ -73,24 +85,74 @@ describe("site banners", () => {
 
   it("an edited banner (new Version) reappears", async () => {
     localStorage.setItem("cib_site_banner_dismissed_b1_1", "1")
-    api.get.mockResolvedValue([banner({ Version: 2 })])
+    list.get.mockResolvedValue([banner({ Version: 2 })])
     render(<SiteBanners />)
     expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
   })
 
-  it("refreshes on focus and recovery while retaining the visible banner during failure", async () => {
-    api.get.mockResolvedValueOnce([banner()]).mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce([banner({ Version: 2, Text: "Оновлено" })])
+  it("refetches the list only when the pulse version changes, and keeps the banner during failure", async () => {
+    list.get.mockResolvedValueOnce([banner()]).mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce([banner({ Version: 2, Text: "Оновлено" })])
     render(<SiteBanners />)
     await screen.findByText("Планові роботи")
-    fireEvent(window, new Event("focus"))
-    await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+    // Same version: a pulse never asks for the list again.
+    await advancePulse()
+    expect(list.get).toHaveBeenCalledTimes(1)
+    version = 2
+    await advancePulse()
+    await vi.waitFor(() => expect(list.get).toHaveBeenCalledTimes(2))
     expect(screen.getByText("Планові роботи")).toBeInTheDocument()
-    fireEvent(window, new Event("online"))
+    // The failed fetch did not record the version, so the next pulse retries.
+    await advancePulse()
     expect(await screen.findByText("Оновлено")).toBeInTheDocument()
   })
 
+  it("never asks for the list while the pulse reports no banners, and clears it without a request", async () => {
+    version = "e3b0c44298fc1c14"
+    list.get.mockResolvedValue([banner()])
+    const { container } = render(<SiteBanners />)
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
+    version = ""
+    await advancePulse()
+    expect(list.get).not.toHaveBeenCalled()
+    version = 2
+    await advancePulse()
+    expect(await screen.findByText("Планові роботи")).toBeInTheDocument()
+    version = "e3b0c44298fc1c14"
+    await advancePulse()
+    await vi.waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(list.get).toHaveBeenCalledTimes(1)
+  })
+
+  it("a remount with the version already held shows the list without a request", async () => {
+    list.get.mockResolvedValue([banner()])
+    const first = render(<SiteBanners />)
+    await screen.findByText("Планові роботи")
+    first.unmount()
+    render(<SiteBanners />)
+    expect(screen.getByText("Планові роботи")).toBeInTheDocument()
+    await vi.waitFor(() => expect(api.get.mock.calls.filter(([path]) => String(path).includes("/pulse"))).toHaveLength(2))
+    expect(list.get).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows a personal banner with only a Title", async () => {
+    list.get.mockResolvedValue([banner({ ID: "p2", Kind: "personal", Text: "", Title: "Лише заголовок" })])
+    render(<SiteBanners />)
+    expect(await screen.findByText("Лише заголовок")).toBeInTheDocument()
+  })
+
+  it("dismisses a personal banner on the server and does not store it locally", async () => {
+    api.patch.mockResolvedValue(undefined)
+    list.get.mockResolvedValue([banner({ ID: "p1", Kind: "personal", Text: "Особисте" })])
+    render(<SiteBanners />)
+    await screen.findByText("Особисте")
+    fireEvent.click(screen.getByRole("button", { name: "Закрити оголошення" }))
+    expect(screen.queryByText("Особисте")).not.toBeInTheDocument()
+    expect(api.patch).toHaveBeenCalledWith("/api/notifications/banners/p1/dismiss", {}, undefined, { required: false })
+    expect(Object.keys(localStorage)).toHaveLength(0)
+  })
+
   it("bounds ten announcements, reveals the remaining order, and promotes after dismissal", async () => {
-    api.get.mockResolvedValue(Array.from({ length: 10 }, (_, index) => banner({ ID: `b${index}`, Text: `Announcement ${index}` })))
+    list.get.mockResolvedValue(Array.from({ length: 10 }, (_, index) => banner({ ID: `b${index}`, Text: `Announcement ${index}` })))
     const { container } = render(<SiteBanners />)
     await screen.findByText("Announcement 0")
     expect(container.querySelectorAll(".ib-site-banner__text")).toHaveLength(1)
@@ -112,7 +174,7 @@ describe("site banners", () => {
   it("does not throw when storage is unavailable", async () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked") })
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked") })
-    api.get.mockResolvedValue([banner()])
+    list.get.mockResolvedValue([banner()])
     render(<SiteBanners />)
     await screen.findByText("Планові роботи")
     fireEvent.click(screen.getByRole("button", { name: "Закрити оголошення" }))
