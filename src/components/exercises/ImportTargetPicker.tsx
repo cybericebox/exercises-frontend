@@ -48,11 +48,22 @@ export function ImportTargetPicker({ itemKey, selected, onChange, disabled, ...c
     onChange({ ItemKey: itemKey, Mode: target ? "update" : "new", ...(target ? { ExerciseID: target.ID } : {}) }, target)
     setOpen(false)
   }
+  // ↑/↓ move between the search field and the options; the focused option is kept in view in the scrolling list.
+  function moveThroughOptions(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
+    const stops = [...event.currentTarget.querySelectorAll<HTMLElement>("input, .exercise-import-option")]
+    if (!stops.length) return
+    event.preventDefault()
+    const at = stops.indexOf(document.activeElement as HTMLElement)
+    const next = stops[Math.max(0, Math.min(stops.length - 1, at + (event.key === "ArrowDown" ? 1 : -1)))]
+    next.focus({ preventScroll: true })
+    next.scrollIntoView?.({ block: "nearest" })
+  }
   return <Popover open={open} onOpenChange={changeOpen}>
     <PopoverTrigger asChild><Button {...control} type="button" variant="outline" disabled={disabled} className="exercise-import-target">
       <span>{selected ? t("admin.exImport.update.targetName", { name: selected.Name }) : t("admin.exImport.update.new")}</span><ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
     </Button></PopoverTrigger>
-    <PopoverContent className="exercise-import-picker" align="start">
+    <PopoverContent className="exercise-import-picker" align="start" onKeyDown={moveThroughOptions}>
       <Input autoFocus aria-label={t("admin.exImport.update.search")} placeholder={t("admin.exImport.update.search")} value={search} onChange={event => { setCursor(undefined); setItems([]); setSearch(event.target.value); void load(undefined, event.target.value) }} />
       <div className="exercise-import-picker-list">
         <button type="button" className="exercise-import-option" onClick={() => choose()}>{t("admin.exImport.update.new")}<small>{t("admin.exImport.update.newHint")}</small></button>

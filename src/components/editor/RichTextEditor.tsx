@@ -11,6 +11,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { keepOwnScroll } from "@/components/ui/keep-own-scroll";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -965,6 +966,7 @@ function VariablePlugin({ variables }: VariablePluginProps): JSX.Element | null 
     const openAbove = below < 160 && above > below;
     return createPortal(
       <div
+        {...keepOwnScroll({})}
         className="fixed z-(--ib-z-popover) overflow-y-auto overscroll-contain break-words py-1 rounded-lg bg-popover border border-input"
         style={{
           width: menuWidth,
