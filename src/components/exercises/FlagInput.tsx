@@ -1,7 +1,8 @@
 "use client"
 
 import { useId, useRef, useState } from "react"
-import { Braces, ClipboardPaste, Plus } from "lucide-react"
+import { createPortal } from "react-dom"
+import { Braces, ClipboardPaste } from "lucide-react"
 import { t } from "@/i18n/t"
 import { tRich } from "@/i18n/tRich"
 import { Input } from "@/components/ui/input"
@@ -9,6 +10,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { RemoveAction, REVEAL_ON_HOVER } from "./RemoveAction"
+import { SectionAddButton } from "./SectionAddButton"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, type ParsedFlagCandidate } from "@/lib/flagPattern"
@@ -68,7 +70,7 @@ function FlagModeLabel({ children }: { children: string }) {
 
 export function FlagInput({
   value, onChange, disabled, errors = [], linkedDeviceID, hasLinkableDevice = false,
-  policy = null, policyError = null, onRetryPolicy, namePrefix,
+  policy = null, policyError = null, onRetryPolicy, namePrefix, headerSlot,
 }: {
   value: string[]
   onChange: (v: string[]) => void
@@ -80,6 +82,8 @@ export function FlagInput({
   policyError?: { cause: unknown } | null
   onRetryPolicy?: () => void
   namePrefix?: string
+  /** The section header, where «+ Додати прапор» goes (right-aligned); without it the button stays above the help line. */
+  headerSlot?: HTMLElement | null
 }) {
   // The task form always supplies this prop. Undefined keeps compatibility
   // with older standalone component consumers.
@@ -234,10 +238,10 @@ export function FlagInput({
         </div>
       })}
       </div>
-      {!disabled && (dynamic || value.length === 0) && <div data-testid="flag-add-actions" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button type="button" variant="outline" size="sm" onClick={addFlag}>
-          <Plus className="mr-1 h-4 w-4" />{t("admin.exTask.flag.add")}
-        </Button>
+      {!disabled && (dynamic || value.length === 0) && (headerSlot
+        ? createPortal(<SectionAddButton label={t("admin.exTask.flag.add")} onClick={addFlag} />, headerSlot)
+        : <SectionAddButton label={t("admin.exTask.flag.add")} onClick={addFlag} />)}
+      {!disabled && dynamic && <div data-testid="flag-add-actions" className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {dynamic && <HoverTooltip text={t("admin.exTask.flag.pasteHintHelp")}>
           <span tabIndex={0} className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             <ClipboardPaste aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exTask.flag.pasteHint")}

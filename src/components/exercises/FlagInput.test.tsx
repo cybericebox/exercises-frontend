@@ -74,7 +74,7 @@ describe('FlagInput', () => {
     expect(pasteHint).toBeInTheDocument()
     fireEvent.mouseEnter(pasteHint!)
     expect(screen.getByRole('tooltip')).toHaveTextContent('admin.exTask.flag.pasteHintHelp')
-    expect(addActions).toContainElement(screen.getByRole('button', { name: 'admin.exTask.flag.add' }))
+    expect(screen.getByRole('button', { name: 'admin.exTask.flag.add' }).closest('.subtask-section-action')).toBeInTheDocument()
     const input = screen.getByRole('textbox', { name: 'admin.exTask.flag.titleN 1' })
     fireEvent.paste(input, { clipboardData: { getData: () => 'ICE{first}\r\n\r\nICE{second}\n' } })
     const dialog = screen.getByRole('dialog', { name: 'admin.exTask.flag.pasteTitle' })

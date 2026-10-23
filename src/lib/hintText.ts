@@ -2,7 +2,6 @@
  * hintText.ts — a hint's Text is a serialized rich-text (Lexical) document,
  * like a task description. Drafts saved before formatting hold plain text;
  * it opens as paragraphs and is rewritten as a document on the next edit.
- * Hints carry no text alignment: it is stripped on save.
  */
 type LexicalState = Record<string, unknown>
 
@@ -59,15 +58,7 @@ export function hintTextHasContent(text: string): boolean {
   return state !== null && richTextHasContent(state)
 }
 
-// Element nodes keep alignment in a string `format` (text nodes use a number).
-function withoutAlignment(node: unknown): unknown {
-  if (Array.isArray(node)) return node.map(withoutAlignment)
-  if (typeof node !== "object" || node === null) return node
-  return Object.fromEntries(Object.entries(node).map(([key, value]) =>
-    [key, key === "format" && typeof value === "string" ? "" : withoutAlignment(value)]))
-}
-
 /** Stored hint text for an editor state; an editor without text stores "". */
 export function stateToHintText(state: LexicalState | null): string {
-  return state && richTextHasContent(state) ? JSON.stringify(withoutAlignment(state)) : ""
+  return state && richTextHasContent(state) ? JSON.stringify(state) : ""
 }

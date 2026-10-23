@@ -15,7 +15,7 @@ import { AttachmentList, type AttachmentListHandle } from "./AttachmentList"
 import { FlagInput } from "./FlagInput"
 import { PlaceholderDialog } from "./PlaceholderDialog"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
-import { HintsEditor } from "./HintsEditor"
+import { HintsEditor, type DescriptionEditorConfig } from "./HintsEditor"
 import { richTextHasContent } from "@/lib/hintText"
 import { isValidIPv4, type DraftFormValues, type PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import type { Difficulty } from "@/api/exercises/versions"
@@ -79,6 +79,15 @@ export function TaskForm({
   const [placeholderOpen, setPlaceholderOpen] = useState(false)
   const [editingPlaceholderKey, setEditingPlaceholderKey] = useState<string | null>(null)
   const editingPlaceholder = placeholders.find((placeholder) => placeholder.Key === editingPlaceholderKey) ?? null
+  // One editor configuration for the description and every hint text: the same toolbar, variables (inserted and
+  // edited through the same dialog) and the preview of their values.
+  const editorConfig: DescriptionEditorConfig = {
+    maxContentHeight: 320, variables, unavailableLabels,
+    onInsertVariable: (insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) },
+    onEditVariable: (key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) },
+  }
+  // The flag section's header holds its «+ Додати прапор» (rendered by FlagInput).
+  const [flagHeaderSlot, setFlagHeaderSlot] = useState<HTMLElement | null>(null)
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
   const [policyError, setPolicyError] = useState<{ cause: unknown } | null>(null)
   const [policyRetry, setPolicyRetry] = useState(0)
@@ -144,9 +153,7 @@ export function TaskForm({
           name={`${base}.Description`}
           render={({ field, fieldState }) => (
             <>
-            <RichTextEditor maxContentHeight={320} fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} variables={variables} unavailableLabels={unavailableLabels}
-              onInsertVariable={(insert, formats) => { pendingInsert.current = insert; pendingInsertFormats.current = formats; setEditingPlaceholderKey(null); setPlaceholderOpen(true) }}
-              onEditVariable={(key) => { pendingInsert.current = null; setEditingPlaceholderKey(key); setPlaceholderOpen(true) }} />
+            <RichTextEditor {...editorConfig} fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")} ariaDescribedBy={fieldState.error ? `task-description-${variantIndex}-${taskIndex}-error` : undefined} value={field.value} onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={inheritedDisabled} />
             {fieldState.error?.message && <p id={`task-description-${variantIndex}-${taskIndex}-error`} role="alert" className="text-xs font-medium text-destructive">{fieldState.error.message}</p>}
             </>
           )}
@@ -160,6 +167,7 @@ export function TaskForm({
         <Flag aria-hidden="true" className="h-4 w-4" />
         <h4 id={`flag-title-${variantIndex}-${taskIndex}`}>{t("admin.exTask.flag.title")}</h4>
         <GuideLink topic="prapory" />
+        <span ref={setFlagHeaderSlot} className="subtask-section-action empty:hidden" />
       </div>
       <div className="subtask-flag-box">
       <div data-testid="flag-delivery-fields" className="subtask-flag-delivery">
@@ -211,13 +219,14 @@ export function TaskForm({
             policy={policy}
             policyError={policyError}
             onRetryPolicy={() => { setPolicyError(null); setPolicyRetry((attempt) => attempt + 1) }}
+            headerSlot={flagHeaderSlot}
           />
         )}
       />
       </div>
       </section>
 
-      <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={inheritedDisabled} />
+      <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={inheritedDisabled} editor={editorConfig} />
 
       <PlaceholderDialog open={placeholderOpen} onOpenChange={(open) => { setPlaceholderOpen(open); if (!open) pendingInsert.current = null }}
         value={editingPlaceholder}

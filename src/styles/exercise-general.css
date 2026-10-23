@@ -126,20 +126,28 @@
 .subtask-files,.subtask-flag,.subtask-hints { display:flex; flex-direction:column; gap:8px; }
 .hint-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
 .hint-row { border:1px solid var(--ib-line); border-radius:8px; background:var(--card); }
-.hint-row-head { display:flex; align-items:center; gap:4px; min-height:36px; padding-right:4px; }
-.hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
-.hint-row-toggle:hover { background:var(--ib-soft); }
+/* Header: chevron (left, always shown) and number; collapsed adds the text preview and the level, expanded the level
+   field. The actions sit flush right, shown on hover or focus. An open row's header is a light band. */
+.hint-row-head { display:flex; align-items:center; gap:8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
+.hint-row-open .hint-row-head { border-radius:8px 8px 0 0; background:var(--ib-paper); }
+.hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px 0 8px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
+.hint-row-open .hint-row-toggle { flex:none; }
+.hint-row-head:hover { background:var(--ib-soft); }
 .hint-row-toggle:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.hint-row-num { flex-shrink:0; font-variant-numeric:tabular-nums; }
 .hint-row-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hint-row-level { flex-shrink:0; color:var(--ib-dim); }
-.hint-row-chevron { flex-shrink:0; margin-left:auto; color:var(--ib-dim); transition:transform .15s; }
+.hint-row-chevron { flex-shrink:0; color:var(--ib-dim); transition:transform .15s; }
 .hint-row-open .hint-row-chevron { transform:rotate(180deg); }
-.hint-row-actions { display:flex; align-items:center; gap:2px; opacity:0; transition:opacity .15s; }
+.hint-row-level-field { display:flex; flex:1; min-width:0; align-items:center; gap:8px; cursor:default; }
+.hint-row-actions { display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; cursor:default; }
 .hint-row:hover .hint-row-actions,.hint-row-head:focus-within .hint-row-actions { opacity:1; }
 @media (hover:none) { .hint-row-actions { opacity:1; } }
 @media (pointer:coarse) { .hint-row-head,.hint-row-toggle { min-height:44px; } }
 @media (prefers-reduced-motion:reduce) { .hint-row-chevron,.hint-row-actions { transition:none; } }
-.hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:4px 12px 12px; border-top:1px solid var(--ib-line); padding-top:12px; }
+.hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:12px; border-top:1px solid var(--ib-line); }
+/* A section's «+ Додати …» sits at the right end of its header. */
+.subtask-section-action { margin-left:auto; }
 .subtask-filebar { display:flex; flex-wrap:wrap; align-items:center; min-width:0; font-size:13.5px; }
 .subtask-filebar>:first-child { flex:1; min-width:0; }
 /* An editable row: the name (a click renames it) and its actions flush at the right padding, shown on hover or focus. */

@@ -213,12 +213,28 @@ describe('TaskForm inline placeholders', () => {
     expect(screen.queryByRole('button', { name: 'Додати підказку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Видалити підказку' })).not.toBeInTheDocument()
     // A hint is a collapsed row: it opens to show its (read-only) level and text.
-    fireEvent.click(screen.getByRole('button', { name: /^1\. Look closer/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Підказка 1' }))
     expect(screen.getByRole('button', { name: 'Рівень підказки' })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Текст підказки 1' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Завантажити файл' })).toBeEnabled()
   })
+})
+
+it("edits a hint with the description's editor: the same toolbar, variable insert and preview", () => {
+ render(<Harness />)
+ fireEvent.click(screen.getByRole('button', { name: 'Додати підказку' }))
+ const toolbars = screen.getAllByRole('toolbar')
+ expect(toolbars).toHaveLength(2)
+ const items = (toolbar: HTMLElement) => within(toolbar).getAllByRole('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)
+ expect(items(toolbars[1])).toEqual(items(toolbars[0]))
+ expect(within(toolbars[1]).getByRole('button', { name: 'Вставити підстановку' })).toBeInTheDocument()
+})
+
+it("puts «+ Додати прапор» in the flag section's header", () => {
+ render(<Harness />)
+ const add = screen.getByRole('button', { name: 'Додати прапор' })
+ expect(add.closest('.subtask-flag-title')).toBeInTheDocument()
 })
 
 it("bounds the task description editor at 320px", async () => {
