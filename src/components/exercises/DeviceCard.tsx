@@ -194,7 +194,7 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
         onChange={(next) => setValue(`${base}.ResourcePreset`, next, { shouldDirty: true })} />
       : loading ? <LoadingArea compact className="h-10" label={t("admin.loading")} />
       // No settings (read-only view, an older server, a failed load): the stored size as text.
-      : <p className="flex min-h-9 items-center text-sm text-muted-foreground">{preset ? t("admin.exTopo.resourcesPreset", { preset }) : t("admin.exTopo.resourcesDefault")}</p>}
+      : <p data-read-field className="flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm text-muted-foreground pointer-coarse:h-11">{preset ? t("admin.exTopo.resourcesPreset", { preset }) : t("admin.exTopo.resourcesDefault")}</p>}
   </div>
 }
 

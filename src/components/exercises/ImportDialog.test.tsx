@@ -112,6 +112,7 @@ it("a registry an administrator must fix says so under the error, with the retry
  pick()
  await screen.findByText("exercises.image.registryHelp")
  expect(screen.queryByText("error.load.body")).toBeNull()
+ expect(screen.getByText("exercises.image.accessDeniedTitle")).toBeInTheDocument()
  fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
  await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(2))
  await screen.findByText("exercises.image.registryHelp")
