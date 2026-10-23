@@ -2,7 +2,7 @@
 
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useFieldArray, useWatch, type UseFormReturn } from "react-hook-form"
-import { BarChart3, Ellipsis, Link2Off, Network, Plus, Trash2 } from "lucide-react"
+import { BarChart3, Ellipsis, Link2Off, Network, Plus, Table2, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -20,6 +20,7 @@ import { DuplicateVariantAdvice } from "./DuplicateVariantAdvice"
 import { InfrastructureBlockedNote } from "./EventBanners"
 import { LinkedVariantsDialog } from "./LinkedVariantsDialog"
 import { TaskAccordion } from "./TaskAccordion"
+import { AllVariantsTable } from "./AllVariantsTable"
 import { TopologySection } from "./TopologySection"
 import { VariantStatsDialog } from "./VariantStatsDialog"
 import { useLinkedVariantSync } from "./useLinkedVariantSync"
@@ -105,10 +106,11 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
     return base >= 0 ? t("admin.exDraft.variantBasedOn", { n: index + 1, base: base + 1 }) : t("admin.exDraft.variantN", { n: index + 1 })
   }
   const onVariants = tab === "variants"
+  const onAll = tab === "all"
   return <ExerciseIdContext.Provider value={exerciseId}>
     <div className="editor-tabs">
       <div role="tablist" aria-label={t("admin.exDraft.editorTabs")} className="editor-tablist" onKeyDown={moveFocus}>
-        <button type="button" role="tab" id={`${uid}-general`} aria-selected={!onVariants} aria-controls={`${uid}-general-panel`} tabIndex={!onVariants ? 0 : -1}
+        <button type="button" role="tab" id={`${uid}-general`} aria-selected={tab === "general"} aria-controls={`${uid}-general-panel`} tabIndex={tab === "general" ? 0 : -1}
           className="editor-tab" onClick={() => setTab("general")}>{t("admin.ex.create.tab.general")}</button>
         <span className="editor-tabs-divider" aria-hidden="true" />
         <span className="editor-tabs-label" aria-hidden="true">{t("admin.exDraft.variantsCount", { count: fields.length })}</span>
@@ -119,6 +121,10 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
               className={cn("editor-tab editor-tab-number", baseOf(index) >= 0 && "editor-tab-linked")} onClick={() => open(index)}>{index + 1}</button>
           </HoverTooltip>)}
         </div>
+        {fields.length > 1 && <HoverTooltip text={t("admin.exDraft.allVariants")}>
+          <button type="button" role="tab" id={`${uid}-all`} aria-selected={onAll} aria-controls={`${uid}-all-panel`} aria-label={t("admin.exDraft.allVariants")} tabIndex={onAll ? 0 : -1}
+            className="editor-tab editor-tab-icon" onClick={() => setTab("all")}><Table2 aria-hidden="true" className="h-4 w-4" /></button>
+        </HoverTooltip>}
       </div>
       {!disabled && <DropdownMenu>
         <HoverTooltip text={t("admin.exDraft.addVariant")}>
@@ -144,7 +150,8 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
         </DropdownMenuContent>
       </DropdownMenu>}
     </div>
-    <div role="tabpanel" id={`${uid}-general-panel`} aria-labelledby={`${uid}-general`} hidden={onVariants} className="editor-panel">{general}</div>
+    <div role="tabpanel" id={`${uid}-general-panel`} aria-labelledby={`${uid}-general`} hidden={tab !== "general"} className="editor-panel">{general}</div>
+    {onAll && <div role="tabpanel" id={`${uid}-all-panel`} aria-labelledby={`${uid}-all`} className="editor-panel"><AllVariantsTable form={form} disabled={disabled} onOpen={open} /></div>}
     {onVariants && fields[active] && <div role="tabpanel" id={`${uid}-variant-panel`} aria-labelledby={`${uid}-variant-${active}`} className="editor-panel">
       <VariantWorkspace key={fields[active].id} form={form} variantIndex={active} count={fields.length} baseIndex={baseOf(active)} disabled={disabled}
         exerciseId={exerciseId} infrastructureBlocked={infrastructureBlocked} showNotes={showNotes} resources={resources}

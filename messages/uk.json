@@ -1855,5 +1855,14 @@
   "admin.exTopo.collapseCanvasTip": "Вийти з повноекранного режиму · Esc",
   "exercises.res.button": "Ресурси: {cpu} CPU · {memory}",
   "exercises.res.buttonPending": "{label}, потребують погодження: {count}",
-  "exercises.res.pendingCount": "погодження: {count}"
+  "exercises.res.pendingCount": "погодження: {count}",
+  "admin.exDraft.allVariants": "Усі варіанти",
+  "admin.exDraft.subtaskColumn": "{n} · {name}",
+  "admin.exDraft.openVariant": "Відкрити варіант {n}",
+  "admin.exDraft.flagCell": "Прапор: варіант {n}, підзавдання {task}",
+  "admin.exDraft.flagRandom": "випадковий",
+  "admin.exDraft.filesCount": "Файлів: {count}",
+  "admin.exDraft.infraAsIn": "як у {n}",
+  "admin.exDraft.infraMain": "основна",
+  "admin.exDraft.infraOwn": "своя"
 }

@@ -62,7 +62,7 @@ function linkedDraft(draft: DraftFormValues) {
 describe('editor tabs', () => {
   it('puts «Загальне» and every variant number in one tab list; a variant tab opens that variant', () => {
     render(<Harness start="general" prepare={(draft) => draft.Variants.push({ ...emptyVariant(2), Tasks: draft.Variants[0].Tasks })} />)
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['admin.ex.create.tab.general', '1', '2'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent || tab.getAttribute('aria-label'))).toEqual(['admin.ex.create.tab.general', '1', '2', 'admin.exDraft.allVariants'])
     expect(screen.getByText('General fields')).toBeVisible()
     expect(screen.getByText('admin.exDraft.variantsCount{"count":2}')).toBeInTheDocument()
     fireEvent.click(variantTab(2))
@@ -75,6 +75,10 @@ describe('editor tabs', () => {
     expect(screen.getByText('General fields')).toBeVisible()
     fireEvent.keyDown(screen.getByRole('tab', { name: 'admin.ex.create.tab.general' }), { key: 'ArrowRight' })
     expect(variantTab(1)).toHaveFocus()
+    fireEvent.click(screen.getByRole('tab', { name: 'admin.exDraft.allVariants' }))
+    expect(screen.getByRole('region', { name: 'admin.exDraft.allVariants' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exDraft.openVariant{"n":2}' }))
+    expect(variantTab(2)).toHaveAttribute('aria-selected', 'true')
   })
 
   it('does not re-render the subtasks on a keystroke inside a variant', () => {

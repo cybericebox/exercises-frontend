@@ -1,7 +1,7 @@
 import { exercisePositionKey } from "@/lib/storageKeys"
 /** Where the editor was: tab, variant, section, task, device panel. Stored per user and exercise. */
 export type EditorPosition = {
-  tab: "general" | "variants"
+  tab: "general" | "variants" | "all"
   variant: number
   section: "tasks" | "topology" | "note"
   task: number
@@ -40,7 +40,7 @@ export function normalizeEditorPosition(position: unknown): EditorPosition | nul
   if (!isRecord(position)) return null
   const panel = position.devicePanel
   return {
-    tab: position.tab === "variants" ? "variants" : "general",
+    tab: position.tab === "variants" || position.tab === "all" ? position.tab : "general",
     variant: index(position.variant),
     section: position.section === "topology" || position.section === "note" ? position.section : "tasks",
     task: index(position.task),
