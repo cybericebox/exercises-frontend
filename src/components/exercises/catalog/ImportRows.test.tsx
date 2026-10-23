@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { ApiError } from "@/api/client"
 import type { ImportJobStatus } from "@/api/exercises/archiveJobs"
 
@@ -14,63 +14,79 @@ import { ImportRows } from "./ImportRows"
 const status = (patch: Partial<ImportJobStatus>): ImportJobStatus => ({
   state: "running", stage: "tasks", imagesDone: 0, imagesTotal: 0, tasksDone: 5, tasksTotal: 12, bytesPushed: 0, bytesTotal: 0, exercises: [], ...patch,
 })
-const table = (ui: React.ReactNode) => render(<table>{ui}</table>)
+const table = (ui: React.ReactNode) => render(<>{ui}</>)
 
 describe("ImportRows", () => {
   beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests() })
 
   it("renders nothing without imports", () => {
-    const { container } = table(<ImportRows columns={6} onDetails={vi.fn()} />)
-    expect(container.querySelector("tbody")).toBeNull()
+    const { container } = table(<ImportRows onDetails={vi.fn()} />)
+    expect(container.querySelector("[data-import-job]")).toBeNull()
   })
 
   it("shows the crest loader, the title, the stage with counts and a determinate bar, in a neutral tone", async () => {
     vi.mocked(getImportJob).mockResolvedValue(status({}))
-    table(<ImportRows columns={6} onDetails={vi.fn()} />)
+    table(<ImportRows onDetails={vi.fn()} />)
     act(() => trackImportJob("j1", 0))
-    const row = (await screen.findByText('admin.exImport.stage.tasksCount {"done":5,"total":12}')).closest("tbody")!
+    const row = (await screen.findByText('admin.exImport.stage.tasksCount {"done":5,"total":12}')).closest<HTMLElement>("[data-import-job]")!
     expect(row).toHaveTextContent("admin.exImport.rowTitle")
     expect(within(row).getByRole("status")).toBeInTheDocument()
     expect(within(row).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42")
-    expect(row.querySelector("td")!.className).toContain("bg-secondary")
-    expect(row.querySelector("td")!.className).not.toContain("warn")
+    expect(row.className).toContain("catalog-strip")
+    expect(row.className).not.toContain("warn")
   })
 
   it("has no bar while the total is not known, and shows the image bytes while images go up", async () => {
     vi.mocked(getImportJob).mockResolvedValue(status({ stage: "images", imagesDone: 0, imagesTotal: 0, bytesPushed: 1024 ** 3, bytesTotal: 2 * 1024 ** 3 }))
-    table(<ImportRows columns={6} onDetails={vi.fn()} />)
+    table(<ImportRows onDetails={vi.fn()} />)
     act(() => trackImportJob("j1", 0))
-    const row = (await screen.findByText("admin.exImport.stage.images")).closest("tbody")!
+    const row = (await screen.findByText("admin.exImport.stage.images")).closest<HTMLElement>("[data-import-job]")!
     expect(within(row).queryByRole("progressbar")).toBeNull()
     expect(row).toHaveTextContent("admin.exImport.bytes")
   })
 
   it("shows one row per import", async () => {
     vi.mocked(getImportJob).mockResolvedValue(status({}))
-    table(<ImportRows columns={6} onDetails={vi.fn()} />)
+    table(<ImportRows onDetails={vi.fn()} />)
     act(() => { trackImportJob("j1", 0); trackImportJob("j2", 0) })
     await screen.findAllByText(/stage\.tasksCount/)
-    expect(document.querySelectorAll("tbody[data-import-job=running]")).toHaveLength(2)
+    expect(document.querySelectorAll("[data-import-job=running]")).toHaveLength(2)
   })
 
   it("a failed import keeps its row with the error and «Подробиці»", async () => {
     vi.mocked(getImportJob).mockResolvedValue(status({ state: "failed", stage: "failed", error: new ApiError(409, { Status: { Code: 72802 } }, undefined, undefined, 72802) }))
     const onDetails = vi.fn()
-    table(<ImportRows columns={6} onDetails={onDetails} />)
+    table(<ImportRows onDetails={onDetails} />)
     act(() => trackImportJob("j1", 0))
-    const button = await screen.findByRole("button", { name: "admin.exImport.details" })
-    expect(button.closest("tbody")).toHaveAttribute("data-import-job", "failed")
-    expect(button.closest("tbody")).toHaveTextContent("admin.exImport.failedWith")
-    expect(button.closest("tbody")!.querySelector("[role=status]")).toBeNull()
+    await screen.findByText(/admin.exImport.failedWith/)
+    const button = screen.getByRole("button", { name: "admin.exImport.details" })
+    expect(button.closest("[data-import-job]")).toHaveAttribute("data-import-job", "failed")
+    expect(button.closest("[data-import-job]")).toHaveTextContent("admin.exImport.failedWith")
+    expect(button.closest<HTMLElement>("[data-import-job]")!.querySelector("[role=status]")).toBeNull()
     fireEvent.click(button)
     expect(onDetails).toHaveBeenCalledWith("j1")
   })
 
   it("the row goes away when the import is done", async () => {
     vi.mocked(getImportJob).mockResolvedValueOnce(status({})).mockResolvedValue(status({ state: "done", stage: "done", exercises: [] }))
-    table(<ImportRows columns={6} onDetails={vi.fn()} />)
+    table(<ImportRows onDetails={vi.fn()} />)
     act(() => trackImportJob("j1", 0))
     await screen.findByText(/stage\.tasksCount/)
-    await vi.waitFor(() => expect(document.querySelector("tbody[data-import-job]")).toBeNull())
+    await vi.waitFor(() => expect(document.querySelector("[data-import-job]")).toBeNull())
+  })
+})
+
+describe('dismissing a finished import', () => {
+  it('lets a failed strip go and keeps a running one', async () => {
+    vi.mocked(getImportJob).mockImplementation(async (id) => id === 'run'
+      ? { state: 'running' as const, stage: 'tasks' as const, imagesDone: 0, imagesTotal: 0, tasksDone: 1, tasksTotal: 2, bytesPushed: 0, bytesTotal: 0, exercises: [] } as never
+      : { state: 'failed', stage: 'failed', imagesDone: 0, imagesTotal: 0, tasksDone: 0, tasksTotal: 0, bytesPushed: 0, bytesTotal: 0, exercises: [], error: new ApiError(409, null) } as never)
+    table(<ImportRows onDetails={vi.fn()} />)
+    act(() => { trackImportJob('run', 0); trackImportJob('bad', 0) })
+    await waitFor(() => expect(document.querySelector('[data-import-job="failed"]')).not.toBeNull())
+    expect(within(document.querySelector<HTMLElement>('[data-import-job="running"]')!).queryByRole('button', { name: 'admin.exImport.dismiss' })).toBeNull()
+    fireEvent.click(within(document.querySelector<HTMLElement>('[data-import-job="failed"]')!).getByRole('button', { name: 'admin.exImport.dismiss' }))
+    await waitFor(() => expect(document.querySelector('[data-import-job="failed"]')).toBeNull())
+    expect(document.querySelector('[data-import-job="running"]')).not.toBeNull()
   })
 })

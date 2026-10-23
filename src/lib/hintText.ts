@@ -39,6 +39,20 @@ export function richTextHasContent(node: unknown): boolean {
   return Object.values(value).some(richTextHasContent)
 }
 
+function plainText(node: unknown): string {
+  if (Array.isArray(node)) return node.map(plainText).filter(Boolean).join(" ")
+  if (typeof node !== "object" || node === null) return ""
+  const value = node as Record<string, unknown>
+  if (value.type === "text") return typeof value.text === "string" ? value.text : ""
+  return plainText(value.children)
+}
+
+/** The hint's words on one line (a collapsed hint row); "" for an empty hint. */
+export function hintPlainText(text: string): string {
+  const state = hintTextToState(text)
+  return state ? plainText((state.root as Record<string, unknown>).children).replace(/\s+/g, " ").trim() : ""
+}
+
 /** True when a stored hint text says something (not blank, not only empty paragraphs). */
 export function hintTextHasContent(text: string): boolean {
   const state = hintTextToState(text)

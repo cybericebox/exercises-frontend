@@ -17,7 +17,7 @@ export function ExerciseFieldLabel({ labelKey, helpKey, helpLines, required = fa
     <span className="sr-only">{t("admin.ex.field.required")}</span>
   </>}</>
 
-  return <div className="flex items-center gap-1.5">
+  return <div className="flex min-h-6 items-center gap-1.5">
     {form ? <FormLabel className="leading-5">{content}</FormLabel> : htmlFor
       ? <label htmlFor={htmlFor} className="text-sm font-medium leading-5 text-foreground">{content}</label>
       : <span className="text-sm font-medium leading-5 text-foreground">{content}</span>}

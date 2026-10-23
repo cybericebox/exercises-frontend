@@ -5,7 +5,7 @@ import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import type { AccessLevel, ExerciseOwnership } from "@/api/exercises/catalog"
 
-const PILL = "inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-xs"
+const PILL = "inline-flex h-6 items-center whitespace-nowrap rounded-sm px-2 text-xs"
 
 export function accessLevelLabel(level: AccessLevel): string {
   return level ? t(`exercises.access.level.${level}`) : ""

@@ -14,7 +14,7 @@ import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } 
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
 import { DevicePersistenceProvider } from './DevicePersistenceContext'
-import { ResourcesConfigProvider } from './ResourcesConfigContext'
+import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from './ResourcesConfigContext'
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
 
 function DeviceValues() {
@@ -23,7 +23,7 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null }) {
+function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG, loading = false, linkedImage = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null; loading?: boolean; linkedImage?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   if (networks) {
@@ -33,9 +33,9 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false, c
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
-      <ResourcesConfigProvider value={config}>
-        <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
-      </ResourcesConfigProvider>
+      <ResourcesConfigProvider value={config}><ResourcesConfigLoadingProvider value={loading}>
+        <DeviceCard variantIndex={0} deviceIndex={0} disabled={linkedImage} compact={compact} imageBaseIndex={linkedImage ? 0 : undefined} imageDisabled={linkedImage ? false : undefined} />
+      </ResourcesConfigLoadingProvider></ResourcesConfigProvider>
       <DeviceValues />
     </FormProvider>
   )
@@ -128,10 +128,43 @@ describe('DeviceCard', () => {
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).not.toHaveTextContent('exercises.res.tag.approval')
   })
 
+  it('stops adding environment variables at 64 and shows the limit beside the list when over it', () => {
+    const many = (count: number) => ({ ...emptyDevice(), Name: 'web', EnvVars: Array.from({ length: count }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false })) })
+    const { unmount } = render(<Harness device={many(64)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const add = screen.getByRole('button', { name: 'admin.exEnv.add' })
+    expect(add).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(add)
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).EnvVars).toHaveLength(64)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    unmount()
+    render(<Harness device={many(65)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const group = screen.getByRole('group', { name: 'admin.exEnv.title' })
+    expect(group).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById(group.getAttribute('aria-describedby')!)).toHaveTextContent('admin.ex.val.envVarsMax 64')
+  })
+
+  it('keeps only the image editable in a linked variant', () => {
+    render(<Harness device={{ ...emptyDevice(), Name: 'web', Image: 'nginx:1' }} linkedImage />)
+    expect(screen.getByPlaceholderText('admin.exTopo.imagePlaceholder')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })).toBeDisabled()
+  })
+
   it('shows a centered loader until the platform settings arrive', () => {
-    const { container } = render(<Harness device={emptyDevice()} config={null} />)
+    const { container } = render(<Harness device={emptyDevice()} config={null} loading />)
     expect(container.querySelector('.loading-area')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exTopo.resources' })).not.toBeInTheDocument()
+  })
+
+  it('shows the stored size as text, never an endless loader, when there are no platform settings', () => {
+    const device = { ...emptyDevice(), ResourcePreset: 'max' }
+    const { container, unmount } = render(<Harness device={device} config={null} />)
+    expect(container.querySelector('.loading-area')).not.toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.resourcesPreset max')).toBeInTheDocument()
+    unmount()
+    render(<Harness device={emptyDevice()} config={null} />)
+    expect(screen.getByText('admin.exTopo.resourcesDefault')).toBeInTheDocument()
   })
 
   it('shows one static address field and editable route rows', () => {
@@ -248,7 +281,7 @@ describe('DeviceCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     expect(screen.getByText('admin.exTopo.ifaceName').closest('label')).toHaveTextContent('*')
     expect(helpButton('admin.exTopo.ipTypeHelp')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-10')
+    expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-9')
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.basic' }))

@@ -7,6 +7,7 @@
  */
 import { emptyDraft, type DeviceFormValues, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exercisePendingKey } from "@/lib/storageKeys"
+import { normalizeWeight } from "@/lib/variantWeights"
 
 export type PendingChanges = {
   version: 1
@@ -29,7 +30,12 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
         ...variant.Topology,
         Devices: variant.Topology.Devices.map((device) => ({
           ...device,
-          EnvVars: device.EnvVars.map((env) => ({ ...env, Value: "" })),
+          // A ValueGroup is meaningful only within the server answer it came from: never persisted.
+          EnvVars: device.EnvVars.map((env) => {
+            const { ValueGroup, ...rest } = env
+            void ValueGroup
+            return { ...rest, Value: "" }
+          }),
         })),
       },
     })),
@@ -90,10 +96,10 @@ export function readPendingChanges(key: string): PendingChanges | null {
     const value: unknown = JSON.parse(raw)
     if (!isRecord(value) || value.version !== 1 || !isIdentity(value.identity) || !isDraft(value.draft) ||
       typeof value.updatedAt !== "number") return null
-    // Buffers written before linked variants carry no LinkedTo.
+    // Buffers written before linked variants carry no LinkedTo, before weights no Weight.
     const draft: DraftFormValues = {
       ...value.draft,
-      Variants: value.draft.Variants.map((variant) => ({ ...variant, LinkedTo: variant.LinkedTo ?? "" })),
+      Variants: value.draft.Variants.map((variant) => ({ ...variant, LinkedTo: variant.LinkedTo ?? "", Weight: normalizeWeight(variant.Weight) })),
     }
     return { version: 1, identity: value.identity, draft, updatedAt: value.updatedAt }
   } catch {

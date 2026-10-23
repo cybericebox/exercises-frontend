@@ -104,17 +104,19 @@ describe('TaskForm inline placeholders', () => {
     render(<Harness />)
     expect(screen.getByText('Опис').parentElement).toHaveTextContent('*')
     expect(screen.getByText('Опис').parentElement).toHaveTextContent('Обовʼязкове поле')
-    expect(screen.getByTestId('task-drop-zone')).toHaveClass('space-y-3')
+    expect(screen.getByTestId('task-drop-zone')).toHaveClass('subtask-form')
   })
-  it('places attachments immediately after the description and flag settings last', () => {
+  it('places the files right after the description, then the flag with its delivery inside one box', () => {
     const initial = emptyDraft()
     initial.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web' }]
+    initial.Variants[0].Tasks[0].Flag = ['ICE{one}']
     render(<Harness initial={initial} />)
-    const attachments = screen.getByText('Вкладення')
-    const flag = screen.getByText('Прапор')
-    const delivery = screen.getByRole('heading', { name: 'Передача прапора до лабораторії' })
-    expect(attachments.compareDocumentPosition(flag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(flag.compareDocumentPosition(delivery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const files = screen.getByText('Файли')
+    const flag = screen.getByRole('heading', { name: 'Прапор' })
+    const delivery = screen.getByTestId('flag-delivery-fields')
+    expect(files.compareDocumentPosition(flag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(flag.closest('section')).toContainElement(delivery)
+    expect(delivery.closest('.subtask-flag-box')).toContainElement(screen.getByRole('textbox', { name: 'Прапор 1' }))
   })
 
   it('creates the definition and inline token in one insert action without a bottom configuration list', async () => {
@@ -205,11 +207,13 @@ describe('TaskForm inline placeholders', () => {
     expect(screen.getByDisplayValue('FLAG')).toBeDisabled()
     const zone = screen.getByTestId('task-drop-zone')
     expect(within(zone).getByRole('button', { name: /^Складність/ })).toBeDisabled()
-    expect(within(zone).getByRole('button', { name: /^Пристрій прапора/ })).toBeDisabled()
+    expect(within(zone).getByRole('button', { name: /^Передається в/ })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Опис' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.queryByRole('button', { name: 'Вставити підстановку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Додати підказку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Видалити підказку' })).not.toBeInTheDocument()
+    // A hint is a collapsed row: it opens to show its (read-only) level and text.
+    fireEvent.click(screen.getByRole('button', { name: /^1\. Look closer/ }))
     expect(screen.getByRole('button', { name: 'Рівень підказки' })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Текст підказки 1' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toBeEnabled()

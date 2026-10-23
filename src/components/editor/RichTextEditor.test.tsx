@@ -24,6 +24,19 @@ import {
 // createEditor() + editor.update() to provide that context.
 
 describe('RichTextEditor', () => {
+  it('does not report a change when it only loads its value (viewing is not editing)', async () => {
+    const onChange = vi.fn()
+    // A hint stored as plain text opens as this document; Lexical serializes it with more fields.
+    const value = { root: { children: [{ children: [{ detail: 0, format: 0, mode: 'normal', style: '', text: 'Почніть зі сканування портів.', type: 'text', version: 1 }],
+      direction: null, format: 'right', indent: 0, type: 'paragraph', version: 1 }], direction: null, format: '', indent: 0, type: 'root', version: 1 } }
+    const { rerender } = render(<RichTextEditor value={value} onChange={onChange} allowAlignment={false} />)
+    await waitFor(() => expect(document.querySelector('[contenteditable]')).toHaveTextContent('Почніть зі сканування портів.'))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    rerender(<RichTextEditor value={{ ...value }} onChange={onChange} allowAlignment={false} />)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('mounts without throwing given null state', () => {
     const onChange = vi.fn()
     expect(() => render(<RichTextEditor value={null} onChange={onChange} />)).not.toThrow()

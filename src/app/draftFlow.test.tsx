@@ -19,6 +19,7 @@ vi.mock("@/api/exercises/catalog", () => ({
   createExercise: vi.fn(), getExercise: vi.fn(), listExercisesPage: vi.fn().mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 }), updateExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
   listExerciseTags: vi.fn().mockResolvedValue([]), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(),
+  getCatalogColumns: vi.fn().mockResolvedValue(null), saveCatalogColumns: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock("@/api/exercises/archive", () => ({ EXPORT_LIMIT: 100 }))
 vi.mock("@/api/events/list", () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
@@ -64,6 +65,6 @@ describe("unsaved draft flow", () => {
     vi.useRealTimers()
     render(<CatalogPage />)
     expect(await screen.findByText("admin.ex.localDraft.badge")).toBeInTheDocument()
-    expect(screen.getByText("admin.ex.localDraft.badge").closest("tbody")).toHaveAttribute("data-unsaved-draft")
+    expect(screen.getByText("admin.ex.localDraft.badge").closest("[data-unsaved-draft]")).not.toBeNull()
   })
 })

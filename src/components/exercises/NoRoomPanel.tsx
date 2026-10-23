@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { getExerciseCapabilities, type ResourcesConfig } from "@/api/exercises/capabilities"
 import { listBookings, getRoom, type Booking } from "@/api/exercises/testLabs"
@@ -25,6 +25,8 @@ export function NoRoomPanel({ error, variant, resources, onRetry, className }: {
   onRetry: () => void
   className?: string
 }) {
+  const bookRef = useRef<HTMLButtonElement>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
   const [config, setConfig] = useState<ResourcesConfig | null>(null)
   const [nearest, setNearest] = useState<string | null>(() => nearestFromError(error))
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -50,9 +52,10 @@ export function NoRoomPanel({ error, variant, resources, onRetry, className }: {
     : nearest ? t("exercises.book.noRoomNow", { time: formatClock(nearest) }) : t("exercises.book.noRoomNowNoWindow")
 
   return <>
-    <LoadError className={className} message={message} onRetry={onRetry}
-    actions={!booked && nearest && sized ? <Button type="button" onClick={() => setBooking(true)}>{t("exercises.book.action")}</Button> : undefined} />
+    <LoadError retryRef={retryRef} className={className} message={message} onRetry={onRetry}
+    actions={!booked && nearest && sized ? <Button ref={bookRef} type="button" onClick={() => setBooking(true)}>{t("exercises.book.action")}</Button> : undefined} />
     {nearest && sized && <BookingFormDialog open={booking} start={nearest} size={sized.size} largestDevice={sized.largestDevice} active={bookings.length}
+      onCloseAutoFocus={(event) => { event.preventDefault(); (bookRef.current ?? retryRef.current)?.focus() }}
       onCancel={() => setBooking(false)}
       onBooked={(created) => { setBooking(false); setBooked(created); setBookings((items) => [...items, created]); toast.success(t("exercises.book.booked", { time: formatClock(created.From) })) }} />}
   </>

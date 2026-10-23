@@ -11,7 +11,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
     passWithNoTests: true,
-    exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**"],
+    exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**", "**/.superpowers/**"],
   },
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
 })

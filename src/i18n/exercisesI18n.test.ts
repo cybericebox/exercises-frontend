@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest"
 import en from "../../messages/en.json"
 import uk from "../../messages/uk.json"
 import { CODE_TO_KEY } from "@/lib/exerciseErrors"
+import { GUIDE_SLUGS } from "@/content/guide/registry"
 
 const exKeys = (cat: Record<string, string>) =>
   Object.keys(cat).filter((k) => k.startsWith("admin.ex")).sort()
@@ -17,6 +18,13 @@ describe("admin.ex* i18n parity", () => {
     const ukKeys = exKeys(uk as Record<string, string>)
     expect(ukKeys).toEqual(enKeys)
     expect(enKeys.length).toBeGreaterThan(0)
+  })
+
+  it("every guide page has its link name (GuideLink) in both catalogs", () => {
+    for (const slug of GUIDE_SLUGS) {
+      expect((en as Record<string, string>)[`admin.exGuide.${slug}`], `en missing ${slug}`).toBeTruthy()
+      expect((uk as Record<string, string>)[`admin.exGuide.${slug}`], `uk missing ${slug}`).toBeTruthy()
+    }
   })
 
   it("every error-dictionary key exists in both catalogs", () => {

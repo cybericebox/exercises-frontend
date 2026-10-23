@@ -144,16 +144,16 @@ describe('TaskAccordion', () => {
     render(<Harness tasks={[linked]} />)
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable')).toBeInTheDocument()
     const fields = screen.getByTestId('flag-delivery-fields')
-    expect(fields).toHaveClass('items-start')
+    expect(fields).toHaveClass('subtask-flag-delivery')
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable').closest('[data-testid="flag-device-field"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { description: 'admin.exPh.missing' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /admin.exTask.deviceFlagVar/ })).toBeInTheDocument()
     expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
   })
 
-  it('identifies a linked container by both name and full ID', () => {
+  it('names a linked container by its name', () => {
     render(<NamedDeviceHarness />)
-    expect(screen.getByRole('button', { description: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'web-01' })).toBeInTheDocument()
   })
 
   it('does not invent a generation policy while unavailable and allows retry', async () => {
@@ -194,7 +194,8 @@ describe('TaskAccordion', () => {
   it('marks required task fields and exposes explanations', () => {
     render(<Harness tasks={[task('first')]} />)
     expect(screen.getByText('admin.exTask.name').closest('label')).toHaveTextContent('*')
-    expect(helpButton('admin.exTask.nameHelp')).toBeInTheDocument()
+    // «?» only where the field needs explaining: the name does not.
+    expect(screen.getByText('admin.exTask.name').closest('div')!.querySelector('button')).toBeNull()
     expect(screen.getByText('admin.exTask.difficulty').closest('label')).toHaveTextContent('*')
     expect(helpButton('admin.exTask.difficultyHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.description').parentElement).toHaveTextContent('*')
@@ -257,5 +258,25 @@ describe('TaskAccordion with a linked variant', () => {
     await waitFor(() => expect(read()[2]).toHaveLength(3))
     expect(read()[0]).toEqual(['t2:B2', 't3:B3', ':'])
     expect(read()[1]).toEqual(['t2:L2', 't3:L3', ':'])
+  })
+})
+
+describe('TaskAccordion on a phone', () => {
+  it('shows the subtasks as one select with the count, picks another and adds one from it', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    try {
+      render(<Harness tasks={[task('Recon'), task('Exploit')]} otherTasks={[task('Recon'), task('Exploit')]} />)
+      expect(screen.queryByRole('navigation', { name: 'admin.exDraft.tasks.title' })).not.toBeInTheDocument()
+      const picker = screen.getByRole('button', { name: 'admin.exTask.pick 1 Recon' })
+      expect(picker).toHaveTextContent('admin.exTask.count.few 2')
+      fireEvent.keyDown(picker, { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.exDraft.subtaskColumn 2 Exploit' }))
+      expect(await screen.findByRole('button', { name: 'admin.exTask.pick 2 Exploit' })).toBeInTheDocument()
+      fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTask.pick 2 Exploit' }), { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'admin.exTask.add' }))
+      await waitFor(() => expect(screen.getByTestId('variant-tasks')).toHaveTextContent('[["Recon","Exploit",""],["Recon","Exploit",""]]'))
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

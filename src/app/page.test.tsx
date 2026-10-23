@@ -1,9 +1,8 @@
 /**
  * page.test.tsx — exercises catalog table and create link.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
-import { helpButton } from '@/test/help'
 import { ApiError } from '@/api/client'
 
 // Mutable permission state for the create link.
@@ -26,6 +25,8 @@ vi.mock('@/api/exercises/catalog', () => ({
   listExerciseTags: vi.fn(),
   listExerciseAuthors: vi.fn(),
   getExercise: vi.fn(),
+  getCatalogColumns: vi.fn(),
+  saveCatalogColumns: vi.fn(),
 }))
 vi.mock('@/api/exercises/archive', () => ({ EXPORT_LIMIT: 100 }))
 vi.mock('@/api/events/list', () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
@@ -40,7 +41,7 @@ vi.mock('@/components/exercises/ImportDialog', () => ({
 vi.mock('@/api/exercises/archiveJobs', () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
 vi.mock('@/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
-import { getExercise, listExerciseAuthors, listExercisesPage, listExerciseTags } from '@/api/exercises/catalog'
+import { getCatalogColumns, getExercise, listExerciseAuthors, listExercisesPage, listExerciseTags, saveCatalogColumns } from '@/api/exercises/catalog'
 import { getImportJob, listRunningImports } from '@/api/exercises/archiveJobs'
 import { IMPORT_JOBS_KEY, resetImportJobsForTests } from '@/lib/importJobs'
 import Page from './page'
@@ -50,11 +51,14 @@ const mockList = vi.mocked(listExercisesPage)
 const mockTags = vi.mocked(listExerciseTags)
 const mockAuthors = vi.mocked(listExerciseAuthors)
 const mockCard = vi.mocked(getExercise)
+afterEach(() => vi.unstubAllGlobals())
 
 function resetStorage() {
   window.history.replaceState(null, '', '/')
   mockTags.mockResolvedValue([{ Tag: 'crypto', Count: 3 }])
   mockAuthors.mockResolvedValue([{ ID: 'u1', Name: 'Ада Лавлейс', Count: 2 }])
+  vi.mocked(getCatalogColumns).mockReset().mockResolvedValue(null)
+  vi.mocked(saveCatalogColumns).mockReset().mockResolvedValue(undefined)
   const storage = new Map<string, string>()
   Object.defineProperty(window, 'localStorage', { configurable: true, value: {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -79,55 +83,286 @@ const item = {
   UpdatedAt: '2026-01-02T00:00:00Z',
 }
 
+
+/** The header labels in order ('' for the selection box). */
+const headers = () => screen.getAllByRole('columnheader').map((node) => node.textContent ?? '')
+
+/** Opens a toolbar filter chip by its label (the chip names its value after the label once set). */
+const toolbar = () => within(document.querySelector<HTMLElement>('.catalog-toolbar')!)
+
+async function openChip(label: string) {
+  fireEvent.click(toolbar().getByRole('button', { name: new RegExp(`^${label.replace(/\./g, '\\.')}`) }))
+  return screen.findByRole('dialog')
+}
+
+/** Adds a filter through «+ Фільтр» and returns its popover. */
+async function addFilter(label: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.add' }))
+  fireEvent.click(await screen.findByRole('button', { name: label }))
+  return waitFor(() => {
+    const dialogs = screen.getAllByRole('dialog')
+    expect(dialogs).toHaveLength(1)
+    return dialogs[0]
+  })
+}
+
+function phone() {
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+}
+
+describe('catalog columns', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    h.access = null
+    h.canWrite = true
+    h.canExport = true
+    mockList.mockReset().mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
+  })
+
+  it('shows the default columns and lets the user hide, show and reorder them, kept for the next visit', async () => {
+    const { unmount } = render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(headers()).toEqual(['', 'admin.ex.col.name', 'admin.ex.col.access', 'admin.ex.col.status', 'admin.ex.col.subtasks', 'admin.ex.col.variants', 'admin.ex.col.author', 'admin.ex.col.updated'])
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    const menu = await screen.findByRole('dialog')
+    fireEvent.click(within(menu).getByRole('checkbox', { name: 'admin.ex.col.access' }))
+    fireEvent.click(within(menu).getByRole('checkbox', { name: 'admin.ex.col.tags' }))
+    // Tags sits after difficulty; one step up puts it before difficulty, Alt+↑ on its row one more.
+    const rows = within(menu).getAllByRole('listitem')
+    const tagsRow = rows.find((row) => row.textContent?.includes('admin.ex.col.tags'))!
+    fireEvent.click(within(tagsRow).getByRole('button', { name: 'exercises.catalog.columnUpNamed' }))
+    const moved = within(menu).getAllByRole('listitem').find((row) => row.textContent?.includes('admin.ex.col.tags'))!
+    fireEvent.keyDown(within(moved).getByRole('checkbox'), { key: 'ArrowUp', altKey: true })
+    expect(headers()).toEqual(['', 'admin.ex.col.name', 'admin.ex.col.status', 'admin.ex.col.subtasks', 'admin.ex.col.variants', 'admin.ex.col.author', 'admin.ex.col.tags', 'admin.ex.col.updated'])
+    expect(within(menu).getByText('exercises.catalog.columnMoved')).toBeInTheDocument()
+    unmount()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(headers()).toEqual(['', 'admin.ex.col.name', 'admin.ex.col.status', 'admin.ex.col.subtasks', 'admin.ex.col.variants', 'admin.ex.col.author', 'admin.ex.col.tags', 'admin.ex.col.updated'])
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.columnsReset' }))
+    expect(headers()).toContain('admin.ex.col.access')
+    expect(headers()).not.toContain('admin.ex.col.tags')
+  })
+
+  it('takes the columns from the profile and saves every change there', async () => {
+    vi.mocked(getCatalogColumns).mockResolvedValue([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: false }])
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    await waitFor(() => expect(headers().slice(0, 4)).toEqual(['', 'admin.ex.col.name', 'admin.ex.col.author', 'admin.ex.col.status']))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: 'admin.ex.col.access' }))
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0].slice(0, 3)).toEqual([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: true }])
+  })
+
+  it('keeps a change made before the profile answers', async () => {
+    let answer!: (columns: { key: string; visible: boolean }[]) => void
+    vi.mocked(getCatalogColumns).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: 'admin.ex.col.tags' }))
+    await act(async () => answer([{ key: 'owner', visible: true }]))
+    expect(headers()).toContain('admin.ex.col.tags')
+    expect(headers()).not.toContain('admin.ex.col.owner')
+  })
+
+  it('sorts by every sortable column from its header and marks the sorted one', async () => {
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'asc', page: 1 })))
+    expect(screen.getByRole('columnheader', { name: /admin.ex.col.subtasks/ })).toHaveAttribute('aria-sort', 'ascending')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'desc' })))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.variants' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'variants', sortDir: 'asc' })))
+    // Access has no server order: a plain header.
+    expect(within(screen.getByRole('columnheader', { name: 'admin.ex.col.access' })).queryByRole('button')).toBeNull()
+  })
+
+  it('opens the task from its name; rows have no details disclosure and no «?» in headers', async () => {
+    render(<Page />)
+    const link = await screen.findByRole('link', { name: 'SQLi basics' })
+    expect(link).toHaveAttribute('href', `/detail?id=${item.ID}`)
+    expect(screen.queryByRole('button', { name: 'exercises.catalog.showDetails' })).not.toBeInTheDocument()
+    expect(document.querySelector('thead [aria-label="ui.help"]')).toBeNull()
+  })
+})
+
+describe('catalog on a phone', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetStorage()
+    h.access = null
+    h.canWrite = true
+    h.canExport = true
+    mockList.mockReset().mockResolvedValue({ Items: [item, { ...item, ID: 'two', Name: 'Second task', TaskCount: 3, VariantCount: 2 }], Total: 2, Page: 1, PageSize: 50 })
+  })
+
+  it('shows cards instead of the table, each opening its task', async () => {
+    phone()
+    render(<Page />)
+    const link = await screen.findByRole('link', { name: 'Second task' })
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(link.closest('li')).toHaveTextContent('exercises.catalog.cardSubtasks')
+    expect(link.closest('li')).toHaveTextContent('exercises.catalog.cardVariants')
+    expect(link).toHaveAttribute('href', '/detail?id=two')
+  })
+
+  it('keeps the search in the toolbar and clears it with ×', async () => {
+    phone()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sql' } })
+    await waitFor(() => expect(window.location.search).toBe('?q=sql'))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.clearSearch' }))
+    await waitFor(() => expect(window.location.search).toBe(''))
+  })
+
+  it('closes the sheet without resetting, resets from its header and sorts with the chips', async () => {
+    phone()
+    window.history.replaceState(null, '', '/?q=sql&status=draft')
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.openCount' }))
+    let panel = await screen.findByRole('dialog', { name: 'exercises.filter.sheetTitle' })
+    const beforeClose = window.location.search
+    fireEvent.click(within(panel).getByRole('button', { name: /^exercises\.filter\.show\./ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.location.search).toBe(beforeClose)
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.openCount' }))
+    panel = await screen.findByRole('dialog')
+    const sort = within(panel).getByRole('group', { name: 'exercises.catalog.sortBy' })
+    fireEvent.click(within(sort).getByRole('button', { name: 'admin.ex.col.name' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'name', sortDir: 'asc' })))
+    // The chosen chip again turns the direction.
+    fireEvent.click(within(sort).getByRole('button', { name: 'exercises.catalog.sortChip', pressed: true }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'name', sortDir: 'desc' })))
+    expect(within(panel).getByRole('button', { name: 'admin.ex.filterStatusDraftOnly', pressed: true })).toBeInTheDocument()
+    fireEvent.click(within(panel.querySelector('header')!).getByRole('button', { name: 'exercises.filter.resetShort' }))
+    await waitFor(() => expect(window.location.search).not.toContain('status='))
+    expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'sql', sortBy: 'name' }))
+  })
+
+  it('closes the sheet on Escape and returns focus to the filter button', async () => {
+    phone()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    const trigger = screen.getByRole('button', { name: 'exercises.filter.open' })
+    act(() => trigger.focus())
+    fireEvent.click(trigger)
+    const panel = await screen.findByRole('dialog', { name: 'exercises.filter.sheetTitle' })
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    await waitFor(() => expect(panel).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('closes the sheet at desktop width and keeps it closed when returning to phone', async () => {
+    let narrow = true
+    const listeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', (query: string) => ({ get matches() { return query.includes('max-width') ? narrow : !narrow }, media: query,
+      addEventListener: (_event: string, notify: () => void) => listeners.add(notify), removeEventListener: (_event: string, notify: () => void) => listeners.delete(notify) }))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.open' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await act(async () => { narrow = false; for (const notify of [...listeners]) notify() })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await act(async () => { narrow = true; for (const notify of [...listeners]) notify() })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'exercises.filter.open' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('keeps chosen author names when the sheet unmounts and reopens', async () => {
+    phone()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.open' }))
+    let panel = await screen.findByRole('dialog')
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Ада Лавлейс' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'] })))
+    fireEvent.click(within(panel).getByRole('button', { name: /^exercises\.filter\.show\./ }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.openCount' }))
+    panel = await screen.findByRole('dialog')
+    expect(await within(panel).findByRole('button', { name: 'Ада Лавлейс', pressed: true })).toBeInTheDocument()
+    expect(within(panel).queryByText('u1')).not.toBeInTheDocument()
+  })
+
+  it('does not erase newly chosen author labels when the initial linked-author lookup finishes later', async () => {
+    phone()
+    window.history.replaceState(null, '', '/?author=u0')
+    let resolveInitial!: (authors: { ID: string; Name: string; Count: number }[]) => void
+    mockAuthors.mockImplementation((_search, _limit, ids) => ids ? new Promise((resolve) => { resolveInitial = resolve }) : Promise.resolve([{ ID: 'u1', Name: 'Ада Лавлейс', Count: 2 }]))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.openCount' }))
+    let panel = await screen.findByRole('dialog')
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Ада Лавлейс' }))
+    await act(async () => resolveInitial([{ ID: 'u0', Name: 'Початковий автор', Count: 1 }]))
+    fireEvent.click(within(panel).getByRole('button', { name: /^exercises\.filter\.show\./ }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.openCount' }))
+    panel = await screen.findByRole('dialog')
+    expect(await within(panel).findByRole('button', { name: 'Ада Лавлейс', pressed: true })).toBeInTheDocument()
+  })
+
+  it('offers every visible scope as a chip and the tags as the +/− list in the sheet', async () => {
+    phone()
+    h.access = { IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true, Events: [] }
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.open' }))
+    const panel = await screen.findByRole('dialog')
+    const scope = within(panel).getByRole('group', { name: 'exercises.catalog.storage' })
+    expect(within(scope).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
+    fireEvent.click(within(scope).getByRole('button', { name: 'exercises.scope.catalog' }))
+    await waitFor(() => expect(within(scope).getByRole('button', { name: 'exercises.scope.catalog' })).toHaveAttribute('aria-pressed', 'true'))
+    expect(await within(panel).findByRole('button', { name: 'exercises.filter.tags.require' })).toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: 'exercises.filter.tags.exclude' })).toBeInTheDocument()
+  })
+})
+
 describe('exercises catalog page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resetStorage()
     mockList.mockReset()
+    h.access = null
     h.canWrite = true
     h.canExport = true
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
-  it('renders a row with name, tags and draft status', async () => {
+  it('renders a row with name, short status and the update day', async () => {
     render(<Page />)
     expect(await screen.findByText('SQLi basics')).toBeInTheDocument()
-    expect(screen.getByText('web')).toBeInTheDocument()
-    expect(screen.getByText('sql')).toBeInTheDocument()
-    expect(screen.getByText('admin.ex.status.draftOnly')).toBeInTheDocument()
+    expect(screen.getByText('exercises.status.short.draft')).toBeInTheDocument()
     expect(document.querySelector('tbody time')).toHaveAttribute('datetime', item.UpdatedAt)
-    const link = screen.getByText('SQLi basics').closest('a')
-    expect(link).toHaveAttribute('href', `/detail?id=${item.ID}`)
+    // One page: the footer names the rows, no page arrows.
+    expect(screen.getByText('exercises.catalog.range')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.table.next' })).not.toBeInTheDocument()
   })
 
-  it('renders the empty state', async () => {
+  it('renders the empty state, and after a filter a way back to every task', async () => {
     mockList.mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 })
-    render(<Page />)
+    const { unmount } = render(<Page />)
     expect(await screen.findByText('admin.ex.empty')).toBeInTheDocument()
     expect(screen.getByText('admin.ex.empty').closest('[data-empty-state]')?.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('keeps column headings above rows within the scrolling table', async () => {
-    const { container } = render(<Page />)
-    await screen.findByText('SQLi basics')
-    expect(container.querySelector('thead th')).toHaveClass('sticky', 'top-0', 'z-20', 'bg-card')
-  })
-
-  it('stacks the sticky header above every positioned row element', async () => {
-    const { container } = render(<Page />)
-    await screen.findByText('SQLi basics')
-    const z = (el: Element | null) => Number(/(?:^|\s)z-(\d+)(?:\s|$)/.exec(el?.className ?? '')?.[1] ?? 0)
-    const header = z(container.querySelector('thead th'))
-    const rowZ = [...container.querySelectorAll('tbody *')].map((el) => z(el))
-    expect(header).toBeGreaterThan(0)
-    expect(Math.max(...rowZ)).toBeGreaterThan(0)
-    expect(header).toBeGreaterThan(Math.max(...rowZ))
+    expect(screen.queryByRole('button', { name: 'exercises.filter.reset' })).not.toBeInTheDocument()
+    unmount()
+    window.history.replaceState(null, '', '/?q=zzz&status=draft')
+    render(<Page />)
+    expect(await screen.findByText('admin.ex.emptyFiltered')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.reset' }))
+    await waitFor(() => expect(window.location.search).toBe(''))
   })
 
   it('keeps the header in the loading state and gives the page one h1', async () => {
     mockList.mockReturnValue(new Promise(() => undefined))
     const { container } = render(<Page />)
-    expect(container.querySelectorAll('thead th').length).toBeGreaterThan(0)
+    expect(container.querySelectorAll('thead th.catalog-th').length).toBeGreaterThan(0)
     expect(container.querySelector('tbody.ib-table__state')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'accountMenu.exercises' })).toHaveAttribute('tabindex', '0')
@@ -138,23 +373,24 @@ describe('exercises catalog page', () => {
     await screen.findByText('SQLi basics')
     expect(screen.getByPlaceholderText('admin.ex.search')).toHaveAttribute('type', 'search')
     fireEvent.change(screen.getByPlaceholderText('admin.ex.search'), { target: { value: 'sql' } })
-    await waitFor(() => {
-      const calls = mockList.mock.calls
-      expect(calls[calls.length - 1][0]).toMatchObject({ search: 'sql', page: 1 })
-    })
+    await waitFor(() => expect(mockList.mock.lastCall?.[0]).toMatchObject({ search: 'sql', page: 1 }))
   })
 
-  it('adds a tag filter chip and passes tags to listExercises', async () => {
+  it('filters by tags: required (all or any of them) and left out', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    const tagBox = screen.getByRole('combobox', { name: 'exercises.filter.tags.label' })
-    fireEvent.change(tagBox, { target: { value: 'cry' } })
-    fireEvent.click(await screen.findByRole('option', { name: /crypto/ }))
-    await waitFor(() => {
-      const calls = mockList.mock.calls
-      expect(calls[calls.length - 1][0]).toMatchObject({ withTags: ['crypto'] })
-    })
+    const tags = await openChip('exercises.filter.tags.label')
+    expect(mockTags).toHaveBeenCalledWith('', 50)
+    fireEvent.click(await within(tags).findByRole('button', { name: 'exercises.filter.tags.require' }))
+    await waitFor(() => expect(mockList.mock.lastCall?.[0]).toMatchObject({ withTags: ['crypto'] }))
     expect(window.location.search).toBe('?tag=crypto')
+    fireEvent.click(within(tags).getByRole('radio', { name: 'exercises.filter.tags.modeAny' }))
+    await waitFor(() => expect(mockList.mock.lastCall?.[0]).toMatchObject({ tags: ['crypto'] }))
+    expect(window.location.search).toBe('?tag=crypto&tagmode=any')
+    fireEvent.click(within(tags).getByRole('button', { name: 'exercises.filter.tags.exclude' }))
+    await waitFor(() => expect(mockList.mock.lastCall?.[0]).toMatchObject({ withoutTags: ['crypto'] }))
+    expect(mockList.mock.lastCall?.[0]).not.toHaveProperty('tags')
+    expect(within(tags).getByRole('button', { name: 'exercises.filter.tags.exclude' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('offers a retry after the first page fails', async () => {
@@ -179,28 +415,29 @@ describe('exercises catalog page', () => {
     expect(screen.getByText('Crypto basics')).toBeInTheDocument()
   })
 
-  it('shows total, changes page size, and keeps pagination below rows', async () => {
+  it('names the rows shown, changes the page size and pages with arrows', async () => {
     mockList.mockResolvedValue({ Items: [item], Total: 75, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByText('admin.table.summary')).toBeInTheDocument()
+    expect(screen.getByText('exercises.catalog.range')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.table.previous' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })))
     const selector = screen.getByRole('button', { name: 'admin.table.perPage' })
     fireEvent.keyDown(selector, { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: '25' }))
     await waitFor(() => expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 25 })))
-    expect(screen.queryByText('admin.ex.endOfList')).not.toBeInTheDocument()
   })
 
-  it('keeps search, the filter fields and create action at the same minimum height', async () => {
+  it('keeps every toolbar control at the one control height', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByPlaceholderText('admin.ex.search')).toHaveClass('h-10')
-    for (const name of ['exercises.filter.tags.label', 'admin.ex.col.status', 'exercises.filter.author.label']) {
-      expect(screen.getByRole('combobox', { name }).closest('.min-h-10')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'exercises.catalog.create' })).toHaveClass('h-9')
+    for (const name of ['exercises.catalog.columns', 'exercises.catalog.importTip']) expect(screen.getByRole('button', { name })).toHaveClass('catalog-tool')
+    for (const name of [/^admin\.ex\.col\.status/, /^exercises\.filter\.author\.label/, /^exercises\.filter\.tags\.label/]) {
+      expect(toolbar().getByRole('button', { name }).closest('.catalog-fchip')).not.toBeNull()
     }
-    expect(screen.getByRole('button', { name: 'exercises.filter.infra' })).toHaveClass('h-10')
-    expect(screen.getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' })).toHaveClass('h-10')
-    expect(screen.getByRole('button', { name: 'admin.ex.create.button' })).toHaveClass('h-10')
+    expect(screen.getByRole('link', { name: 'admin.exGuide.zavdannia' })).toHaveClass('h-9', 'w-9')
   })
 
   it('ignores a stale next page after the tag filter changes', async () => {
@@ -216,9 +453,8 @@ describe('exercises catalog page', () => {
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('button', { name: 'admin.table.next' }))
     await waitFor(() => expect(resolveOldPage).toBeDefined())
-    const tagBox = screen.getByRole('combobox', { name: 'exercises.filter.tags.label' })
-    fireEvent.change(tagBox, { target: { value: 'cry' } })
-    fireEvent.click(await screen.findByRole('option', { name: /crypto/ }))
+    const tags = await openChip('exercises.filter.tags.label')
+    fireEvent.click(await within(tags).findByRole('button', { name: 'exercises.filter.tags.require' }))
     expect(await screen.findByText('Crypto basics')).toBeInTheDocument()
     await act(async () => resolveOldPage?.({ Items: [stale], Total: 51, Page: 2, PageSize: 50 }))
     expect(screen.queryByText('Old SQLi')).not.toBeInTheDocument()
@@ -242,6 +478,7 @@ describe('exercises catalog — create link', () => {
     vi.clearAllMocks()
     resetStorage()
     mockList.mockReset()
+    h.access = null
     h.canWrite = true
     h.canExport = true
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
@@ -251,13 +488,13 @@ describe('exercises catalog — create link', () => {
     h.canWrite = false
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.queryByRole('button', { name: 'admin.ex.create.button' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'exercises.catalog.create' })).not.toBeInTheDocument()
   })
 
   it('opens the dedicated creation page when there is no browser draft', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.create' }))
     expect(h.push).toHaveBeenCalledWith('/new')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -268,34 +505,39 @@ describe('exercises catalog — archive, export and import', () => {
     vi.clearAllMocks()
     resetStorage()
     mockList.mockReset()
+    h.access = null
     h.canWrite = true
     h.canExport = true
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
-  it('filters by several statuses, archived among them, and marks archived rows', async () => {
+  it('filters by several statuses, archived among them, marks archived rows and clears with ×', async () => {
     mockList.mockResolvedValue({ Items: [{ ...item, ArchivedAt: '2026-09-20T00:00:00Z' }], Total: 1, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.getByText('admin.ex.status.archived')).toBeInTheDocument()
-    fireEvent.focus(screen.getByRole('combobox', { name: 'admin.ex.col.status' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'admin.ex.filterStatusArchived' }))
-    fireEvent.click(screen.getByRole('option', { name: 'admin.ex.filterStatusChanged' }))
+    expect(screen.getByText('exercises.status.short.archived')).toBeInTheDocument()
+    const status = await openChip('admin.ex.col.status')
+    fireEvent.click(within(status).getByRole('checkbox', { name: 'exercises.status.short.archived' }))
+    fireEvent.click(within(status).getByRole('checkbox', { name: 'exercises.status.short.changed' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ statuses: ['archived', 'changed'] })))
     expect(window.location.search).toBe('?status=archived&status=changed')
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(toolbar().getByRole('button', { name: /^admin\.ex\.col\.status/ })).toHaveTextContent('exercises.status.short.archived, exercises.status.short.changed')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.clearField' }))
     await waitFor(() => expect(mockList.mock.lastCall?.[0]).not.toHaveProperty('statuses'))
   })
 
-  it('selects rows and opens bulk export', async () => {
+  it('swaps the toolbar for the selection bar and opens bulk export', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: SQLi basics' }))
     expect(screen.getByText('admin.ex.selection.count')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('admin.ex.search')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.export' }))
     expect(screen.getByTestId('export-dialog')).toHaveTextContent(item.ID)
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.selection.clear' }))
     expect(screen.queryByText('admin.ex.selection.count')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('admin.ex.search')).toBeInTheDocument()
   })
 
   it('caps the selection at 100 exercises', async () => {
@@ -315,13 +557,13 @@ describe('exercises catalog — archive, export and import', () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'exercises.catalog.importTip' })).not.toBeInTheDocument()
   })
 
   it('opens the import dialog', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.button' }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.importTip' }))
     expect(screen.getByTestId('import-dialog')).toBeInTheDocument()
   })
 })
@@ -343,21 +585,26 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     window.history.replaceState(null, '', '/')
   })
 
-  it('filters by scope and infrastructure', async () => {
+  it('adds the scope and infrastructure filters through «Фільтр» and removes them with ×', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
+    let popover = await addFilter('exercises.catalog.storage')
+    expect(within(popover).getAllByRole('radio').map((radio) => radio.closest('label')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
+    fireEvent.click(within(popover).getByRole('radio', { name: 'exercises.scope.catalog' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'catalog' })))
-    fireEvent.keyDown(screen.getByRole('button', { name: 'exercises.filter.infra' }), { key: 'ArrowDown' })
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'exercises.filter.infraYes' }))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    popover = await addFilter('exercises.filter.infra')
+    fireEvent.click(within(popover).getByRole('radio', { name: 'exercises.filter.infraYes' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ infrastructure: 'yes' })))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    for (const clear of screen.getAllByRole('button', { name: 'exercises.filter.clearField' })) fireEvent.click(clear)
+    await waitFor(() => expect(window.location.search).toBe(''))
+    expect(screen.queryByRole('button', { name: /^exercises\.filter\.infra/ })).not.toBeInTheDocument()
   })
 
-  it('shows the access column, one status per row and the infrastructure icon', async () => {
+  it('shows the access column, one short status per row and the infrastructure icon', async () => {
     mockList.mockResolvedValue({ Items: [
-      { ...item, ID: 'e1', Name: 'Event one', Scope: 'event', OwnerEventID: 'ev1', OwnerEventName: 'Winter CTF', AccessLevel: '',
-        ForkedFrom: { ExerciseID: 'c1', ExerciseName: 'Base', VersionID: 'v1' }, PendingProposalID: 'p1', Infrastructure: true,
-        HasPublished: true, HasDraft: true },
+      { ...item, ID: 'e1', Name: 'Event one', Scope: 'event', OwnerEventID: 'ev1', OwnerEventName: 'Winter CTF', AccessLevel: '', Infrastructure: true, HasPublished: true, HasDraft: true },
       { ...item, ID: 'e2', Name: 'Catalog one', AccessLevel: 'all', HasPublished: true, HasDraft: false },
       { ...item, ID: 'e3', Name: 'Archived one', AccessLevel: 'own', ArchivedAt: '2026-09-20T00:00:00Z' },
       { ...item, ID: 'e4', Name: 'Hidden one', AccessLevel: 'none' },
@@ -365,21 +612,15 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     render(<Page />)
     await screen.findByText('Event one')
     expect(screen.getByText('exercises.accessCol.event')).toBeInTheDocument()
-    expect(screen.queryByText('exercises.badge.event · Winter CTF')).not.toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.all')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.own')).toBeInTheDocument()
     expect(screen.getByText('exercises.access.level.none')).toBeInTheDocument()
-    expect(screen.getByText('exercises.badge.forkOf: Base')).toBeInTheDocument()
-    expect(screen.getByText('exercises.badge.pending')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'exercises.infra.tooltip' })).toBeInTheDocument()
-    // Published with changes: green «published» + yellow «changes» badges side by side.
     const changed = document.querySelector('[data-status="changed"]')!
     expect([...changed.querySelectorAll('[data-badge]')].map((badge) => [badge.textContent, badge.getAttribute('data-badge')]))
-      .toEqual([['admin.ex.status.published', 'ok'], ['admin.ex.status.changedBadge', 'warn']])
-    expect(changed.textContent).not.toContain('·')
-    expect(document.querySelector('[data-status="published"] [data-badge="ok"]')).toHaveTextContent('admin.ex.status.published')
-    expect(document.querySelector('[data-status="archived"] [data-badge="muted"]')).toHaveTextContent('admin.ex.status.archived')
-    expect(document.querySelector('[data-badge]')?.className).not.toMatch(/shadow/)
+      .toEqual([['exercises.status.short.changed', 'warn']])
+    expect(document.querySelector('[data-status="published"] [data-badge="ok"]')).toHaveTextContent('exercises.status.short.published')
+    expect(document.querySelector('[data-status="archived"] [data-badge="muted"]')).toHaveTextContent('exercises.status.short.archived')
     expect(document.querySelectorAll('[data-status]')).toHaveLength(4)
   })
 
@@ -395,31 +636,6 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByRole('button', { name: 'exercises.accessCol.selectedCount' })).toBeInTheDocument()
   })
 
-  it('puts help icons next to the filters and the access / status headers', async () => {
-    h.access = manager
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    for (const label of ['exercises.help.events.event', 'exercises.help.infra.needed exercises.help.infra.notNeeded',
-      'exercises.help.statusFilter.published exercises.help.statusFilter.changed exercises.help.statusFilter.draftOnly exercises.help.status.several',
-      'exercises.help.tags.cycle exercises.help.tags.match exercises.help.tags.existing',
-      'exercises.help.author.who exercises.help.author.several', 'exercises.help.difficulty.average exercises.help.difficulty.none',
-      'exercises.help.authorCol.who', 'exercises.help.difficultyCol.source exercises.help.difficultyCol.level exercises.help.difficultyCol.subtasks',
-      'exercises.help.accessCol.who exercises.help.accessCol.none exercises.help.accessCol.event',
-      'exercises.help.statusCol.published exercises.help.statusCol.draft exercises.help.statusCol.archived']) {
-      expect(helpButton(label)).toBeInTheDocument()
-    }
-  })
-
-  it('shows multi-sentence help one sentence per line', async () => {
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    fireEvent.click(helpButton(/^exercises.help.statusCol.published/))
-    const lines = within(await screen.findByRole('tooltip')).getAllByText(/^exercises.help.statusCol\./)
-    expect(lines.map((line) => [line.tagName, line.textContent])).toEqual([
-      ['P', 'exercises.help.statusCol.published'], ['P', 'exercises.help.statusCol.draft'], ['P', 'exercises.help.statusCol.archived'],
-    ])
-  })
-
   it('filters by several events and keeps the filters in the URL', async () => {
     h.access = { ...manager, Events: [manager.Events[0], { ...manager.Events[0], ID: 'ev2', Name: 'Spring CTF' }] }
     mockList.mockImplementation(async (filter) => ({
@@ -427,66 +643,18 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     }))
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.events.event' }))
-    fireEvent.click(await screen.findByRole('option', { name: /Winter CTF/ }))
-    fireEvent.click(screen.getByRole('option', { name: /Spring CTF/ }))
+    const popover = await addFilter('exercises.filter.events.event')
+    fireEvent.click(within(popover).getByRole('checkbox', { name: /Winter CTF/ }))
+    fireEvent.click(within(popover).getByRole('checkbox', { name: /Spring CTF/ }))
     expect(await screen.findByText('Spring task')).toBeInTheDocument()
-    expect(screen.getByText('SQLi basics')).toBeInTheDocument()
     expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ events: ['ev1', 'ev2'], page: 1, pageSize: 50 }))
     expect(window.location.search).toBe('?event=ev1&event=ev2')
+    fireEvent.change(within(popover).getByRole('searchbox'), { target: { value: 'nothing' } })
+    // The chosen events stay listed while the search narrows the rest.
+    expect(within(popover).getAllByRole('checkbox')).toHaveLength(2)
   })
 
-  it('orders scope tabs all, catalog, events and names the events filter by tab', async () => {
-    h.access = { ...manager, IsAdmin: true }
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
-    expect(screen.getByRole('combobox', { name: 'exercises.filter.events.all' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.catalog' }))
-    expect(await screen.findByRole('combobox', { name: 'exercises.filter.events.catalog' })).toBeInTheDocument()
-    expect(helpButton('exercises.help.events.catalog')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('radio', { name: 'exercises.scope.event' }))
-    expect(await screen.findByRole('combobox', { name: 'exercises.filter.events.event' })).toBeInTheDocument()
-  })
-
-  it('explains every visible scope tab in order, one line each', async () => {
-    h.access = { ...manager, IsAdmin: true }
-    const { unmount } = render(<Page />)
-    await screen.findByText('SQLi basics')
-    const help = helpButton(/exercises.help.scope.line/)
-    fireEvent.click(help)
-    const lines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
-    expect(lines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
-    expect(lines[1]).toHaveTextContent('exercises.help.scope.catalog')
-    unmount()
-    h.access = manager
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    fireEvent.click(helpButton(/exercises.help.scope.line/))
-    const managerLines = within(await screen.findByRole('tooltip')).getAllByRole('listitem')
-    expect(managerLines.map((line) => line.querySelector('strong')?.textContent)).toEqual(['exercises.scope.catalog', 'exercises.scope.event'])
-  })
-
-  it('explains the tag так/ні cycle in the list and in the «?» help, which opens on a tap', async () => {
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    fireEvent.click(helpButton(/exercises\.help\.tags\.cycle/))
-    const tip = await screen.findByRole('tooltip')
-    expect(within(tip).getByText('exercises.help.tags.cycle')).toBeInTheDocument()
-    expect(within(tip).getByText('exercises.help.tags.match')).toBeInTheDocument()
-    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.tags.label' }))
-    expect(await screen.findByText('exercises.filter.tags.cycleHint')).toBeInTheDocument()
-  })
-
-  it('lists the most used tags when the tag field is focused', async () => {
-    render(<Page />)
-    await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.tags.label' }))
-    expect(await screen.findByRole('option', { name: /crypto/ })).toBeInTheDocument()
-    expect(mockTags).toHaveBeenCalledWith('', 50)
-  })
-
-  it('restores filters from the URL', async () => {
+  it('restores filters from the URL into the chips', async () => {
     window.history.replaceState(null, '', '/?status=changed&infra=yes&tag=web&notag=old&author=u1&dmin=2&dmax=4&sort=name&dir=asc')
     mockList.mockResolvedValue({ Items: [{ ...item, HasPublished: true, HasDraft: true }], Total: 1, Page: 1, PageSize: 200 })
     render(<Page />)
@@ -494,15 +662,14 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(mockList).toHaveBeenCalledWith(expect.objectContaining({
       statuses: ['changed'], infrastructure: 'yes', withTags: ['web'], withoutTags: ['old'], authors: ['u1'], difficultyMin: 2, difficultyMax: 4, sortBy: 'name', sortDir: 'asc',
     }))
-    // One chip each: the status, the wanted tag, the left-out tag, the author.
-    expect(screen.getAllByRole('button', { name: 'exercises.filter.remove' })).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: 'exercises.filter.tags.remove' })).toHaveLength(2)
-    expect(screen.getByText('admin.ex.filterStatusChanged')).toBeInTheDocument()
+    expect(toolbar().getByRole('button', { name: /^admin\.ex\.col\.status/ })).toHaveTextContent('exercises.status.short.changed')
+    expect(screen.getByRole('button', { name: /^exercises\.filter\.tags\.label/ })).toHaveTextContent('web')
     // The author a link chose is named before the author list is opened.
     expect(mockAuthors).toHaveBeenCalledWith('', 100, ['u1'])
-    expect(await screen.findByText('Ада Лавлейс')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' })).toHaveTextContent('admin.ex.difficulty.trivial')
-    expect(screen.getByRole('button', { name: 'exercises.filter.difficulty.toLabel' })).toHaveTextContent('admin.ex.difficulty.medium')
+    await waitFor(() => expect(screen.getByRole('button', { name: /^exercises\.filter\.author\.label/ })).toHaveTextContent('Ада Лавлейс'))
+    expect(screen.getByRole('button', { name: /^exercises\.filter\.difficulty\.label/ })).toHaveTextContent('exercises.catalog.condition.difficultyRange')
+    expect(screen.getByRole('button', { name: /^exercises\.filter\.infra/ })).toHaveTextContent('exercises.filter.infraYes')
+    expect(screen.getAllByRole('button', { name: 'exercises.filter.clearField' })).toHaveLength(5)
   })
 
   it('gives moderators their events, event scope by default, import into them and export of their own tasks only', async () => {
@@ -516,24 +683,28 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     render(<Page />)
     await screen.findByText('Own task')
     expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'event', events: ['ev1'] }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.add' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.storage' }))
+    expect(await screen.findByRole('radio', { name: 'exercises.scope.catalog' })).toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'exercises.scope.all' })).not.toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.importTip' }))
+    // Only their event as the target, preselected from the events filter.
+    expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-targets', 'ev1')
+    expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-initial', 'ev1')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.create' }))
+    expect(h.push).toHaveBeenCalledWith('/new?event=ev1')
     expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Own task' })).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'admin.ex.select.rowNamed: Catalog task' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'admin.ex.select.all' }))
     expect(screen.getByRole('checkbox', { name: 'admin.ex.select.rowNamed: Own task' })).toBeChecked()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.button' }))
-    // Only their event as the target, preselected from the events filter.
-    expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-targets', 'ev1')
-    expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-initial', 'ev1')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.create.button' }))
-    expect(h.push).toHaveBeenCalledWith('/new?event=ev1')
   })
 
   it('gives admins the catalog and their events as import targets', async () => {
     h.access = { ...manager, IsAdmin: true, CanCreateCatalog: true }
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.button' }))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.importTip' }))
     expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-targets', 'catalog,ev1')
     expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-initial', '')
   })
@@ -542,77 +713,61 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = { ...manager, CanImport: false, CanExport: false, Events: [{ ...manager.Events[0], CanWrite: false }] }
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.queryByRole('button', { name: 'admin.exImport.button' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'exercises.catalog.importTip' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 
-  it('shows the author and the average difficulty of each task', async () => {
+  it('shows the author, counts and average difficulty of each task', async () => {
     mockList.mockResolvedValue({ Items: [
-      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4, TaskNames: ['One', 'Two', 'Three', 'Four'] },
+      { ...item, ID: 'a', Name: 'Rated', AuthorID: 'u1', AuthorName: 'Ада Лавлейс', AvgDifficulty: 3.5, TaskCount: 4, TaskNames: ['One', 'Two', 'Three', 'Four'], VariantCount: 7 },
       { ...item, ID: 'b', Name: 'Unrated' },
     ], Total: 2, Page: 1, PageSize: 50 })
     render(<Page />)
     await screen.findByText('Rated')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'admin.ex.col.difficulty' }))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     expect(screen.getByText('Ада Лавлейс')).toBeInTheDocument()
     expect(screen.getByLabelText('exercises.difficulty.value')).toHaveTextContent('admin.ex.difficulty.medium3,5')
     expect(screen.getByLabelText('exercises.difficulty.none')).toHaveTextContent('—')
     expect(screen.getByLabelText('exercises.author.unknown')).toHaveTextContent('—')
-    // Under 1440 px the name cell carries the update date; the «Оновлено» column hides there.
-    expect(screen.getAllByText('admin.ex.updatedLine')[0]).toHaveClass('min-[1440px]:hidden')
-    expect(screen.getByRole('button', { name: 'admin.ex.col.updated' }).closest('th')).toHaveClass('max-[1439px]:hidden')
-    // The owner's column order, every column left-aligned, the same cells in each row.
-    const heads = [...document.querySelectorAll('thead th')].map((th) => (th.textContent ?? '').split('exercises.')[0].match(/admin\.ex\.col\.[a-z]+/)?.[0] ?? '')
-    expect(heads.filter(Boolean)).toEqual(['admin.ex.col.name', 'admin.ex.col.tags', 'admin.ex.col.subtasks', 'admin.ex.col.difficulty',
-      'admin.ex.col.access', 'admin.ex.col.status', 'admin.ex.col.author', 'admin.ex.col.updated'])
-    for (const cell of document.querySelectorAll('thead th, tbody td')) expect(cell.className).not.toMatch(/\btext-right\b/)
-    const firstRow = screen.getByRole('row', { name: /Rated/ })
-    const cells = [...firstRow.querySelectorAll('td')]
-    expect(cells.findIndex((td) => td.textContent?.includes('Ада Лавлейс'))).toBe(cells.length - 2)
-    // The subtask count of the first variant; «—» without a variant.
-    expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('4')
+    expect(screen.getByLabelText('exercises.variants.none')).toHaveTextContent('—')
+    expect(screen.getByRole('row', { name: /Rated/ })).toHaveTextContent('7')
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
-    // The count opens the subtask names.
     fireEvent.click(screen.getByRole('button', { name: 'exercises.subtasks.show' }))
     expect((await screen.findAllByRole('listitem')).map((li) => li.textContent)).toEqual(['One', 'Two', 'Three', 'Four'])
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-    fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.subtasks' }))
-    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'subtasks', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.difficulty' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'difficulty', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.author' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'author', sortDir: 'asc' })))
   })
 
-  it('filters by author, difficulty range and tags left out, and resets every filter at once', async () => {
+  it('filters by author and difficulty range from the chips', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
-    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.author.label' }))
-    fireEvent.click(await screen.findByRole('option', { name: /Ада Лавлейс/ }))
-    fireEvent.keyDown(screen.getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' }), { key: 'ArrowDown' })
+    const authors = await openChip('exercises.filter.author.label')
+    fireEvent.click(await within(authors).findByRole('checkbox', { name: /Ада Лавлейс/ }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], page: 1 })))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('button', { name: /^exercises\.filter\.author\.label/ })).toHaveTextContent('Ада Лавлейс'))
+    const range = await addFilter('exercises.filter.difficulty.label')
+    fireEvent.keyDown(within(range).getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' }), { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.ex.difficulty.easy' }))
-    // One tag field: the first press says «так», the second «ні».
-    fireEvent.focus(screen.getByRole('combobox', { name: 'exercises.filter.tags.label' }))
-    fireEvent.click(await screen.findByRole('option', { name: /crypto/ }))
-    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ withTags: ['crypto'] })))
-    fireEvent.click(screen.getByRole('option', { name: /crypto/ }))
-    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], difficultyMin: 3, withoutTags: ['crypto'], page: 1 })))
-    expect(mockList.mock.lastCall?.[0]).not.toHaveProperty('withTags')
-    expect(window.location.search).toBe('?notag=crypto&author=u1&dmin=3')
-    fireEvent.click(screen.getAllByRole('button', { name: 'exercises.filter.reset' })[0])
-    await waitFor(() => expect(window.location.search).toBe(''))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], difficultyMin: 3 })))
+    expect(window.location.search).toBe('?author=u1&dmin=3')
   })
 
-  it('opens the filters as a panel on a phone', async () => {
+  it('opens the filters as a sheet on a phone', async () => {
+    phone()
     render(<Page />)
     await screen.findByText('SQLi basics')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.open' }))
-    const panel = await screen.findByRole('dialog', { name: 'exercises.filter.open' })
-    fireEvent.focus(within(panel).getByRole('combobox', { name: 'exercises.filter.tags.label' }))
-    fireEvent.click(await within(panel).findByRole('option', { name: /crypto/ }))
+    const panel = await screen.findByRole('dialog', { name: 'exercises.filter.sheetTitle' })
+    fireEvent.click(await within(panel).findByRole('button', { name: 'exercises.filter.tags.require' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ withTags: ['crypto'] })))
-    fireEvent.click(within(panel).getByRole('button', { name: 'exercises.filter.done' }))
+    fireEvent.click(within(panel).getByRole('button', { name: /^exercises\.filter\.show\./ }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    // The button names how many filters are set.
     expect(screen.getByRole('button', { name: 'exercises.filter.openCount' })).toBeInTheDocument()
   })
 
@@ -620,7 +775,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     h.access = { ...manager, Events: [{ ...manager.Events[0], CanWrite: false }] }
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(screen.queryByRole('button', { name: 'admin.ex.create.button' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'exercises.catalog.create' })).not.toBeInTheDocument()
   })
 })
 
@@ -639,26 +794,26 @@ describe('exercises catalog — background imports', () => {
     mockList.mockResolvedValue({ Items: [item], Total: 1, Page: 1, PageSize: 50 })
   })
 
-  it('shows a row at the top of the table for an import resumed after a reload', async () => {
+  it('shows a strip above the table for an import resumed after a reload', async () => {
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
     vi.mocked(getImportJob).mockResolvedValue(running)
     render(<Page />)
     await screen.findByText('SQLi basics')
-    const row = await waitFor(() => {
+    const strip = await waitFor(() => {
       const found = document.querySelector('[data-import-job="running"]')
       expect(found).not.toBeNull()
       return found as HTMLElement
     })
-    expect(row).toHaveTextContent('admin.exImport.rowTitle')
-    expect(row).toHaveTextContent('admin.exImport.stage.tasksCount')
-    expect(within(row).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
-    // Above the task rows, and the rest of the catalog stays usable meanwhile.
-    const tbodies = Array.from(row.closest('table')!.querySelectorAll('tbody'))
-    expect(tbodies.indexOf(row as HTMLTableSectionElement)).toBeLessThan(tbodies.length - 1)
-    expect(screen.getByRole('button', { name: 'admin.exImport.button' })).toBeEnabled()
+    expect(strip).toHaveTextContent('admin.exImport.rowTitle')
+    expect(strip).toHaveTextContent('admin.exImport.stage.tasksCount')
+    expect(within(strip).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+    // Above the table, outside it, and the rest of the catalog stays usable meanwhile.
+    expect(strip.closest('table')).toBeNull()
+    expect(strip.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'exercises.catalog.importTip' })).toBeEnabled()
   })
 
-  it('shows the row whatever the filters leave in the list', async () => {
+  it('shows the strip whatever the filters leave in the list', async () => {
     mockList.mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 })
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))
     vi.mocked(getImportJob).mockResolvedValue(running)
@@ -687,12 +842,13 @@ describe('exercises catalog — background imports', () => {
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j2']))
     vi.mocked(getImportJob).mockResolvedValue({ ...running, state: 'failed', stage: 'failed', error: new ApiError(409, null) })
     render(<Page />)
-    fireEvent.click(await screen.findByRole('button', { name: 'admin.exImport.details' }))
+    await waitFor(() => expect(document.querySelector('[data-import-job="failed"]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exImport.details' }))
     expect(screen.getByTestId('import-dialog')).toHaveTextContent('j2')
     expect(document.querySelector('[data-import-job="failed"]')).toHaveTextContent('admin.exImport.failedWith')
   })
 
-  it('shows no import row to someone who cannot import', async () => {
+  it('shows no import strip to someone who cannot import', async () => {
     h.canWrite = false
     h.canExport = false
     localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(['j1']))

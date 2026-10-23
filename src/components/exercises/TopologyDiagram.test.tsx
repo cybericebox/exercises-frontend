@@ -767,7 +767,9 @@ describe('TopologyDiagram', () => {
     expect(wheel.defaultPrevented).toBe(false)
     expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', initial)
     expect(svg).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
-    expect(screen.getByRole('button', { name: 'admin.exTopo.canvasControls' })).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
+    // No «?» on the canvas: the zoom controls name their shortcuts in tooltips and point to the same description.
+    expect(screen.queryByRole('button', { name: 'admin.exTopo.canvasControls' })).not.toBeInTheDocument()
+    expect(container.querySelector('.topology-zoom')).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
   })
 
   it('shows a visible stroke for a keyboard-focused connection', () => {

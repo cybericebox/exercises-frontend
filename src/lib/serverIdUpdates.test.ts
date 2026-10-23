@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Version } from "@/api/exercises/versions"
-import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
-import { capturedDraftIds, serverIdUpdates } from "./serverIdUpdates"
+import { emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { capturedDraftIds, savedSecretUpdates, serverIdUpdates } from "./serverIdUpdates"
 
 function savedFrom(form: ReturnType<typeof emptyDraft>, ids: { variant: string; tasks: string[] }): Version {
   const values = structuredClone(form)
@@ -100,5 +100,51 @@ describe("serverIdUpdates", () => {
     saved.Variants[0].Tasks[0].Hints = [{ ID: "h1", Text: "a", Level: "nudge" }]
     form.Variants[0].Tasks[0].Hints = [{ ID: "", Text: "new", Level: "nudge" }, { ID: "", Text: "a", Level: "nudge" }]
     expect(serverIdUpdates(sent, saved, form)).toEqual([])
+  })
+})
+
+describe("savedSecretUpdates", () => {
+  function setup(group?: number) {
+    const form = emptyDraft()
+    form.Variants[0].ID = "v1"
+    form.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web",
+      EnvVars: [{ Name: "MODE", Value: "ctf", Secret: false, HasValue: false }, { Name: "FLAG", Value: "typed", Secret: true, HasValue: false }] }]
+    const saved = savedFrom(form, { variant: "v1", tasks: [""] })
+    saved.Variants[0].Topology.Devices = [{ ...form.Variants[0].Topology.Devices[0], External: null,
+      EnvVars: [{ Name: "MODE", Value: "ctf", Secret: false, HasValue: false }, { Name: "FLAG", Value: "", Secret: true, HasValue: true, ...(group ? { ValueGroup: group } : {}) }] }]
+    return { form, saved, sent: capturedDraftIds(form) }
+  }
+
+  it("clears the sent secret and adopts its group from the answer", () => {
+    const { form, saved, sent } = setup(1)
+    expect(sent.secrets).toEqual([{ variant: 0, deviceId: "d1", name: "FLAG", value: "typed" }])
+    expect(savedSecretUpdates(sent, saved, form)).toEqual([
+      { path: "Variants.0.Topology.Devices.0.EnvVars.1.Value", value: "" },
+      { path: "Variants.0.Topology.Devices.0.EnvVars.1.HasValue", value: true },
+      { path: "Variants.0.Topology.Devices.0.EnvVars.1.ValueGroup", value: 1 },
+    ])
+  })
+
+  it("re-reads every stored secret's group from the answer, so all groups come from one response", () => {
+    const { form, saved, sent } = setup(3)
+    form.Variants[0].Topology.Devices[0].EnvVars[1] = { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 7 }
+    expect(savedSecretUpdates(sent, saved, form)).toEqual([{ path: "Variants.0.Topology.Devices.0.EnvVars.1.ValueGroup", value: 3 }])
+    // Already the answer's group: nothing to write.
+    form.Variants[0].Topology.Devices[0].EnvVars[1].ValueGroup = 3
+    expect(savedSecretUpdates(sent, saved, form)).toEqual([])
+  })
+
+  it("keeps a value typed further typed and without a group; an older server gives no group; a changed variant sequence changes nothing", () => {
+    const typedFurther = setup(1)
+    typedFurther.form.Variants[0].Topology.Devices[0].EnvVars[1].Value = "typed more"
+    expect(savedSecretUpdates(typedFurther.sent, typedFurther.saved, typedFurther.form)).toEqual([])
+    const older = setup()
+    expect(savedSecretUpdates(older.sent, older.saved, older.form)).toEqual([
+      { path: "Variants.0.Topology.Devices.0.EnvVars.1.Value", value: "" },
+      { path: "Variants.0.Topology.Devices.0.EnvVars.1.HasValue", value: true },
+    ])
+    const reordered = setup(1)
+    reordered.form.Variants[0].ID = "other"
+    expect(savedSecretUpdates(reordered.sent, reordered.saved, reordered.form)).toEqual([])
   })
 })

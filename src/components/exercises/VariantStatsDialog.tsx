@@ -33,7 +33,7 @@ function VersionTable({ version }: { version: VariantStats }) {
   return <section className="mb-5 last:mb-0">
     <h3 className="mb-2 flex flex-wrap items-center gap-x-2 text-sm font-medium text-foreground">
       {label}
-      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{t(`admin.exHistory.kind.${version.Status}`)}</span>
+      <span className="rounded-sm bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{t(`admin.exHistory.kind.${version.Status}`)}</span>
     </h3>
     <Table label={label} regionClassName="max-w-full">
       <thead>

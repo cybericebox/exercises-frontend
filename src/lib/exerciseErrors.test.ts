@@ -18,6 +18,7 @@ import {
   ERR_EXERCISE_IN_USE,
   archiveErrorDetail,
   ARCHIVE_CONTENT_ERROR_CODES,
+  deviceImageErrorTarget,
 } from './exerciseErrors'
 
 function apiError(status: number, code: number, message: string): ApiError {
@@ -151,5 +152,18 @@ describe('test lab reservation errors', () => {
     expect(exerciseErrorMessage(apiError(409, 72517, 'The reservation has no room for this laboratory'))).toBe('admin.exDeploy.reservationFull')
     expect(exerciseErrorMessage(apiError(503, 72518, 'The resources are not ready yet, try again in a minute'))).toBe('admin.exDeploy.notReady')
     expect(exerciseErrorMessage(apiError(400, 22516, 'This run length is not offered'))).toBe('admin.exDeploy.lengthNotAllowed')
+  })
+})
+
+describe('deviceImageErrorTarget', () => {
+  const variants = [{ Topology: { Devices: [{ Name: 'web' }] } }, { Topology: { Devices: [{ Name: 'db' }, { Name: 'web' }] } }]
+  const error = (context: Record<string, unknown>, code = 22831) => new ApiError(400, { Status: { Code: code, Message: 'bad image', Context: context } }, 'bad image')
+  it('points at the device image named by its 1-based variant and device name', () => {
+    expect(deviceImageErrorTarget(error({ variant: 2, device: 'web' }), variants)).toEqual({ variantIndex: 1, deviceIndex: 1 })
+  })
+  it('gives nothing for another error or an unknown place', () => {
+    expect(deviceImageErrorTarget(error({ variant: 2, device: 'web' }, 20916), variants)).toBeNull()
+    expect(deviceImageErrorTarget(error({ variant: 3, device: 'web' }), variants)).toBeNull()
+    expect(deviceImageErrorTarget(error({ variant: 1, device: 'cache' }), variants)).toBeNull()
   })
 })

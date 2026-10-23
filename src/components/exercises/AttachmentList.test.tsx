@@ -43,7 +43,7 @@ describe('AttachmentList', () => {
 
   it('keeps the upload action but does not reserve an empty-state panel before files exist', () => {
     render(<Harness />)
-    expect(screen.getByRole('button', { name: 'admin.exFiles.upload' })).toHaveTextContent('admin.exFiles.add')
+    expect(screen.getByRole('button', { name: 'admin.exFiles.upload' })).toHaveTextContent('admin.exFiles.dropOrPick')
     expect(screen.queryByText('admin.exFiles.empty')).not.toBeInTheDocument()
   })
 
@@ -73,7 +73,7 @@ describe('AttachmentList', () => {
     render(<Harness />)
     fireEvent.change(screen.getByTestId('attachment-file-input'), { target: { files: [new File(['x'], 'partial.bin')] } })
     expect(await screen.findByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
-    expect(screen.getByText('42%')).toBeInTheDocument()
+    expect(screen.getByText('admin.exFiles.uploadingProgress')).toBeInTheDocument()
     complete({ FileID: 'f3', Name: 'partial.bin', Size: 1 })
     expect(await screen.findByText('partial.bin')).toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()

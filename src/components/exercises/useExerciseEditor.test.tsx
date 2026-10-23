@@ -20,7 +20,7 @@ import { createExercise, getExercise, updateExercise } from "@/api/exercises/cat
 import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
-import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
@@ -39,7 +39,7 @@ const exercise: Exercise = {
 const created: Exercise = { ...exercise, ID: "new-exercise", Name: "Buffer overflow", DraftVersionID: null }
 const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
@@ -83,6 +83,82 @@ beforeEach(() => {
 })
 
 describe("useExerciseEditor", () => {
+  it.each([null, "history-1"])("hydrates selected version identity including empty values (%s)", async (versionId) => {
+    const selected = { ...serverVersion, Name: "Selected snapshot", Description: "", Tags: [] }
+    mockGetExercise.mockResolvedValue({ ...exercise, Description: "Public description", Tags: ["public"] })
+    mockGetDraft.mockResolvedValue(selected)
+    mockGetVersion.mockResolvedValue(selected)
+    render(<Harness exerciseId="ex-1" versionId={versionId} editable={!versionId} />)
+    await screen.findByDisplayValue("Selected snapshot")
+    expect(latest.identityForm.getValues()).toEqual({ Name: "Selected snapshot", Description: "", Tags: [] })
+  })
+
+  it("uses published identity for published-only readers", async () => {
+    mockGetExercise.mockResolvedValue({ ...exercise, PublishedVersionID: "pub-1" })
+    mockGetVersion.mockResolvedValue({ ...serverVersion, Name: "Published name", Description: "Published description", Tags: ["published"] })
+    render(<Harness exerciseId="ex-1" publishedOnly={() => true} />)
+    await screen.findByDisplayValue("Published name")
+    expect(latest.identityForm.getValues("Description")).toBe("Published description")
+  })
+
+  it("advances the authoritative draft ID on metadata-only PATCH and rejects a late card regression", async () => {
+    let refresh: (value: Exercise) => void = () => undefined
+    mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve }))
+    mockUpdate.mockResolvedValue({ ...exercise, Name: "New metadata", DraftVersionID: "draft-2", HasChanges: true })
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "New metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+    expect(latest.getDraftVersionId()).toBe("draft-2")
+    await act(async () => { refresh({ ...exercise, HasChanges: false }) })
+    expect(latest.exercise?.DraftVersionID).toBe("draft-2")
+    expect(latest.exercise?.HasChanges).toBe(true)
+  })
+
+  it("preserves edits made during metadata PATCH and sends only acknowledged snapshots", async () => {
+    let acknowledge: (value: Exercise) => void = () => undefined
+    mockUpdate.mockReturnValueOnce(new Promise((resolve) => { acknowledge = resolve }))
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "First metadata" } })
+    let flushed: Promise<boolean>
+    act(() => { flushed = latest.autosave.flush() })
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Newer metadata" } })
+    expect(screen.getByLabelText("name")).toBeEnabled()
+    await act(async () => { acknowledge({ ...exercise, Name: "First metadata", DraftVersionID: "draft-2" }); await flushed })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] })
+    expect(latest.identityForm.getValues("Name")).toBe("Newer metadata")
+  })
+
+  it("reloads restored working-copy identity from the returned draft snapshot", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    mockGetDraft.mockResolvedValue({ ...serverVersion, ID:"restored-draft", Name:"Restored metadata", Description:"", Tags:[] })
+    mockGetExercise.mockResolvedValue({ ...exercise, Name:"Public metadata", Description:"Public text", Tags:["public"] })
+    await act(async () => { await latest.reloadWorkingCopy() })
+    expect(latest.identityForm.getValues()).toEqual({ Name:"Restored metadata", Description:"", Tags:[] })
+    expect(latest.getDraftVersionId()).toBe("restored-draft")
+  })
+
+  it("does not let a late card refresh undo a newer acknowledged save", async () => {
+    let refresh: (value: Exercise) => void = () => undefined
+    mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve })).mockResolvedValue(exercise)
+    mockUpdate.mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-2", Name:"First metadata" }).mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-3", Name:"Latest metadata", HasChanges:true })
+    render(<Harness exerciseId="ex-1" />)
+    await screen.findByDisplayValue("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target:{ value:"First metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    fireEvent.change(screen.getByLabelText("name"), { target:{ value:"Latest metadata" } })
+    await act(async () => { await latest.autosave.flush() })
+    await act(async () => { refresh({ ...exercise, DraftVersionID:"draft-2", HasChanges:false }) })
+    expect(latest.identityForm.getValues("Name")).toBe("Latest metadata")
+    expect(latest.getDraftVersionId()).toBe("draft-3")
+    expect(latest.exercise?.DraftVersionID).toBe("draft-3")
+    expect(latest.exercise?.HasChanges).toBe(true)
+  })
+
   it("does not PUT a draft when an edit is reverted before the debounce drains", async () => {
     render(<Harness exerciseId="ex-1" />)
     await screen.findByDisplayValue("Web 101")
@@ -245,6 +321,48 @@ describe("useExerciseEditor", () => {
     expect(latest.getDraftVersionId()).toBe("draft-1")
     await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it("turns a typed secret into a stored one after the save: its group comes from the answer, nothing else changes, no second save", async () => {
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Image: "web:1",
+      EnvVars: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }
+    const stored = structuredClone(serverVersion)
+    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null,
+      EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }]
+    mockSaveDraft.mockResolvedValue(stored)
+    render(<Harness />)
+    act(() => {
+      latest.draftForm.setValue("Variants.0.Topology.Devices", [device])
+      latest.draftForm.setValue("Variants.0.Note", "kept note")
+    })
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].EnvVars?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars")).toEqual([
+      { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
+      { Name: "MODE", Value: "ctf", Secret: false, HasValue: false },
+    ])
+    expect(latest.draftForm.getValues("Variants.0.Note")).toBe("kept note")
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Image")).toBe("web:1")
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps a secret typed further while the save was in flight", async () => {
+    let resolveSave: (value: Version) => void = () => undefined
+    mockSaveDraft.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve }))
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", EnvVars: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] }
+    const stored = structuredClone(serverVersion)
+    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null, EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] }]
+    render(<Harness />)
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices", [device]))
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.EnvVars.0.Value", "s3cret"))
+    await act(async () => { resolveSave(stored) })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
   })
 
   it("adopts nothing when a task is added to the form while the save is still in flight", async () => {
@@ -507,4 +625,99 @@ describe("useExerciseEditor", () => {
     // are reset exactly once with the loaded data, not corrupted by a double-apply.
     expect(latest.identityForm.getValues("Name")).toBe("Web 101")
   })
+})
+
+describe("archive replacement ownership", () => {
+ it("drains same-tick identity and delayed draft save before allowing preview, then installs authoritative baseline", async () => {
+  let release!: (value: Version) => void
+  mockSaveDraft.mockImplementationOnce(() => new Promise(r => { release = r }))
+  render(<Harness exerciseId="ex-1" />)
+  await screen.findByDisplayValue("Web 101")
+  let preparing!: Promise<boolean>
+  act(() => {
+   latest.identityForm.setValue("Name", "Local edit")
+   latest.draftForm.setValue("AdminNote", "Local note")
+   preparing = latest.prepareImportReplacement()
+  })
+  await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+  expect(latest.replacementActive).toBe(true)
+  window.dispatchEvent(new Event("pagehide"))
+  expect(saveDraftKeepalive).not.toHaveBeenCalled()
+  await act(async () => { release({ ...serverVersion, AdminNote: "Local note" }); expect(await preparing).toBe(true) })
+  expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Local edit" }))
+  mockGetExercise.mockResolvedValue({ ...exercise, Name: "Imported" })
+  mockGetDraft.mockResolvedValue({ ...serverVersion, Name: "Imported", AdminNote: "Imported note" })
+  await act(async () => { await latest.reconcileImportReplacement() })
+  expect(latest.identityForm.getValues("Name")).toBe("Imported")
+  expect(latest.draftForm.getValues("AdminNote")).toBe("Imported note")
+  expect(latest.autosave.hasUnsaved()).toBe(false)
+  expect(latest.replacementActive).toBe(false)
+ })
+ it("keeps values after failed prepare and safely fences a failed authoritative reload for retry", async () => {
+  mockUpdate.mockRejectedValueOnce(new TypeError("offline"))
+  render(<Harness exerciseId="ex-1" />)
+  await screen.findByDisplayValue("Web 101")
+  act(() => latest.identityForm.setValue("Name", "Keep me"))
+  await act(async () => expect(await latest.prepareImportReplacement()).toBe(false))
+  expect(latest.identityForm.getValues("Name")).toBe("Keep me")
+  expect(latest.replacementActive).toBe(false)
+  await act(async () => expect(await latest.prepareImportReplacement()).toBe(true))
+  mockGetDraft.mockRejectedValueOnce(new TypeError("offline"))
+  await act(async () => { await expect(latest.reconcileImportReplacement()).rejects.toThrow() })
+  expect(latest.replacementActive).toBe(true)
+  expect(latest.identityForm.getValues("Name")).toBe("Keep me")
+  await act(async () => { await latest.reconcileImportReplacement() })
+  expect(latest.replacementActive).toBe(false)
+ })
+})
+
+it("a catalog update marker fences a remounted editor and refuses to restore its old pending buffer", async () => {
+ const { recordImportPlan, settleImportPlan } = await import("@/lib/importReplacement")
+ const plan = { UploadID: "owned", Password: "secret", Targets: [{ ItemKey: "folder", Mode: "update" as const, ExerciseID: "ex-1" }], ConfirmedUpdates: [{ ItemKey: "folder", Revision: "r", ReplaceDraft: true }] }
+ writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Old buffered name", Description: "", Tags: [] }, emptyDraft())
+ recordImportPlan("editor-1", plan, "queued")
+ const first = render(<Harness exerciseId="ex-1" />)
+ await screen.findByDisplayValue("Web 101")
+ expect(latest.replacementActive).toBe(true)
+ expect(latest.replacementRecovery?.jobID).toBe("queued")
+ window.dispatchEvent(new Event("pagehide"))
+ first.unmount()
+ expect(mockUpdate).not.toHaveBeenCalled()
+ expect(mockSaveDraft).not.toHaveBeenCalled()
+ mockGetExercise.mockResolvedValue({ ...exercise, Name: "Imported now" })
+ mockGetDraft.mockResolvedValue({ ...serverVersion, Name: "Imported now" })
+ settleImportPlan("editor-1", plan, true)
+ render(<Harness exerciseId="ex-1" />)
+ await screen.findByDisplayValue("Imported now")
+ expect(latest.replacementActive).toBe(true)
+ await act(async () => { await latest.reconcileImportReplacement() })
+ expect(latest.replacementActive).toBe(false)
+ expect(latest.autosave.hasUnsaved()).toBe(false)
+ expect(mockSaveDraft).not.toHaveBeenCalled()
+})
+
+it("catalog replacement waits for an orphaned unmount PATCH then PUT before preview can continue", async () => {
+ const { prepareImportEditors } = await import("@/lib/importReplacement")
+ let patch!: (value: Exercise) => void, put!: (value: Version) => void
+ mockUpdate.mockImplementationOnce(() => new Promise(resolve => { patch = resolve }))
+ mockSaveDraft.mockImplementationOnce(() => new Promise(resolve => { put = resolve }))
+ const screenA = render(<Harness exerciseId="ex-1" userId="orphan-actor" />)
+ await screen.findByDisplayValue("Web 101")
+ let saving!: Promise<boolean>
+ act(() => {
+  latest.identityForm.setValue("Name", "Before catalog")
+  latest.draftForm.setValue("AdminNote", "Before catalog")
+  saving = latest.autosave.flush()
+ })
+ await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+ screenA.unmount()
+ let prepared = false
+ const draining = prepareImportEditors("orphan-actor", ["ex-1"]).then(ok => { prepared = ok })
+ expect(prepared).toBe(false)
+ await act(async () => { patch({ ...exercise, Name: "Before catalog" }); await Promise.resolve() })
+ await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+ expect(prepared).toBe(false)
+ await act(async () => { put({ ...serverVersion, AdminNote: "Before catalog" }); await saving; await draining })
+ expect(prepared).toBe(true)
+ expect(mockSaveDraft).toHaveBeenCalledTimes(1)
 })

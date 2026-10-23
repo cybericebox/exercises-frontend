@@ -35,6 +35,41 @@ describe("advisory duplicate variants", () => {
   values.forEach(v => { v.Tasks[0].Attachments = []; v.Topology.Devices[0].EnvVars = [{ Name: "SECRET", Secret: true, Value: "", HasValue: true }] })
   expect(duplicateVariantGroups(values)).toEqual([])
  })
+ it("compares files by their content hash when the server sends it, else by id", () => {
+  const values = variants()
+  values[0].Tasks[0].Attachments = [{ FileID: "one", Name: "same.bin", ContentHash: "aa" }]
+  values[1].Tasks[0].Attachments = [{ FileID: "two", Name: "same.bin", ContentHash: "aa" }]
+  expect(duplicateVariantGroups(values)).toEqual([[0, 1]])
+  values[1].Tasks[0].Attachments = [{ FileID: "two", Name: "same.bin", ContentHash: "bb" }]
+  expect(duplicateVariantGroups(values)).toEqual([])
+  values[1].Tasks[0].Attachments = [{ FileID: "two", Name: "other.bin", ContentHash: "aa" }]
+  expect(duplicateVariantGroups(values)).toEqual([])
+  // A file uploaded here has no hash yet: it compares by id, so it differs.
+  values[1].Tasks[0].Attachments = [{ FileID: "two", Name: "same.bin" }]
+  expect(duplicateVariantGroups(values)).toEqual([])
+ })
+ it("compares stored secrets by their value group", () => {
+  const values = variants()
+  const secret = (group?: number, value = "") => [{ Name: "SECRET", Secret: true, Value: value, HasValue: true, ...(group ? { ValueGroup: group } : {}) }]
+  values[0].Topology.Devices[0].EnvVars = secret(1); values[1].Topology.Devices[0].EnvVars = secret(1)
+  expect(duplicateVariantGroups(values)).toEqual([[0, 1]])
+  values[1].Topology.Devices[0].EnvVars = secret(2)
+  expect(duplicateVariantGroups(values)).toEqual([])
+  // An older server (or no stored value) sends no group: no match, as before.
+  values[1].Topology.Devices[0].EnvVars = secret()
+  expect(duplicateVariantGroups(values)).toEqual([])
+  // A secret typed here (not saved) is not comparable, even when its group matched.
+  values[1].Topology.Devices[0].EnvVars = secret(1, "typed")
+  expect(duplicateVariantGroups(values)).toEqual([])
+ })
+ it("compares plain values by the value itself, local edits included", () => {
+  const values = variants()
+  values[0].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
+  values[1].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
+  expect(duplicateVariantGroups(values)).toEqual([[0, 1]])
+  values[1].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "edited", HasValue: false }]
+  expect(duplicateVariantGroups(values)).toEqual([])
+ })
  it("normalizes placeholder keys only where their schema references them", () => {
   const values = variants()
   values.forEach((v, i) => {

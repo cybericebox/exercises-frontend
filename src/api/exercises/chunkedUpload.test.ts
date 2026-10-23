@@ -230,6 +230,18 @@ describe("chunked upload", () => {
     expect(slice).not.toHaveBeenCalled()
   })
 
+  it("never reuses a generic file upload as an immutable exercise archive", async () => {
+    window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), "legacy-file-upload")
+    fetchMock.mockResolvedValue(jsonResponse(status(3)))
+    expect(await uploadChunks(bigFile(), undefined, undefined, { purpose: "exercise-archive" })).toBe(UPLOAD_ID)
+    expect(fetchMock).toHaveBeenCalledWith(`${apiOrigin}/api/exercises/uploads`, expect.objectContaining({ method: "POST", body: expect.stringContaining('"Purpose":"exercise-archive"') }))
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBe("legacy-file-upload")
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1:exercise-archive"))).toBe(UPLOAD_ID)
+    forgetChunkedUpload(bigFile(), "exercise-archive")
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1:exercise-archive"))).toBeNull()
+    expect(window.localStorage.getItem(chunkedUploadKey("big.bin:10:1"))).toBe("legacy-file-upload")
+  })
+
   it("forgetChunkedUpload drops the stored id without asking the server", () => {
     window.localStorage.setItem(chunkedUploadKey("big.bin:10:1"), UPLOAD_ID)
     forgetChunkedUpload(bigFile())

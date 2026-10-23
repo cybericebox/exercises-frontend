@@ -28,3 +28,14 @@ describe("date time picker max", () => {
     expect(onChange).toHaveBeenLastCalledWith("2030-05-10T12:00")
   })
 })
+
+it("opts into localized full value and known offset without changing picker wall emissions", () => {
+  const change = vi.fn()
+  render(<DateTimePicker aria-label="start" value="2026-10-25T03:30" displayInstant="2026-10-25T01:30:27Z" locale="en-GB" wrapValue describeValue onChange={change} />)
+  const trigger = screen.getByRole("button", { name: "start" })
+  expect(trigger).toHaveTextContent("25 October 2026")
+  expect(trigger).toHaveAccessibleDescription(expect.stringContaining("25 October 2026"))
+  fireEvent.click(trigger)
+  fireEvent.click(screen.getByRole("button", { name: "25 October 2026" }))
+  expect(change).toHaveBeenCalledWith("2026-10-25T03:30")
+})

@@ -16,8 +16,10 @@ import {
 import {
   clearPendingChanges, hasDraftContent, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
 } from "@/lib/exercisePendingBuffer"
-import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
+import { capturedDraftIds, savedSecretUpdates, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
+import type { ArchiveCommitInput } from "@/api/exercises/archiveImport"
+import { clearImportReplacement, readImportReplacement, replacementMarker, registerImportEditor, sameImportPlan, writeImportReplacement, type ImportReplacementMarker } from "@/lib/importReplacement"
 import { useExerciseAutosave, type ExerciseAutosave } from "./useExerciseAutosave"
 
 export type ExerciseLoadState = "loading" | "ready" | "notFound" | "error"
@@ -48,6 +50,12 @@ export type UseExerciseEditorOptions = {
 }
 
 export type ExerciseEditor = {
+  replacementActive: boolean
+  replacementRecovery: ImportReplacementMarker | null
+  prepareImportReplacement: () => Promise<boolean>
+  cancelImportReplacement: () => void
+  recordImportDispatch: (input: ArchiveCommitInput, jobID?: string) => void
+  reconcileImportReplacement: () => Promise<void>
   loadState: ExerciseLoadState
   /** The failure behind loadState "error" (carries the code shown by LoadError). */
   loadError: unknown
@@ -69,8 +77,8 @@ export type ExerciseEditor = {
   hasLocalDraft: () => boolean
 }
 
-function identityOf(exercise: Exercise): IdentityFormValues {
-  return { Name: exercise.Name, Description: exercise.Description, Tags: exercise.Tags }
+function identityOf(exercise: Exercise, version?: Version): IdentityFormValues {
+  return { Name: version?.Name ?? exercise.Name, Description: version?.Description ?? exercise.Description, Tags: version?.Tags ?? exercise.Tags }
 }
 
 // JSON object key order is not an edit (rich-text documents arrive as JSON); array order is.
@@ -104,10 +112,22 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const optionsRef = useRef(options)
   optionsRef.current = options
 
+  const [replacementActive, setReplacementActive] = useState(false)
+  const [replacementRecovery, setReplacementRecovery] = useState<ImportReplacementMarker | null>(null)
+  const replacementFence = useRef(false)
+  useEffect(() => {
+    const marker = userId && exerciseId ? readImportReplacement(userId, exerciseId) : null
+    if (marker) { replacementFence.current = true; setReplacementActive(true); setReplacementRecovery(marker) }
+  }, [userId, exerciseId])
   const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
   const [loadError, setLoadError] = useState<unknown>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
-  const [exercise, setExercise] = useState<Exercise | null>(null)
+  const [exercise, setExerciseState] = useState<Exercise | null>(null)
+  const authorityRevisionRef = useRef(0)
+  const setExercise = useCallback((value: Exercise) => {
+    authorityRevisionRef.current += 1
+    setExerciseState(value)
+  }, [])
   const [version, setVersion] = useState<Version | null>(null)
   // Set once a buffer is restored; the effect below marks the change against the live
   // queue. Calling markChanged() inside the load effect itself would, under StrictMode,
@@ -190,7 +210,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (JSON.stringify(fullIdentity.data) !== savedIdentityRef.current) {
             const updated = await updateExercise(id, fullIdentity.data)
             savedIdentityRef.current = JSON.stringify(fullIdentity.data)
-            if (mountedRef.current) setExercise(updated)
+            rememberDraftVersion(updated.DraftVersionID ?? "")
+            if (mountedRef.current) {
+              setExercise(updated)
+              setVersion((current) => current && { ...current, ID: updated.DraftVersionID ?? current.ID, ...fullIdentity.data })
+            }
           }
         } else if (JSON.stringify(identity) !== savedIdentityRef.current) {
           // Invalid identity edit: never send it, but don't report the round as "saved"
@@ -209,16 +233,21 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         // made while this request was pending. Include assigned IDs for subsequent saves.
         savedDraftRef.current = payloadSignature(toSaveDraftInput(toDraftFormValues(saved)))
         rememberDraftVersion(saved.ID)
+        authorityRevisionRef.current += 1
+        if (mountedRef.current) setExerciseState((current) => current && { ...current, DraftVersionID: saved.ID, HasChanges: true })
         // The server recounts the resources and the elevation state on every save.
-        if (mountedRef.current) setVersion((current) => current && { ...current, Resources: saved.Resources, Elevation: saved.Elevation })
+        if (mountedRef.current) setVersion((current) => current && { ...current, ID: saved.ID, Resources: saved.Resources, Elevation: saved.Elevation })
+        // Computed before the ids are written: both guard on the variant ids that were sent.
+        const secretUpdates = savedSecretUpdates(sent, saved, draftForm.getValues())
         const updates = serverIdUpdates(sent, saved, draftForm.getValues())
-        if (updates.length > 0) {
+        if (updates.length > 0 || secretUpdates.length > 0) {
           // An edit still waiting for its check is marked first: the baseline reset below must not swallow it.
           checkPendingRef.current()
           suppressRef.current = true
-          // Linked variants already hold the same ids as their base: no mirror pass while writing.
+          // Linked variants already hold the same ids (and secrets) as their base: no mirror pass while writing.
           withLinkedMirrorMuted(draftForm.control, () => {
             for (const update of updates) draftForm.setValue(update.path, update.value)
+            for (const update of secretUpdates) draftForm.setValue(update.path, update.value)
           })
           suppressRef.current = false
           lastSignatureRef.current = signature()
@@ -246,13 +275,21 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       }
       throw error
     }
-  }, [identityForm, draftForm, signature, userId, rememberDraftVersion])
+  }, [identityForm, draftForm, signature, userId, rememberDraftVersion, setExercise])
 
   const autosave = useExerciseAutosave({
     save,
+    isReplacementFenced: () => replacementFence.current,
     onSaved: () => {
       const id = exerciseIdRef.current
-      if (id) void getExercise(id).then(setExercise).catch(() => undefined)
+      const revision = authorityRevisionRef.current
+      if (id) void getExercise(id).then((refreshed) => {
+        if (replacementFence.current || !mountedRef.current || revision !== authorityRevisionRef.current) return
+        // A late card from an earlier snapshot must not undo acknowledged state.
+        // A matching post-save card may still supply truthful HasChanges and ACL data.
+        if ((refreshed.DraftVersionID ?? "") !== draftVersionIdRef.current) return
+        setExerciseState(refreshed)
+      }).catch(() => undefined)
     },
     writeBuffer: () => {
       const key = bufferKey()
@@ -325,21 +362,22 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
             setReadOnly(true)
             setExercise(loaded)
             setVersion(loadedVersion)
-            applyValues(identityOf(loaded), workingCopyValues(loadedVersion))
+            applyValues(identityOf(loaded, loadedVersion), workingCopyValues(loadedVersion))
             setLoadState("ready")
             return
           }
           const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
           const pending = key ? readPendingChanges(key) : null
-          const apply = pending !== null && canWrite && !loaded.ArchivedAt
+          const recovering = readImportReplacement(knownUserId, exerciseId) !== null
+          const apply = pending !== null && canWrite && !loaded.ArchivedAt && !recovering
           if (key && pending && !apply) clearPendingChanges(key)
           setExercise(loaded)
           setVersion(loadedVersion)
           if (!versionId) rememberDraftVersion(loadedVersion.ID)
-          savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+          savedIdentityRef.current = JSON.stringify(identityOf(loaded, loadedVersion))
           const serverDraft = workingCopyValues(loadedVersion)
           savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
-          applyValues(apply ? pending.identity : identityOf(loaded), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
+          applyValues(apply ? pending.identity : identityOf(loaded, loadedVersion), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
           setLoadState("ready")
           if (apply) {
             toast.success(t("admin.exPage.toast.pendingRestored"))
@@ -389,7 +427,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     let active = true
     const check = () => {
       scheduled = false
-      if (!active) return
+      if (!active || replacementFence.current) return
       const next = signature()
       if (next === lastSignatureRef.current) return
       lastSignatureRef.current = next
@@ -437,10 +475,83 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     setExercise(loaded)
     setVersion(draft)
     rememberDraftVersion(draft.ID)
-    savedIdentityRef.current = JSON.stringify(identityOf(loaded))
+    savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
     savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
-    applyValues(identityOf(loaded), workingCopyValues(draft))
-  }, [applyValues, rememberDraftVersion])
+    applyValues(identityOf(loaded, draft), workingCopyValues(draft))
+  }, [applyValues, rememberDraftVersion, setExercise])
+
+  const prepareImportReplacement = useCallback(async () => {
+    checkPendingRef.current()
+    replacementFence.current = true
+    setReplacementActive(true)
+    const ok = await autosave.prepareReplacement()
+    if (!ok) { replacementFence.current = false; setReplacementActive(false) }
+    return ok
+  }, [autosave])
+  const cancelImportReplacement = useCallback(() => {
+    const id = exerciseIdRef.current
+    if (userId && id) clearImportReplacement(userId, id)
+    replacementFence.current = false
+    autosave.resumeReplacement()
+    setReplacementActive(false)
+    setReplacementRecovery(null)
+  }, [autosave, userId])
+  const recordImportDispatch = useCallback((input: ArchiveCommitInput, jobID?: string) => {
+    const id = exerciseIdRef.current
+    if (!userId || !id) return
+    const existing = readImportReplacement(userId, id)
+    const marker = existing && sameImportPlan(existing, input) ? existing : replacementMarker(userId, id, input)
+    const next: ImportReplacementMarker = { ...marker, ...(jobID ? { jobID, state: "running" as const } : {}) }
+    writeImportReplacement(next)
+    setReplacementRecovery(next)
+  }, [userId])
+  const reconcileImportReplacement = useCallback(async () => {
+    replacementFence.current = true
+    setReplacementActive(true)
+    // An authoritative reload failure must leave the fence and exact old form values in place.
+    const id = exerciseIdRef.current
+    if (!id) return
+    const [loaded, draft] = await Promise.all([getExercise(id), getDraft(id)])
+    await autosave.discard()
+    authorityRevisionRef.current += 1
+    setExercise(loaded); setVersion(draft); rememberDraftVersion(draft.ID)
+    savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
+    savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
+    applyValues(identityOf(loaded, draft), workingCopyValues(draft))
+    if (userId) clearImportReplacement(userId, id)
+    replacementFence.current = false
+    autosave.resumeReplacement()
+    setReplacementActive(false); setReplacementRecovery(null)
+  }, [autosave, userId, setExercise, rememberDraftVersion, applyValues])
+
+  const replacementMethods = useRef({ prepare: prepareImportReplacement, cancel: cancelImportReplacement })
+  useLayoutEffect(() => { replacementMethods.current = { prepare: prepareImportReplacement, cancel: cancelImportReplacement } })
+  useEffect(() => {
+    if (!userId || !exerciseId) return
+    const unregister = registerImportEditor(userId, exerciseId, { prepare: () => replacementMethods.current.prepare(), cancel: () => replacementMethods.current.cancel() })
+    return () => {
+      // Retain an orphan only while its old PATCH/PUT drain is unresolved. A later catalog
+      // import awaits it before obtaining the target's final revision preview.
+      if (autosave.hasUnsaved()) void autosave.prepareReplacement?.().finally(unregister)
+      else unregister()
+    }
+    // Queue methods are stable; the ref supplies current editor callbacks without re-registering on save status.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, exerciseId, autosave.hasUnsaved, autosave.prepareReplacement])
+
+  useEffect(() => {
+    if (!userId || !exerciseId) return
+    const update = () => {
+      const marker = readImportReplacement(userId, exerciseId)
+      if (!marker) return
+      replacementFence.current = true
+      setReplacementActive(true)
+      setReplacementRecovery(marker)
+    }
+    window.addEventListener("exercises:import-replacement", update)
+    window.addEventListener("storage", update)
+    return () => { window.removeEventListener("exercises:import-replacement", update); window.removeEventListener("storage", update) }
+  }, [userId, exerciseId])
 
   const retryLoad = useCallback(() => {
     loadStartedRef.current = false
@@ -461,6 +572,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   }), [autosave])
 
   return {
+    replacementActive, replacementRecovery, prepareImportReplacement, cancelImportReplacement, recordImportDispatch, reconcileImportReplacement,
     loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
   }
 }

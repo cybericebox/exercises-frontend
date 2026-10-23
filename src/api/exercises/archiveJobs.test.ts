@@ -104,3 +104,8 @@ describe("archive jobs", () => {
     expect(done.exercises[0]).toMatchObject({ ID: "e1", Tags: [] })
   })
 })
+
+it("preserves explicit mixed result identities and canonical Created/Updated counts", async () => {
+  mockGet.mockResolvedValueOnce({ State: "done", Stage: "done", Exercises: [], Results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "existing" }], Created: 0, Updated: 1 })
+  expect(await getImportJob("mixed")).toMatchObject({ state: "done", results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "existing" }], created: 0, updated: 1 })
+})

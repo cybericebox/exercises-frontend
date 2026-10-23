@@ -7,12 +7,28 @@ function stable(value: unknown): unknown {
   return value
 }
 
-function fingerprint(variant: VariantFormValues): string | null {
-  if (variant.LinkedTo) return null
+/**
+ * What a signature compares besides the content itself (IDs, Index, CopyOf and Weight never count).
+ * flags/files: the subtask flags / files; note: the variant note; linked: compare linked variants too (their base
+ * counts); images: the container images (false: a linked variant may own them).
+ */
+export type SignatureParts = { flags: boolean; files: boolean; note: boolean; linked: boolean; images?: boolean }
+
+const ADVISORY: SignatureParts = { flags: false, files: true, note: true, linked: false, images: true }
+
+/**
+ * A stable content signature of a variant: device and placeholder ids are replaced by their positions, so two
+ * variants built the same way compare equal. null when it cannot be compared honestly (a stored secret the
+ * client cannot read, a file without an id, a dangling reference).
+ */
+export function variantSignature(variant: VariantFormValues, parts: SignatureParts = ADVISORY): string | null {
+  if (variant.LinkedTo && !parts.linked) return null
   const ids = new Map<string, string>()
   for (const [index, device] of variant.Topology.Devices.entries()) {
     if (!device.ID || ids.has(device.ID)) return null
-    if (device.EnvVars.some((env) => env.Secret && !env.Value)) return null
+    // A stored secret compares by its ValueGroup (all groups in the form come from one server response); without one
+    // (an older server, no stored value) it cannot be compared. A secret typed here and not saved yet is not comparable.
+    if (device.EnvVars.some((env) => env.Secret && (env.Value !== "" || !env.ValueGroup))) return null
     ids.set(device.ID, `device:${index}`)
   }
   let valid = true
@@ -41,9 +57,11 @@ function fingerprint(variant: VariantFormValues): string | null {
         return [key, document(entry)]
       }))
     }
-    if (task.Attachments.some((file) => !file.FileID)) valid = false
+    if (parts.files && task.Attachments.some((file) => !file.FileID)) valid = false
+    // Files compare by content when the server sent its hash, else (an older server, a file just uploaded) by id.
+    const files = task.Attachments.map((file) => (file.ContentHash ? { Name: file.Name, ContentHash: file.ContentHash } : { Name: file.Name, FileID: file.FileID }))
     return {
-      ...task, ID: undefined, Flag: undefined,
+      ...task, ID: undefined, Flag: parts.flags ? task.Flag : undefined, Attachments: parts.files ? files : undefined,
       LinkedDeviceID: deviceRef(task.LinkedDeviceID),
       Description: document(task.Description),
       Placeholders: task.Placeholders.map((p) => ({ ...p, Key: keys.get(p.Key) })),
@@ -77,9 +95,13 @@ function fingerprint(variant: VariantFormValues): string | null {
     }
   }
   const projected = {
-    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Tasks: tasks,
+    // Own images are already in the topology (and the list names devices by id).
+    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, ImageOverrides: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
-      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => ({ ...env, HasValue: undefined })) })),
+      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), Image: parts.images === false && device.Type === "container" ? undefined : device.Image, EnvVars: device.EnvVars.map((env) => env.Secret
+        ? { Name: env.Name, Secret: true, ValueGroup: env.ValueGroup }
+        // A plain value is known here (the server returns it), so it compares itself, edits included.
+        : { Name: env.Name, Secret: false, Value: env.Value }) })),
       Connections: variant.Topology.Connections.map((connection) => ({ ...connection, Endpoints: connection.Endpoints.map((endpoint) => ({ ...endpoint, DeviceID: endpoint.Kind === "device" ? deviceRef(endpoint.DeviceID) : endpoint.DeviceID })) })),
     },
   }
@@ -90,7 +112,7 @@ function fingerprint(variant: VariantFormValues): string | null {
 export function duplicateVariantGroups(variants: VariantFormValues[]): number[][] {
   const groups = new Map<string, number[]>()
   variants.forEach((variant, index) => {
-    const key = fingerprint(variant)
+    const key = variantSignature(variant)
     if (key !== null) groups.set(key, [...(groups.get(key) ?? []), index])
   })
   return [...groups.values()].filter((group) => group.length > 1)

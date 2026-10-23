@@ -29,7 +29,7 @@ const exercise: Exercise = {
 }
 
 function variant(id: string, index: number, flag: string, linkedTo = ""): Version["Variants"][number] {
-  return { ID: id, Index: index, Note: "", LinkedTo: linkedTo, Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
+  return { ID: id, Index: index, Note: "", Weight: 1, LinkedTo: linkedTo, Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Flag: [flag], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }
 }

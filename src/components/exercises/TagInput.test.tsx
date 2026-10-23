@@ -12,6 +12,14 @@ describe("TagInput suggestions", () => {
     expect(screen.getByRole("option", { name: /web-security\s*·\s*3/ })).toBeInTheDocument()
   })
 
+  it("portals suggestions outside clipping ancestors and dismisses with Escape", () => {
+    const { container } = render(<div style={{ overflow:"hidden", height:40 }}><TagInput value={[]} onChange={vi.fn()} draftValue="cr" onDraftValueChange={vi.fn()} suggestions={[{ Tag:"crypto", Count:2 }]} /></div>)
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+    expect(container).not.toContainElement(screen.getByRole("listbox"))
+    fireEvent.keyDown(screen.getByRole("combobox"), { key:"Escape" })
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+  })
+
   it("selects a suggestion with Enter instead of committing the typed prefix", () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} draftValue="cr" onDraftValueChange={vi.fn()}

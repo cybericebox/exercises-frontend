@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AutosaveQueue, type AutosaveStatus } from "@/lib/autosaveQueue"
 
 export type UseExerciseAutosaveOptions = {
+  isReplacementFenced?: () => boolean
   delayMs?: number
   save: () => Promise<boolean>
   onSaved?: () => void
@@ -18,6 +19,9 @@ export type ExerciseAutosave = {
   flush: () => Promise<boolean>
   hasUnsaved: () => boolean
   discard: () => Promise<void>
+  prepareReplacement: () => Promise<boolean>
+  resumeReplacement: () => void
+  finishReplacement: () => Promise<void>
 }
 
 const BUFFER_DELAY_MS = 300
@@ -32,6 +36,8 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
   const [status, setStatus] = useState<AutosaveStatus>("idle")
   const optionsRef = useRef(options)
   useEffect(() => { optionsRef.current = options })
+  const replacementRef = useRef(false)
+  const fenced = useCallback(() => replacementRef.current || Boolean(optionsRef.current.isReplacementFenced?.()), [])
   const bufferTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const queueRef = useRef<AutosaveQueue | null>(null)
 
@@ -42,8 +48,8 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
 
   const writeBufferNow = useCallback(() => {
     cancelBufferWrite()
-    optionsRef.current.writeBuffer()
-  }, [cancelBufferWrite])
+    if (!fenced()) optionsRef.current.writeBuffer()
+  }, [cancelBufferWrite, fenced])
 
   // Constructed once on mount; every callback below reaches it through the ref,
   // never through a render-scoped local, so a fresh `options` never forces a new queue.
@@ -64,29 +70,31 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
     })
     return () => {
       const queue = queueRef.current
-      if (queue?.hasUnsaved()) {
+      if (!fenced() && queue?.hasUnsaved()) {
         writeBufferNow()
         void queue.flush()
       }
     }
-  }, [cancelBufferWrite, writeBufferNow])
+  }, [cancelBufferWrite, writeBufferNow, fenced])
 
   const markChanged = useCallback(() => {
+    if (fenced()) return
     queueRef.current?.markChanged()
     cancelBufferWrite()
     bufferTimer.current = setTimeout(() => {
       bufferTimer.current = null
-      optionsRef.current.writeBuffer()
+      if (!fenced()) optionsRef.current.writeBuffer()
     }, BUFFER_DELAY_MS)
-  }, [cancelBufferWrite])
+  }, [cancelBufferWrite, fenced])
 
   const flush = useCallback(async () => {
+    if (fenced()) return true
     const queue = queueRef.current
     if (!queue) return true
     const ok = await queue.flush()
     if (!ok && queue.hasUnsaved()) writeBufferNow()
     return ok
-  }, [writeBufferNow])
+  }, [writeBufferNow, fenced])
 
   const hasUnsaved = useCallback(() => queueRef.current?.hasUnsaved() ?? false, [])
 
@@ -100,13 +108,14 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
   useEffect(() => {
     const onVisibility = () => {
       const queue = queueRef.current
+      if (fenced()) return
       if (document.visibilityState !== "hidden" || !queue?.hasUnsaved()) return
       writeBufferNow()
       void queue.flush()
     }
     const onPageHide = () => {
       const queue = queueRef.current
-      if (!queue?.hasUnsaved()) return
+      if (fenced() || !queue?.hasUnsaved()) return
       writeBufferNow()
       optionsRef.current.sendKeepalive()
     }
@@ -116,7 +125,23 @@ export function useExerciseAutosave(options: UseExerciseAutosaveOptions): Exerci
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("pagehide", onPageHide)
     }
-  }, [writeBufferNow])
+  }, [writeBufferNow, fenced])
 
-  return useMemo(() => ({ status, markChanged, flush, hasUnsaved, discard }), [status, markChanged, flush, hasUnsaved, discard])
+  const prepareReplacement = useCallback(async () => {
+    replacementRef.current = true
+    cancelBufferWrite()
+    const ok = await (queueRef.current?.flush() ?? Promise.resolve(true))
+    if (!ok) {
+      replacementRef.current = false
+      // Failed drain is never a discard; retain the exact entered values.
+      optionsRef.current.writeBuffer()
+    }
+    return ok
+  }, [cancelBufferWrite])
+  const resumeReplacement = useCallback(() => { replacementRef.current = false }, [])
+  const finishReplacement = useCallback(async () => {
+    await discard()
+    replacementRef.current = false
+  }, [discard])
+  return useMemo(() => ({ status, markChanged, flush, hasUnsaved, discard, prepareReplacement, resumeReplacement, finishReplacement }), [status, markChanged, flush, hasUnsaved, discard, prepareReplacement, resumeReplacement, finishReplacement])
 }

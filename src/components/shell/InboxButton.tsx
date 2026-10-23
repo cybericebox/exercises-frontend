@@ -366,7 +366,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
 
   return <><Popover.Root open={open} onOpenChange={openInbox}>
     <Popover.Trigger asChild>
-      <button type="button" aria-label={label} className="ib-hit relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+      <button type="button" aria-label={label} className="relative inline-flex h-9 w-9 shrink-0 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         <Bell className="h-4 w-4" />
         {badge > 0 && <span className="absolute -right-1 -top-1 flex min-h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold leading-none text-primary-foreground">{badge > 99 ? "99+" : badge}</span>}
       </button>
@@ -382,7 +382,7 @@ export function InboxButton({ defaultTab = "all", event }: InboxButtonProps = {}
         </div>
         {/* The segmented control of the catalog's «Область» switch (exercises-frontend). */}
         {tabs.length > 0 && <div className="shrink-0 border-b border-border px-3 pb-3">
-          <div role="tablist" aria-label={t("inbox.tabs")} className="flex h-10 w-full items-center rounded-md bg-muted p-1">
+          <div role="tablist" aria-label={t("inbox.tabs")} className="flex h-9 w-full items-center rounded-md bg-muted p-[3px] pointer-coarse:h-11">
             {tabs.map((value) => {
               const count = counts?.[value] ?? 0
               const selected = tab === value

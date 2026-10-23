@@ -2,7 +2,8 @@
 
 import { exampleLabLink } from "@/lib/labId"
 import { ipExample } from "@/lib/placeholderLink"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { Flag } from "lucide-react"
 import { Controller, useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
@@ -30,12 +31,15 @@ export function TaskForm({
   taskIndex,
   disabled,
   linked,
+  menu,
 }: {
   variantIndex: number
   taskIndex: number
   disabled: boolean
   /** A linked variant: only the flag and the files are its own; the rest comes from the base. */
   linked: boolean
+  /** The subtask's actions (order, removal) beside its difficulty. */
+  menu?: ReactNode
 }) {
   const { control, getValues, setValue, clearErrors } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}` as const
@@ -96,7 +100,7 @@ export function TaskForm({
   }
 
   return (
-    <div data-testid="task-drop-zone" className="relative min-w-0 space-y-3"
+    <div data-testid="task-drop-zone" className="subtask-form"
       onDragEnter={(event) => { if (!disabled && hasDraggedFiles(event)) { event.preventDefault(); setDragDepth((depth) => depth + 1) } }}
       onDragLeave={(event) => { if (hasDraggedFiles(event)) { event.preventDefault(); setDragDepth((depth) => Math.max(0, depth - 1)) } }}
       onDragOver={(event) => { if (!disabled && hasDraggedFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy" } }}
@@ -108,24 +112,23 @@ export function TaskForm({
         if (file) void attachmentRef.current?.upload(file)
       }}>
       {dragDepth > 0 && <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-md border-2 border-dashed border-primary bg-accent/90 text-sm font-medium text-foreground">{t("admin.exFiles.dropHere")}</div>}
-      <div className="flex justify-end"><GuideLink topic="pidzavdannia" /></div>
-      <section className="space-y-3">
-      <div className="flex flex-wrap items-end gap-3">
+      <section className="subtask-fields">
+      <div className="subtask-head">
         {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
         <FormField control={control} name={`${base}.Name`} render={({ field }) => (
-          <FormItem className="min-w-0 w-full sm:min-w-56 sm:flex-1 space-y-1">
-            <ExerciseFieldLabel labelKey="admin.exTask.name" helpKey="admin.exTask.nameHelp" required form />
+          <FormItem className="min-w-0 space-y-1">
+            <ExerciseFieldLabel labelKey="admin.exTask.name" required form />
             <FormControl><Input {...field} required disabled={inheritedDisabled} onChange={(event) => {
               field.onChange(event)
               getValues("Variants").forEach((_, index) => {
                 if (index !== variantIndex) setValue(`Variants.${index}.Tasks.${taskIndex}.Name`, event.target.value, { shouldDirty: true })
               })
             }} /></FormControl>
-            <FormMessage className="min-h-5 leading-5" />
+            <FormMessage className="leading-5" />
           </FormItem>
         )} />
         <FormField control={control} name={`${base}.Difficulty`} render={({ field }) => (
-          <FormItem className="w-40 space-y-1">
+          <FormItem className="min-w-0 space-y-1">
             <ExerciseFieldLabel labelKey="admin.exTask.difficulty" helpKey="admin.exTask.difficultyHelp" required form />
             <FormControl>
               <SelectMenu
@@ -143,9 +146,10 @@ export function TaskForm({
                 className="w-full"
               />
             </FormControl>
-            <FormMessage className="min-h-5 leading-5" />
+            <FormMessage className="leading-5" />
           </FormItem>
         )} />
+        {menu && <div className="subtask-menu">{menu}</div>}
       </div>
 
       <div className="space-y-1.5">
@@ -164,12 +168,50 @@ export function TaskForm({
           )}
         />
       </div>
-      <div className="border-t border-border pt-3">
-        <AttachmentList ref={attachmentRef} variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
-      </div>
+      <AttachmentList ref={attachmentRef} variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} />
       </section>
 
-      <section className="border-t border-border pt-3">
+      <section className="subtask-flag" aria-labelledby={`flag-title-${variantIndex}-${taskIndex}`}>
+      <div className="subtask-flag-title">
+        <Flag aria-hidden="true" className="h-4 w-4" />
+        <h4 id={`flag-title-${variantIndex}-${taskIndex}`}>{t("admin.exTask.flag.title")}</h4>
+        <GuideLink topic="prapory" />
+      </div>
+      <div className="subtask-flag-box">
+      <div data-testid="flag-delivery-fields" className="subtask-flag-delivery">
+        {linkable.length > 0 || linkedDeviceID ? <>
+        <FormField control={control} name={`${base}.LinkedDeviceID`} render={({ field }) => (
+          <FormItem data-testid="flag-device-field" className="flex flex-wrap items-center gap-2 space-y-0">
+            <ExerciseFieldLabel labelKey="admin.exTask.linkedDevice" helpKey="admin.exTask.linkedDeviceHelp" form />
+            <FormControl>
+              <SelectMenu
+                value={field.value}
+                onChange={(value) => {
+                  field.onChange(value)
+                  if (!value) setValue(`${base}.DeviceFlagVar`, "", { shouldDirty: true })
+                }}
+                disabled={inheritedDisabled}
+                options={[
+                  { value: "", label: t("admin.exTask.linkedDevice.none") },
+                  ...(missingLinkedDevice ? [{ value: linkedDeviceID, label: t("admin.exPh.missing"), unavailable: true }] : []),
+                  ...linkable.map((d) => ({ value: d.ID, label: d.Name || d.ID })),
+                ]}
+                className="w-52"
+              />
+            </FormControl>
+            {missingLinkedDevice && <p role="alert" className="basis-full text-xs text-destructive">{t("admin.ex.val.linkedDeviceUnavailable")}</p>}
+            <FormMessage className="basis-full leading-5" />
+          </FormItem>
+        )} />
+        {linkedDeviceID && <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
+          <FormItem className="flex flex-wrap items-center gap-2 space-y-0">
+            <ExerciseFieldLabel labelKey="admin.exTask.deviceFlagVar" helpKey="admin.exTask.deviceFlagVarHelp" required form />
+            <FormControl><Input {...field} disabled={inheritedDisabled} className="w-40 font-mono" placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
+            <FormMessage className="basis-full leading-5" />
+          </FormItem>
+        )} />}
+        </> : <p className="text-xs text-muted-foreground">{t("admin.exTask.flag.noDeviceHint")}</p>}
+      </div>
       <Controller
         control={control}
         name={`${base}.Flag`}
@@ -188,45 +230,10 @@ export function TaskForm({
           />
         )}
       />
+      </div>
       </section>
 
       <HintsEditor variantIndex={variantIndex} taskIndex={taskIndex} disabled={inheritedDisabled} />
-
-      {(linkable.length > 0 || linkedDeviceID) && <section className="space-y-3 border-t border-border pt-3">
-        <h4 className="text-sm font-semibold text-foreground">{t("admin.exTask.flagDelivery")}</h4>
-        <div data-testid="flag-delivery-fields" className="flex flex-wrap items-start gap-3">
-        <FormField control={control} name={`${base}.LinkedDeviceID`} render={({ field }) => (
-          <FormItem data-testid="flag-device-field" className="w-full max-w-md flex-1">
-            <ExerciseFieldLabel labelKey="admin.exTask.linkedDevice" helpKey="admin.exTask.linkedDeviceHelp" form />
-            <FormControl>
-              <SelectMenu
-                value={field.value}
-                onChange={(value) => {
-                  field.onChange(value)
-                  if (!value) setValue(`${base}.DeviceFlagVar`, "", { shouldDirty: true })
-                }}
-                disabled={inheritedDisabled}
-                options={[
-                  { value: "", label: t("admin.exTask.linkedDevice.none") },
-                  ...(missingLinkedDevice ? [{ value: linkedDeviceID, label: t("admin.exPh.missing"), unavailable: true }] : []),
-                  ...linkable.map((d) => ({ value: d.ID, label: d.Name ? `${d.Name} (${d.ID})` : d.ID })),
-                ]}
-                className="w-full"
-              />
-            </FormControl>
-            <FormMessage className="min-h-5 leading-5" />
-            {missingLinkedDevice && <p role="alert" className="text-xs text-destructive">{t("admin.ex.val.linkedDeviceUnavailable")}</p>}
-          </FormItem>
-        )} />
-        {linkedDeviceID && <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
-          <FormItem className="w-full max-w-xs flex-1">
-            <ExerciseFieldLabel labelKey="admin.exTask.deviceFlagVar" helpKey="admin.exTask.deviceFlagVarHelp" required form />
-            <FormControl><Input {...field} disabled={inheritedDisabled} placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
-            <FormMessage className="min-h-5 leading-5" />
-          </FormItem>
-        )} />}
-        </div>
-      </section>}
 
       <PlaceholderDialog open={placeholderOpen} onOpenChange={(open) => { setPlaceholderOpen(open); if (!open) pendingInsert.current = null }}
         value={editingPlaceholder}

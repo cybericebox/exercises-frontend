@@ -12,7 +12,7 @@ import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
-import { linkedFlagConflicts } from "@/lib/linkedVariants"
+import { linkedFlagConflicts, ownImages } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
 import { hintTextHasContent } from "@/lib/hintText"
 import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
@@ -223,6 +223,7 @@ const envVarSchema = z.object({
   Value: z.string(),
   Secret: z.boolean(),
   HasValue: z.boolean(),
+  ValueGroup: z.number().int().optional(),
 }).superRefine((variable, ctx) => {
   if (variable.Secret && !variable.HasValue && variable.Value === "") {
     ctx.addIssue({ code: "custom", path: ["Value"], message: t("admin.ex.val.secretValue") })
@@ -240,6 +241,9 @@ const externalSchema = z
       ctx.addIssue({ code: "custom", path: ["PortText"], message: t("admin.ex.val.port") })
     }
   })
+
+/** Daemon limit of environment variables per device. */
+export const MAX_ENV_VARS = 64
 
 const deviceSchema = z
   .object({
@@ -261,6 +265,9 @@ const deviceSchema = z
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
     if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.WaitReadyFile || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
+    }
+    if (d.EnvVars.length > MAX_ENV_VARS) {
+      ctx.addIssue({ code: "custom", path: ["EnvVars"], message: t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS }) })
     }
     if (!forwarding && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
@@ -447,16 +454,23 @@ const taskSchema = z.object({
   }),
   LinkedDeviceID: z.string(),
   DeviceFlagVar: z.string(),
-  Attachments: z.array(z.object({ FileID: z.string(), Name: z.string() })),
+  Attachments: z.array(z.object({ FileID: z.string(), Name: z.string(), ContentHash: z.string().optional() })),
   Placeholders: z.array(placeholderSchema),
   Hints: z.array(hintSchema).max(MAX_HINTS, t("exercises.hints.val.max")),
 })
+
+/** Daemon range of a variant's issue weight. */
+export const MIN_VARIANT_WEIGHT = 1
+export const MAX_VARIANT_WEIGHT = 100
 
 const variantSchema = z.object({
   ID: z.string(),
   Index: z.number().int(),
   Note: z.string(),
+  Weight: z.number({ error: t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }) }).int(t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }))
+    .min(MIN_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })).max(MAX_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })),
   LinkedTo: z.string(),
+  ImageOverrides: z.array(z.object({ DeviceID: z.string(), Image: z.string() })).optional(),
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
@@ -582,6 +596,7 @@ export function emptyVariant(index: number): VariantFormValues {
     ID: "",
     Index: index,
     Note: "",
+    Weight: 1,
     LinkedTo: "",
     Tasks: [emptyTask()],
     Topology: {
@@ -609,7 +624,9 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       ID: v.ID,
       Index: v.Index,
       Note: v.Note ?? "",
+      Weight: v.Weight ?? 1,
       LinkedTo: v.LinkedTo ?? "",
+      ImageOverrides: v.ImageOverrides ?? [],
       Tasks: v.Tasks.map((task, ti) => ({
         ...task,
         Placeholders: task.Placeholders.map((p, pi) => ({
@@ -679,7 +696,8 @@ function taskToDTO(task: TaskFormValues): TaskDTO {
     Difficulty: task.Difficulty,
     Flag: task.Flag,
     ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
-    Attachments: task.Attachments,
+    // ContentHash is response-only: the request names a file by its id.
+    Attachments: task.Attachments.map((file) => ({ FileID: file.FileID, Name: file.Name })),
     Placeholders: task.Placeholders.map(placeholderToDTO),
     Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Level: hint.Level })),
   }
@@ -750,13 +768,25 @@ function networkToDTO(network: TopologyFormValues["VPN"]): TopologyDTO["VPN"] {
   }
 }
 
+export function isValidWeight(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= MIN_VARIANT_WEIGHT && value <= MAX_VARIANT_WEIGHT
+}
+
+/** A linked variant's own images against its base (the full list; [] when none or the base is not in the form). */
+function imageOverrides(variant: VariantFormValues, variants: VariantFormValues[]): { DeviceID: string; Image: string }[] {
+  const base = variants.find((candidate) => candidate.ID !== "" && candidate.ID === variant.LinkedTo)
+  return base ? ownImages(variant, base).map(({ DeviceID, Image }) => ({ DeviceID, Image })) : []
+}
+
 /** Form values → PUT /:id/draft (1:1, Index is renumbered by position). */
 export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   const variants: VariantDTO[] = values.Variants.map((v, i) => ({
     ...(v.ID ? { ID: v.ID } : {}),
     Index: i + 1,
     ...(v.Note ? { Note: v.Note } : {}),
-    ...(v.LinkedTo ? { LinkedTo: v.LinkedTo } : {}),
+    // 1 is the default on the wire; an invalid value never leaves the form (the weight field keeps the last valid one).
+    ...(isValidWeight(v.Weight) && v.Weight > 1 ? { Weight: v.Weight } : {}),
+    ...(v.LinkedTo ? { LinkedTo: v.LinkedTo, ImageOverrides: imageOverrides(v, values.Variants) } : {}),
     // CopyOf is for a new variant only: once saved it has its own stored secrets.
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),

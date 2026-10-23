@@ -4,7 +4,9 @@ import { useState } from "react"
 import { ApiError } from "@/api/client"
 import { bulkArchive, bulkSetAccess, bulkUnarchive, runBulk, type BulkItem } from "@/api/exercises/bulk"
 import type { AccessInput, Exercise, ExerciseListItem } from "@/api/exercises/catalog"
+import { Download, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/toast"
@@ -92,19 +94,25 @@ export function BulkActions({ selected, canExport, atLimit, onExport, onClear, o
   }
 
   const busyLabel = (kind: Kind) => progress?.kind === kind ? t(`exercises.bulk.${kind}.busy`, { done: progress.done, total: progress.total }) : undefined
-  const barButton = (kind: Kind) => <Button type="button" size="sm" variant="outline" busy={progress?.kind === kind} disabled={progress !== null}
+  const barButton = (kind: Kind) => <Button type="button" size="sm" variant="ghost" busy={progress?.kind === kind} disabled={progress !== null}
     onClick={() => setDialog(kind)}>{busyLabel(kind) ?? t(`exercises.bulk.${kind}.action`)}</Button>
 
   return <>
     {selected.length > 0 && (
-      <div role="region" aria-label={label} className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
-        <span className="font-medium">{label}</span>
-        {showExport && <Button type="button" size="sm" onClick={onExport}>{t("admin.ex.selection.export")}</Button>}
+      <div role="region" aria-label={label} className="catalog-bulkbar">
+        <HoverTooltip text={t("admin.ex.selection.clear")}>
+          <label className="catalog-check"><input type="checkbox" checked aria-label={t("admin.ex.selection.clear")} disabled={progress !== null} onChange={onClear} /></label>
+        </HoverTooltip>
+        <span className="font-semibold text-foreground">{label}</span>
+        {showExport && <Button type="button" size="sm" variant="ghost" onClick={onExport}><Download aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.ex.selection.export")}</Button>}
         {toAccess.length > 0 && barButton("access")}
         {toArchive.length > 0 && barButton("archive")}
         {toUnarchive.length > 0 && barButton("unarchive")}
-        <Button type="button" size="sm" variant="ghost" disabled={progress !== null} onClick={onClear}>{t("admin.ex.selection.clear")}</Button>
         {atLimit && <span className="text-xs text-muted-foreground">{t("admin.ex.selection.limit")}</span>}
+        <span className="flex-1" />
+        <HoverTooltip text={t("admin.ex.selection.clear")}>
+          <Button type="button" size="icon" variant="ghost" aria-label={t("admin.ex.selection.clear")} disabled={progress !== null} onClick={onClear}><X aria-hidden="true" className="h-4 w-4" /></Button>
+        </HoverTooltip>
       </div>
     )}
     {dialog === "access" && <BulkAccessDialog items={toAccess} progress={progress?.kind === "access" ? progress : null}

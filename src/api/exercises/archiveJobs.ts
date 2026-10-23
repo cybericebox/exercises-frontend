@@ -16,6 +16,8 @@
 import { ApiError, apiGet } from "@/api/client"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
 
+import type { ImportResult } from "./archive"
+
 const BASE = "/api/exercises"
 
 /** How often a running job is asked about. */
@@ -38,6 +40,10 @@ type ImportJob = JobState<{
   BytesPushed?: number
   BytesTotal?: number
   Exercises?: RawExercise[] | null
+  Results?: ImportResult[]
+  Created?: number
+  Updated?: number
+  Unchanged?: number
 }>
 
 /** An import job as the UI reads it: the counts are 0 until the stage that learns them. */
@@ -50,6 +56,10 @@ export type ImportJobStatus = {
   tasksTotal: number
   bytesPushed: number
   bytesTotal: number
+  results?: ImportResult[]
+  created?: number
+  updated?: number
+  unchanged?: number
   exercises: Exercise[]
   error?: ApiError
 }
@@ -128,6 +138,7 @@ export async function getImportJob(jobID: string, signal?: AbortSignal): Promise
     bytesPushed: job.BytesPushed ?? 0,
     bytesTotal: job.BytesTotal ?? 0,
     exercises: job.State === "done" ? (job.Exercises ?? []).map(normalizeExercise) : [],
+    ...(job.Results ? { results: job.Results, created: job.Created, updated: job.Updated, unchanged: job.Unchanged ?? 0 } : {}),
     error: job.State === "failed" ? jobError(job.Error) : undefined,
   }
 }

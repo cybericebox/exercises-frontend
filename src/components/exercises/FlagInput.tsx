@@ -9,7 +9,6 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { RemoveAction } from "./RemoveAction"
-import { FlagHelp } from "./FlagHelp"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, type ParsedFlagCandidate } from "@/lib/flagPattern"
@@ -45,11 +44,27 @@ const INSERTION_GROUPS = [
   ] },
 ] as const
 
+/** «Заданий» / «Шаблон» inside the flag field; a template needs a device to deliver the flag to. */
+function FlagModeSwitch({ label, template, templateAllowed, onChange }: { label: string; template: boolean; templateAllowed: boolean; onChange: (mode: PasteMode) => void }) {
+  const option = (mode: PasteMode, on: boolean, allowed: boolean) => {
+    const button = <button type="button" role="radio" aria-checked={on} aria-disabled={!allowed || undefined} tabIndex={on ? 0 : -1}
+      className={on ? "on" : undefined} onClick={() => { if (allowed) onChange(mode) }}
+      onKeyDown={(event) => { if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && templateAllowed) { event.preventDefault(); onChange(on ? (mode === "fixed" ? "template" : "fixed") : mode) } }}>
+      {t(mode === "fixed" ? "admin.exTask.flag.modeFixed" : "admin.exTask.flag.modeTemplate")}
+    </button>
+    return allowed ? button : <HoverTooltip text={t("admin.exTask.flag.templateNeedsDevice")} describe="always">{button}</HoverTooltip>
+  }
+  return <span role="radiogroup" aria-label={label} className="flag-mode-switch">
+    {option("fixed", !template, true)}
+    {option("template", template, templateAllowed)}
+  </span>
+}
+
 /** Candidate editor. The explicit mode switch never exposes the storage marker. */
 // The same explanation is already shown as help text below the field, so the hint is for the mouse only.
 function FlagModeLabel({ hint, children }: { hint?: string; children: string }) {
-  const label = <span className="exercise-flag-mode flex w-28 items-center bg-primary px-2 text-sm font-medium text-primary-foreground">{children}</span>
-  return hint ? <HoverTooltip text={hint} className="h-full">{label}</HoverTooltip> : label
+  const label = <span className="flag-mode-switch"><span className="on">{children}</span></span>
+  return hint ? <HoverTooltip text={hint}>{label}</HoverTooltip> : label
 }
 
 export function FlagInput({
@@ -152,24 +167,6 @@ export function FlagInput({
 
   return (
     <div className="min-w-0 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            {t("admin.exTask.flag.title")}<FlagHelp />
-          </span>
-          {semanticsKey && <span className="text-xs text-muted-foreground">{t(semanticsKey)}</span>}
-        </div>
-        {!disabled && (dynamic || value.length === 0) && <div data-testid="flag-add-actions" className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
-          {dynamic && <HoverTooltip text={t("admin.exTask.flag.pasteHintHelp")}>
-            <span tabIndex={0} className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              <ClipboardPaste aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exTask.flag.pasteHint")}
-            </span>
-          </HoverTooltip>}
-          <Button type="button" variant="outline" size="sm" onClick={addFlag}>
-            <Plus className="mr-1 h-4 w-4" />{t("admin.exTask.flag.add")}
-          </Button>
-        </div>}
-      </div>
       <div>
       {value.map((candidate, index) => {
         const template = candidate.startsWith(TEMPLATE_PREFIX)
@@ -187,19 +184,15 @@ export function FlagInput({
           <div className="min-w-0">
           <div data-testid="flag-candidate-main" className="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-1">
           <div className="min-w-0 max-w-[48rem] flex-[1_1_35rem]">
-          <div data-testid="flag-candidate-control" className="flex h-10 min-w-0 w-full items-center overflow-hidden rounded-md border border-border bg-card pr-0.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40">
+          <div data-testid="flag-candidate-control" className="flex h-9 min-w-0 w-full items-center gap-1 overflow-hidden rounded-md border border-border bg-card pl-1 pr-0.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 pointer-coarse:h-11">
             <div className="h-full shrink-0">
-              {!disabled && (dynamic || template) ? <SelectMenu value={template ? "template" : "fixed"}
-                ariaLabel={t("admin.exTask.flag.modeN", { n: index + 1 })}
-                compactChevron triggerVariant="default"
-                onChange={(mode) => update(index, mode === "template" ? TEMPLATE_PREFIX + visible : visible)}
-                options={[{ value: "fixed", label: t("admin.exTask.flag.modeFixed") }, { value: "template", label: t("admin.exTask.flag.modeTemplate") }]}
-                className="exercise-flag-mode w-28 border-0 px-2 text-sm font-medium shadow-none focus-visible:ring-0" />
+              {!disabled && (dynamic || template) ? <FlagModeSwitch label={t("admin.exTask.flag.modeN", { n: index + 1 })} template={template} templateAllowed={dynamic}
+                onChange={(mode) => update(index, mode === "template" ? TEMPLATE_PREFIX + visible : visible)} />
                 : <FlagModeLabel hint={!dynamic ? t(semanticsKey) : undefined}>{t(template ? "admin.exTask.flag.modeTemplate" : "admin.exTask.flag.modeFixed")}</FlagModeLabel>}
             </div>
             <Input name={namePrefix ? `${namePrefix}.${index}` : undefined} value={visible} placeholder={template ? String.raw`ICE{room-\d}` : "ICE{...}"}
               ref={(node) => { if (node) inputRefs.current.set(index, node); else inputRefs.current.delete(index) }}
-              className="h-9 min-w-0 flex-1 border-0 bg-transparent text-sm font-normal placeholder:text-sm focus-visible:border-0 focus-visible:ring-0"
+              className="h-full min-w-0 flex-1 border-0 bg-transparent font-mono text-sm font-normal placeholder:text-sm focus-visible:border-0 focus-visible:ring-0 pointer-coarse:h-full"
               disabled={disabled} aria-label={t("admin.exTask.flag.titleN", { n: index + 1 })}
               aria-invalid={Boolean(issue)} aria-describedby={issue || warnings.length ? `${feedbackId}-${index}` : undefined} onBlur={() => setTouched((current) => new Set(current).add(index))}
               onPaste={(event) => handlePaste(event, index)}
@@ -242,6 +235,17 @@ export function FlagInput({
         </div>
       })}
       </div>
+      {!disabled && (dynamic || value.length === 0) && <div data-testid="flag-add-actions" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Button type="button" variant="outline" size="sm" onClick={addFlag}>
+          <Plus className="mr-1 h-4 w-4" />{t("admin.exTask.flag.add")}
+        </Button>
+        {dynamic && <HoverTooltip text={t("admin.exTask.flag.pasteHintHelp")}>
+          <span tabIndex={0} className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <ClipboardPaste aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exTask.flag.pasteHint")}
+          </span>
+        </HoverTooltip>}
+      </div>}
+      {semanticsKey && <p className="text-xs text-muted-foreground">{t(semanticsKey)}</p>}
       {!dynamic && (value.length > 1 || value.some((candidate) => candidate.startsWith(TEMPLATE_PREFIX))) &&
         <p role="alert" className="text-xs text-destructive">{t("admin.exTask.flag.staticCount")}</p>}
       {dynamic && value.length === 0 && (policy
