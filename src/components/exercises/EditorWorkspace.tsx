@@ -68,7 +68,7 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
   const [linkedOpen, setLinkedOpen] = useState(false)
   const active = Math.min(selected, Math.max(fields.length - 1, 0))
   // Only the link structure: a keystroke inside a variant leaves it equal, so no re-render.
-  const links = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => variants.map((variant) => ({ ID: variant.ID, LinkedTo: variant.LinkedTo })) })
+  const links = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => variants.map((variant) => ({ ID: variant.ID, LinkedTo: variant.LinkedTo, Weight: variant.Weight })) })
   const canLink = baseCandidates(links).length > 0
   const baseOf = (index: number) => {
     const linkedTo = links[index]?.LinkedTo
@@ -103,7 +103,9 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
 
   const variantLabel = (index: number) => {
     const base = baseOf(index)
-    return base >= 0 ? t("admin.exDraft.variantBasedOn", { n: index + 1, base: base + 1 }) : t("admin.exDraft.variantN", { n: index + 1 })
+    const label = base >= 0 ? t("admin.exDraft.variantBasedOn", { n: index + 1, base: base + 1 }) : t("admin.exDraft.variantN", { n: index + 1 })
+    const weight = links[index]?.Weight ?? 1
+    return weight > 1 ? t("admin.exDraft.labelWithWeight", { label, weight }) : label
   }
   const onVariants = tab === "variants"
   const onAll = tab === "all"
@@ -153,7 +155,7 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
     <div role="tabpanel" id={`${uid}-general-panel`} aria-labelledby={`${uid}-general`} hidden={tab !== "general"} className="editor-panel">{general}</div>
     {onAll && <div role="tabpanel" id={`${uid}-all-panel`} aria-labelledby={`${uid}-all`} className="editor-panel"><AllVariantsTable form={form} disabled={disabled} onOpen={open} /></div>}
     {onVariants && fields[active] && <div role="tabpanel" id={`${uid}-variant-panel`} aria-labelledby={`${uid}-variant-${active}`} className="editor-panel">
-      <VariantWorkspace key={fields[active].id} form={form} variantIndex={active} count={fields.length} baseIndex={baseOf(active)} disabled={disabled}
+      <VariantWorkspace key={fields[active].id} form={form} variantIndex={active} count={fields.length} baseIndex={baseOf(active)} weight={links[active]?.Weight ?? 1} disabled={disabled}
         exerciseId={exerciseId} infrastructureBlocked={infrastructureBlocked} showNotes={showNotes} resources={resources}
         onRemove={fields.length > 1 ? () => removeVariant(active) : undefined} />
     </div>}
@@ -170,11 +172,13 @@ function LinkedVariantsHost({ form, onClose, onCreate }: { form: UseFormReturn<D
 const SECTIONS: Section[] = ["tasks", "topology", "note"]
 
 /** One variant: the mode switch with what this variant is, its actions, and the open mode. */
-function VariantWorkspace({ form, variantIndex, count, baseIndex, disabled, exerciseId, infrastructureBlocked, showNotes, resources, onRemove }: {
+function VariantWorkspace({ form, variantIndex, count, baseIndex, weight, disabled, exerciseId, infrastructureBlocked, showNotes, resources, onRemove }: {
   form: UseFormReturn<DraftFormValues>
   variantIndex: number
   count: number
   baseIndex: number
+  /** Issue weight; shown in the summary when above 1. */
+  weight: number
   disabled: boolean
   exerciseId: string | null
   infrastructureBlocked: boolean
@@ -189,9 +193,10 @@ function VariantWorkspace({ form, variantIndex, count, baseIndex, disabled, exer
   const [confirm, setConfirm] = useState<"unlink" | "remove" | null>(null)
   const [statsOpen, setStatsOpen] = useState(false)
   const linked = baseIndex >= 0
-  const summary = linked ? t("admin.exDraft.summaryLinked", { base: baseIndex + 1 })
+  const kind = linked ? t("admin.exDraft.summaryLinked", { base: baseIndex + 1 })
     : variantIndex === 0 ? count > 1 ? t("admin.exDraft.summaryFirst") : ""
     : t("admin.exDraft.summaryIndependent")
+  const summary = kind && weight > 1 ? t("admin.exDraft.summaryWithWeight", { summary: kind, weight }) : kind
   const menu = !disabled && (linked || onRemove) || exerciseId
   return <div data-variant-sections data-variant-index={variantIndex} className="variant-workspace">
     <div className="variant-modebar">

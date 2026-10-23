@@ -77,7 +77,7 @@ function fingerprint(variant: VariantFormValues): string | null {
     }
   }
   const projected = {
-    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Tasks: tasks,
+    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
       Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => ({ ...env, HasValue: undefined })) })),
       Connections: variant.Topology.Connections.map((connection) => ({ ...connection, Endpoints: connection.Endpoints.map((endpoint) => ({ ...endpoint, DeviceID: endpoint.Kind === "device" ? deviceRef(endpoint.DeviceID) : endpoint.DeviceID })) })),

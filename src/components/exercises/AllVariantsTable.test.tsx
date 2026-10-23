@@ -13,7 +13,7 @@ function draft(): DraftFormValues {
     Attachments: index === 0 ? Array.from({ length: files }, (_, n) => ({ FileID: `f${n}`, Name: `file${n}.pcap` })) : [] }))
   value.Variants = [
     { ...emptyVariant(1), ID: "a", Note: "Base", Tasks: tasks([["ICE{a1}"], ["template:ICE{\\d}"]], 2) },
-    { ...emptyVariant(2), ID: "b", LinkedTo: "a", Tasks: tasks([["ICE{b1}", "ICE{b1x}"], []]) },
+    { ...emptyVariant(2), ID: "b", LinkedTo: "a", Weight: 2, Tasks: tasks([["ICE{b1}", "ICE{b1x}"], []]) },
   ]
   return value
 }
@@ -21,9 +21,11 @@ function draft(): DraftFormValues {
 function Harness({ onOpen = vi.fn() }: { onOpen?: (index: number) => void }) {
   const form = useForm<DraftFormValues>({ defaultValues: draft() })
   const flags = useWatch({ control: form.control, name: "Variants.1.Tasks.0.Flag" })
+  const weights = useWatch({ control: form.control, name: "Variants" }).map((variant) => variant.Weight)
   return <>
     <AllVariantsTable form={form} disabled={false} onOpen={onOpen} />
     <output data-testid="flags">{JSON.stringify(flags)}</output>
+    <output data-testid="weights">{JSON.stringify(weights)}</output>
   </>
 }
 
@@ -32,7 +34,7 @@ describe("AllVariantsTable", () => {
     const onOpen = vi.fn()
     render(<Harness onOpen={onOpen} />)
     expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual([
-      "admin.exDraft.variant", 'admin.exDraft.subtaskColumn{"n":1,"name":"Task 1"} · admin.ex.difficulty.easy', 'admin.exDraft.subtaskColumn{"n":2,"name":"Task 2"} · admin.ex.difficulty.easy',
+      "admin.exDraft.variant", "admin.exDraft.weightadmin.exDraft.weightHelp", 'admin.exDraft.subtaskColumn{"n":1,"name":"Task 1"} · admin.ex.difficulty.easy', 'admin.exDraft.subtaskColumn{"n":2,"name":"Task 2"} · admin.ex.difficulty.easy',
       "admin.exDraft.tab.topology", "admin.exDraft.tab.note",
     ])
     expect(screen.getByText("admin.exTask.flag.modeTemplate")).toBeInTheDocument()
@@ -55,5 +57,32 @@ describe("AllVariantsTable", () => {
     fireEvent.change(screen.getByRole("textbox", { name: 'admin.exDraft.flagCell{"n":2,"task":2}' }), { target: { value: "ICE{x}" } })
     fireEvent.change(screen.getByRole("textbox", { name: 'admin.exDraft.flagCell{"n":2,"task":2}' }), { target: { value: "" } })
     expect(screen.getByRole("textbox", { name: 'admin.exDraft.flagCell{"n":2,"task":2}' })).toHaveValue("")
+  })
+
+  it("edits the weight in place, keeps a half-typed value out of the form and shows its error beside the field", () => {
+    render(<Harness />)
+    const weight = screen.getByRole("spinbutton", { name: 'admin.exDraft.weightCell{"n":1}' })
+    expect(weight).toHaveValue(1)
+    expect(screen.getByRole("spinbutton", { name: 'admin.exDraft.weightCell{"n":2}' })).toHaveValue(2)
+    fireEvent.change(weight, { target: { value: "3" } })
+    expect(screen.getByTestId("weights")).toHaveTextContent("[3,2]")
+    fireEvent.change(weight, { target: { value: "" } })
+    expect(weight).toHaveAttribute("aria-invalid", "true")
+    expect(document.getElementById(weight.getAttribute("aria-describedby") as string)).toHaveTextContent('admin.ex.val.weight{"max":100}')
+    fireEvent.change(weight, { target: { value: "101" } })
+    expect(weight).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByTestId("weights")).toHaveTextContent("[3,2]")
+    fireEvent.change(weight, { target: { value: "4" } })
+    expect(weight).not.toHaveAttribute("aria-invalid")
+    expect(screen.getByTestId("weights")).toHaveTextContent("[4,2]")
+  })
+
+  it("shows the issue order for the weights, with the rule in a tooltip, and a help beside the weight label", () => {
+    render(<Harness />)
+    // Weights 1, 2: the tie goes to variant 1, then the least issued relative to its weight.
+    expect(screen.getByText('admin.exDraft.issueOrder{"order":"1 2 2 1 2 2 1 2 2 1 2 2 1 2"}')).toBeInTheDocument()
+    expect(screen.getByRole("columnheader", { name: /admin\.exDraft\.weight/ })).toContainElement(screen.getByRole("button", { name: "ui.help" }))
+    fireEvent.change(screen.getByRole("spinbutton", { name: 'admin.exDraft.weightCell{"n":1}' }), { target: { value: "2" } })
+    expect(screen.getByText('admin.exDraft.issueOrder{"order":"1 2 1 2 1 2 1 2 1 2 1 2 1 2"}')).toBeInTheDocument()
   })
 })

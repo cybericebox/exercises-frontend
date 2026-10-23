@@ -22,7 +22,7 @@ import {
   toSaveDraftInput,
   type DraftFormValues,
 } from './exerciseSchemas'
-import type { Version } from '@/api/exercises/versions'
+import { normalizeVariant, type Version } from '@/api/exercises/versions'
 
 // ── Regexes and parsers ──────────────────────────────────────────────────────────
 
@@ -847,7 +847,7 @@ function loadedVersion(): Version {
     Variants: [{
       ID: 'var1',
       Index: 1,
-      Note: '', LinkedTo: '',
+      Note: '', Weight: 1, LinkedTo: '',
       Tasks: [{
         ID: 'task1',
         Name: 'Find the flag',
@@ -922,6 +922,31 @@ describe('toDraftFormValues', () => {
     const values = toDraftFormValues(null)
     expect(values.Variants).toHaveLength(1)
     expect(values.Variants[0].Tasks).toHaveLength(1)
+  })
+})
+
+describe('variant weight', () => {
+  it('reads absent, 0 or garbage as 1 and keeps a stored weight', () => {
+    expect([undefined, 0, -2, 1.5, 3].map((weight) => normalizeVariant({ Index: 1, Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }, ...(weight === undefined ? {} : { Weight: weight }) }).Weight)).toEqual([1, 1, 1, 1, 3])
+  })
+
+  it('sends a weight above 1 and leaves the default 1 out', () => {
+    const draft = emptyDraft()
+    expect(toSaveDraftInput(draft).Variants[0]).not.toHaveProperty('Weight')
+    draft.Variants[0].Weight = 7
+    expect(toSaveDraftInput(draft).Variants[0].Weight).toBe(7)
+    draft.Variants[0].Weight = Number.NaN
+    expect(toSaveDraftInput(draft).Variants[0]).not.toHaveProperty('Weight')
+  })
+
+  it('accepts a whole number 1..100 and puts the error on the weight', () => {
+    for (const [weight, ok] of [[1, true], [100, true], [0, false], [101, false], [2.5, false], [Number.NaN, false]] as const) {
+      const draft = validDraft()
+      draft.Variants[0].Weight = weight
+      const result = draftSchema.safeParse(draft)
+      expect(result.success).toBe(ok)
+      if (!result.success) expect(result.error.issues[0].path).toEqual(['Variants', 0, 'Weight'])
+    }
   })
 })
 

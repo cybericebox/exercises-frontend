@@ -22,7 +22,7 @@ function matchOwnTask(tasks: VariantFormValues["Tasks"], baseId: string, positio
   return undefined
 }
 
-function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; Note: string; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"] }): VariantFormValues {
+function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; Note: string; Weight: number; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"] }): VariantFormValues {
   const rebuilt = clone(base)
   rebuilt.Tasks.forEach((task, position) => {
     const mine = matchOwnTask(own.Tasks, task.ID, position)
@@ -32,6 +32,8 @@ function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; 
   rebuilt.ID = own.ID
   rebuilt.Index = own.Index
   rebuilt.Note = own.Note
+  // A linked variant keeps its own issue weight.
+  rebuilt.Weight = own.Weight
   rebuilt.LinkedTo = own.LinkedTo
   if (own.CopyOf) rebuilt.CopyOf = own.CopyOf
   else delete rebuilt.CopyOf
@@ -54,7 +56,7 @@ export function syncLinkedVariants(variants: VariantFormValues[]): VariantFormVa
   })
 }
 
-/** Deep, unlinked copy of a variant; CopyOf remembers the stored source. */
+/** Deep, unlinked copy of a variant (its issue weight too); CopyOf remembers the stored source. */
 export function copyVariant(source: VariantFormValues, index: number): VariantFormValues {
   const copy = clone(source)
   copy.ID = ""
@@ -65,12 +67,13 @@ export function copyVariant(source: VariantFormValues, index: number): VariantFo
   return copy
 }
 
-/** A new variant linked to the base, with only its own flags, files and note. */
+/** A new variant linked to the base, with only its own flags, files and note; it starts with weight 1. */
 export function newLinkedVariant(base: VariantFormValues, index: number, own: { Note: string; Tasks: OwnTask[] }): VariantFormValues {
   const created = clone(base)
   created.ID = ""
   created.Index = index
   created.Note = own.Note
+  created.Weight = 1
   created.LinkedTo = base.ID
   delete created.CopyOf
   created.Tasks.forEach((task, position) => {

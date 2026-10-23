@@ -23,6 +23,7 @@ import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
 import { normalizeElevation, type Elevation } from "./elevation"
 import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
+import { normalizeWeight } from "@/lib/variantWeights"
 
 const BASE = "/api/exercises"
 
@@ -149,6 +150,8 @@ export type VariantDTO = {
   ID?: string
   Index: number // decorative number; identity = ID
   Note?: string
+  /** How often it is issued relative to the others (1..100); absent or 0 means 1. A linked variant keeps its own. */
+  Weight?: number
   /** Base variant id (same version); sent and returned only for a linked variant. */
   LinkedTo?: string
   /** Request-only: the stored variant this new one is a copy of (the server uses it for unsaved variants). */
@@ -233,6 +236,8 @@ export type NormalizedVariant = {
   ID: string
   Index: number
   Note: string
+  /** Issue weight, always ≥ 1 (absent or 0 on the wire = 1). */
+  Weight: number
   LinkedTo: string // "" = not linked
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
@@ -353,6 +358,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     ID: raw.ID ?? "",
     Index: raw.Index,
     Note: raw.Note ?? "",
+    Weight: normalizeWeight(raw.Weight),
     LinkedTo: raw.LinkedTo ?? "",
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),

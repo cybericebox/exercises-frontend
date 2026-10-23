@@ -1,16 +1,52 @@
 "use client"
 
+import { useId, useState } from "react"
 import { useFormState, useWatch, type UseFormReturn } from "react-hook-form"
 import { Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
+import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
-import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { MAX_VARIANT_WEIGHT, MIN_VARIANT_WEIGHT, isValidWeight, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { issueOrder } from "@/lib/variantWeights"
 import { cn } from "@/utils/cn"
 
 const TEMPLATE_PREFIX = "template:"
 
-/** Errors of a variant's subtask flags (the form's own validation), by position. */
-type FlagErrors = { Variants?: { Tasks?: { Flag?: unknown }[] }[] }
+/** Errors of a variant's weight and subtask flags (the form's own validation), by position. */
+type FlagErrors = { Variants?: { Weight?: { message?: string }; Tasks?: { Flag?: unknown }[] }[] }
+
+/** How many issues the order line shows. */
+const ORDER_PREVIEW = 14
+
+/**
+ * A variant's issue weight. The typed text is local: only a whole number in range reaches the form, so the
+ * autosave never sends a half-typed value; an invalid one shows its error beside the field and keeps the last valid weight.
+ */
+function WeightInput({ form, index, value, disabled, formError }: { form: UseFormReturn<DraftFormValues>; index: number; value: number; disabled: boolean; formError?: string }) {
+  const errorId = useId()
+  const [text, setText] = useState(String(value))
+  const [shown, setShown] = useState(value)
+  // The form changed it (simplify, a reload): show the new value.
+  if (shown !== value) {
+    setShown(value)
+    if (Number(text) !== value) setText(String(value))
+  }
+  const typed = text.trim() === "" ? NaN : Number(text)
+  const error = isValidWeight(typed) ? formError : t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })
+  return <div className="all-variants-weight">
+    <input type="number" inputMode="numeric" min={MIN_VARIANT_WEIGHT} max={MAX_VARIANT_WEIGHT} step={1} className="all-variants-weight-input"
+      aria-label={t("admin.exDraft.weightCell", { n: index + 1 })} aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}
+      disabled={disabled} value={text} onChange={(event) => {
+        setText(event.target.value)
+        const next = event.target.value.trim() === "" ? NaN : Number(event.target.value)
+        if (isValidWeight(next) && next !== value) {
+          setShown(next)
+          form.setValue(`Variants.${index}.Weight`, next, { shouldDirty: true, shouldValidate: Boolean(formError) })
+        }
+      }} />
+    {error && <p id={errorId} className="all-variants-weight-error">{error}</p>}
+  </div>
+}
 
 /**
  * Every variant in one table: what makes each one different at a glance — the first flag of every subtask
@@ -21,11 +57,18 @@ export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormRetu
   const { errors } = useFormState({ control: form.control, name: "Variants" })
   const subtasks = variants[0]?.Tasks ?? []
   const baseIndex = (linkedTo: string) => linkedTo ? variants.findIndex((variant) => variant.ID !== "" && variant.ID === linkedTo) : -1
+  const order = issueOrder(variants.map((variant) => variant.Weight), ORDER_PREVIEW)
   return <div className="all-variants">
+    <div className="all-variants-toolbar">
+      <HoverTooltip text={t("admin.exDraft.issueOrderRule")}>
+        <p className="all-variants-order" tabIndex={0}>{t("admin.exDraft.issueOrder", { order: order.join(" ") })}</p>
+      </HoverTooltip>
+    </div>
     <div className="all-variants-scroll" role="region" aria-label={t("admin.exDraft.allVariants")} tabIndex={0}>
       <table className="all-variants-table">
         <thead><tr>
           <th scope="col" className="all-variants-sticky">{t("admin.exDraft.variant")}</th>
+          <th scope="col"><span className="all-variants-label">{t("admin.exDraft.weight")}<FieldHelp text={t("admin.exDraft.weightHelp")} /></span></th>
           {subtasks.map((task, index) => <th key={task.ID || index} scope="col">
             <span className="all-variants-subtask">{t("admin.exDraft.subtaskColumn", { n: index + 1, name: task.Name || t("admin.exTask.numbered", { n: index + 1 }) })}</span>
             <span className="text-muted-foreground"> · {t(`admin.ex.difficulty.${task.Difficulty}`).toLowerCase()}</span>
@@ -40,6 +83,7 @@ export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormRetu
               <button type="button" className="all-variants-open" aria-label={t("admin.exDraft.openVariant", { n: vi + 1 })} onClick={() => onOpen(vi)}>{vi + 1}</button>
               {base >= 0 && <HoverTooltip text={t("admin.exDraft.variantBasedOn", { n: vi + 1, base: base + 1 })}><span className="all-variants-base">← {base + 1}</span></HoverTooltip>}
             </th>
+            <td><WeightInput form={form} index={vi} value={variant.Weight} disabled={disabled} formError={(errors as FlagErrors).Variants?.[vi]?.Weight?.message} /></td>
             {subtasks.map((_, si) => {
               const task = variant.Tasks[si]
               if (!task) return <td key={si}>—</td>

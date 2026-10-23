@@ -1871,5 +1871,13 @@
   "admin.exImport.update.replaceTasksMore": "{names} і ще {count}",
   "admin.exImport.dismiss": "Прибрати",
   "admin.exImport.update.unchangedResult": "Без змін",
-  "admin.exImport.update.doneCountsUnchanged": "Оновлено {updated} · Створено {created} · Без змін {unchanged}"
+  "admin.exImport.update.doneCountsUnchanged": "Оновлено {updated} · Створено {created} · Без змін {unchanged}",
+  "admin.ex.val.weight": "Вага — ціле число від 1 до {max}.",
+  "admin.exDraft.weight": "Вага",
+  "admin.exDraft.weightHelp": "Як часто видається відносно інших. Вага 2 — удвічі частіше, ніж вага 1.",
+  "admin.exDraft.weightCell": "Вага варіанта {n}",
+  "admin.exDraft.issueOrder": "Порядок видачі: {order} …",
+  "admin.exDraft.issueOrderRule": "Наступним видається варіант, виданий найменше відносно своєї ваги; за рівності — з меншим номером. Без випадковості.",
+  "admin.exDraft.labelWithWeight": "{label} · вага {weight}",
+  "admin.exDraft.summaryWithWeight": "{summary} Вага {weight}."
 }

@@ -1871,5 +1871,13 @@
   "admin.exImport.update.replaceTasksMore": "{names} and {count} more",
   "admin.exImport.dismiss": "Dismiss",
   "admin.exImport.update.unchangedResult": "No changes",
-  "admin.exImport.update.doneCountsUnchanged": "Updated {updated} · Created {created} · Unchanged {unchanged}"
+  "admin.exImport.update.doneCountsUnchanged": "Updated {updated} · Created {created} · Unchanged {unchanged}",
+  "admin.ex.val.weight": "The weight is a whole number from 1 to {max}.",
+  "admin.exDraft.weight": "Weight",
+  "admin.exDraft.weightHelp": "How often it is issued relative to the others. Weight 2 is issued twice as often as weight 1.",
+  "admin.exDraft.weightCell": "Weight of variant {n}",
+  "admin.exDraft.issueOrder": "Issue order: {order} …",
+  "admin.exDraft.issueOrderRule": "The next one issued is the variant issued least relative to its weight; on a tie, the lower number. No randomness.",
+  "admin.exDraft.labelWithWeight": "{label} · weight {weight}",
+  "admin.exDraft.summaryWithWeight": "{summary} Weight {weight}."
 }

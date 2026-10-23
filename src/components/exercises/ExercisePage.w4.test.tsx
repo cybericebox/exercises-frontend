@@ -56,7 +56,7 @@ const base: Exercise = {
 }
 const version: Version = {
   ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z", Resources: null, Elevation: null,
-  Variants: [{ ID: "v1", Index: 1, Note: "", LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Flag: [], LinkedDeviceID: "",
+  Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Flag: [], LinkedDeviceID: "",
     DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
   Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }

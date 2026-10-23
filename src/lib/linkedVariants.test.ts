@@ -47,6 +47,12 @@ describe("syncLinkedVariants", () => {
     expect(out[0]).toBe(base)
   })
 
+  it("keeps the linked variant's own weight", () => {
+    const base = { ...variant("b", 1, [task("t1", "One")]), Weight: 3 }
+    const linked = { ...variant("l", 2, [task("t1", "One")], "b"), Weight: 2 }
+    expect(syncLinkedVariants([base, linked])[1].Weight).toBe(2)
+  })
+
   it("matches own parts by task id after a base reorder", () => {
     const base = variant("b", 1, [task("t2", "Two"), task("t1", "One")])
     const linked = variant("l", 2, [task("t1", "One", ["f1"]), task("t2", "Two", ["f2"])], "b")
@@ -128,6 +134,11 @@ describe("copyVariant", () => {
     expect(source.Tasks[0].Hints[0].Text).toBe("hint One")
   })
 
+  it("keeps the source's issue weight", () => {
+    const source = { ...variant("s", 1, [task("t1", "One")]), Weight: 4 }
+    expect(copyVariant(source, 2).Weight).toBe(4)
+  })
+
   it("omits CopyOf for an unsaved source", () => {
     expect(copyVariant(variant("", 1, [task("t1", "One")]), 2).CopyOf).toBeUndefined()
   })
@@ -152,6 +163,11 @@ describe("newLinkedVariant", () => {
     expect(created.Tasks[0].Attachments[0].FileID).toBe("f")
     expect(created.Tasks[1].Flag).toEqual(["b"])
     expect(base.Tasks[0].Flag).toEqual(["base"])
+  })
+
+  it("starts with weight 1 whatever the base weighs", () => {
+    const base = { ...variant("b", 1, [task("t1", "One")]), Weight: 5 }
+    expect(newLinkedVariant(base, 2, { Note: "", Tasks: [{ Flag: [], Attachments: [] }] }).Weight).toBe(1)
   })
 })
 

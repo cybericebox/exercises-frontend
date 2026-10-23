@@ -96,16 +96,17 @@ describe('editor tabs', () => {
   })
 
   it('adds an independent copy of the open variant with everything in it', () => {
-    render(<Harness prepare={(draft) => { draft.Variants[0].ID = 'src'; draft.Variants[0].Note = 'Source note' }} />)
+    render(<Harness prepare={(draft) => { draft.Variants[0].ID = 'src'; draft.Variants[0].Note = 'Source note'; draft.Variants[0].Weight = 3 }} />)
     openAddMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: /admin\.exDraft\.addIndependent/ }))
     const variants = variantsJson()
     expect(variants).toHaveLength(2)
     const { ID, LinkedTo, CopyOf, Index, ...rest } = variants[1]
-    expect(rest).toEqual({ Note: 'Source note', Tasks: variants[0].Tasks, Topology: variants[0].Topology })
+    // A copy keeps the source's issue weight.
+    expect(rest).toEqual({ Note: 'Source note', Weight: 3, Tasks: variants[0].Tasks, Topology: variants[0].Topology })
     expect([ID, LinkedTo, CopyOf, Index]).toEqual(['', '', 'src', 2])
     expect(rest.Tasks[0].Flag).toEqual(['ICE{secret}'])
-    expect(variantTab(2)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /labelWithWeight.*"n\\":2.*"weight":3/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('offers a variant based on another only once a base is saved, and creates them through the dialog', async () => {
@@ -213,5 +214,14 @@ describe('variant modes', () => {
     openVariantMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exStats.open' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('stats for ex1')
+  })
+
+  it('names a weight above 1 in the variant tab and in the summary line', () => {
+    render(<Harness prepare={(draft) => draft.Variants.push({ ...emptyVariant(2), Weight: 2, Tasks: draft.Variants[0].Tasks })} />)
+    expect(screen.getByRole('tab', { name: `admin.exDraft.labelWithWeight{"label":"admin.exDraft.variantN{\\"n\\":2}","weight":2}` })).toBeInTheDocument()
+    expect(variantTab(1)).toBeInTheDocument()
+    expect(screen.getByText('admin.exDraft.summaryFirst')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /labelWithWeight/ }))
+    expect(screen.getByText('admin.exDraft.summaryWithWeight{"summary":"admin.exDraft.summaryIndependent","weight":2}')).toBeInTheDocument()
   })
 })

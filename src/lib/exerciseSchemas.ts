@@ -452,10 +452,16 @@ const taskSchema = z.object({
   Hints: z.array(hintSchema).max(MAX_HINTS, t("exercises.hints.val.max")),
 })
 
+/** Daemon range of a variant's issue weight. */
+export const MIN_VARIANT_WEIGHT = 1
+export const MAX_VARIANT_WEIGHT = 100
+
 const variantSchema = z.object({
   ID: z.string(),
   Index: z.number().int(),
   Note: z.string(),
+  Weight: z.number({ error: t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }) }).int(t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }))
+    .min(MIN_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })).max(MAX_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })),
   LinkedTo: z.string(),
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
@@ -582,6 +588,7 @@ export function emptyVariant(index: number): VariantFormValues {
     ID: "",
     Index: index,
     Note: "",
+    Weight: 1,
     LinkedTo: "",
     Tasks: [emptyTask()],
     Topology: {
@@ -609,6 +616,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       ID: v.ID,
       Index: v.Index,
       Note: v.Note ?? "",
+      Weight: v.Weight ?? 1,
       LinkedTo: v.LinkedTo ?? "",
       Tasks: v.Tasks.map((task, ti) => ({
         ...task,
@@ -750,12 +758,18 @@ function networkToDTO(network: TopologyFormValues["VPN"]): TopologyDTO["VPN"] {
   }
 }
 
+export function isValidWeight(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= MIN_VARIANT_WEIGHT && value <= MAX_VARIANT_WEIGHT
+}
+
 /** Form values → PUT /:id/draft (1:1, Index is renumbered by position). */
 export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   const variants: VariantDTO[] = values.Variants.map((v, i) => ({
     ...(v.ID ? { ID: v.ID } : {}),
     Index: i + 1,
     ...(v.Note ? { Note: v.Note } : {}),
+    // 1 is the default on the wire; an invalid value never leaves the form (the weight field keeps the last valid one).
+    ...(isValidWeight(v.Weight) && v.Weight > 1 ? { Weight: v.Weight } : {}),
     ...(v.LinkedTo ? { LinkedTo: v.LinkedTo } : {}),
     // CopyOf is for a new variant only: once saved it has its own stored secrets.
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
