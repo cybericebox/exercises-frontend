@@ -1,5 +1,6 @@
 /* The editor: a full-width screen — one header row, one tab row («Загальне» | variant numbers), the open tab. */
-.exercise-general-screen { --ctl:36px; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:100%; container:task-screen / inline-size; }
+/* Fills the main area (its padding stays outside) and grows with long content, which then scrolls the main area. */
+.exercise-general-screen { --ctl:36px; display:flex; flex:1 0 auto; flex-direction:column; gap:12px; min-width:0; container:task-screen / inline-size; }
 @media(pointer:coarse){ .exercise-general-screen { --ctl:44px; } }
 .general-shared-header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:var(--ctl); }
 .general-back { display:inline-flex; width:var(--ctl); height:var(--ctl); flex:none; align-items:center; justify-content:center; border-radius:6px; color:var(--ib-dim); }
@@ -168,7 +169,7 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 
 /* Infrastructure: the views and the actions in one row, the canvas down to the bottom of the screen. */
 .editor-form,.editor-panel,.variant-workspace,.variant-mode-panel { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; }
-.topology-workspace { display:flex; flex:1 1 auto; flex-direction:column; gap:12px; min-width:0; min-height:max(28rem, calc(100dvh - 260px)); }
+.topology-workspace { display:flex; flex:1 1 auto; flex-direction:column; gap:12px; min-width:0; min-height:18rem; flex-basis:0; }
 .topology-subtabs { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .topology-views { display:inline-flex; gap:2px; padding:2px; border-radius:6px; background:var(--ib-hero); }
 .topology-views>button { height:calc(var(--ctl) - 4px); padding:0 12px; border-radius:4px; font-size:13.5px; color:var(--ib-dim); }
@@ -182,7 +183,7 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 /* All variants: one row per variant, a column per subtask; the variant number stays on the left. */
 .editor-tab-icon { width:36px; padding:0; }
 .all-variants { display:flex; flex:1; flex-direction:column; min-height:0; }
-.all-variants-scroll { overflow:auto; border:1px solid var(--ib-line); border-radius:8px; max-height:calc(100dvh - 240px); }
+.all-variants-scroll { flex:1 1 0; min-height:12rem; overflow:auto; border:1px solid var(--ib-line); border-radius:8px; }
 .all-variants-scroll:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .all-variants-table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:13.5px; }
 .all-variants-table th,.all-variants-table td { height:44px; padding:4px 12px; border-bottom:1px solid var(--ib-line); text-align:left; vertical-align:middle; white-space:nowrap; background:var(--card); }

@@ -50,6 +50,9 @@ describe("exercises shell", () => {
     expect(screen.getByRole("main")).toHaveAttribute("id", "main")
     // One inner padding for every page, as in the admin app: 16px on a phone, 24px from md.
     expect(screen.getByRole("main")).toHaveClass("p-4", "md:p-6")
+    // A flex column filling the screen: pages stretch to its bottom by flex, the padding counted inside; it is the
+    // containing block of its absolutely placed descendants, so none of them scrolls the document.
+    expect(screen.getByRole("main")).toHaveClass("relative", "flex", "flex-col", "min-h-0", "flex-1", "overflow-auto")
     unmount()
     nav.path = "/test"
     render(<ExercisesShell><span>lab</span></ExercisesShell>)
