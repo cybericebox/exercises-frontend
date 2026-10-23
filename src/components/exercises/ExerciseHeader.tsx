@@ -207,10 +207,6 @@ function MoreMenu(props: ExerciseHeaderProps) {
       <DropdownMenuGroup aria-label={t("admin.exGeneral.versions")}>
         <DropdownMenuItem className="gap-2" onSelect={props.onHistory}><History aria-hidden="true" className={ICON} />{t("admin.exPage.action.history")}</DropdownMenuItem>
         {snapshot && <DropdownMenuItem className="gap-2" onSelect={props.onSnapshot}><Camera aria-hidden="true" className={ICON} />{t("admin.exPage.action.snapshot")}</DropdownMenuItem>}
-        {revert && <>
-          <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={props.onRevert}><RotateCcw aria-hidden="true" className={ICON} />{t("admin.exPage.action.revert")}</DropdownMenuItem>
-          <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("admin.exPage.action.revertHint")}</p>
-        </>}
       </DropdownMenuGroup>
       {access && <>
         <DropdownMenuSeparator />
@@ -235,6 +231,10 @@ function MoreMenu(props: ExerciseHeaderProps) {
           {permissions.write && (archived
             ? <DropdownMenuItem className="gap-2" onSelect={props.onUnarchive}><ArchiveRestore aria-hidden="true" className={ICON} />{t("admin.exPage.action.unarchive")}</DropdownMenuItem>
             : <DropdownMenuItem className="gap-2" onSelect={props.onArchive}><Archive aria-hidden="true" className={ICON} />{t("admin.exPage.action.archive")}</DropdownMenuItem>)}
+          {revert && <>
+            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={props.onRevert}><RotateCcw aria-hidden="true" className={ICON} />{t("admin.exPage.action.revert")}</DropdownMenuItem>
+            <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("admin.exPage.action.revertHint")}</p>
+          </>}
           {permissions.delete && <>
             <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" disabled={inUse} onSelect={props.onDelete}><Trash2 aria-hidden="true" className={ICON} />{t("admin.exPage.action.delete")}</DropdownMenuItem>
             {inUse && <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("admin.exPage.action.deleteInUse", { events: usageEvents.map((name) => t("admin.exPage.action.eventName", { name })).join(", ") })}</p>}

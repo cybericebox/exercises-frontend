@@ -191,7 +191,7 @@ describe("ExerciseHeader", () => {
     expect(publish).toBeDisabled()
   })
 
-  it("groups phone Test first, then History/Snapshot/Discard and separate Access", async () => {
+  it("groups phone Test first, then History/Snapshot, Access, and the destructive actions last", async () => {
     render(<ExerciseHeader {...makeProps({ onAccess: vi.fn() })} />)
     expect(screen.queryByRole("button", { name: "admin.exPage.action.history" })).not.toBeInTheDocument()
     openMenu("admin.exPage.action.more")
@@ -200,8 +200,10 @@ describe("ExerciseHeader", () => {
       "admin.exPage.action.test", "admin.exGeneral.versions", "admin.exGeneral.access", "admin.exGeneral.transfer", "admin.exGeneral.lifecycle",
     ])
     expect(Array.from(groups[1].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toEqual([
-      "admin.exPage.action.history", "admin.exPage.action.snapshot", "admin.exPage.action.revert",
+      "admin.exPage.action.history", "admin.exPage.action.snapshot",
     ])
+    // Discarding the changes is destructive: it sits with archive and delete at the bottom.
+    expect(Array.from(groups[4].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toContain("admin.exPage.action.revert")
     expect(screen.getByRole("menuitem", { name: "exercises.access.button" })).toBeInTheDocument()
     expect(screen.queryByText("admin.exGeneral.importUpdate")).not.toBeInTheDocument()
   })
