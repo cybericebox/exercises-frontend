@@ -48,6 +48,8 @@ describe("exercises shell", () => {
     expect(skip).toHaveAttribute("href", "#main")
     expect(container.firstElementChild).toBe(skip)
     expect(screen.getByRole("main")).toHaveAttribute("id", "main")
+    // One inner padding for every page, as in the admin app: 16px on a phone, 24px from md.
+    expect(screen.getByRole("main")).toHaveClass("p-4", "md:p-6")
     unmount()
     nav.path = "/test"
     render(<ExercisesShell><span>lab</span></ExercisesShell>)
