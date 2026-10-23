@@ -16,7 +16,6 @@ import { FlagInput } from "./FlagInput"
 import { PlaceholderDialog } from "./PlaceholderDialog"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { HintsEditor } from "./HintsEditor"
-import { FlagHelp } from "./FlagHelp"
 import { richTextHasContent } from "@/lib/hintText"
 import { isValidIPv4, type DraftFormValues, type PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import type { Difficulty } from "@/api/exercises/versions"
@@ -176,7 +175,6 @@ export function TaskForm({
       <div className="subtask-flag-title">
         <Flag aria-hidden="true" className="h-4 w-4" />
         <h4 id={`flag-title-${variantIndex}-${taskIndex}`}>{t("admin.exTask.flag.title")}</h4>
-        <FlagHelp />
         <GuideLink topic="prapory" />
       </div>
       <div className="subtask-flag-box">

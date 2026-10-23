@@ -96,3 +96,34 @@ it("uses a fixed 144px hint text viewport", () => {
  fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
  expect(screen.getByLabelText("exercises.hints.textAria")).toHaveAttribute("data-content-height", "144")
 })
+
+describe("hint rows", () => {
+  function Loaded({ disabled = false }: { disabled?: boolean }) {
+    const draft = twoVariants()
+    draft.Variants.forEach((variant) => { variant.Tasks[0].Hints = [{ ID: "h1", Text: "Почніть зі сканування портів.", Level: "direction" }, { ID: "h2", Text: "", Level: "nudge" }] })
+    const methods = useForm<DraftFormValues>({ defaultValues: draft })
+    useEffect(() => keep(methods), [methods])
+    return <FormProvider {...methods}><HintsEditor variantIndex={0} taskIndex={0} disabled={disabled} /></FormProvider>
+  }
+
+  it("shows stored hints as collapsed rows with their text and level, and opens one to edit", () => {
+    render(<Loaded />)
+    expect(screen.queryByLabelText("exercises.hints.textAria")).not.toBeInTheDocument()
+    const toggles = screen.getAllByRole("button", { expanded: false })
+    expect(toggles).toHaveLength(2)
+    fireEvent.click(toggles[0])
+    expect(toggles[0]).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getAllByLabelText("exercises.hints.textAria")).toHaveLength(1)
+    expect(document.getElementById(toggles[0].getAttribute("aria-controls")!)).toContainElement(screen.getByLabelText("exercises.hints.textAria"))
+    // Viewing writes nothing back.
+    expect(current!.getValues().Variants[0].Tasks[0].Hints[0].Text).toBe("Почніть зі сканування портів.")
+    expect(current!.formState.isDirty).toBe(false)
+  })
+
+  it("reveals the row actions on hover or focus and keeps them on touch", () => {
+    render(<Loaded />)
+    const actions = screen.getAllByRole("button", { name: "exercises.hints.remove" })[0].closest(".hint-row-actions")
+    expect(actions).toBeInTheDocument()
+    expect(screen.getAllByTestId("hint-row")[0]).toHaveClass("group")
+  })
+})

@@ -193,7 +193,7 @@ export function InterfaceForm({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5"><h4 className="text-sm font-semibold">{t("admin.exTopo.interfaces")}</h4><FieldHelp text={t("admin.exTopo.interfacesHelp")} /></div>
+        <h4 className="text-sm font-semibold">{t("admin.exTopo.interfaces")}</h4>
         {!disabled && (
           <Button type="button" variant="outline" size="sm" onClick={addInterface}>
             <Plus className="mr-1 h-4 w-4" />

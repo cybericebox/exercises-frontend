@@ -1904,5 +1904,8 @@
   "admin.exGuide.arkhiv": "Про архів і приклади",
   "admin.exGuide.pomylky": "Типові помилки імпорту",
   "admin.exTopo.resourcesPreset": "Розмір: {preset}",
-  "admin.exTopo.resourcesDefault": "Типовий розмір платформи"
+  "admin.exTopo.resourcesDefault": "Типовий розмір платформи",
+  "exercises.hints.row": "{n}. {text}",
+  "exercises.hints.rowEmpty": "без тексту",
+  "exercises.hints.rowLevel": "· рівень: {level}"
 }

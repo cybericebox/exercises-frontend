@@ -212,6 +212,8 @@ describe('TaskForm inline placeholders', () => {
     expect(screen.queryByRole('button', { name: 'Вставити підстановку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Додати підказку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Видалити підказку' })).not.toBeInTheDocument()
+    // A hint is a collapsed row: it opens to show its (read-only) level and text.
+    fireEvent.click(screen.getByRole('button', { name: /^1\. Look closer/ }))
     expect(screen.getByRole('button', { name: 'Рівень підказки' })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Текст підказки 1' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.getByRole('textbox', { name: 'Прапор 1' })).toBeEnabled()

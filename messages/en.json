@@ -1904,5 +1904,8 @@
   "admin.exGuide.arkhiv": "About the archive and examples",
   "admin.exGuide.pomylky": "Common import errors",
   "admin.exTopo.resourcesPreset": "Size: {preset}",
-  "admin.exTopo.resourcesDefault": "The platform default size"
+  "admin.exTopo.resourcesDefault": "The platform default size",
+  "exercises.hints.row": "{n}. {text}",
+  "exercises.hints.rowEmpty": "no text",
+  "exercises.hints.rowLevel": "· level: {level}"
 }

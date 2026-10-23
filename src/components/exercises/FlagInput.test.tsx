@@ -9,7 +9,6 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | num
 vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 
 import { FlagInput } from './FlagInput'
-import { FlagHelp } from './FlagHelp'
 
 describe('FlagInput', () => {
   const onChange = vi.fn()
@@ -280,36 +279,5 @@ describe('FlagInput', () => {
     expect(screen.getByRole('menuitem', { name: /admin.exTask.flag.insertAllLettersExcept.*\[\\l\\u\^\]/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /admin.exTask.flag.insertTwoLetters.*\[ab\]/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /admin.exTask.flag.insertRangeAndLetter.*\[A-Ce\]/ })).toBeInTheDocument()
-  })
-
-  it('keeps syntax guidance in the flag help, not repeated under each template', () => {
-    const { rerender } = render(<><FlagHelp /><FlagInput value={['ICE{fixed}']} onChange={onChange} linkedDeviceID="vm-1" /></>)
-    expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
-    rerender(<><FlagHelp /><FlagInput value={[String.raw`template:ICE{\d[abc1-3]\l\u}`]} onChange={onChange} linkedDeviceID="vm-1" /></>)
-    expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
-    const help = screen.getByRole('dialog')
-    for (const key of ['templateRules', 'allowedCharacters', 'escapeRules', 'weightHelp']) {
-      expect(within(help).getByText(`admin.exTask.flag.${key}`)).toBeInTheDocument()
-    }
-    expect(within(help).getByText(String.raw`\d`)).toBeInTheDocument()
-  })
-
-  it('groups the flag help into scannable rules and keeps syntax examples distinct', () => {
-    render(<><FlagHelp /><FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" /></>)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
-
-    const tooltip = screen.getByRole('dialog')
-    expect(within(tooltip).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
-      'admin.exTask.flag.sectionFormat',
-      'admin.exTask.flag.modeFixed',
-      'admin.exTask.flag.modeTemplate',
-      'admin.exTask.flag.sectionSelection',
-    ])
-    expect(within(tooltip).getByText(String.raw`\d`).tagName).toBe('CODE')
-    expect(within(tooltip).getByText(String.raw`[\d^13]`).tagName).toBe('CODE')
-    expect(within(tooltip).getByText('admin.exTask.flag.weightHelp')).toBeInTheDocument()
-    const selection = within(tooltip).getByRole('heading', { name: 'admin.exTask.flag.sectionSelection' }).closest('section')!
-    expect(within(selection).getByText('admin.exTask.flag.selectionExample')).toBeInTheDocument()
   })
 })
