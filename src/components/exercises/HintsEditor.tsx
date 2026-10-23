@@ -15,6 +15,7 @@ import { addHint, canAddHint, moveHint, removeHint, setHintLevel } from "@/lib/h
 import { hintTextToState, stateToHintText } from "@/lib/hintText"
 import { MAX_HINTS } from "@/lib/hintLimits"
 import { GuideLink } from "./GuideLink"
+import { FieldHelp } from "@/components/ui/field-help"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 
@@ -66,23 +67,13 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
   const listError = errors && !Array.isArray(errors) ? (errors as { message?: string }).message : undefined
 
   return (
-    <section className="space-y-3 border-t border-border pt-3" aria-labelledby={`hints-${variantIndex}-${taskIndex}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h4 id={`hints-${variantIndex}-${taskIndex}`} className="text-sm font-semibold text-foreground">
-            {t("exercises.hints.title")}
-          </h4>
-          <span className="text-xs text-muted-foreground">{hints.length}/{MAX_HINTS}</span>
-          <GuideLink topic="pidkazky" />
-        </div>
-        {!disabled && (
-          <Button type="button" variant="outline" size="sm" disabled={!canAddHint(hints)}
-            onClick={() => apply((variants) => addHint(variants, taskIndex))}>
-            <Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("exercises.hints.add")}
-          </Button>
-        )}
+    <section className="subtask-hints" aria-labelledby={`hints-${variantIndex}-${taskIndex}`}>
+      <div className="subtask-section-title">
+        <h4 id={`hints-${variantIndex}-${taskIndex}`}>{t("exercises.hints.title")}</h4>
+        <span className="text-xs font-normal text-muted-foreground">{hints.length}/{MAX_HINTS}</span>
+        <FieldHelp text={t("exercises.hints.help")} />
+        <GuideLink topic="pidkazky" />
       </div>
-      <p className="text-xs text-muted-foreground">{t("exercises.hints.help")}</p>
       {listError && <p role="alert" className="text-xs text-destructive">{listError}</p>}
       {hints.length === 0 ? (
         <EmptyState compact message={t("exercises.hints.empty")} />
@@ -99,7 +90,7 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                   <span className="text-sm font-medium leading-5 text-foreground">{title}</span>
                   <div className="order-last flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
                     <ExerciseFieldLabel labelKey="exercises.hints.levelShort" helpLines={levelHelpLines()} required />
-                    <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="h-8 min-w-0 flex-1 sm:w-44 sm:flex-none"
+                    <SelectMenu value={hint.Level} disabled={disabled} ariaLabel={t("exercises.hints.level")} className="min-w-0 flex-1 sm:w-44 sm:flex-none"
                       aria-invalid={Boolean(hintErrors?.Level)} aria-describedby={hintErrors?.Level ? `${base}-${hintIndex}-level-error` : undefined}
                       options={levelOptions()}
                       onChange={(level) => apply((variants) => setHintLevel(variants, taskIndex, hintIndex, level as HintLevel))} />
@@ -108,13 +99,13 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
                   {!disabled && (
                     <span className="ml-auto flex items-center gap-1 sm:ml-0">
                       <HoverTooltip text={t("exercises.hints.up")}>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t("exercises.hints.up")}
+                        <Button type="button" variant="ghost" size="icon" aria-label={t("exercises.hints.up")}
                           disabled={hintIndex === 0} onClick={() => apply((variants) => moveHint(variants, taskIndex, hintIndex, hintIndex - 1))}>
                           <ArrowUp aria-hidden="true" className="h-4 w-4" />
                         </Button>
                       </HoverTooltip>
                       <HoverTooltip text={t("exercises.hints.down")}>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t("exercises.hints.down")}
+                        <Button type="button" variant="ghost" size="icon" aria-label={t("exercises.hints.down")}
                           disabled={hintIndex === hints.length - 1} onClick={() => apply((variants) => moveHint(variants, taskIndex, hintIndex, hintIndex + 1))}>
                           <ArrowDown aria-hidden="true" className="h-4 w-4" />
                         </Button>
@@ -132,6 +123,12 @@ export function HintsEditor({ variantIndex, taskIndex, disabled }: { variantInde
             )
           })}
         </ol>
+      )}
+      {!disabled && (
+        <Button type="button" variant="outline" size="sm" className="self-start" disabled={!canAddHint(hints)}
+          onClick={() => apply((variants) => addHint(variants, taskIndex))}>
+          <Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("exercises.hints.add")}
+        </Button>
       )}
     </section>
   )

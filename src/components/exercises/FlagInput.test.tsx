@@ -9,6 +9,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | num
 vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
 
 import { FlagInput } from './FlagInput'
+import { FlagHelp } from './FlagHelp'
 
 describe('FlagInput', () => {
   const onChange = vi.fn()
@@ -165,17 +166,16 @@ describe('FlagInput', () => {
   it('shows an explicit fixed/template switch without the storage marker in the input', () => {
     render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" />)
     expect(screen.getByDisplayValue(String.raw`ICE{\d}`)).toBeInTheDocument()
-    const type = screen.getByRole('button', { name: 'admin.exTask.flag.modeN 1' })
-    expect(type).toHaveTextContent('admin.exTask.flag.modeTemplate')
-    fireEvent.keyDown(type, { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'admin.exTask.flag.modeFixed' }))
+    const type = screen.getByRole('radiogroup', { name: 'admin.exTask.flag.modeN 1' })
+    expect(within(type).getByRole('radio', { name: 'admin.exTask.flag.modeTemplate' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(within(type).getByRole('radio', { name: 'admin.exTask.flag.modeFixed' }))
     expect(onChange).toHaveBeenCalledWith([String.raw`ICE{\d}`])
   })
 
   it('does not offer templates or multiple candidates for a static task', () => {
     render(<FlagInput value={['ICE{fixed}']} onChange={onChange} linkedDeviceID="" />)
-    expect(screen.queryByRole('button', { name: 'admin.exTask.flag.modeN 1' })).not.toBeInTheDocument()
-    expect(screen.getByText('admin.exTask.flag.modeFixed')).toHaveClass('bg-primary', 'text-primary-foreground')
+    expect(screen.queryByRole('radiogroup', { name: 'admin.exTask.flag.modeN 1' })).not.toBeInTheDocument()
+    expect(screen.getByText('admin.exTask.flag.modeFixed')).toHaveClass('on')
     expect(screen.getByText('admin.exTask.flag.staticTypeHelp')).toBeInTheDocument()
     expect(screen.queryByText('admin.exTask.flag.add')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exTask.flag.insert' })).not.toBeInTheDocument()
@@ -203,8 +203,9 @@ describe('FlagInput', () => {
     expect(rows[1]).toHaveTextContent('2.')
     expect(rows[0]).not.toHaveClass('border')
     expect(rows[0].parentElement).not.toHaveClass('divide-y')
-    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.modeN 1' }).compareDocumentPosition(rows[0].querySelector('input')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.modeN 1' })).toHaveClass('text-sm', 'bg-primary', 'text-primary-foreground', 'exercise-flag-mode')
+    // The fixed/template switch sits inside the field, before the value.
+    expect(within(rows[0]).getByRole('radiogroup', { name: 'admin.exTask.flag.modeN 1' }).compareDocumentPosition(rows[0].querySelector('input')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(rows[0]).getByTestId('flag-candidate-control')).toContainElement(within(rows[0]).getByRole('radiogroup', { name: 'admin.exTask.flag.modeN 1' }))
     expect(within(rows[0]).getByTestId('flag-candidate-control')).toHaveClass('border')
     expect(rows[0].querySelector('input')).toHaveClass('border-0')
     expect(rows[0].querySelector('input')).toHaveClass('text-sm', 'placeholder:text-sm')
@@ -258,7 +259,6 @@ describe('FlagInput', () => {
     expect(main).toHaveClass('flex', 'flex-wrap', 'items-start')
     expect(screen.getByTestId('flag-candidate-meta')).toHaveClass('flex-[1_1_16rem]', 'flex', 'min-h-10', 'flex-col', 'justify-center')
     expect(main.querySelector('p[role="status"]')).toBeNull()
-    expect(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' })).toBeInTheDocument()
   })
 
   it('keeps only the example on the right and combines errors with weak-template feedback below the input', () => {
@@ -283,9 +283,9 @@ describe('FlagInput', () => {
   })
 
   it('keeps syntax guidance in the flag help, not repeated under each template', () => {
-    const { rerender } = render(<FlagInput value={['ICE{fixed}']} onChange={onChange} linkedDeviceID="vm-1" />)
+    const { rerender } = render(<><FlagHelp /><FlagInput value={['ICE{fixed}']} onChange={onChange} linkedDeviceID="vm-1" /></>)
     expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
-    rerender(<FlagInput value={[String.raw`template:ICE{\d[abc1-3]\l\u}`]} onChange={onChange} linkedDeviceID="vm-1" />)
+    rerender(<><FlagHelp /><FlagInput value={[String.raw`template:ICE{\d[abc1-3]\l\u}`]} onChange={onChange} linkedDeviceID="vm-1" /></>)
     expect(screen.queryByText('admin.exTask.flag.templateRules')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
     const help = screen.getByRole('dialog')
@@ -296,7 +296,7 @@ describe('FlagInput', () => {
   })
 
   it('groups the flag help into scannable rules and keeps syntax examples distinct', () => {
-    render(<FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" />)
+    render(<><FlagHelp /><FlagInput value={[String.raw`template:ICE{\d}`]} onChange={onChange} linkedDeviceID="vm-1" /></>)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTask.flag.helpTitle' }))
 
     const tooltip = screen.getByRole('dialog')

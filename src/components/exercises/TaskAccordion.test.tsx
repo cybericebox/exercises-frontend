@@ -144,16 +144,16 @@ describe('TaskAccordion', () => {
     render(<Harness tasks={[linked]} />)
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable')).toBeInTheDocument()
     const fields = screen.getByTestId('flag-delivery-fields')
-    expect(fields).toHaveClass('items-start')
+    expect(fields).toHaveClass('subtask-flag-delivery')
     expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable').closest('[data-testid="flag-device-field"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { description: 'admin.exPh.missing' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /admin.exTask.deviceFlagVar/ })).toBeInTheDocument()
     expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
   })
 
-  it('identifies a linked container by both name and full ID', () => {
+  it('names a linked container by its name', () => {
     render(<NamedDeviceHarness />)
-    expect(screen.getByRole('button', { description: 'web-01 (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: 'web-01' })).toBeInTheDocument()
   })
 
   it('does not invent a generation policy while unavailable and allows retry', async () => {
@@ -194,7 +194,8 @@ describe('TaskAccordion', () => {
   it('marks required task fields and exposes explanations', () => {
     render(<Harness tasks={[task('first')]} />)
     expect(screen.getByText('admin.exTask.name').closest('label')).toHaveTextContent('*')
-    expect(helpButton('admin.exTask.nameHelp')).toBeInTheDocument()
+    // «?» only where the field needs explaining: the name does not.
+    expect(screen.getByText('admin.exTask.name').closest('div')!.querySelector('button')).toBeNull()
     expect(screen.getByText('admin.exTask.difficulty').closest('label')).toHaveTextContent('*')
     expect(helpButton('admin.exTask.difficultyHelp')).toBeInTheDocument()
     expect(screen.getByText('admin.exTask.description').parentElement).toHaveTextContent('*')
