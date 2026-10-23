@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
-import { Plus } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronDown, Ellipsis, Plus, Trash2 } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useMediaQuery } from "@/components/shell/useMediaQuery"
+import { pluralKey } from "@/lib/presetLabels"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { emptyTask, type DraftFormValues } from "@/lib/exerciseSchemas"
@@ -25,10 +28,12 @@ export function TaskAccordion({
 }) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Tasks` as const
-  const { fields, append, remove } = useFieldArray({ control, name })
+  const { fields, append, remove, move } = useFieldArray({ control, name })
   const [selected, setSelected] = useEditorPosition("task")
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const rows = useWatch({ control, name }) ?? []
+  // A phone shows the subtasks as one select («1 · Розвідка · 3 підзавдання ⌄») instead of the list beside the form.
+  const phone = useMediaQuery("(max-width: 639px)", false)
 
   /**
    * The other variants, linked ones first. A base update fires the live mirror at once
@@ -50,6 +55,18 @@ export function TaskAccordion({
     setSelected(fields.length)
   }
 
+  /** Moves a subtask in every variant: the order is one for all of them. */
+  function moveSharedTask(from: number, to: number) {
+    if (to < 0 || to >= fields.length) return
+    const reorder = <T,>(list: T[]) => { const next = [...list]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next }
+    otherVariantsLinkedFirst().forEach((index) => {
+      const otherName = `Variants.${index}.Tasks` as const
+      setValue(otherName, reorder(getValues(otherName)), { shouldDirty: true })
+    })
+    move(from, to)
+    setSelected(to)
+  }
+
   function removeSharedTask(taskIndex: number) {
     otherVariantsLinkedFirst().forEach((index) => {
       const otherName = `Variants.${index}.Tasks` as const
@@ -61,36 +78,66 @@ export function TaskAccordion({
 
   const activeIndex = Math.min(selected, Math.max(fields.length - 1, 0))
 
+  const editable = !disabled && !linked
+  const menu = editable ? <DropdownMenu>
+    <HoverTooltip text={t("admin.exTask.actions")}>
+      <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" aria-label={t("admin.exTask.actions")}><Ellipsis aria-hidden="true" className="h-4 w-4" /></Button></DropdownMenuTrigger>
+    </HoverTooltip>
+    <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuItem className="gap-2" disabled={activeIndex === 0} onSelect={() => moveSharedTask(activeIndex, activeIndex - 1)}><ArrowUp aria-hidden="true" className="h-4 w-4" />{t("admin.exTask.moveUp")}</DropdownMenuItem>
+      <DropdownMenuItem className="gap-2" disabled={activeIndex >= fields.length - 1} onSelect={() => moveSharedTask(activeIndex, activeIndex + 1)}><ArrowDown aria-hidden="true" className="h-4 w-4" />{t("admin.exTask.moveDown")}</DropdownMenuItem>
+      {fields.length > 1 && <>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setPendingRemoval(activeIndex)}><Trash2 aria-hidden="true" className="h-4 w-4" />{t("admin.exTask.remove")}</DropdownMenuItem>
+      </>}
+      <p className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">{t("admin.exTask.actionsHint")}</p>
+    </DropdownMenuContent>
+  </DropdownMenu> : null
+
   return (
-    <section>
-      <div className="exercise-settings-layout min-w-0 gap-4">
-        <nav aria-label={t("admin.exDraft.tasks.title")} className="min-w-0 space-y-1 rounded-md border border-border p-2">
-          <div className="mb-2 flex items-center justify-between border-b border-border px-2 pb-2">
-            <h3 className="text-sm font-semibold text-foreground">{t("admin.exDraft.tasks.title")}</h3>
-            {!disabled && !linked && <HoverTooltip text={t("admin.exTask.add")}>
-              <Button type="button" variant="ghost" size="icon" aria-label={t("admin.exTask.add")}
-                className="h-7 w-7" onClick={addSharedTask}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </HoverTooltip>}
-          </div>
+    <section className="subtasks">
+      {phone ? <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="subtasks-picker" aria-label={t("admin.exTask.pick", { n: activeIndex + 1, name: rows[activeIndex]?.Name || t("admin.exTask.numbered", { n: activeIndex + 1 }) })}>
+            <span className="min-w-0 flex-1 truncate">{t("admin.exDraft.subtaskColumn", { n: activeIndex + 1, name: rows[activeIndex]?.Name || t("admin.exTask.numbered", { n: activeIndex + 1 }) })}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{t(pluralKey("admin.exTask.count", fields.length), { count: fields.length })}</span>
+            <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[60dvh] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+          <DropdownMenuRadioGroup value={String(activeIndex)} onValueChange={(value) => setSelected(Number(value))}>
+            {fields.map((field, ti) => <DropdownMenuRadioItem key={field.id} value={String(ti)}>{t("admin.exDraft.subtaskColumn", { n: ti + 1, name: rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 }) })}</DropdownMenuRadioItem>)}
+          </DropdownMenuRadioGroup>
+          {editable && <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" onSelect={addSharedTask}><Plus aria-hidden="true" className="h-4 w-4" />{t("admin.exTask.add")}</DropdownMenuItem>
+          </>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      : <nav aria-label={t("admin.exDraft.tasks.title")} className="subtasks-rail">
+        <div className="subtasks-rail-head">
+          <h3>{t("admin.exDraft.tasks.title")}</h3>
+          {editable && <HoverTooltip text={t("admin.exTask.add")}>
+            <Button type="button" variant="ghost" size="icon" aria-label={t("admin.exTask.add")} onClick={addSharedTask}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </HoverTooltip>}
+        </div>
+        <ol>
           {fields.map((field, ti) => (
-            <div key={field.id} className={`group flex min-w-0 items-center gap-1 rounded-md ${activeIndex === ti ? "bg-accent" : "hover:bg-muted"}`}>
-              <button type="button" aria-current={activeIndex === ti ? "page" : undefined}
-                onClick={() => setSelected(ti)}
-                className={`min-w-0 flex-1 truncate rounded-md px-3 py-2 text-left text-sm ${activeIndex === ti ? "font-medium text-accent-foreground" : "text-muted-foreground"}`}>
-                {rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 })}
+            <li key={field.id} className="subtasks-item">
+              <button type="button" aria-current={activeIndex === ti ? "page" : undefined} onClick={() => setSelected(ti)}>
+                <span className="subtasks-num" aria-hidden="true">{ti + 1}</span>
+                <span className="min-w-0 flex-1 truncate">{rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 })}</span>
               </button>
-              {!disabled && !linked && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")}
-                className="mr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
-                onClick={() => setPendingRemoval(ti)} />}
-            </div>
+              {editable && fields.length > 1 && <RemoveAction ariaLabel={t("admin.exTask.remove")} className="subtasks-remove" onClick={() => setPendingRemoval(ti)} />}
+            </li>
           ))}
-        </nav>
-        {fields[activeIndex] && <div key={fields[activeIndex].id} className="min-w-0 rounded-md border border-border p-4 lg:min-h-[calc(100dvh-16rem)]">
-          <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} linked={linked} />
-        </div>}
-      </div>
+        </ol>
+      </nav>}
+      {fields[activeIndex] && <div key={fields[activeIndex].id} className="subtasks-pane">
+        <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} linked={linked} menu={menu} />
+      </div>}
       <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger"
         title={t("admin.exTask.removeTitle")} description={t("admin.exTask.removeDescription")}
         cancelLabel={t("admin.exTask.removeCancel")} confirmLabel={t("admin.exTask.removeConfirm")}

@@ -2,9 +2,9 @@
 
 import { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { useFieldArray, useFormContext } from "react-hook-form"
-import { Paperclip } from "lucide-react"
+import { Paperclip, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
-import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { uploadExerciseAttachment } from "@/api/exercises/files"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
@@ -65,49 +65,19 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
     if (file) await upload(file)
   }
 
+  const pick = () => fileRef.current?.click()
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">{t("admin.exFiles.title")}</span>
-        {!disabled && (
-          <>
-            <input
-              ref={fileRef}
-              data-testid="attachment-file-input"
-              type="file"
-              className="hidden"
-              onChange={onPicked}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label={t(uploading ? "admin.exFiles.uploadingProgress" : "admin.exFiles.upload", { percent: progress ?? 0 })}
-              busy={uploading} busyLabel={t("admin.exFiles.uploadingProgress", { percent: progress ?? 0 })}
-              onClick={() => fileRef.current?.click()}
-            >
-              <Paperclip className="mr-1 h-4 w-4" />
-              {t("admin.exFiles.add")}
-            </Button>
-          </>
-        )}
+    <div className="subtask-files">
+      <div className="subtask-section-title">
+        <Paperclip aria-hidden="true" className="h-4 w-4" />
+        <span>{t("admin.exFiles.title")}</span>
+        {!disabled && <input ref={fileRef} data-testid="attachment-file-input" type="file" className="hidden" onChange={onPicked} />}
       </div>
 
-      {uploading && (
-        <div className="space-y-1.5" aria-live="polite">
-          <div className="flex justify-between gap-2 text-xs text-muted-foreground"><span>{t("admin.exFiles.uploading")}</span><span>{progress ?? 0}%</span></div>
-          <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0} className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress ?? 0}%` }} /></div>
-        </div>
-      )}
-      {error && <div className="flex items-center gap-2 text-sm text-destructive" role="alert">
-        <span>{error}</span>
-        {failedFile && !disabled && <button type="button" className="underline" onClick={() => { void upload(failedFile) }}>{t("admin.exFiles.retry")}</button>}
-      </div>}
-
       {fields.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="flex flex-col gap-1.5">
           {fields.map((field, ai) => (
-            <li key={field.id} className="group flex min-w-0 items-center gap-2 text-sm">
+            <li key={field.id} className="subtask-filebar group">
               <AttachmentDownload file={field} />
               {!disabled && (
                 <RemoveAction ariaLabel={t("admin.exFiles.remove")} onClick={() => remove(ai)}
@@ -117,6 +87,20 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
           ))}
         </ul>
       )}
+      {!disabled && (uploading
+        ? <div className="subtask-drop" aria-live="polite">
+          <span className="inline-flex items-center gap-2"><Spinner size="sm" />{t("admin.exFiles.uploadingProgress", { percent: progress ?? 0 })}</span>
+          <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0} className="h-1.5 w-40 overflow-hidden rounded-sm bg-secondary"><div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${progress ?? 0}%` }} /></div>
+        </div>
+        : <button type="button" className="subtask-drop" aria-label={t("admin.exFiles.upload")} onClick={pick}>
+          <Upload aria-hidden="true" className="h-4 w-4" />
+          <span>{t("admin.exFiles.dropOrPick")}</span>
+        </button>)}
+      {error && <div className="flex items-center gap-2 text-sm text-destructive" role="alert">
+        <span>{error}</span>
+        {failedFile && !disabled && <button type="button" className="underline" onClick={() => { void upload(failedFile) }}>{t("admin.exFiles.retry")}</button>}
+      </div>}
+      {disabled && fields.length === 0 && <p className="text-sm text-muted-foreground">{t("admin.exFiles.none")}</p>}
     </div>
   )
 })

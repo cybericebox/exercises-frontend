@@ -72,6 +72,8 @@ export type ExerciseListItem = ExerciseOwnership & {
   TaskCount: number | null
   /** Their names in order (the count's popover); empty without a variant or from an older API. */
   TaskNames: string[]
+  /** How many variants the working copy (or else the published version) has; null without one or from an older API. */
+  VariantCount: number | null
 }
 
 export type Exercise = ExerciseOwnership & {
@@ -159,7 +161,7 @@ export type ExercisesPageFilter = {
 }
 
 type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs" | "AccessEvents">> & { AccessEventIDs?: string[] | null; AccessEvents?: EventRef[] | null }
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames" | keyof ExerciseOwnership> & RawOwnership & {
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames" | "VariantCount" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
   Status?: ExerciseStatus | null
@@ -168,6 +170,7 @@ type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Statu
   AvgDifficulty?: number | null
   TaskCount?: number | null
   TaskNames?: string[] | null
+  VariantCount?: number | null
 }
 export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
@@ -201,6 +204,7 @@ function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
     AuthorID: raw.AuthorID ?? null, AuthorName: raw.AuthorName ?? "", AvgDifficulty: typeof raw.AvgDifficulty === "number" ? raw.AvgDifficulty : null,
     TaskCount: typeof raw.TaskCount === "number" ? raw.TaskCount : null,
     TaskNames: raw.TaskNames ?? [],
+    VariantCount: typeof raw.VariantCount === "number" ? raw.VariantCount : null,
   }
 }
 
@@ -308,3 +312,16 @@ export async function setExerciseAccess(id: string, input: AccessInput): Promise
 
 /** Defaults for an exercise without W4 ownership data (a plain catalog exercise). */
 export const DEFAULT_OWNERSHIP: ExerciseOwnership = normalizeOwnership({})
+
+/** One column of the user's catalog table (the frontend owns what the keys mean). */
+export type StoredCatalogColumn = { key: string; visible: boolean }
+
+/** GET /api/exercises/preferences/catalog-columns — null until the user arranged the columns once. */
+export async function getCatalogColumns(): Promise<StoredCatalogColumn[] | null> {
+  return (await apiGet<StoredCatalogColumn[] | null>(`${BASE}/preferences/catalog-columns`)) ?? null
+}
+
+/** PUT /api/exercises/preferences/catalog-columns — the whole list in order. */
+export async function saveCatalogColumns(columns: StoredCatalogColumn[]): Promise<void> {
+  await apiPut<StoredCatalogColumn[]>(`${BASE}/preferences/catalog-columns`, columns)
+}

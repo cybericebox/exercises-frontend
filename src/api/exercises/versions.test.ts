@@ -51,6 +51,18 @@ describe('versions API paths', () => {
     expect(result).toEqual([])
   })
 
+  it('normalizes selected authored metadata without inventing missing legacy fields', async () => {
+    mockApiGet.mockResolvedValueOnce({ ...rawVersion, Name: 'Snapshot name', Description: '', Tags: [] })
+    expect(await getVersion(EX_ID, VER_ID)).toMatchObject({ Name: 'Snapshot name', Description: '', Tags: [] })
+    mockApiGet.mockResolvedValueOnce({ ...rawVersion, Tags: null })
+    expect((await getDraft(EX_ID)).Tags).toEqual([])
+    mockApiGet.mockResolvedValueOnce(rawVersion)
+    const legacy = await getDraft(EX_ID)
+    expect(legacy.Name).toBeUndefined()
+    expect(legacy.Description).toBeUndefined()
+    expect(legacy.Tags).toBeUndefined()
+  })
+
   it('getVersion GETs /:id/versions/:versionID', async () => {
     mockApiGet.mockResolvedValueOnce(rawVersion)
     const result = await getVersion(EX_ID, VER_ID)

@@ -7,4 +7,4 @@ export const OWNERSHIP: ExerciseOwnership = {
 }
 
 /** The list-only fields of a catalog row (author, average difficulty), empty. */
-export const LIST_EXTRAS = { AuthorID: null, AuthorName: "", AvgDifficulty: null, TaskCount: null, TaskNames: [] as string[] } satisfies Pick<import("@/api/exercises/catalog").ExerciseListItem, "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames">
+export const LIST_EXTRAS = { AuthorID: null, AuthorName: "", AvgDifficulty: null, TaskCount: null, TaskNames: [] as string[], VariantCount: null } satisfies Pick<import("@/api/exercises/catalog").ExerciseListItem, "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames" | "VariantCount">

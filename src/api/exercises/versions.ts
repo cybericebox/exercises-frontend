@@ -23,6 +23,7 @@ import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
 import { normalizeElevation, type Elevation } from "./elevation"
 import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
+import { normalizeWeight } from "@/lib/variantWeights"
 
 const BASE = "/api/exercises"
 
@@ -38,7 +39,12 @@ export type PlaceholderKind = "vpn.subnet" | "internet.subnet" | "ip" | "externa
 /** Lexical JSON (json.RawMessage on the backend) — opaque object. */
 export type LexicalDoc = Record<string, unknown>
 
-export type AttachmentDTO = { FileID: string; Name: string }
+export type AttachmentDTO = {
+  FileID: string
+  Name: string
+  /** Response-only: sha256 hex of the file content; compares files across variants. Absent from older servers. */
+  ContentHash?: string
+}
 
 export type PlaceholderDTO = {
   Key?: string // stable reference for inline description tokens
@@ -59,6 +65,12 @@ export type EnvVarDTO = {
   Value?: string
   Secret: boolean
   HasValue?: boolean // response-only
+  /**
+   * Response-only, secrets with a stored value: 1, 2, … — equal numbers mean equal values WITHIN ONE response
+   * (copied, linked, kept or imported secrets; a value typed and saved has a group of its own). Meaningless across
+   * responses: never persisted, never compared between reads.
+   */
+  ValueGroup?: number
 }
 
 export type ExternalDTO = { Port: number; Protocol: Protocol }
@@ -145,12 +157,21 @@ export type TaskDTO = {
   Hints?: HintDTO[]
 }
 
+export type ImageOverride = { DeviceID: string; Image: string }
+
 export type VariantDTO = {
   ID?: string
   Index: number // decorative number; identity = ID
   Note?: string
+  /** How often it is issued relative to the others (1..100); absent or 0 means 1. A linked variant keeps its own. */
+  Weight?: number
   /** Base variant id (same version); sent and returned only for a linked variant. */
   LinkedTo?: string
+  /**
+   * A linked variant's own device images (container devices of the base, by id). The request sends the full list
+   * every time; the response keeps the valid ones in device order and its Topology already shows them.
+   */
+  ImageOverrides?: ImageOverride[]
   /** Request-only: the stored variant this new one is a copy of (the server uses it for unsaved variants). */
   CopyOf?: string
   Tasks: TaskDTO[]
@@ -189,7 +210,8 @@ export type NormalizedTask = {
   Hints: NormalizedHint[]
 }
 
-export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; HasValue: boolean }
+/** ValueGroup describes the stored value only: a locally typed Value makes the secret not comparable until it is saved. */
+export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; HasValue: boolean; ValueGroup?: number }
 
 export type NormalizedInterface = {
   Name: string
@@ -233,7 +255,11 @@ export type NormalizedVariant = {
   ID: string
   Index: number
   Note: string
+  /** Issue weight, always ≥ 1 (absent or 0 on the wire = 1). */
+  Weight: number
   LinkedTo: string // "" = not linked
+  /** A linked variant's own device images; absent or [] = none. */
+  ImageOverrides?: ImageOverride[]
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
 }
@@ -256,6 +282,10 @@ export type VersionResources = {
 }
 
 export type Version = {
+  /** Absent only on legacy responses; explicit empty values belong to this snapshot. */
+  Name?: string
+  Description?: string
+  Tags?: string[]
   ID: string
   ExerciseID: string
   Status: VersionStatus
@@ -321,6 +351,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
       Value: ev.Value ?? "",
       Secret: ev.Secret,
       HasValue: ev.HasValue ?? false,
+      ...(ev.Secret && typeof ev.ValueGroup === "number" && ev.ValueGroup > 0 ? { ValueGroup: ev.ValueGroup } : {}),
     })),
     External: raw.External ?? null,
     Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,
@@ -349,14 +380,17 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     ID: raw.ID ?? "",
     Index: raw.Index,
     Note: raw.Note ?? "",
+    Weight: normalizeWeight(raw.Weight),
     LinkedTo: raw.LinkedTo ?? "",
+    ImageOverrides: raw.LinkedTo ? (raw.ImageOverrides ?? []).map(({ DeviceID, Image }) => ({ DeviceID, Image })) : [],
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
   }
 }
 
-type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation"> & {
+type RawVersion = Omit<Version, "Variants" | "Label" | "Resources" | "Elevation" | "Tags"> & {
   Variants: VariantDTO[] | null
+  Tags?: string[] | null
   Label?: string
   Resources?: (Omit<VersionResources, "Outside" | "Variants"> & { Outside: DeviceOutside[] | null; Variants: VersionResources["Variants"] | null }) | null
   Elevation?: Parameters<typeof normalizeElevation>[0] | null
@@ -368,7 +402,9 @@ export function normalizeResources(raw: RawVersion["Resources"]): VersionResourc
 
 function normalizeVersion(raw: RawVersion): Version {
   return {
-    ...raw, Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
+    ...raw,
+    Name: raw.Name, Description: raw.Description, Tags: raw.Tags === undefined ? undefined : [...(raw.Tags ?? [])],
+    Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
     Resources: normalizeResources(raw.Resources), Elevation: raw.Elevation ? normalizeElevation(raw.Elevation) : null,
   }
 }

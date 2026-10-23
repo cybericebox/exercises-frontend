@@ -68,7 +68,7 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
           aria-required={required}
           variant={triggerVariant}
           disabled={disabled}
-          className={cn("h-10 justify-between font-normal", className)}
+          className={cn("h-9 justify-between font-normal pointer-coarse:h-11", className)}
         >
           <span id={valueId} className={cn("truncate", !selected && "text-placeholder", selected?.unavailable && "text-destructive")}>{selected ? (selected.triggerContent ?? selected.label) : (placeholder ?? "")}</span>
           <ChevronDown className={cn(compactChevron ? "ml-1" : "ml-2", "h-4 w-4 shrink-0 opacity-60")} />

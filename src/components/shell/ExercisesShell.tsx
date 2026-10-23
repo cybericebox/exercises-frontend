@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { TopBar } from "./TopBar"
 import { Sidebar } from "./Sidebar"
@@ -8,6 +8,7 @@ import { useMediaQuery } from "./useMediaQuery"
 import { SiteBanners } from "./SiteBanners"
 import { ReturnContextProvider } from "./ReturnContext"
 import { useRole } from "@/lib/useRole"
+import { setImportActor } from "@/lib/importJobs"
 import { t } from "@/i18n/t"
 import { ErrorPage } from "@/components/ErrorPage"
 import { PageLoader } from "@/components/ui/spinner"
@@ -17,7 +18,8 @@ import { hasCatalogAccess } from "@/lib/exerciseRights"
 import { AccessProvider, useExerciseAccess } from "./AccessContext"
 
 export function ExercisesShell({ children }: { children: React.ReactNode }) {
-  const { role, isLoading, error, retry } = useRole()
+  const { role, me, isLoading, error, retry } = useRole()
+  useLayoutEffect(() => { setImportActor(isLoading ? null : me?.ID ?? null) }, [isLoading, me?.ID])
 
   if (isLoading) {
     return <PageLoader label={t("admin.loading")} />
@@ -81,7 +83,7 @@ function CatalogLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
         <SiteBanners />
         <TopBar onMenuClick={() => setMenuOpen(true)} menuButtonRef={menuButton} />
-        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-background p-4 md:p-6">{children}</main>
+        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-[var(--ib-surface)] p-3 md:p-4">{children}</main>
       </div>
     </div>
   </>

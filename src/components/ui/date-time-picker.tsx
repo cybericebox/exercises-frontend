@@ -17,6 +17,12 @@ type Props = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "value" | "onCh
   allowClear?: boolean
   /** The latest moment that can be chosen: later days are disabled and later times are clamped to it. */
   max?: Date
+  /** Display the offset of a retained instant, without changing wall-clock selection semantics. */
+  displayInstant?: string
+  /** Opt-in form-local localization and full, wrapping value with an accessible description. */
+  locale?: string
+  wrapValue?: boolean
+  describeValue?: boolean
 }
 
 type Part = "hour" | "minute"
@@ -33,8 +39,8 @@ function selectedDate(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function dateLabel(date: Date): string {
-  return new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", year: "numeric" }).format(date).replace(/\s*р\.$/, "")
+function dateLabel(date: Date, locale = "uk-UA"): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date).replace(/\s*р\.$/, "")
 }
 
 // Same day in another month, clamped to that month's last day.
@@ -69,7 +75,7 @@ function zoneLabel(at: Date = new Date()): { zone: string; offset: string } {
   return { zone, offset }
 }
 
-export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, max, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {
+export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(function DateTimePicker({ value, onChange, allowClear, max, displayInstant, locale = "uk-UA", wrapValue, describeValue, onBlur, disabled, id, name, "aria-label": ariaLabel, "aria-describedby": describedBy, "aria-invalid": invalid, ...rest }, ref) {
   const chosen = selectedDate(value)
   const [open, setOpen] = React.useState(false)
   const [focused, setFocused] = React.useState<Date>(() => chosen ?? new Date())
@@ -78,7 +84,10 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
   const gridRef = React.useRef<HTMLDivElement>(null)
   const moved = React.useRef(false)
   const calendarId = React.useId()
-  const { zone, offset } = zoneLabel(chosen ?? undefined)
+  const retained = displayInstant ? new Date(displayInstant) : null
+  const { zone, offset } = zoneLabel(retained && Number.isFinite(retained.getTime()) ? retained : chosen ?? undefined)
+  const valueId = `${calendarId}-value`
+  const zoneId = `${calendarId}-zone`
   const time = { hour: chosen?.getHours() ?? 9, minute: chosen?.getMinutes() ?? 0 }
   const shown = drafts ?? { hour: pad(time.hour), minute: pad(time.minute) }
   const offsetDays = (monthStart(month).getDay() + 6) % 7
@@ -158,9 +167,9 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
   }
 
   return <Popover.Root open={open} onOpenChange={openChange}>
-    <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="dialog" data-invalid={invalid} aria-invalid={invalid} disabled={disabled} onBlur={onBlur} className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50">
-      <span className={`min-w-0 flex-1 truncate tabular-nums ${chosen ? "" : "text-placeholder"}`}>{chosen ? t("ui.dateTime.value", { date: dateLabel(chosen), time: `${pad(time.hour)}:${pad(time.minute)}` }) : t("ui.dateTime.placeholder")}</span>
-      {chosen && <HoverTooltip text={zone} className="shrink-0"><span className="text-xs tabular-nums text-muted-foreground">{offset}</span></HoverTooltip>}
+    <Popover.Trigger {...rest} ref={ref} id={id} name={name} type="button" aria-label={ariaLabel} aria-describedby={[describedBy, describeValue ? `${valueId} ${zoneId}` : ""].filter(Boolean).join(" ") || undefined} aria-haspopup="dialog" data-invalid={invalid} aria-invalid={invalid} disabled={disabled} onBlur={onBlur} className={`${wrapValue ? "booking-form-date " : ""}flex h-10 w-full items-center gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50`}>
+      <span id={valueId} className={`min-w-0 flex-1 ${wrapValue ? "" : "truncate"} tabular-nums ${chosen ? "" : "text-placeholder"}`}>{chosen ? t("ui.dateTime.value", { date: dateLabel(chosen, locale), time: `${pad(time.hour)}:${pad(time.minute)}` }) : t("ui.dateTime.placeholder")}</span>
+      {chosen && <HoverTooltip text={zone} className="shrink-0"><span id={zoneId} className="text-xs tabular-nums text-muted-foreground">{offset}{describeValue && <span className="sr-only"> {zone}</span>}</span></HoverTooltip>}
       <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
     </Popover.Trigger>
     <Popover.Portal>
@@ -168,14 +177,14 @@ export const DateTimePicker = React.forwardRef<HTMLButtonElement, Props>(functio
         onOpenAutoFocus={(event) => { event.preventDefault(); gridRef.current?.querySelector<HTMLButtonElement>("[tabindex='0']")?.focus() }}>
         <div className="flex items-center justify-between gap-2">
           <button type="button" aria-label={t("ui.dateTime.prevMonth")} onClick={() => changeMonth(-1)} className="rounded-md p-2 hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button>
-          <strong id={`${calendarId}-month`} aria-live="polite" className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat("uk-UA", { month: "long", year: "numeric" }).format(month)}</strong>
+          <strong id={`${calendarId}-month`} aria-live="polite" className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(month)}</strong>
           <button type="button" aria-label={t("ui.dateTime.nextMonth")} onClick={() => changeMonth(1)} disabled={afterMax(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-md p-2 hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight aria-hidden="true" className="h-4 w-4" /></button>
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">{WEEKDAY_KEYS.map((key) => <span key={key} className="py-1">{t(key)}</span>)}</div>
         <div ref={gridRef} role="group" aria-labelledby={`${calendarId}-month`} className="grid grid-cols-7 gap-0.5">{days.map((day) => {
           const key = datePart(day)
           const isSelected = !!chosen && key === datePart(chosen)
-          return <button key={key} data-day={key} type="button" tabIndex={key === datePart(focused) ? 0 : -1} aria-label={dateLabel(day)} aria-pressed={isSelected} aria-current={key === today ? "date" : undefined}
+          return <button key={key} data-day={key} type="button" tabIndex={key === datePart(focused) ? 0 : -1} aria-label={dateLabel(day, locale)} aria-pressed={isSelected} aria-current={key === today ? "date" : undefined}
             disabled={afterMax(day)} onClick={() => pick(day)} onKeyDown={(event) => dayKey(event, day)}
             className={`h-8 rounded-md text-xs tabular-nums focus-visible:outline-2 focus-visible:outline-primary ${key === today ? "font-semibold underline underline-offset-[3px]" : ""} ${isSelected ? "bg-primary text-primary-foreground" : day.getMonth() === month.getMonth() ? "text-foreground hover:bg-accent" : "text-muted-foreground hover:bg-accent"} disabled:opacity-30 disabled:hover:bg-transparent`}>{day.getDate()}</button>
         })}</div>

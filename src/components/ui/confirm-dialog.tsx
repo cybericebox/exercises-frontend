@@ -11,7 +11,7 @@ import { t } from "@/i18n/t"
 // solid danger button. Focus starts on «Скасувати»; Esc and the backdrop
 // cancel unless the action is running. Errors stay inside the dialog. While busy the action
 // shows the crest and busyLabel («Видаляємо…»), so the operation is named.
-export function ConfirmDialog({ open, onCancel, title, description, confirmLabel, busyLabel, cancelLabel, tone = "default", busy = false, disabled = false, error, onConfirm, onCloseAutoFocus, children }: {
+export function ConfirmDialog({ open, onCancel, title, description, confirmLabel, busyLabel, cancelLabel, tone = "default", busy = false, disabled = false, error, onConfirm, onCloseAutoFocus, surfaceClassName, bodyClassName, children }: {
   open: boolean
   onCancel: () => void
   title: string
@@ -25,22 +25,46 @@ export function ConfirmDialog({ open, onCancel, title, description, confirmLabel
   error?: React.ReactNode
   onConfirm: () => void
   onCloseAutoFocus?: (event: Event) => void
+  /** Opt-in bounded composition; ordinary confirmations keep their existing layout. */
+  surfaceClassName?: string
+  bodyClassName?: string
   children?: React.ReactNode
 }) {
   const cancelRef = React.useRef<HTMLButtonElement>(null)
   return <Dialog open={open} onOpenChange={(next) => { if (!next && !busy) onCancel() }}>
-    <DialogContent className="max-w-md" onCloseAutoFocus={onCloseAutoFocus} onOpenAutoFocus={(event) => { event.preventDefault(); cancelRef.current?.focus() }}
+    <DialogContent className={surfaceClassName ?? "max-w-md"} onCloseAutoFocus={onCloseAutoFocus} onOpenAutoFocus={(event) => { event.preventDefault(); cancelRef.current?.focus() }}
       {...(description ? {} : { "aria-describedby": undefined })}>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         {description && <DialogDescription>{description}</DialogDescription>}
       </DialogHeader>
-      {children}
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {bodyClassName ? <ConfirmBody className={bodyClassName} error={error}>{children}</ConfirmBody> : <>{children}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</>}
       <DialogFooter>
         <Button ref={cancelRef} type="button" variant="outline" disabled={busy} onClick={onCancel}>{cancelLabel ?? t("confirm.cancel")}</Button>
         <Button type="button" variant={tone === "danger" ? "destructive" : "default"} busy={busy} busyLabel={busyLabel} disabled={disabled} onClick={onConfirm}>{confirmLabel}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
+}
+
+function ConfirmBody({ className, error, children }: { className: string; error?: React.ReactNode; children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const body = ref.current
+    if (!body) return
+    const update = () => body.nextElementSibling?.toggleAttribute("data-overflow", body.scrollHeight > body.clientHeight + 1)
+    if (typeof ResizeObserver === "undefined") { update(); return }
+    const observer = new ResizeObserver(update)
+    observer.observe(body)
+    if (body.firstElementChild) observer.observe(body.firstElementChild)
+    update()
+    return () => observer.disconnect()
+  }, [])
+  React.useEffect(() => {
+    const body = ref.current
+    if (!body) return
+    body.nextElementSibling?.toggleAttribute("data-overflow", body.scrollHeight > body.clientHeight + 1)
+    if (error) body.scrollTop = 0
+  }, [children, error])
+  return <div ref={ref} className={className}>{error && <p role="alert" className="booking-form-request-error">{error}</p>}{children}</div>
 }

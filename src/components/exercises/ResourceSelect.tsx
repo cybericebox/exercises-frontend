@@ -43,5 +43,5 @@ export function ResourceSelect({ value, onChange, config, disabled, ariaLabel }:
 }) {
   return <SelectMenu value={value} onChange={onChange} disabled={disabled} ariaLabel={ariaLabel}
     options={config.Presets.map((preset) => option(preset, config))}
-    menuHeader={unitHelp(config)} className="h-10 w-full" menuClassName="w-[22rem] max-w-[90vw]" />
+    menuHeader={unitHelp(config)} className="w-full" menuClassName="w-[22rem] max-w-[90vw]" />
 }

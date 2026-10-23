@@ -25,13 +25,17 @@ describe("catalog resource-heavy badge", () => {
 })
 
 describe("compact cells", () => {
-  it("puts the date over the time so «Оновлено» stays narrow", () => {
-    const { container } = render(<UpdatedCell iso="2026-10-18T14:20:00Z" />)
-    const time = container.querySelector("time")!
-    expect(time).toHaveAttribute("dateTime", "2026-10-18T14:20:00Z")
-    expect(time.children).toHaveLength(2)
-    expect(time.children[0].textContent).toMatch(/18\.10\.2026/)
-    expect(time.children[1].textContent).toMatch(/^\d{2}:\d{2}$/)
+  it("shows the update day in one short line and the full date and time for screen readers", () => {
+    const now = new Date(2026, 9, 22, 12, 0)
+    const at = (y: number, m: number, d: number) => new Date(y, m, d, 9, 5).toISOString()
+    const text = (iso: string) => render(<UpdatedCell iso={iso} now={now} />).container.querySelector("time")!
+    expect(text(at(2026, 9, 22)).firstChild?.textContent).toBe("exercises.date.today")
+    expect(text(at(2026, 9, 21)).firstChild?.textContent).toBe("exercises.date.yesterday")
+    const older = text(at(2026, 9, 3))
+    expect(older).toHaveAttribute("dateTime", at(2026, 9, 3))
+    expect(older.firstChild?.textContent).toMatch(/^3 жовт/)
+    expect(older.textContent).toMatch(/03\.10\.2026, 09:05/)
+    expect(text(at(2025, 0, 2)).firstChild?.textContent).toMatch(/2025/)
   })
 
   it("opens the subtask names in a column from the count, by click or keyboard", async () => {

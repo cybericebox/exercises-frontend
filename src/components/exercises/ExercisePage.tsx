@@ -1,17 +1,22 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import Link from "next/link"
+import { useWatch } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import type { Exercise } from "@/api/exercises/catalog"
 import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
-import { listVersions, type DeviceOutside, type Version } from "@/api/exercises/versions"
+import { getVersion, type DeviceOutside, type Version } from "@/api/exercises/versions"
 import { ErrorPage } from "@/components/ErrorPage"
+import { Button } from "@/components/ui/button"
+import { useImportJob } from "@/lib/importJobs"
+import { importStageText } from "@/lib/importStage"
+import { Spinner } from "@/components/ui/spinner"
+import { ImportDialog } from "./ImportDialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
-import { DraftVariants } from "@/components/exercises/DraftFields"
+import { EditorWorkspace } from "@/components/exercises/EditorWorkspace"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
 import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
@@ -19,8 +24,8 @@ import { EditorPositionProvider, useEditorValidationFocus } from "@/components/e
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
-import { TopologyResourcesPanel } from "@/components/exercises/TopologyResourcesPanel"
-import { ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
+import { TopologyResourcesButton } from "@/components/exercises/TopologyResourcesPanel"
+import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
 import type { ResourcesConfig } from "@/api/exercises/capabilities"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
@@ -28,57 +33,35 @@ import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
 import { useExerciseActions } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
-import { Card, CardContent } from "@/components/ui/card"
+import { ExerciseGeneralMetadata } from "./ExerciseGeneralMetadata"
+import "@/styles/exercise-general.css"
 import { Form } from "@/components/ui/form"
 import { LoadingArea } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
 import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoutes"
-import { canPublishExercise, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
+import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
+import { headerStatus } from "@/lib/catalogList"
 import { useReturnContext } from "@/components/shell/ReturnContext"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { AccessDialog } from "./AccessDialog"
 import { EventReturnCallout, InfrastructureBlockedNote, ReadOnlyBanner } from "./EventBanners"
-import { InfrastructureIcon, OwnershipBadges } from "./OwnershipBadges"
-import { AccessCell, ResourceHeavyBadge, StatusBadges } from "./catalog/CatalogCells"
-import { headerStatus } from "@/lib/catalogList"
 import { ProposeDialog } from "./ProposeDialog"
 import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose"
+type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import"
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
   if (isLoading) return <LoadingArea className="h-full" label={t("admin.loading")} />
   return <ExerciseScreen {...props} />
-}
-
-function ExerciseMeta({ exercise, version, isVersion, publishedAt }: {
-  exercise: Exercise | null
-  version: Version | null
-  isVersion: boolean
-  publishedAt: string | null
-}) {
-  let text: string | null
-  if (!exercise) {
-    text = null
-  } else if (isVersion && version) {
-    const author = version.AuthorName
-    text = [t(`admin.exHistory.kind.${version.Status}`), formatExerciseDateTime(version.PublishedAt ?? version.CreatedAt), author]
-      .filter(Boolean).join(" · ")
-  } else {
-    // Publication info only; Exercise.UpdatedAt does not track working-copy edits.
-    text = publishedAt ? t("admin.exPage.meta.published", { date: formatExerciseDate(publishedAt) }) : null
-  }
-  return text ? <span className="text-xs text-muted-foreground">{text}</span> : null
 }
 
 function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
@@ -112,7 +95,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [devicePersistence, setDevicePersistence] = useState(false)
   const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
-  const [published, setPublished] = useState<{ versionId: string; at: string | null } | null>(null)
+  const [capabilitiesDone, setCapabilitiesDone] = useState(false)
+  const [publishedVersions, setPublishedVersions] = useState<Partial<Record<string, Version>>>({})
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
   const { formRef, focusField } = useEditorValidationFocus()
@@ -138,6 +122,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     },
     onPendingRestored: () => setMode("edit"),
   })
+  const selectedName = useWatch({ control: editor.identityForm.control, name: "Name" })
   const exercise = editor.exercise
   // Rights follow the loaded card (server Permissions); synced from the editor state.
   if (exercise !== loadedExercise) setLoadedExercise(exercise)
@@ -146,7 +131,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const infraAllowed = infrastructureAllowed(access, ownerEventId)
   const publishedIdRef = useRef<string | null | undefined>(undefined)
   const archived = Boolean(exercise?.ArchivedAt)
-  const editing = !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
+  const editing = !editor.replacementActive && !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
+  const replacementJob = useImportJob(editor.replacementRecovery?.jobID ?? null)
+  const [replacementError, setReplacementError] = useState<string | null>(null)
+  const reconciling = useRef(false)
+  useEffect(() => {
+    if (!editor.replacementRecovery || editor.loadState !== "ready" || dialog === "import" || reconciling.current || replacementError) return
+    if (replacementJob?.state === "failed") { editor.cancelImportReplacement(); return }
+    if (replacementJob?.state !== "done" && editor.replacementRecovery.state !== "done") return
+    reconciling.current = true
+    void editor.reconcileImportReplacement().catch(() => setReplacementError(t("admin.exImport.update.reconcileError"))).finally(() => { reconciling.current = false })
+  }, [replacementJob, editor, dialog, replacementError])
   const saveStatus = editor.autosave.status
   // A new task without a name is not on the server: only this browser holds it.
   const leave = useExerciseLeaveGuard(
@@ -185,8 +180,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null) } })
-      .catch(() => { if (!cancelled) setLaboratories(false) })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setCapabilitiesDone(true) } })
+      .catch(() => { if (!cancelled) { setLaboratories(false); setCapabilitiesDone(true) } })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
 
@@ -199,19 +194,29 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to a server-side publish
     if (previous !== undefined && publishedVersionId && previous !== publishedVersionId) setJustDone("published")
   }, [currentId, publishedVersionId])
+  const publishedKey = currentId && publishedVersionId ? JSON.stringify([currentId, publishedVersionId]) : null
+  // A card's properties are actor-visible (often draft-derived). Only the actual
+  // publication may supply these facts. Reuse an already loaded matching snapshot.
+  const loadedPublication = !isVersion && editor.version && editor.version.ExerciseID === currentId && editor.version.ID === publishedVersionId ? editor.version : null
+  const cachedPublication = publishedKey ? publishedVersions[publishedKey] : undefined
+  const publishedVersion = !isVersion ? loadedPublication ?? cachedPublication ?? null : null
   useEffect(() => {
-    // Read-only viewers have no history access (403): the published date comes with the version.
-    if (!currentId || !publishedVersionId || readOnly) return
+    if (!currentId || !publishedVersionId || !publishedKey || isVersion) return
+    const exerciseId = currentId
+    const versionId = publishedVersionId
+    const cacheKey = publishedKey
     let cancelled = false
-    listVersions(currentId)
-      .then((versions) => {
-        if (!cancelled) setPublished({ versionId: publishedVersionId, at: versions.find((v) => v.ID === publishedVersionId)?.PublishedAt ?? null })
-      })
-      .catch(() => undefined)
+    async function loadPublication() {
+      const snapshot = await Promise.resolve(loadedPublication ?? cachedPublication ?? getVersion(exerciseId, versionId))
+      if (cancelled || !snapshot || snapshot.ExerciseID !== exerciseId || snapshot.ID !== versionId) return
+      setPublishedVersions((current) => current[cacheKey] === snapshot ? current : { ...current, [cacheKey]: snapshot })
+    }
+    void loadPublication().catch(() => undefined)
     return () => { cancelled = true }
-  }, [currentId, publishedVersionId, readOnly])
-  const publishedAt = readOnly ? editor.version?.PublishedAt ?? null
-    : published && published.versionId === publishedVersionId ? published.at : null
+  }, [currentId, publishedVersionId, publishedKey, isVersion, loadedPublication, cachedPublication])
+  // History belongs entirely to the selected snapshot. A checkpoint never inherits
+  // the current publication date; pending/failed lookups remain unknown, not unpublished.
+  const publishedAt = isVersion ? editor.version?.PublishedAt ?? null : publishedVersion?.PublishedAt ?? null
 
   useEffect(() => {
     if (!leave.destination) return
@@ -264,34 +269,25 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const canPropose = Boolean(exercise && exercise.Scope === "event" && rights.propose && exercise.PublishedVersionID && !archived && !isVersion)
   const originEventName = exercise?.OriginEventID ? access?.Events.find((event) => event.ID === exercise.OriginEventID)?.Name : undefined
   const version = editor.version
-  // A version shows its date; the current exercise shows the catalog status badges (in meta).
+  // One selected-version context; published-only readers never see working-copy state.
+  const unpublishedWork = Boolean(exercise?.HasChanges || (editing && (saveStatus === "pending" || saveStatus === "saving" || saveStatus === "error")))
   const badge: HeaderBadge | null = isVersion && version
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
-    : null
+    : exercise ? { kind: exerciseBadgeKind({ ...exercise, HasChanges: !readOnly && unpublishedWork }) } : null
 
-  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
-    <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
-      className="flex min-h-full min-w-0 w-full flex-col gap-4">
-      <Link href="/" className="w-fit text-sm text-primary hover:underline">← {t("admin.exDetail.back")}</Link>
+  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><ResourcesConfigLoadingProvider value={permissions.write && !isVersion && !capabilitiesDone}><EditorPositionProvider position={position} onChange={updatePosition}>
+    <div className="exercise-general-screen">
       <ExerciseHeader
         mode={headerMode}
-        title={exercise?.Name ?? t("admin.ex.create.title")}
+        title={exercise ? selectedName : t("admin.ex.create.title")}
         badge={badge}
-        meta={exercise && !isVersion ? <>
-          {/* A reader sees the published version: the state of the working copy is not theirs to know. */}
-          <StatusBadges status={headerStatus(readOnly ? { ...exercise, HasChanges: false } : exercise)} />
-          <ResourceHeavyBadge show={exercise.ResourceHeavy} />
-          <InfrastructureIcon show={exercise.Infrastructure} />
-          <AccessCell item={exercise} eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name || undefined} />
-          <OwnershipBadges exercise={exercise} showAccess={false} showEvent={false} />
-        </> : undefined}
         saveStatus={saveStatus}
         permissions={permissions}
         archived={archived}
-        publishable={exercise ? canPublishExercise(exercise) : false}
+        publishable={exercise ? canPublishExercise({ ...exercise, HasChanges: unpublishedWork }) : false}
         publishBlockedReason={resourceBlocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
-        busy={actions.busy}
+        busy={actions.busy || editor.replacementActive}
         running={actions.running}
         testAvailable={permissions.write}
         getTestVariants={getTestVariants}
@@ -324,6 +320,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onPublish={() => void actions.publish()}
         onSnapshot={() => setDialog("snapshot")}
         onRevert={() => { actions.clearConfirmError(); setDialog("revert") }}
+        onImportUpdate={exercise && permissions.write && !archived && !isVersion && !readOnly && !editor.replacementActive ? () => setDialog("import") : undefined}
         onExport={() => setDialog("export")}
         onArchive={() => { actions.clearConfirmError(); setDialog("archive") }}
         onUnarchive={() => void actions.unarchive()}
@@ -339,10 +336,11 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             ? <span className="text-sm text-muted-foreground">{owners[0].label}</span>
             : <SelectMenu value={owner ?? "__none"} onChange={(value) => { setOwnerTouched(true); setOwner(value === "__none" ? null : value) }} ariaLabel={t("exercises.owner.label")}
                 options={[...(owner === null ? [{ value: "__none", label: t("exercises.owner.pick") }] : []), ...owners.map((option) => ({ value: option.value, label: option.label }))]}
-                className="h-10 min-w-0 w-full sm:min-w-56 sm:w-auto text-sm" />}
+                className="min-w-0 w-full sm:min-w-56 sm:w-auto text-sm" />}
           {owner === null && <span className="text-xs text-muted-foreground">{t("exercises.owner.required")}</span>}
         </div>
       )}
+      {editor.replacementActive && <div className="exercise-import-strip" role="status"><span><Spinner size="sm" />{replacementError ?? (editor.replacementRecovery?.state === "unknown" || editor.replacementRecovery?.jobID && !replacementJob ? t("admin.exImport.update.unknown") : replacementJob?.state === "running" ? importStageText(replacementJob) : t("admin.exImport.update.fenced"))}</span><Button type="button" variant="outline" size="sm" onClick={() => { setReplacementError(null); setDialog("import") }}>{t("admin.exImport.update.reopen")}</Button></div>}
       {readOnly && <ReadOnlyBanner returnUrl={returnUrl} />}
       {returnUrl && justDone && <EventReturnCallout returnUrl={returnUrl} kind={justDone} />}
       {!infraAllowed && !readOnly && <InfrastructureBlockedNote />}
@@ -353,35 +351,26 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onBack={() => void actions.openVersion(null)}
         onRestore={() => { actions.clearConfirmError(); setDialog("restore") }} />}
       {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} unarchiving={actions.running === "unarchive"} onUnarchive={() => void actions.unarchive()} />}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-        <TabsList className="w-fit shrink-0">
-          <TabsTrigger value="general">{t("admin.ex.create.tab.general")}</TabsTrigger>
-          <TabsTrigger value="variants">{t("admin.ex.create.tab.variants")}</TabsTrigger>
-        </TabsList>
-        <ExerciseMeta exercise={exercise} version={version} isVersion={isVersion} publishedAt={publishedAt} />
-      </div>
-      <Card className="flex flex-1 flex-col">
-        <CardContent className="flex flex-1 flex-col pt-5">
-          <Form {...editor.draftForm}>
-            {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
-            <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
-            {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
-            <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`flex flex-1 flex-col gap-5${editing ? "" : " exercise-view"}`}>
-              <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} autoFocusName={!exerciseId} showNotes={showNotes} />
-              </TabsContent>
-              <TabsContent value="variants" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-                {infraAllowed && <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
-                  config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
-                  flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
-                <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes} />
-              </TabsContent>
-            </form>
-            </ImageUploadsProvider>
-          </Form>
-        </CardContent>
-      </Card>
-    </Tabs>
+      <Form {...editor.draftForm}>
+        {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
+        <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
+        {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
+        <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`editor-form${editing ? "" : " exercise-view"}`}>
+          <EditorWorkspace form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes}
+            general={<div className="editor-general">
+              <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} readOnly={!editing && Boolean(exercise)} autoFocusName={!exerciseId} showNotes={showNotes} />
+              {exercise && <ExerciseGeneralMetadata exercise={exercise} publishedVersion={publishedVersion} publishedAt={publishedAt}
+                eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} draftForm={editor.draftForm}
+                status={headerStatus({ ...exercise, HasChanges: !readOnly && unpublishedWork })} resources={editor.version?.Resources ?? null}
+                usageEvents={actions.usageEvents.map((event) => event.Name)} />}
+            </div>}
+            resources={infraAllowed ? <TopologyResourcesButton form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+              config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
+              flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} /> : undefined} />
+        </form>
+        </ImageUploadsProvider>
+      </Form>
+    </div>
 
     {dialog === "history" && exercise && <HistoryDialog exerciseId={exercise.ID} viewingVersionId={versionId}
       onClose={() => setDialog(null)}
@@ -401,6 +390,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     <ConfirmDialog open={dialog === "delete"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")} busyLabel={t("admin.exPage.delete.busy")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (ok) setDialog(null) })} />
+    {dialog === "import" && exercise && <ImportDialog fixedExercise={{ ID: exercise.ID, Name: selectedName }}
+      onClose={() => setDialog(null)} prepareReplacement={editor.prepareImportReplacement} cancelReplacement={editor.cancelImportReplacement}
+      recordDispatch={editor.recordImportDispatch} onReconcile={editor.reconcileImportReplacement} />}
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
     {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}
       onSaved={(updated) => { editor.setExercise(updated) }} />}
@@ -422,5 +414,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
+  </EditorPositionProvider></ResourcesConfigLoadingProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }

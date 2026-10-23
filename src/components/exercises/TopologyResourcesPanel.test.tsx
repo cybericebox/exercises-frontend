@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
-import { act, render } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { useEffect } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/exercises/elevation", () => ({ requestElevation: vi.fn() }))
 
-import { TopologyResourcesPanel, hasAnyDevice } from "./TopologyResourcesPanel"
+import { TopologyResourcesButton, TopologyResourcesPanel, hasAnyDevice } from "./TopologyResourcesPanel"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import type { VersionResources } from "@/api/exercises/versions"
 
@@ -46,5 +46,26 @@ describe("TopologyResourcesPanel", () => {
     expect(container.querySelector("[data-resources-panel]")).toBeInTheDocument()
     act(() => form?.setValue("Variants", values(0).Variants))
     expect(container.querySelector("[data-resources-panel]")).toBeNull()
+  })
+})
+
+describe("TopologyResourcesButton", () => {
+  const outside = { VariantID: "v1", DeviceID: "d0", Name: "web", Blocks: 8, Covered: false, AboveCeiling: false, CPUMillicores: 2000, MemoryBytes: 2 ** 31 }
+  function Button({ devices, value = resources }: { devices: number; value?: VersionResources }) {
+    const form = useForm<DraftFormValues>({ defaultValues: values(devices) })
+    return <TopologyResourcesButton form={form} exerciseId="ex1" resources={value} elevation={null} config={null} canRequest canPublish
+      flush={() => Promise.resolve(true)} onRequested={() => {}} />
+  }
+
+  it("folds the resources into one button that opens the panel, naming the devices waiting for an approval", () => {
+    const { container, unmount } = render(<Button devices={0} />)
+    expect(container).toBeEmptyDOMElement()
+    unmount()
+    render(<Button devices={1} value={{ ...resources, Outside: [outside] }} />)
+    const button = screen.getByRole("button", { name: "exercises.res.buttonPending" })
+    expect(button).toHaveTextContent("exercises.res.pendingCount")
+    expect(document.querySelector("[data-resources-panel]")).toBeNull()
+    fireEvent.click(button)
+    expect(document.querySelector("[data-resources-panel]")).toBeInTheDocument()
   })
 })

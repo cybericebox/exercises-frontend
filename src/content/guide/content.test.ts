@@ -27,3 +27,12 @@ describe("guide content vocabulary", () => {
     expect(hits, `forbidden words in ${slug}`).toEqual([])
   })
 })
+
+describe("archive import guide", () => {
+  it("explains explicit full replacement and keeps publication separate", async () => {
+    const { html } = await GUIDE_LOADERS.arkhiv()
+    expect(html).not.toContain("Імпорт завжди створює нові завдання")
+    expect(html).toContain("повністю замінює робочий вміст")
+    expect(html).toContain("не публікує")
+  })
+})

@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { useState } from "react"
 import {
-  Archive, ArchiveRestore, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, Pencil, Play,
-  RotateCcw, Send, ShieldCheck, Trash2,
+  Archive, ArchiveRestore, ArrowLeft, BookOpen, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, Pencil, Play,
+  RotateCcw, Send, ShieldCheck, Trash2, Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
 import { Spinner } from "@/components/ui/spinner"
@@ -16,6 +17,7 @@ import type { AutosaveStatus } from "@/lib/autosaveQueue"
 import type { ReactNode } from "react"
 import type { ExerciseBadgeKind } from "@/lib/exerciseStatus"
 import { cn } from "@/utils/cn"
+import { guideHref } from "@/content/guide/registry"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 
 export type HeaderMode = "new" | "view" | "edit" | "version" | "readonly"
@@ -67,14 +69,16 @@ export type ExerciseHeaderProps = {
   onPropose?: () => void
   /** A proposal is already under review: the propose action is shown disabled. */
   proposalPending?: boolean
+  /** Render only when a working, separately approved reimport destination exists. */
+  onImportUpdate?: () => void
 }
 
 const BADGE_CLASS: Record<HeaderBadge["kind"], string> = {
-  none: "bg-muted text-muted-foreground",
-  published: "bg-[var(--ib-ok-bg)] text-[var(--ib-ok)]",
-  changes: "bg-[var(--ib-warn-bg)] text-[var(--ib-warn)]",
-  archived: "bg-muted text-muted-foreground",
-  version: "bg-primary/10 text-primary",
+  none: "text-muted-foreground",
+  published: "text-[var(--ib-ok)]",
+  changes: "text-[var(--ib-warn)]",
+  archived: "text-muted-foreground",
+  version: "text-primary",
 }
 
 const ICON = "h-4 w-4"
@@ -85,7 +89,7 @@ function StatusBadge({ badge }: { badge: HeaderBadge }) {
     <span
       data-badge={badge.kind}
       className={cn(
-        "inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium",
+        "general-status inline-flex items-center gap-1.5 text-xs",
         BADGE_CLASS[badge.kind]
       )}
     >
@@ -170,173 +174,113 @@ function TestMenu({
 
 function MoreMenu(props: ExerciseHeaderProps) {
   const { permissions, archived, revertable, usageEvents, busy } = props
+  const [variants, setVariants] = useState<TestVariantOption[]>([])
   const snapshot = permissions.write && !archived
-  // Restores the working copy only (never touches events) — exercises.write.
   const revert = permissions.write && revertable && !archived
-  const exportItem = permissions.export
-  const archiveItem = permissions.write
-  const deleteItem = permissions.delete
-  const top = snapshot || revert || exportItem
-  const bottom = archiveItem || deleteItem
-  // On phones «Історія» and «Доступ» move here (their buttons are hidden), so the actions fit on one row.
-  const phoneOnly = !top && !bottom
+  const access = Boolean(props.onAccess || props.onPropose)
+  const transfer = permissions.export || (permissions.write && !archived && props.onImportUpdate)
+  const lifecycle = permissions.write || permissions.delete
   const inUse = usageEvents.length > 0
-  return (
-    <DropdownMenu>
+  return <DropdownMenu onOpenChange={(open) => { if (open) setVariants(props.getTestVariants()) }}>
+    <HoverTooltip text={t("admin.exPage.action.more")}>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className={cn(phoneOnly && "sm:hidden")}>
+        <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className="general-utility">
           <Ellipsis aria-hidden="true" className={ICON} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuItem className="gap-2 sm:hidden" onSelect={props.onHistory}>
-          <History aria-hidden="true" className={ICON} />
-          {t("admin.exPage.action.history")}
-        </DropdownMenuItem>
-        {props.onAccess && (
-          <DropdownMenuItem className="gap-2 sm:hidden" onSelect={props.onAccess}>
-            <ShieldCheck aria-hidden="true" className={ICON} />
-            {t("exercises.access.button")}
-          </DropdownMenuItem>
-        )}
-        {!phoneOnly && <DropdownMenuSeparator className="sm:hidden" />}
-        {snapshot && (
-          <DropdownMenuItem className="gap-2" onSelect={props.onSnapshot}>
-            <Camera aria-hidden="true" className={ICON} />
-            {t("admin.exPage.action.snapshot")}
-          </DropdownMenuItem>
-        )}
-        {revert && (
-          <>
-            <DropdownMenuItem className="gap-2" onSelect={props.onRevert}>
-              <RotateCcw aria-hidden="true" className={ICON} />
-              {t("admin.exPage.action.revert")}
-            </DropdownMenuItem>
+    </HoverTooltip>
+    <DropdownMenuContent align="end" className="w-72">
+      {props.testAvailable && <>
+        <DropdownMenuGroup aria-label={t("admin.exPage.action.test")} className="general-phone-test">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={busy || Boolean(props.testBlocked)} className="gap-2">
+              <Play aria-hidden="true" className={ICON} />{t("admin.exPage.action.test")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-56">
+              {variants.map((variant) => <DropdownMenuItem key={variant.index} disabled={variant.disabled} onSelect={() => props.onTest(variant.index)}>
+                <span>{variant.label}{variant.disabled && variant.reason && <span className="block text-xs text-muted-foreground">{variant.reason}</span>}</span>
+              </DropdownMenuItem>)}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          {props.testBlockedReason && <p className="px-2 text-xs text-muted-foreground">{props.testBlockedReason}</p>}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator className="general-phone-test" />
+      </>}
+      <DropdownMenuGroup aria-label={t("admin.exGeneral.versions")}>
+        <DropdownMenuItem className="gap-2" onSelect={props.onHistory}><History aria-hidden="true" className={ICON} />{t("admin.exPage.action.history")}</DropdownMenuItem>
+        {snapshot && <DropdownMenuItem className="gap-2" onSelect={props.onSnapshot}><Camera aria-hidden="true" className={ICON} />{t("admin.exPage.action.snapshot")}</DropdownMenuItem>}
+      </DropdownMenuGroup>
+      {access && <>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup aria-label={t("admin.exGeneral.access")}>
+          {props.onAccess && <DropdownMenuItem className="gap-2" onSelect={props.onAccess}><ShieldCheck aria-hidden="true" className={ICON} />{t("exercises.access.button")}</DropdownMenuItem>}
+          {props.onPropose && <>
+            <DropdownMenuItem className="gap-2" disabled={busy || props.proposalPending} onSelect={props.onPropose}><Send aria-hidden="true" className={ICON} />{t("exercises.propose.button")}</DropdownMenuItem>
+            {props.proposalPending && <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("exercises.badge.pending")}</p>}
+          </>}
+        </DropdownMenuGroup>
+      </>}
+      {transfer && <>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup aria-label={t("admin.exGeneral.transfer")}>
+          {permissions.write && !archived && props.onImportUpdate && <DropdownMenuItem className="gap-2" onSelect={props.onImportUpdate}><Upload aria-hidden="true" className={ICON} />{t("admin.exGeneral.importUpdate")}</DropdownMenuItem>}
+          {permissions.export && <DropdownMenuItem className="gap-2" onSelect={props.onExport}><Download aria-hidden="true" className={ICON} />{t("admin.exPage.action.export")}</DropdownMenuItem>}
+        </DropdownMenuGroup>
+      </>}
+      {lifecycle && <>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup aria-label={t("admin.exGeneral.lifecycle")}>
+          {permissions.write && (archived
+            ? <DropdownMenuItem className="gap-2" onSelect={props.onUnarchive}><ArchiveRestore aria-hidden="true" className={ICON} />{t("admin.exPage.action.unarchive")}</DropdownMenuItem>
+            : <DropdownMenuItem className="gap-2" onSelect={props.onArchive}><Archive aria-hidden="true" className={ICON} />{t("admin.exPage.action.archive")}</DropdownMenuItem>)}
+          {revert && <>
+            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={props.onRevert}><RotateCcw aria-hidden="true" className={ICON} />{t("admin.exPage.action.revert")}</DropdownMenuItem>
             <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("admin.exPage.action.revertHint")}</p>
-          </>
-        )}
-        {exportItem && (
-          <DropdownMenuItem className="gap-2" onSelect={props.onExport}>
-            <Download aria-hidden="true" className={ICON} />
-            {t("admin.exPage.action.export")}
-          </DropdownMenuItem>
-        )}
-        {top && bottom && <DropdownMenuSeparator />}
-        {archiveItem &&
-          (archived ? (
-            <DropdownMenuItem className="gap-2" onSelect={props.onUnarchive}>
-              <ArchiveRestore aria-hidden="true" className={ICON} />
-              {t("admin.exPage.action.unarchive")}
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem className="gap-2" onSelect={props.onArchive}>
-              <Archive aria-hidden="true" className={ICON} />
-              {t("admin.exPage.action.archive")}
-            </DropdownMenuItem>
-          ))}
-        {deleteItem && (
-          <>
-            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" disabled={inUse} onSelect={props.onDelete}>
-              <Trash2 aria-hidden="true" className={ICON} />
-              {t("admin.exPage.action.delete")}
-            </DropdownMenuItem>
-            {inUse && (
-              <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">
-                {t("admin.exPage.action.deleteInUse", { events: usageEvents.map((name) => t("admin.exPage.action.eventName", { name })).join(", ") })}
-              </p>
-            )}
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-// A disabled button cannot take focus, so the pending hint is also its description for screen readers.
-function ProposeButton({ pending, disabled, onClick }: { pending?: boolean; disabled: boolean; onClick: () => void }) {
-  const button = <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
-    <Send aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-    {t("exercises.propose.button")}
-  </Button>
-  return pending ? <HoverTooltip text={t("exercises.badge.pending")} describe>{button}</HoverTooltip> : button
+          </>}
+          {permissions.delete && <>
+            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" disabled={inUse} onSelect={props.onDelete}><Trash2 aria-hidden="true" className={ICON} />{t("admin.exPage.action.delete")}</DropdownMenuItem>
+            {inUse && <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">{t("admin.exPage.action.deleteInUse", { events: usageEvents.map((name) => t("admin.exPage.action.eventName", { name })).join(", ") })}</p>}
+          </>}
+        </DropdownMenuGroup>
+      </>}
+    </DropdownMenuContent>
+  </DropdownMenu>
 }
 
 export function ExerciseHeader(props: ExerciseHeaderProps) {
   const { mode, title, badge, saveStatus, permissions, archived, publishable, busy, testAvailable } = props
   const created = mode !== "new"
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-        <h1 className="min-w-0 break-words text-xl sm:text-2xl font-semibold text-foreground">{title}</h1>
+  return <header className="general-shared-header">
+    <HoverTooltip text={t("admin.exDetail.back")} describe><Link href="/" aria-label={t("admin.exDetail.back")} className="general-back"><ArrowLeft aria-hidden="true" className="h-4 w-4" /></Link></HoverTooltip>
+    <div className="general-identity">
+      <h1 className="break-words text-xl font-semibold leading-[1.3] tracking-tight text-foreground md:text-2xl">{title}</h1>
+      <div className="general-context">
         {badge && <StatusBadge badge={badge} />}
         {props.meta}
         {(mode === "edit" || mode === "new") && <SaveIndicator status={saveStatus} onRetry={props.onRetrySave} />}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {mode === "readonly" ? null : mode === "version" ? (
-          <Button type="button" variant="outline" onClick={props.onHistory}>
-            <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-            {t("admin.exPage.action.history")}
-          </Button>
-        ) : (
-          <>
-            {testAvailable && props.activeTestUntil && props.onOpenTest && (
-              <span className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-sm">
-                <span className="text-foreground">
-                  {t("admin.exPage.test.running", { time: new Date(props.activeTestUntil).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }) })}
-                </span>
-                <Button type="button" variant="outline" size="sm" onClick={props.onOpenTest}>{t("admin.exPage.test.open")}</Button>
-              </span>
-            )}
-            {/* A new exercise has nothing to test or look back at yet. */}
-            {created && testAvailable && <TestMenu disabled={busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} />}
-            {created && <>
-              <Button type="button" variant="outline" className="max-sm:hidden" onClick={props.onHistory}>
-                <History aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-                {t("admin.exPage.action.history")}
-              </Button>
-              <span aria-hidden="true" className="mx-1 h-6 w-px bg-border max-sm:hidden" />
-            </>}
-            {mode === "new" && (
-              <Button asChild variant="outline">
-                <Link href="/" data-allow-leave onClick={props.onCancelNew}>
-                  {t("admin.ex.create.cancel")}
-                </Link>
-              </Button>
-            )}
-            {mode === "view" && permissions.write && !archived && (
-              <Button type="button" variant="outline" disabled={busy} onClick={props.onEdit}>
-                <Pencil aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-                {t("admin.exPage.action.edit")}
-              </Button>
-            )}
-            {mode === "edit" && (
-              <Button type="button" variant="outline" disabled={busy} onClick={props.onDone}>
-                {t("admin.exPage.action.done")}
-              </Button>
-            )}
-            {created && props.onAccess && (
-              <Button type="button" variant="outline" className="max-sm:hidden" disabled={busy} onClick={props.onAccess}>
-                <ShieldCheck aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-                {t("exercises.access.button")}
-              </Button>
-            )}
-            {created && props.onPropose && (
-              <ProposeButton pending={props.proposalPending} disabled={busy || !!props.proposalPending} onClick={props.onPropose} />
-            )}
-            {permissions.publish && (
-              (() => {
-                const publishing = props.running === "publish"
-                const publishButton = <Button type="button" busy={publishing} disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>
-                  {t(publishing ? "admin.exPage.action.publishing" : "admin.exPage.action.publish")}
-                </Button>
-                return props.publishBlockedReason ? <HoverTooltip text={props.publishBlockedReason} describe>{publishButton}</HoverTooltip> : publishButton
-              })()
-            )}
-            {created && <MoreMenu {...props} />}
-          </>
-        )}
-      </div>
     </div>
-  )
+    <div className="general-utilities">
+      <HoverTooltip text={t("admin.exGuide.zavdannia")} describe><Button asChild variant="outline" size="icon" className="general-utility"><Link href={guideHref("zavdannia")} aria-label={t("admin.exGuide.zavdannia")}><BookOpen aria-hidden="true" className={ICON} /></Link></Button></HoverTooltip>
+      {mode === "version" && <HoverTooltip text={t("admin.exPage.action.history")} describe>
+        <Button type="button" variant="outline" size="icon" className="general-utility" aria-label={t("admin.exPage.action.history")} onClick={props.onHistory}><History aria-hidden="true" className={ICON} /></Button>
+      </HoverTooltip>}
+      {created && mode !== "readonly" && mode !== "version" && <MoreMenu {...props} />}
+    </div>
+    {mode !== "readonly" && mode !== "version" && <div className="general-primary-actions">
+      {created && testAvailable && <span className="general-direct-test"><TestMenu disabled={busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} /></span>}
+      {mode === "new" && <Button asChild variant="outline"><Link href="/" data-allow-leave onClick={props.onCancelNew}>{t("admin.ex.create.cancel")}</Link></Button>}
+      {mode === "view" && permissions.write && !archived && <Button type="button" variant="outline" disabled={busy} onClick={props.onEdit}><Pencil aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.edit")}</Button>}
+      {mode === "edit" && <Button type="button" variant="outline" disabled={busy} onClick={props.onDone}><Check aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.done")}</Button>}
+      {permissions.publish && (mode === "new" || publishable || props.running === "publish") && (() => {
+        const publishing = props.running === "publish"
+        const button = <Button type="button" className="general-publish" busy={publishing} busyLabel={t("admin.exPage.action.publishing")} disabled={!created || !publishable || busy || Boolean(props.publishBlockedReason)} onClick={props.onPublish}>{t("admin.exPage.action.publish")}</Button>
+        return props.publishBlockedReason ? <HoverTooltip text={props.publishBlockedReason} describe>{button}</HoverTooltip> : button
+      })()}
+    </div>}
+    {created && testAvailable && props.activeTestUntil && props.onOpenTest && <div className="general-running-test">
+      <span>{t("admin.exPage.test.running", { time: new Date(props.activeTestUntil).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }) })}</span>
+      <Button type="button" variant="outline" size="sm" onClick={props.onOpenTest}>{t("admin.exPage.test.open")}</Button>
+    </div>}
+  </header>
 }

@@ -16,22 +16,41 @@ function Harness({ disabled, showNotes }: { disabled: boolean; showNotes?: boole
 }
 
 describe("ExerciseGeneralFields", () => {
-  it("renders the general fields with their help and without a flag-regeneration switch", () => {
+  it("renders the general fields, help only where needed, and no flag-regeneration switch", () => {
     render(<Harness disabled={false} />)
     expect(screen.getByDisplayValue("Web 101")).toBeEnabled()
     expect(screen.getByLabelText("admin.ex.field.description").tagName).toBe("TEXTAREA")
     expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toHaveValue("Day one")
-    expect(helpButton("admin.ex.help.name")).toBeInTheDocument()
-    expect(helpButton("admin.ex.field.tagsHelp")).toBeInTheDocument()
+    // «?» only where the field needs explaining: the description and the internal notes.
+    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
+    expect(helpButton("admin.exDraft.adminNoteHelp")).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "ui.help" })).toHaveLength(2)
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
   })
 
-  it("disables every field in read-only mode", () => {
+  it("reads natural selectable values without a duplicate Name or disabled form", () => {
     render(<Harness disabled />)
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
-    expect(screen.getByLabelText("admin.ex.field.tags")).toBeDisabled()
-    expect(screen.getByLabelText("admin.ex.field.description")).toBeDisabled()
-    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toBeDisabled()
+    expect(screen.queryByText("Web 101")).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    expect(screen.getByText("About")).toBeInTheDocument()
+    expect(screen.getByText("Day one")).toBeInTheDocument()
+    expect(screen.getByText("web")).toBeInTheDocument()
+  })
+
+  it.each([true, false])("exposes read sections to heading navigation (private notes=%s)", (showNotes) => {
+    render(<Harness disabled showNotes={showNotes} />)
+    const titles = screen.getAllByRole("heading", { level:2 }).map((heading) => heading.textContent)
+    expect(titles).toEqual(["admin.ex.field.description", "admin.ex.field.tags", ...(showNotes ? ["admin.ex.create.notes"] : [])])
+    expect(screen.queryByRole("heading", { name:"admin.ex.field.name" })).not.toBeInTheDocument()
+  })
+
+  it("retains edit field labels and associations without turning them into section headings", () => {
+    render(<Harness disabled={false} />)
+    expect(screen.queryByRole("heading", { level:2 })).not.toBeInTheDocument()
+    expect(screen.getByLabelText("admin.ex.field.description")).toHaveAttribute("id", "exercise-description")
+    expect(screen.getByLabelText("admin.ex.field.tags")).toHaveAttribute("id", "exercise-tags")
+    expect(screen.getByLabelText("admin.ex.create.notes")).toHaveAttribute("id", "draft-admin-note")
+    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
   })
 
   it("leaves out the internal notes for a reader without full access", () => {

@@ -42,7 +42,7 @@ const created: Exercise = {
 }
 const savedVersion: Version = {
   ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", LinkedTo: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
     LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
     Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
@@ -75,6 +75,7 @@ describe("new exercise page", () => {
     expect(screen.getByRole("link", { name: "admin.ex.create.cancel" })).toHaveAttribute("href", "/")
     expect(screen.queryByRole("button", { name: "admin.exPage.action.more" })).not.toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
+    expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveFocus()
     expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()
   })
 
@@ -91,7 +92,8 @@ describe("new exercise page", () => {
     expect(screen.getByRole("heading", { name: "Buffer overflow" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.save.saved")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exPage.action.history" })).toBeEnabled()
+    fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.more" }), { key:"ArrowDown" })
+    expect(screen.getByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
   })
 
   it("blocks Publish on an invalid name with the name toast, not a save failure", async () => {

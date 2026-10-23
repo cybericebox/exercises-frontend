@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { hintTextHasContent, hintTextToState, stateToHintText } from "./hintText"
+import { hintPlainText, hintTextHasContent, hintTextToState, stateToHintText } from "./hintText"
 
 describe("hint text", () => {
   it("round-trips a rich-text document", () => {
@@ -33,5 +33,13 @@ describe("hint text", () => {
     expect(hintTextHasContent(JSON.stringify({ root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: " " }] }, { type: "paragraph", children: [] }] } }))).toBe(false)
     expect(hintTextHasContent("plain")).toBe(true)
     expect(hintTextHasContent(JSON.stringify({ root: { type: "root", children: [{ type: "paragraph", children: [{ type: "variable", varName: "ph_ip" }] }] } }))).toBe(true)
+  })
+})
+
+describe("hintPlainText", () => {
+  it("puts a hint's words on one line for a collapsed row", () => {
+    expect(hintPlainText("first line\nsecond")).toBe("first line second")
+    expect(hintPlainText(JSON.stringify({ root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Rich" }, { type: "text", text: " text" }] }] } }))).toBe("Rich text")
+    expect(hintPlainText("")).toBe("")
   })
 })

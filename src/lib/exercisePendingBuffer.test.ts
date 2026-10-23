@@ -62,6 +62,23 @@ describe("exercise pending buffer", () => {
     expect(readPendingChanges(key)?.draft.Variants[0].LinkedTo).toBe("")
   })
 
+  it("restores a buffer written before variant weights with weight 1", () => {
+    const key = pendingBufferKey("u1", "e1")
+    writePendingChanges(key, identity, emptyDraft())
+    const entry = JSON.parse(storage.get(key)!)
+    delete entry.draft.Variants[0].Weight
+    storage.set(key, JSON.stringify(entry))
+    expect(readPendingChanges(key)?.draft.Variants[0].Weight).toBe(1)
+  })
+
+  it("never persists a secret's value group (it means something only within one server answer)", () => {
+    const key = pendingBufferKey("u1", "e1")
+    const draft = emptyDraft()
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: "web", EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 4 }] }]
+    writePendingChanges(key, identity, draft)
+    expect(storage.get(key)).not.toContain("ValueGroup")
+  })
+
   it("clears an entry", () => {
     const key = pendingBufferKey("u1", "e1")
     writePendingChanges(key, identity, emptyDraft())

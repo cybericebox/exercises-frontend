@@ -11,7 +11,6 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form"
-import { GuideLink } from "./GuideLink"
 import { InterfaceForm } from "./InterfaceForm"
 import { DeviceImageField } from "./ImageUpload"
 import { SecretInput } from "./SecretInput"
@@ -20,12 +19,12 @@ import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 import { useEditorPosition } from "./EditorPosition"
 import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
 import { EmptyState } from "@/components/ui/empty-state"
-import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { MAX_ENV_VARS, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
 import { selectedPreset } from "@/lib/deviceResources"
 import { unitHelp } from "@/lib/presetLabels"
-import { useResourcesConfig } from "./ResourcesConfigContext"
+import { useResourcesConfig, useResourcesConfigLoading } from "./ResourcesConfigContext"
 import { ResourceSelect } from "./ResourceSelect"
 import { LoadingArea } from "@/components/ui/spinner"
 
@@ -39,11 +38,16 @@ export function DeviceCard({
   deviceIndex,
   disabled,
   compact = false,
+  imageBaseIndex,
+  imageDisabled,
 }: {
   variantIndex: number
   deviceIndex: number
   disabled: boolean
   compact?: boolean
+  /** A linked variant: its base's position; the device image stays editable (its own image) while the rest is the base's. */
+  imageBaseIndex?: number
+  imageDisabled?: boolean
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
@@ -63,7 +67,6 @@ export function DeviceCard({
   return (
     <div className="min-w-0">
       <div className={`min-w-0 ${compact ? "space-y-2" : "space-y-4"}`}>
-        <div className="flex flex-wrap justify-end gap-3"><GuideLink topic="infrastruktura" />{visiblePanel === "basic" && !forwarding && <GuideLink topic="obrazy" />}</div>
         {sections.length > 0 && <nav aria-label={t("admin.exTopo.deviceSettings")} className={`flex min-w-0 flex-nowrap gap-1 overflow-x-auto border-b border-border ${compact ? "pb-1" : "pb-2"}`}>
           {sections.map((section) => {
             const labelKey = section === "basic" ? "admin.exTopo.basic" : section === "interfaces" ? "admin.exTopo.interfaces" : "admin.exEnv.title"
@@ -78,7 +81,7 @@ export function DeviceCard({
           // A missed drop must never open the archive in the browser; the image field takes the real ones.
           onDragOver={(event) => { if (visiblePanel === "basic") event.preventDefault() }}
           onDrop={(event) => { if (visiblePanel === "basic") event.preventDefault() }}>
-        {visiblePanel === "basic" && !forwarding && <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
+        {visiblePanel === "basic" && !forwarding && <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={imageDisabled ?? disabled} compact={compact} baseVariantIndex={imageBaseIndex} />}
         {visiblePanel === "basic" && !forwarding && <ResourcePicker variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
         {visiblePanel === "basic" && !forwarding && <FormField control={control} name={`${base}.SecurityPreset`} render={({ field, fieldState }) => (
           <FormItem className={compact ? "space-y-1" : undefined}>
@@ -86,7 +89,7 @@ export function DeviceCard({
             <FormControl><SelectMenu value={field.value || "standard"} onChange={field.onChange} disabled={disabled}
               ariaLabel={t("admin.exTopo.securityPreset")}
               options={SECURITY_PRESETS.map((preset) => ({ value: preset, label: t(`admin.exTopo.security.${preset}`), description: t(`admin.exTopo.security.${preset}Help`) }))}
-              className="h-10 w-full" /></FormControl>
+              className="w-full" /></FormControl>
             {fieldState.error && <FormMessage className="leading-5" />}
           </FormItem>
         )} />}
@@ -134,7 +137,7 @@ export function DeviceCard({
                       disabled={disabled}
                       ariaLabel={t("admin.exTopo.protocol")}
                       options={PROTOCOLS.map((p) => ({ value: p, label: p }))}
-                      className="h-10 w-full"
+                      className="w-full"
                     />
                   )}
                 />
@@ -178,6 +181,7 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
 }) {
   const { control, setValue } = useFormContext<DraftFormValues>()
   const config = useResourcesConfig()
+  const loading = useResourcesConfigLoading()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const preset = useWatch({ control, name: `${base}.ResourcePreset` })
 
@@ -187,7 +191,9 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
       ? <ResourceSelect config={config} disabled={disabled} ariaLabel={t("admin.exTopo.resources")}
         value={selectedPreset({ ResourcePreset: preset }, config)}
         onChange={(next) => setValue(`${base}.ResourcePreset`, next, { shouldDirty: true })} />
-      : <LoadingArea compact className="h-10" label={t("admin.loading")} />}
+      : loading ? <LoadingArea compact className="h-10" label={t("admin.loading")} />
+      // No settings (read-only view, an older server, a failed load): the stored size as text.
+      : <p className="flex min-h-9 items-center text-sm text-muted-foreground">{preset ? t("admin.exTopo.resourcesPreset", { preset }) : t("admin.exTopo.resourcesDefault")}</p>}
   </div>
 }
 
@@ -207,6 +213,9 @@ function EnvVarsList({
   const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.EnvVars` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
+  const full = rows.length >= MAX_ENV_VARS
+  const tooMany = rows.length > MAX_ENV_VARS
+  const limitErrorId = `${name}-limit-error`
   const deviceID = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
   const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
   const flagBindings = tasks.flatMap((task, taskIndex) => task.LinkedDeviceID === deviceID && task.DeviceFlagVar.trim()
@@ -241,7 +250,7 @@ function EnvVarsList({
   }
 
   return (
-    <section className={compact ? "space-y-2" : "space-y-3"}>
+    <section role="group" aria-label={t("admin.exEnv.title")} aria-invalid={tooMany || undefined} aria-describedby={tooMany ? limitErrorId : undefined} className={compact ? "space-y-2" : "space-y-3"}>
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">{t("admin.exEnv.title")}</h4>
         {!disabled && <div className="flex shrink-0 items-center gap-1.5">
@@ -250,17 +259,16 @@ function EnvVarsList({
           <HoverTooltip text={t("admin.exEnv.importFile")}><Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0"
             aria-label={t("admin.exEnv.importFile")}
             onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button></HoverTooltip>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addVariable}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            {t("admin.exEnv.add")}
-          </Button>
+          <HoverTooltip text={full ? t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS }) : t("admin.exEnv.add")} describe={full ? "always" : false}>
+            <Button type="button" variant="outline" size="sm" aria-disabled={full || undefined}
+              className={full ? "opacity-50" : undefined} onClick={() => { if (!full) addVariable() }}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("admin.exEnv.add")}
+            </Button>
+          </HoverTooltip>
         </div>}
       </div>
+      {tooMany && <p id={limitErrorId} role="alert" className="text-xs text-destructive">{t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS })}</p>}
       {importResult && <p role="status" className="text-xs text-muted-foreground">
         {importResult === "read-error" ? t("admin.exEnv.importReadError")
           : t("admin.exEnv.importSummary", { imported: importResult.imported.length, duplicates: importResult.duplicates, invalid: importResult.invalid })}

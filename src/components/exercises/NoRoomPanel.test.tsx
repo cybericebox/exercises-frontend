@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { NormalizedVariant } from "@/api/exercises/versions"
 
-vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
+vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => key === "exercises.book.locale" ? "uk-UA" : vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn() }))
 vi.mock("@/api/exercises/testLabs", () => ({ getRoom: vi.fn(), listBookings: vi.fn(), createBooking: vi.fn(), cancelBooking: vi.fn() }))
 
@@ -69,4 +69,21 @@ describe("NoRoomPanel (72509)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "exercises.book.confirm" }))
     expect(await screen.findByText(/exercises\.book\.noRoomWindow/)).toBeTruthy()
   })
+  it("returns focus to the booking opener after Cancel, and to Retry after success removes the opener", async () => {
+    const soon = new Date(Date.now() + 3 * 3600_000).toISOString()
+    const retry = vi.fn()
+    vi.mocked(createBooking).mockResolvedValue({ ID: "created", From: soon, To: new Date(Date.now() + 4 * 3600_000).toISOString(), Size: { CPUMillicores: 100, MemoryBytes: 128 * MIB } })
+    render(<NoRoomPanel error={noRoom({ nearest_from: soon })} variant={variant} resources={resources} onRetry={retry} />)
+    const opener = await screen.findByRole("button", { name: "exercises.book.action" })
+    opener.focus()
+    fireEvent.click(opener)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.dialog.cancel" }))
+    await waitFor(() => expect(opener).toHaveFocus())
+    fireEvent.click(opener)
+    fireEvent.click(await screen.findByRole("button", { name: "exercises.book.confirm" }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: "exercises.book.action" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("button", { name: "error.load.retry" })).toHaveFocus())
+    expect(retry).not.toHaveBeenCalled()
+  })
+
 })

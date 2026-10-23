@@ -22,7 +22,7 @@ import {
   toSaveDraftInput,
   type DraftFormValues,
 } from './exerciseSchemas'
-import type { Version } from '@/api/exercises/versions'
+import { normalizeVariant, type Version } from '@/api/exercises/versions'
 
 // ── Regexes and parsers ──────────────────────────────────────────────────────────
 
@@ -847,7 +847,7 @@ function loadedVersion(): Version {
     Variants: [{
       ID: 'var1',
       Index: 1,
-      Note: '', LinkedTo: '',
+      Note: '', Weight: 1, LinkedTo: '',
       Tasks: [{
         ID: 'task1',
         Name: 'Find the flag',
@@ -922,6 +922,87 @@ describe('toDraftFormValues', () => {
     const values = toDraftFormValues(null)
     expect(values.Variants).toHaveLength(1)
     expect(values.Variants[0].Tasks).toHaveLength(1)
+  })
+})
+
+describe('content hashes', () => {
+  it('reads ValueGroup (secrets only) and ContentHash, and never sends them back', () => {
+    const variant = normalizeVariant({ Index: 1, Tasks: [{ Name: 'Scan', Difficulty: 'easy', Attachments: [{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }] }],
+      Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false },
+        Devices: [{ ID: 'd1', Name: 'web', Type: 'container', Interfaces: [], EnvVars: [{ Name: 'FLAG', Secret: true, HasValue: true, ValueGroup: 2 }, { Name: 'MODE', Value: 'ctf', Secret: false, ValueGroup: 5 }] }] } })
+    expect(variant.Topology.Devices[0].EnvVars.map((env) => env.ValueGroup)).toEqual([2, undefined])
+    expect(variant.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }])
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Attachments = variant.Tasks[0].Attachments
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web', EnvVars: variant.Topology.Devices[0].EnvVars }]
+    const sent = toSaveDraftInput(draft).Variants[0]
+    expect(sent.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap' }])
+    expect(sent.Topology.Devices?.[0].EnvVars?.every((env) => !('ValueGroup' in env))).toBe(true)
+  })
+})
+
+describe('environment variable limit', () => {
+  it('allows 64 variables per device and puts a 65th on the list', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.EnvVars = Array.from({ length: 64 }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false }))
+    draft.Variants[0].Topology.Devices = [device]
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    device.EnvVars.push({ Name: 'V64', Value: 'x', Secret: false, HasValue: false })
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Topology.Devices.0.EnvVars')
+  })
+})
+
+describe('own images of a linked variant', () => {
+  it('reads ImageOverrides only for a linked variant and sends the full list for a linked variant only', () => {
+    const topology = { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }
+    expect(normalizeVariant({ Index: 2, LinkedTo: 'b', ImageOverrides: [{ DeviceID: 'd1', Image: 'x' }], Tasks: [], Topology: topology }).ImageOverrides).toEqual([{ DeviceID: 'd1', Image: 'x' }])
+    expect(normalizeVariant({ Index: 2, Tasks: [], Topology: topology }).ImageOverrides).toEqual([])
+    const draft = emptyDraft()
+    draft.Variants[0].ID = 'b'
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: 'd1', Name: 'web', Image: 'nginx:1.27' }, { ...emptyDevice(), ID: 'd2', Name: 'db', Image: 'postgres:16' }]
+    const linked = structuredClone(draft.Variants[0])
+    Object.assign(linked, { ID: 'l', LinkedTo: 'b' })
+    draft.Variants.push(linked)
+    const independent = structuredClone(draft.Variants[0])
+    Object.assign(independent, { ID: 'i', ImageOverrides: [{ DeviceID: 'd1', Image: 'stale' }] })
+    independent.Topology.Devices[0].Image = 'nginx:1.28'
+    draft.Variants.push(independent)
+    let sent = toSaveDraftInput(draft).Variants
+    expect(sent[1].ImageOverrides).toEqual([])
+    expect(sent[0]).not.toHaveProperty('ImageOverrides')
+    expect(sent[2]).not.toHaveProperty('ImageOverrides')
+    draft.Variants[1].ImageOverrides = [{ DeviceID: 'd2', Image: 'postgres:17' }]
+    sent = toSaveDraftInput(draft).Variants
+    expect(sent[1].ImageOverrides).toEqual([{ DeviceID: 'd2', Image: 'postgres:17' }])
+  })
+})
+
+describe('variant weight', () => {
+  it('reads absent, 0 or garbage as 1 and keeps a stored weight', () => {
+    expect([undefined, 0, -2, 1.5, 3].map((weight) => normalizeVariant({ Index: 1, Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }, ...(weight === undefined ? {} : { Weight: weight }) }).Weight)).toEqual([1, 1, 1, 1, 3])
+  })
+
+  it('sends a weight above 1 and leaves the default 1 out', () => {
+    const draft = emptyDraft()
+    expect(toSaveDraftInput(draft).Variants[0]).not.toHaveProperty('Weight')
+    draft.Variants[0].Weight = 7
+    expect(toSaveDraftInput(draft).Variants[0].Weight).toBe(7)
+    draft.Variants[0].Weight = Number.NaN
+    expect(toSaveDraftInput(draft).Variants[0]).not.toHaveProperty('Weight')
+  })
+
+  it('accepts a whole number 1..100 and puts the error on the weight', () => {
+    for (const [weight, ok] of [[1, true], [100, true], [0, false], [101, false], [2.5, false], [Number.NaN, false]] as const) {
+      const draft = validDraft()
+      draft.Variants[0].Weight = weight
+      const result = draftSchema.safeParse(draft)
+      expect(result.success).toBe(ok)
+      if (!result.success) expect(result.error.issues[0].path).toEqual(['Variants', 0, 'Weight'])
+    }
   })
 })
 

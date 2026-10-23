@@ -52,11 +52,11 @@ describe("accessInfo", () => {
 describe("filters and the URL", () => {
   it("round-trips every filter", () => {
     const filters: CatalogFilters = {
-      search: "sql", tags: ["web", "crypto"], notTags: ["legacy"], statuses: ["changed", "archived"], authors: ["u1", "u2"],
+      search: "sql", tags: ["web", "crypto"], tagMode: "any", notTags: ["legacy"], statuses: ["changed", "archived"], authors: ["u1", "u2"],
       difficultyMin: 2, difficultyMax: 4, scope: "catalog", events: ["e1", "e2"], infrastructure: "no", sortBy: "difficulty", sortDir: "asc",
     }
     const query = filtersToSearch(filters, true)
-    expect(query).toBe("q=sql&tag=web&tag=crypto&notag=legacy&status=changed&status=archived&author=u1&author=u2&dmin=2&dmax=4&scope=catalog&event=e1&event=e2&infra=no&sort=difficulty&dir=asc")
+    expect(query).toBe("q=sql&tag=web&tag=crypto&tagmode=any&notag=legacy&status=changed&status=archived&author=u1&author=u2&dmin=2&dmax=4&scope=catalog&event=e1&event=e2&infra=no&sort=difficulty&dir=asc")
     expect(filtersFromSearch(query, true)).toEqual(filters)
   })
 
@@ -177,5 +177,19 @@ describe("mergeCardIntoRow", () => {
 
   it("keeps the row's status when only the access changed", () => {
     expect(mergeCardIntoRow(row("a", { Status: "changed" }), card({ AccessLevel: "none" })).Status).toBe("changed")
+  })
+})
+
+describe("tag mode", () => {
+  it("asks for any of the tags in «хоча б один» mode and every one of them otherwise", async () => {
+    const calls: unknown[] = []
+    const fetch = async (filter: unknown) => { calls.push(filter); return { Items: [], Total: 0, Page: 1, PageSize: 50 } }
+    const base = { ...defaultFilters(true), tags: ["web", "pcap"] }
+    await loadCatalogPage(fetch, { ...base, tagMode: "any" }, 1, 50)
+    await loadCatalogPage(fetch, base, 1, 50)
+    expect(calls[0]).toMatchObject({ tags: ["web", "pcap"] })
+    expect(calls[0]).not.toHaveProperty("withTags")
+    expect(calls[1]).toMatchObject({ withTags: ["web", "pcap"] })
+    expect(filtersToSearch({ ...base, tagMode: "any", tags: [] }, true)).toBe("")
   })
 })

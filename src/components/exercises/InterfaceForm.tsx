@@ -193,7 +193,7 @@ export function InterfaceForm({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5"><h4 className="text-sm font-semibold">{t("admin.exTopo.interfaces")}</h4><FieldHelp text={t("admin.exTopo.interfacesHelp")} /></div>
+        <h4 className="text-sm font-semibold">{t("admin.exTopo.interfaces")}</h4>
         {!disabled && (
           <Button type="button" variant="outline" size="sm" onClick={addInterface}>
             <Plus className="mr-1 h-4 w-4" />
@@ -264,7 +264,7 @@ export function InterfaceForm({
                       disabled={disabled}
                       ariaLabel={t("admin.exTopo.ipType")}
                       options={IP_TYPES.map((o) => ({ value: o.value, label: t(o.labelKey), description: t(`${o.labelKey}Help`) }))}
-                      className="h-10 w-full"
+                      className="w-full"
                       menuClassName="w-[30rem] max-w-[90vw]"
                     />
                   )}

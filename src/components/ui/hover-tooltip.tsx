@@ -19,7 +19,7 @@ const ACTIONABLE = 'a[href],button:not(:disabled):not([aria-disabled="true"]),in
 // a phone has no hover, so that is the only way to read it there.
 // describe links the open tooltip to the child via aria-describedby; describe="always" keeps the link while it is closed
 // (a control that is aria-disabled and carries a reason). truncated opens it only while the child's text is cut off by an ellipsis.
-export function HoverTooltip({ text, content, children, className, describe = false, truncated = false, side = "top", help = false }: { side?: "top" | "right"; text: string; content?: ReactNode; children: ReactElement; className?: string; describe?: boolean | "always"; truncated?: boolean; help?: boolean }) {
+export function HoverTooltip({ text, content, children, className, describe = false, truncated = false, side = "top", help = false, focusHelp = false }: { side?: "top" | "right"; text: string; content?: ReactNode; children: ReactElement; className?: string; describe?: boolean | "always"; truncated?: boolean; help?: boolean; focusHelp?: boolean }) {
   const id = useId()
   const [position, setPosition] = useState<Position | null>(null)
   const trigger = useRef<HTMLSpanElement>(null)
@@ -173,7 +173,7 @@ export function HoverTooltip({ text, content, children, className, describe = fa
         if (position) hide()
         else { dismissed.current = false; open() }
       }}
-      onFocusCapture={() => { if (!clicked.current && !help) { dismissed.current = false; open() } }}
+      onFocusCapture={() => { if (!clicked.current && (!help || focusHelp)) { dismissed.current = false; open() } }}
       onBlurCapture={() => { clicked.current = false; dismissed.current = false; hide() }}
     >{children}</span>
     {(help || describe === "always") && <span id={descriptionId} className="sr-only">{text}</span>}

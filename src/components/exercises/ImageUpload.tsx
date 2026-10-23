@@ -10,11 +10,13 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { withOwnImage } from "@/lib/linkedVariants"
 import { formatBytes } from "@/lib/formatBytes"
 import { MAX_IMAGE_ARCHIVE_GIB } from "@/lib/imageErrors"
 import { pluralKey } from "@/lib/presetLabels"
 import { cn } from "@/utils/cn"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
+import { GuideLink } from "./GuideLink"
 import { ImageAvailability } from "./ImageAvailability"
 import { useDeviceImageUpload, useImageUploads, type ImageUploadProgress } from "./ImageUploads"
 
@@ -34,7 +36,7 @@ function IconButton({ label, onClick, disabled, children, className }: { label: 
   </button></HoverTooltip>
 }
 
-const CONTROL = "flex min-h-10 w-full min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
+const CONTROL = "flex min-h-9 w-full pointer-coarse:min-h-11 min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
 
 /** The note under the field for the stage of a running upload. */
 function stageNote(progress: ImageUploadProgress): string | null {
@@ -52,13 +54,18 @@ function stageNote(progress: ImageUploadProgress): string | null {
  * trailing icon button or by dropping it on the field. An uploaded image is the platform reference, shown as a
  * chip with «Замінити» and «Вказати посилання». The field changes only when the upload has created the image.
  * An archive dropped before the task has a name is kept and checked at once; it is sent by itself when the task
- * exists (see ImageUploadStore). Below the field: the hint, the stage, the error and the availability of the image.
+ * exists (see ImageUploadStore). Below the field: the stage, the error and the availability of the image.
  */
-export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact = false }: {
+export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact = false, baseVariantIndex }: {
   variantIndex: number
   deviceIndex: number
   disabled: boolean
   compact?: boolean
+  /**
+   * Set for a linked variant: its base's position. The image is the only own part of the device there: a reference
+   * (no upload — the upload belongs to the device of the base), marked «власний образ» with × back to the base's.
+   */
+  baseVariantIndex?: number
 }) {
   const form = useFormContext<DraftFormValues>()
   const { control, getValues, setValue } = form
@@ -72,7 +79,16 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   const { store, canWrite, focusName } = useImageUploads()
   const { progress, error, failedFile, dropped, queued, fileName } = useDeviceImageUpload(store, deviceId)
   const [dragging, setDragging] = useState(false)
-  const canUpload = !disabled
+  const linked = baseVariantIndex !== undefined
+  const baseDevices = useWatch({ control, name: `Variants.${baseVariantIndex ?? variantIndex}.Topology.Devices` })
+  const baseImage = linked ? baseDevices?.find((device) => device.ID === deviceId)?.Image ?? "" : ""
+  const overrides = useWatch({ control, name: `Variants.${variantIndex}.ImageOverrides` })
+  const ownImage = linked && Boolean(overrides?.some((override) => override.DeviceID === deviceId))
+  /** A linked variant records the typed image as its own (or drops it when it is the base's again). */
+  function setLinkedImage(next: string) {
+    setValue(`Variants.${variantIndex}.ImageOverrides`, withOwnImage(getValues(`Variants.${variantIndex}.ImageOverrides`), deviceId, next, baseImage), { shouldDirty: true })
+  }
+  const canUpload = !disabled && !linked
   const uploading = progress !== null
 
   function upload(file: File) {
@@ -111,7 +127,6 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   /** The control and what sits under it, by state. */
   let control_: ReactNode
   let under: ReactNode = null
-  let hint = false
 
   if (progress) {
     const pushing = progress.stage === "pushing"
@@ -154,8 +169,8 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
       <span className="min-w-0 flex-1 truncate font-medium">{platform.name}</span>
       <code className="shrink-0 font-mono text-xs text-muted-foreground">{platform.digest.slice(0, "sha256:".length + 12)}</code>
       {!disabled && <>
-        <IconButton label={t("exercises.image.replaceTip")} onClick={pick}><RefreshCw aria-hidden="true" className="h-4 w-4" /></IconButton>
-        <IconButton label={t("exercises.image.referenceTip")} onClick={() => setValue(`${base}.Image`, "", { shouldDirty: true })}><Link2 aria-hidden="true" className="h-4 w-4" /></IconButton>
+        {canUpload && <IconButton label={t("exercises.image.replaceTip")} onClick={pick}><RefreshCw aria-hidden="true" className="h-4 w-4" /></IconButton>}
+        <IconButton label={t("exercises.image.referenceTip")} onClick={() => { if (linked) setLinkedImage(""); setValue(`${base}.Image`, "", { shouldDirty: true }) }}><Link2 aria-hidden="true" className="h-4 w-4" /></IconButton>
       </>}
     </div>
   } else if (failedFile) {
@@ -166,27 +181,29 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
       <IconButton label={t("exercises.image.removeFile")} onClick={() => store.dismissError(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
     </div>
   } else {
-    hint = true
     control_ = null
   }
 
   return <div data-testid="image-drop-zone" className="min-w-0" onDragOver={onDragOver} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
     <FormField control={control} name={`${base}.Image`} render={({ field, fieldState }) => (
       <FormItem className={compact ? "space-y-1" : undefined}>
-        {label}
+        <div className="flex items-center gap-1">{label}<GuideLink topic="obrazy" /></div>
         {dragging && canUpload && !uploading
           ? <div data-image-dropping className={cn(CONTROL, "justify-center border-dashed border-primary bg-accent font-medium")}>{dropText}</div>
           : control_ ?? <div className={cn(CONTROL, "flex-nowrap focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40", disabled && "opacity-50")}>
-            <FormControl><input {...field} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")}
+            <FormControl><input {...field} onChange={(event) => { if (linked) setLinkedImage(event.target.value); field.onChange(event) }} disabled={disabled} placeholder={t("admin.exTopo.imagePlaceholder")}
               className="min-w-0 flex-1 bg-transparent py-1 outline-none placeholder:text-placeholder disabled:cursor-not-allowed" /></FormControl>
-            {!disabled && <IconButton label={t("exercises.image.uploadTip")} onClick={pick} className="border border-border"><Upload aria-hidden="true" className="h-4 w-4" /></IconButton>}
+            {ownImage && !disabled && <IconButton label={t("exercises.image.revertOwn", { n: (baseVariantIndex ?? 0) + 1 })}
+              onClick={() => { setLinkedImage(baseImage); setValue(`${base}.Image`, baseImage, { shouldDirty: true, shouldValidate: Boolean(fieldState.error) }) }}><X aria-hidden="true" className="h-4 w-4" /></IconButton>}
+            {canUpload && <IconButton label={t("exercises.image.uploadTip")} onClick={pick} className="border border-border"><Upload aria-hidden="true" className="h-4 w-4" /></IconButton>}
           </div>}
+        {linked && <p data-own-image={ownImage || undefined} className={cn("text-xs", ownImage ? "font-medium text-[var(--ib-warn)]" : "text-muted-foreground")}>
+          {ownImage ? t("exercises.image.own") : t("exercises.image.asInBase", { n: (baseVariantIndex ?? 0) + 1 })}</p>}
         {fieldState.error && <FormMessage className="leading-5" />}
       </FormItem>
     )} />
     {fileInput}
     {under}
-    {hint && !dragging && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.hint")}</p>}
     {dropped && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.changedDuringUpload")}</p>}
     {error && <p role="alert" className="mt-1.5 flex items-start gap-1.5 text-xs text-destructive">
       <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{error}</span>

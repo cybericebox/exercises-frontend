@@ -9,7 +9,7 @@ import { createCheckpoint, isStoredVersionId, publishDraft, restoreVersion } fro
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
-import { ERR_EXERCISE_IN_USE, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { ERR_EXERCISE_IN_USE, deviceImageErrorTarget, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
@@ -111,10 +111,31 @@ export function useExerciseActions({
         toast.error(t("admin.exPage.toast.invalid"))
         return false
       }
-      await publishDraft(exerciseId)
+      try {
+        await publishDraft(exerciseId)
+      } catch (cause) {
+        if (!showDeviceImageError(cause)) throw cause
+        return false
+      }
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.published"))
     }, true, false, "publish")
+  }
+
+  /**
+   * 22831: a linked variant's own image is not a valid reference (context: the variant's 1-based position and the
+   * device name). The error goes beside that device's image field, which opens.
+   */
+  function showDeviceImageError(cause: unknown): boolean {
+    const target = deviceImageErrorTarget(cause, editor.draftForm.getValues("Variants"))
+    if (!target) return false
+    const { variantIndex, deviceIndex } = target
+    const devices = editor.draftForm.getValues(`Variants.${variantIndex}.Topology.Devices`)
+    editor.draftForm.setError(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Image`, { type: "server", message: exerciseErrorMessage(cause) })
+    if (canWrite) setMode("edit")
+    setPosition((current) => ({ ...current, tab: "variants", variant: variantIndex, section: "topology", topologySection: `device:${devices[deviceIndex].ID}`, devicePanel: "basic" }))
+    toast.error(exerciseErrorMessage(cause))
+    return true
   }
 
   async function snapshot(note: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { GripVertical, Images, Maximize2, Minimize2, Pencil, Plus, X } from "lucide-react"
 import { FieldHelp } from "@/components/ui/field-help"
@@ -49,14 +49,14 @@ const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
 ]
 
 /** The form owns topology; only view, selection and transient actions live here. */
-/** Help lines of each topology tab: admin.exTopo.tabHelp.<tab>.<line>. */
-const TAB_HELP = {
-  diagram: ["what", "connect"],
-  devices: ["what", "open"],
-  connections: ["what", "gateway"],
-} as const
-
-export function TopologySection({ variantIndex, disabled }: { variantIndex: number; disabled: boolean }) {
+export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseIndex, imagesEditable = false }: {
+  variantIndex: number
+  disabled: boolean
+  toolbar?: ReactNode
+  /** A linked variant: its base's position. The topology is the base's (read-only); only device images are its own. */
+  linkedBaseIndex?: number
+  imagesEditable?: boolean
+}) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology` as const
   const { fields, append, remove } = useFieldArray({ control, name: `${base}.Devices` })
@@ -298,14 +298,10 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
 
   function selectNode(key: string) {
     if (connectMode && unavailableConnectionNodes.includes(key)) return
+    // As in the prototype, selecting a node opens its panel (outside the connect mode).
+    if (!connectMode) { openSettings(key); return }
     setSelectedKey(key)
     setSelectedConnectionIndex(null)
-    if (!connectMode && settingsTarget) {
-      if (renamingKey && renamingKey !== key) setRenamingKey(null)
-      if (activeSection.startsWith("device:")) setActiveSection(`device:${key}`)
-      else setSettingsTarget(key)
-    }
-    if (!connectMode) return
     setLinkNodes((current) => current.length === 0 || current.length === 2
       ? [key] : current[0] === key ? [] : [current[0], key])
   }
@@ -367,11 +363,30 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
     setPendingRemoval(null)
   }
 
+  const actions = <>
+    {!disabled && <DropdownMenu>
+      <DropdownMenuTrigger asChild><Button type="button" variant="outline" aria-label={t("admin.exTopo.addDevice")}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {DEVICE_OPTIONS.map((option) => <DropdownMenuItem key={option.type} className="gap-2" onSelect={() => { setActiveSection("diagram"); addDevice(option.type) }}>
+          <TopologyGlyph kind={option.type === "container" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
+        </DropdownMenuItem>)}
+        <DropdownMenuItem disabled={topology?.VPN.Enabled} className="gap-2" onSelect={() => { setActiveSection("diagram"); addGateway("vpn") }}><TopologyGlyph kind="vpn" className="h-5 w-5 shrink-0" />{t("admin.exTopo.vpn")}</DropdownMenuItem>
+        <DropdownMenuItem disabled={topology?.Internet.Enabled} className="gap-2" onSelect={() => { setActiveSection("diagram"); addGateway("internet") }}><TopologyGlyph kind="internet" className="h-5 w-5 shrink-0" />{t("admin.exTopo.internet")}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>}
+    {!disabled && !connectMode && view !== "connections" && <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
+      <Button type="button" variant="outline" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={() => { if (linkUnavailableReason !== null) return; setActiveSection("diagram"); setConnectMode(true); setLinkNodes([]) }}>
+        <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
+      </Button>
+    </HoverTooltip>}
+  </>
+
   return <section data-testid="topology-workspace" className={canvasExpanded
     ? "fixed inset-0 z-(--ib-z-canvas) flex h-dvh min-h-0 min-w-0 flex-col bg-background p-0"
-    : "flex min-h-[32rem] min-w-0 flex-col gap-3 lg:h-[min(72dvh,48rem)]"}>
-    {!canvasExpanded && <div className="flex shrink-0 items-center justify-between gap-3">
-    <nav aria-label={t("admin.exDraft.topology.title")} className="inline-flex h-10 items-center rounded-md bg-muted p-1">
+    : "topology-workspace"}>
+    {!canvasExpanded && <div className="topology-subtabs">
+    <nav aria-label={t("admin.exDraft.topology.title")} className="topology-views">
       {(["diagram", "devices", "connections"] as const).map((item) =>
         <button key={item} type="button" aria-current={view === item ? "page" : undefined}
           onClick={() => {
@@ -380,46 +395,25 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
             exitExpandedCanvas()
             if (activeSection.startsWith("device:")) setSettingsTarget(activeSection.slice("device:".length))
             setActiveSection(item)
-          }}
-          className={`h-8 rounded px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary ${view === item ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+          }}>
           {t(`admin.exTopo.${item}`)}
         </button>)}
     </nav>
-    {/* One help for the active tab, outside the tab buttons. */}
-    <FieldHelp key={view} lines={TAB_HELP[view].map((line) => t(`admin.exTopo.tabHelp.${view}.${line}`))} />
+    <span className="flex-1" />
+    {linkedBaseIndex !== undefined && <span className="text-sm text-muted-foreground">{t("admin.exTopo.linkedImagesOnly", { n: linkedBaseIndex + 1 })}</span>}
+    {actions}
+    {toolbar}
     </div>}
 
     {view === "diagram" && <div ref={layoutRef} data-testid="topology-canvas-layout" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
     <div data-testid="topology-canvas-surface" className={canvasExpanded
-      ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
-      : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-background"}>
-      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {connectMode && <span className="text-xs text-muted-foreground">{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>}
-          {!disabled && (connectMode ? <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>
-            : <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
-              <Button type="button" variant="outline" size="sm" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                onClick={() => { if (linkUnavailableReason !== null) return; setConnectMode(true); setLinkNodes([]) }}>
-                <Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}
-              </Button>
-            </HoverTooltip>)}
-          {!disabled && <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t("admin.exTopo.addDevice")}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {DEVICE_OPTIONS.map((option) => <DropdownMenuItem key={option.type} className="gap-2" onSelect={() => addDevice(option.type)}>
-                <TopologyGlyph kind={option.type === "container" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
-              </DropdownMenuItem>)}
-              <DropdownMenuItem disabled={topology?.VPN.Enabled} className="gap-2" onSelect={() => addGateway("vpn")}><TopologyGlyph kind="vpn" className="h-5 w-5 shrink-0" />{t("admin.exTopo.vpn")}</DropdownMenuItem>
-              <DropdownMenuItem disabled={topology?.Internet.Enabled} className="gap-2" onSelect={() => addGateway("internet")}><TopologyGlyph kind="internet" className="h-5 w-5 shrink-0" />{t("admin.exTopo.internet")}</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>}
-          <HoverTooltip text={t(canvasExpanded ? "admin.exTopo.collapseCanvas" : "admin.exTopo.expandCanvas")}><Button type="button" variant="ghost" size="sm" onClick={toggleExpandedCanvas}
-            aria-label={t(canvasExpanded ? "admin.exTopo.collapseCanvas" : "admin.exTopo.expandCanvas")}
-            className="h-8 w-8 shrink-0 p-0">
-            {canvasExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button></HoverTooltip>
-        </div>
-      </div>
+      ? "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      : "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-background"}>
+      {canvasExpanded && <div className="topology-float-actions">{actions}</div>}
+      {connectMode && <div className="topology-connect-hint" role="status">
+        <span>{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>
+        {!disabled && <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>}
+      </div>}
       <div className="relative min-h-0 flex-1 overflow-auto">
         {topology && <TopologyDiagram topology={topology} onPositionChange={disabled ? undefined : moveNode}
           onLabelOffsetChange={disabled ? undefined : moveLabel}
@@ -437,7 +431,11 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
           onCanvasSelect={() => { if (!connectMode) { if (!settingsTarget) setSelectedKey(null); setSelectedConnectionIndex(null) } }}
           onCanvasAddNode={disabled ? undefined : (kind, position) => kind === "vpn" || kind === "internet"
             ? addGateway(kind, position) : addDevice(kind, position)}
-          onCanvasLinkStart={disabled ? undefined : () => { setConnectMode(true); setLinkNodes([]) }} />}
+          onCanvasLinkStart={disabled ? undefined : () => { setConnectMode(true); setLinkNodes([]) }}
+          toolbarExtra={<HoverTooltip text={t(canvasExpanded ? "admin.exTopo.collapseCanvasTip" : "admin.exTopo.expandCanvasTip")}><Button type="button" variant="ghost" size="icon" onClick={toggleExpandedCanvas}
+            aria-label={t(canvasExpanded ? "admin.exTopo.collapseCanvas" : "admin.exTopo.expandCanvas")} className="h-8 w-8">
+            {canvasExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button></HoverTooltip>} />}
       </div>
     </div>
     {settingsTarget !== null && <aside role="complementary"
@@ -509,7 +507,8 @@ export function TopologySection({ variantIndex, disabled }: { variantIndex: numb
         </p>}
         {settingsGateway ? <NetworkToggles variantIndex={variantIndex} disabled={disabled}
           network={settingsGateway === "vpn" ? "VPN" : "Internet"} showEnabled={false} />
-          : settingsDeviceIndex >= 0 && <DeviceCard key={fields[settingsDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={settingsDeviceIndex} disabled={disabled} compact />}
+          : settingsDeviceIndex >= 0 && <DeviceCard key={fields[settingsDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={settingsDeviceIndex} disabled={disabled} compact
+            imageBaseIndex={linkedBaseIndex} imageDisabled={linkedBaseIndex !== undefined ? !imagesEditable : undefined} />}
       </div>
     </aside>}
     </div>}
