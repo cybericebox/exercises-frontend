@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, ChevronDown, Globe, HelpCircle, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, ChevronDown, Globe, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -780,8 +780,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="absolute bottom-11 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1">
-      <HoverTooltip text={t("admin.exTopo.zoomOut")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+    <div className="topology-zoom absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1" aria-describedby={controlsHelpId}>
+      <HoverTooltip text={t("admin.exTopo.zoomOutTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
       <PopoverPrimitive.Root open={zoomMenuOpen} onOpenChange={(open) => {
@@ -805,17 +805,12 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           </form>
         </PopoverPrimitive.Content></PopoverPrimitive.Portal>
       </PopoverPrimitive.Root>
-      <HoverTooltip text={t("admin.exTopo.zoomIn")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+      <HoverTooltip text={t("admin.exTopo.zoomInTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomIn")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale * 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomIn className="h-4 w-4" /></Button></HoverTooltip>
-      <HoverTooltip text={t("admin.exTopo.fitCanvas")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+      <HoverTooltip text={t("admin.exTopo.fitCanvasTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.fitCanvas")} onClick={() => { viewportTouched.current = true; setViewport(fitViewport(fitContentPoints(), Math.min(W, size.width), Math.min(H, size.height))) }}>
         <Maximize className="h-4 w-4" /></Button></HoverTooltip>
-      <HoverTooltip help text={t("admin.exTopo.canvasControlsHelp")}>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={t("admin.exTopo.canvasControls")}>
-          <HelpCircle aria-hidden="true" className="h-4 w-4" />
-        </Button>
-      </HoverTooltip>
       {toolbarExtra}
     </div>
     <p id={controlsHelpId} className="sr-only">{t("admin.exTopo.canvasControlsHelp")}</p>

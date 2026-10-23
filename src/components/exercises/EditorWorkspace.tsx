@@ -37,7 +37,7 @@ type WorkspaceProps = {
   infrastructureBlocked?: boolean
   /** The variant notes are internal: only full access (admins, the owner event's owners/managers) sees them. */
   showNotes?: boolean
-  /** Shown above the scheme in the infrastructure mode (the task's resources). */
+  /** Beside the topology actions in the infrastructure mode (the task's resources). */
   resources?: ReactNode
 }
 
@@ -217,7 +217,7 @@ function VariantWorkspace({ form, variantIndex, count, baseIndex, disabled, exer
           <Textarea id={`variant-note-${variantIndex}`} rows={6} {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
         </div>
         : infrastructureBlocked ? <InfrastructureBlockedNote />
-        : <>{resources}<TopologySection variantIndex={variantIndex} disabled={disabled || linked} /></>}
+        : <TopologySection variantIndex={variantIndex} disabled={disabled || linked} toolbar={resources} />}
     </div>
     {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     <ConfirmDialog open={confirm === "unlink"} onCancel={() => setConfirm(null)} tone="danger"

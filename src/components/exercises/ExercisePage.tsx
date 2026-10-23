@@ -24,7 +24,7 @@ import { EditorPositionProvider, useEditorValidationFocus } from "@/components/e
 import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
-import { TopologyResourcesPanel } from "@/components/exercises/TopologyResourcesPanel"
+import { TopologyResourcesButton } from "@/components/exercises/TopologyResourcesPanel"
 import { ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
 import type { ResourcesConfig } from "@/api/exercises/capabilities"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
@@ -363,7 +363,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
                 status={headerStatus({ ...exercise, HasChanges: !readOnly && unpublishedWork })} resources={editor.version?.Resources ?? null}
                 usageEvents={actions.usageEvents.map((event) => event.Name)} />}
             </div>}
-            resources={infraAllowed ? <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+            resources={infraAllowed ? <TopologyResourcesButton form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
               config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
               flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} /> : undefined} />
         </form>

@@ -132,3 +132,16 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .flag-mode-switch .on.on { background:var(--ib-action); color:var(--ib-on-action); }
 .flag-mode-switch [aria-disabled=true] { opacity:.45; cursor:default; }
 .flag-mode-switch button:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
+
+/* Infrastructure: the views and the actions in one row, the canvas down to the bottom of the screen. */
+.editor-form,.editor-panel,.variant-workspace,.variant-mode-panel { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; }
+.topology-workspace { display:flex; flex:1 1 auto; flex-direction:column; gap:12px; min-width:0; min-height:max(28rem, calc(100dvh - 260px)); }
+.topology-subtabs { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.topology-views { display:inline-flex; gap:2px; padding:2px; border-radius:6px; background:var(--ib-hero); }
+.topology-views>button { height:calc(var(--ctl) - 4px); padding:0 12px; border-radius:4px; font-size:13.5px; color:var(--ib-dim); }
+.topology-views>button:hover { color:var(--ib-ink); }
+.topology-views>button[aria-current=page] { background:var(--ib-surface); color:var(--ib-ink); font-weight:500; }
+.topology-views>button:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
+.topology-float-actions { position:absolute; top:12px; right:12px; z-index:15; display:flex; gap:8px; }
+.topology-connect-hint { position:absolute; top:12px; left:12px; z-index:15; display:flex; align-items:center; gap:10px; padding:4px 4px 4px 12px; border:1px solid var(--ib-line); border-radius:8px; background:var(--ib-surface); font-size:13px; color:var(--ib-dim); }
+.resources-popover [data-resources-panel] { margin:0; padding:0; border:0; }

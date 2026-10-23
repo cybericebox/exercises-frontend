@@ -1847,5 +1847,13 @@
   "admin.exTask.flag.noDeviceHint": "Без пристрою можливий лише один заданий прапор. Шаблон і кілька прапорів — після привʼязки до контейнера в інфраструктурі.",
   "admin.exTask.flag.templateNeedsDevice": "Шаблон — після вибору пристрою, у який передається прапор",
   "admin.exFiles.dropOrPick": "Перетягніть файл сюди або виберіть",
-  "admin.exFiles.none": "Немає файлів"
+  "admin.exFiles.none": "Немає файлів",
+  "admin.exTopo.zoomInTip": "Збільшити · Ctrl/⌘ + коліщатко",
+  "admin.exTopo.zoomOutTip": "Зменшити · Ctrl/⌘ + коліщатко",
+  "admin.exTopo.fitCanvasTip": "Умістити всю схему",
+  "admin.exTopo.expandCanvasTip": "На весь екран · Esc — вийти",
+  "admin.exTopo.collapseCanvasTip": "Вийти з повноекранного режиму · Esc",
+  "exercises.res.button": "Ресурси: {cpu} CPU · {memory}",
+  "exercises.res.buttonPending": "{label}, потребують погодження: {count}",
+  "exercises.res.pendingCount": "погодження: {count}"
 }

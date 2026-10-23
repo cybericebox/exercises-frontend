@@ -15,6 +15,7 @@ import { MAX_IMAGE_ARCHIVE_GIB } from "@/lib/imageErrors"
 import { pluralKey } from "@/lib/presetLabels"
 import { cn } from "@/utils/cn"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
+import { GuideLink } from "./GuideLink"
 import { ImageAvailability } from "./ImageAvailability"
 import { useDeviceImageUpload, useImageUploads, type ImageUploadProgress } from "./ImageUploads"
 
@@ -52,7 +53,7 @@ function stageNote(progress: ImageUploadProgress): string | null {
  * trailing icon button or by dropping it on the field. An uploaded image is the platform reference, shown as a
  * chip with «Замінити» and «Вказати посилання». The field changes only when the upload has created the image.
  * An archive dropped before the task has a name is kept and checked at once; it is sent by itself when the task
- * exists (see ImageUploadStore). Below the field: the hint, the stage, the error and the availability of the image.
+ * exists (see ImageUploadStore). Below the field: the stage, the error and the availability of the image.
  */
 export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact = false }: {
   variantIndex: number
@@ -111,7 +112,6 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   /** The control and what sits under it, by state. */
   let control_: ReactNode
   let under: ReactNode = null
-  let hint = false
 
   if (progress) {
     const pushing = progress.stage === "pushing"
@@ -166,14 +166,13 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
       <IconButton label={t("exercises.image.removeFile")} onClick={() => store.dismissError(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
     </div>
   } else {
-    hint = true
     control_ = null
   }
 
   return <div data-testid="image-drop-zone" className="min-w-0" onDragOver={onDragOver} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
     <FormField control={control} name={`${base}.Image`} render={({ field, fieldState }) => (
       <FormItem className={compact ? "space-y-1" : undefined}>
-        {label}
+        <div className="flex items-center gap-1">{label}<GuideLink topic="obrazy" /></div>
         {dragging && canUpload && !uploading
           ? <div data-image-dropping className={cn(CONTROL, "justify-center border-dashed border-primary bg-accent font-medium")}>{dropText}</div>
           : control_ ?? <div className={cn(CONTROL, "flex-nowrap focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40", disabled && "opacity-50")}>
@@ -186,7 +185,6 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
     )} />
     {fileInput}
     {under}
-    {hint && !dragging && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.hint")}</p>}
     {dropped && <p className="mt-1.5 text-xs text-muted-foreground">{t("exercises.image.changedDuringUpload")}</p>}
     {error && <p role="alert" className="mt-1.5 flex items-start gap-1.5 text-xs text-destructive">
       <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{error}</span>

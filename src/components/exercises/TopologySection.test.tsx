@@ -72,16 +72,15 @@ describe("topology workspace", () => {
     expect(visual?.positions?.[nodeId]).toBeUndefined()
   })
 
-  it("marks the active tab at rest and explains only that tab", () => {
+  it("marks the active view, keeps the actions in the same row and puts no «?» on the views", () => {
     render(<Harness />)
     const tab = (name: string) => screen.getByRole("button", { name })
     expect(tab("admin.exTopo.diagram")).toHaveAttribute("aria-current", "page")
-    expect(tab("admin.exTopo.diagram")).toHaveClass("bg-card", "text-foreground")
-    expect(tab("admin.exTopo.devices")).not.toHaveClass("bg-card")
-    expect(screen.getByRole("button", { name: "ui.help" })).toHaveAccessibleDescription("admin.exTopo.tabHelp.diagram.what admin.exTopo.tabHelp.diagram.connect")
+    expect(tab("admin.exTopo.devices")).not.toHaveAttribute("aria-current")
+    expect(screen.queryByRole("button", { name: "ui.help" })).not.toBeInTheDocument()
+    expect(tab("admin.exTopo.diagram").closest(".topology-subtabs")).toContainElement(screen.getByRole("button", { name: "admin.exTopo.addDevice" }))
     fireEvent.click(tab("admin.exTopo.connections"))
-    expect(tab("admin.exTopo.connections")).toHaveClass("bg-card")
-    expect(screen.getByRole("button", { name: "ui.help" })).toHaveAccessibleDescription("admin.exTopo.tabHelp.connections.what admin.exTopo.tabHelp.connections.gateway")
+    expect(tab("admin.exTopo.connections")).toHaveAttribute("aria-current", "page")
     expect(screen.queryByRole("heading", { name: "admin.exTopo.connections" })).not.toBeInTheDocument()
     expect(tab("admin.exTopo.connections").querySelector("button")).toBeNull()
   })

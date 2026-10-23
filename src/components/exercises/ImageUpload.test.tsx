@@ -111,13 +111,14 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 describe("DeviceImageField", () => {
-  it("is one field: the reference input with an upload icon button inside, and one hint line", () => {
+  it("is one field: the reference input with an upload icon button inside, the guide beside the label", () => {
     render(<Harness />)
     const input = screen.getByRole("textbox")
     const upload = screen.getByRole("button", { name: "exercises.image.uploadTip" })
     expect(input.parentElement).toContainElement(upload) // one bordered control, not a second box below the input
     expect(upload).not.toHaveTextContent(/\S/) // an icon, no text label
-    expect(screen.getByText("exercises.image.hint")).toBeInTheDocument()
+    expect(screen.queryByText("exercises.image.hint")).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "admin.exGuide.obrazy" })).toBeInTheDocument()
     expect(screen.getAllByTestId("image-drop-zone")).toHaveLength(1)
     // The limit and the command live in the label's help.
     expect(helpButton(/^admin\.exTopo\.imageHelp /)).toBeInTheDocument()

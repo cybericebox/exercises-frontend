@@ -1847,5 +1847,13 @@
   "admin.exTask.flag.noDeviceHint": "Without a device only one fixed flag is possible. Templates and several flags need a container in the infrastructure.",
   "admin.exTask.flag.templateNeedsDevice": "A template needs the device that receives the flag",
   "admin.exFiles.dropOrPick": "Drop a file here or choose one",
-  "admin.exFiles.none": "No files"
+  "admin.exFiles.none": "No files",
+  "admin.exTopo.zoomInTip": "Zoom in · Ctrl/⌘ + wheel",
+  "admin.exTopo.zoomOutTip": "Zoom out · Ctrl/⌘ + wheel",
+  "admin.exTopo.fitCanvasTip": "Fit the whole scheme",
+  "admin.exTopo.expandCanvasTip": "Full screen · Esc to leave",
+  "admin.exTopo.collapseCanvasTip": "Leave full screen · Esc",
+  "exercises.res.button": "Resources: {cpu} CPU · {memory}",
+  "exercises.res.buttonPending": "{label}, need approval: {count}",
+  "exercises.res.pendingCount": "approval: {count}"
 }
