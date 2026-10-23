@@ -15,8 +15,9 @@
 .exercise-import-filebar>strong{min-width:0;font-weight:500;overflow-wrap:anywhere}
 .exercise-import-busy{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ib-dim);padding-right:8px}
 .exercise-import-filebar>.exercise-import-progress{flex-basis:100%;width:auto;margin:2px 8px 4px 0}
-.exercise-import-password{display:flex;align-items:flex-end;gap:8px;max-width:520px}.exercise-import-password>div:first-child{flex:1}
-.exercise-import-password>button{margin-bottom:22px}
+/* The check button lines up with the password field (under its 18px label + 6px gap), whatever the error below it. */
+.exercise-import-password{display:flex;align-items:flex-start;gap:8px;max-width:520px}.exercise-import-password>div:first-child{flex:1}
+.exercise-import-password>button{margin-top:24px}
 .exercise-import-destination{display:flex;align-items:flex-start;gap:4px}
 .exercise-import-destination>div:first-child{display:grid;grid-template-columns:max-content 260px;align-items:center;column-gap:10px;row-gap:4px}
 .exercise-import-destination>div:first-child>p{grid-column:2}.exercise-import-destination>button{margin-top:6px}
@@ -78,4 +79,12 @@
   .exercise-import-footer{flex-wrap:wrap;padding:10px 16px max(10px,env(safe-area-inset-bottom))}.exercise-import-footer>p{flex-basis:100%}
   .exercise-import-footer>div{flex:1;justify-content:flex-end}.exercise-import-footer>div>button:last-child:not(:only-child){flex:1}
   .exercise-import-picker{width:calc(100vw - 24px)}
+}
+/* Phone: the password field and its check button stack; a result row puts its status and link under the name. */
+@media (max-width:639px){
+  .exercise-import-password{flex-direction:column;align-items:stretch;max-width:none}
+  .exercise-import-password>button{margin-top:0}
+  .exercise-import-result{flex-wrap:wrap;gap:0 12px;padding:6px 0}
+  .exercise-import-result strong{flex-basis:100%}
+  .exercise-import-result span{flex:1}
 }

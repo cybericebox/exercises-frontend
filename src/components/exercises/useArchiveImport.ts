@@ -7,7 +7,7 @@ import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exercis
 import { hasImportEditors, prepareImportEditors, releaseImportEditors } from "@/lib/importReplacement"
 import { importInitiationScope, isImportInitiationCurrent } from "@/lib/importJobs"
 import { t } from "@/i18n/t"
-import { registryErrorHelp } from "@/lib/imageErrors"
+import { ERR_REGISTRY_ACCESS_DENIED, registryErrorHelp } from "@/lib/imageErrors"
 
 export const IMPORT_CONFIRMATION_STALE = 72906
 /** The archive is protected and no password came / the password does not open it. */
@@ -131,7 +131,8 @@ export function useArchiveImport(options: Options = {}) {
       if (failure.password) setPasswordError(failure.password)
       else if (failure.file) setFileError(failure.file)
       else if (failure.itemKey && current.choices?.some(choice => choice.ItemKey === failure.itemKey)) setTargetErrors({ [failure.itemKey]: failure.message })
-      else { setError(failure.message); setErrorHelp(registryErrorHelp(cause)) }
+      // A refused registry token: a short title; the help line under it says who fixes it and where.
+      else { setError(exerciseErrorCode(cause) === ERR_REGISTRY_ACCESS_DENIED ? t("exercises.image.accessDeniedTitle") : failure.message); setErrorHelp(registryErrorHelp(cause)) }
     } finally { if (active()) { setBusy(false); setPhase(null) } }
   }
   async function chooseTarget(key: string, target: ImportTarget, targetExercise?: ImportTargetExercise) {
