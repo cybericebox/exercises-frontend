@@ -223,6 +223,7 @@ const envVarSchema = z.object({
   Value: z.string(),
   Secret: z.boolean(),
   HasValue: z.boolean(),
+  ValueGroup: z.number().int().optional(),
 }).superRefine((variable, ctx) => {
   if (variable.Secret && !variable.HasValue && variable.Value === "") {
     ctx.addIssue({ code: "custom", path: ["Value"], message: t("admin.ex.val.secretValue") })
@@ -447,7 +448,7 @@ const taskSchema = z.object({
   }),
   LinkedDeviceID: z.string(),
   DeviceFlagVar: z.string(),
-  Attachments: z.array(z.object({ FileID: z.string(), Name: z.string() })),
+  Attachments: z.array(z.object({ FileID: z.string(), Name: z.string(), ContentHash: z.string().optional() })),
   Placeholders: z.array(placeholderSchema),
   Hints: z.array(hintSchema).max(MAX_HINTS, t("exercises.hints.val.max")),
 })
@@ -687,7 +688,8 @@ function taskToDTO(task: TaskFormValues): TaskDTO {
     Difficulty: task.Difficulty,
     Flag: task.Flag,
     ...(task.LinkedDeviceID ? { LinkedDeviceID: task.LinkedDeviceID, DeviceFlagVar: task.DeviceFlagVar } : {}),
-    Attachments: task.Attachments,
+    // ContentHash is response-only: the request names a file by its id.
+    Attachments: task.Attachments.map((file) => ({ FileID: file.FileID, Name: file.Name })),
     Placeholders: task.Placeholders.map(placeholderToDTO),
     Hints: task.Hints.map((hint) => ({ ...(hint.ID ? { ID: hint.ID } : {}), Text: hint.Text, Level: hint.Level })),
   }

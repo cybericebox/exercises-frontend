@@ -30,7 +30,12 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
         ...variant.Topology,
         Devices: variant.Topology.Devices.map((device) => ({
           ...device,
-          EnvVars: device.EnvVars.map((env) => ({ ...env, Value: "" })),
+          // A ValueGroup is meaningful only within the server answer it came from: never persisted.
+          EnvVars: device.EnvVars.map((env) => {
+            const { ValueGroup, ...rest } = env
+            void ValueGroup
+            return { ...rest, Value: "" }
+          }),
         })),
       },
     })),

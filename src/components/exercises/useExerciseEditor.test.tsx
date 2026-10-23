@@ -20,7 +20,7 @@ import { createExercise, getExercise, updateExercise } from "@/api/exercises/cat
 import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
-import { emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
@@ -321,6 +321,48 @@ describe("useExerciseEditor", () => {
     expect(latest.getDraftVersionId()).toBe("draft-1")
     await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it("turns a typed secret into a stored one after the save: its group comes from the answer, nothing else changes, no second save", async () => {
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Image: "web:1",
+      EnvVars: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }
+    const stored = structuredClone(serverVersion)
+    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null,
+      EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }]
+    mockSaveDraft.mockResolvedValue(stored)
+    render(<Harness />)
+    act(() => {
+      latest.draftForm.setValue("Variants.0.Topology.Devices", [device])
+      latest.draftForm.setValue("Variants.0.Note", "kept note")
+    })
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].EnvVars?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars")).toEqual([
+      { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
+      { Name: "MODE", Value: "ctf", Secret: false, HasValue: false },
+    ])
+    expect(latest.draftForm.getValues("Variants.0.Note")).toBe("kept note")
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Image")).toBe("web:1")
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps a secret typed further while the save was in flight", async () => {
+    let resolveSave: (value: Version) => void = () => undefined
+    mockSaveDraft.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve }))
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", EnvVars: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] }
+    const stored = structuredClone(serverVersion)
+    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null, EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] }]
+    render(<Harness />)
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices", [device]))
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.EnvVars.0.Value", "s3cret"))
+    await act(async () => { resolveSave(stored) })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
   })
 
   it("adopts nothing when a task is added to the form while the save is still in flight", async () => {

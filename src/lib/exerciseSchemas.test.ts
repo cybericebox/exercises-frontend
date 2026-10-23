@@ -925,6 +925,22 @@ describe('toDraftFormValues', () => {
   })
 })
 
+describe('content hashes', () => {
+  it('reads ValueGroup (secrets only) and ContentHash, and never sends them back', () => {
+    const variant = normalizeVariant({ Index: 1, Tasks: [{ Name: 'Scan', Difficulty: 'easy', Attachments: [{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }] }],
+      Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false },
+        Devices: [{ ID: 'd1', Name: 'web', Type: 'container', Interfaces: [], EnvVars: [{ Name: 'FLAG', Secret: true, HasValue: true, ValueGroup: 2 }, { Name: 'MODE', Value: 'ctf', Secret: false, ValueGroup: 5 }] }] } })
+    expect(variant.Topology.Devices[0].EnvVars.map((env) => env.ValueGroup)).toEqual([2, undefined])
+    expect(variant.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }])
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Attachments = variant.Tasks[0].Attachments
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web', EnvVars: variant.Topology.Devices[0].EnvVars }]
+    const sent = toSaveDraftInput(draft).Variants[0]
+    expect(sent.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap' }])
+    expect(sent.Topology.Devices?.[0].EnvVars?.every((env) => !('ValueGroup' in env))).toBe(true)
+  })
+})
+
 describe('variant weight', () => {
   it('reads absent, 0 or garbage as 1 and keeps a stored weight', () => {
     expect([undefined, 0, -2, 1.5, 3].map((weight) => normalizeVariant({ Index: 1, Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }, ...(weight === undefined ? {} : { Weight: weight }) }).Weight)).toEqual([1, 1, 1, 1, 3])

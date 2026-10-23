@@ -25,7 +25,9 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
   const ids = new Map<string, string>()
   for (const [index, device] of variant.Topology.Devices.entries()) {
     if (!device.ID || ids.has(device.ID)) return null
-    if (device.EnvVars.some((env) => env.Secret && !env.Value)) return null
+    // A stored secret compares by its ValueGroup (all groups in the form come from one server response); without one
+    // (an older server, no stored value) it cannot be compared. A secret typed here and not saved yet is not comparable.
+    if (device.EnvVars.some((env) => env.Secret && (env.Value !== "" || !env.ValueGroup))) return null
     ids.set(device.ID, `device:${index}`)
   }
   let valid = true
@@ -55,8 +57,10 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
       }))
     }
     if (parts.files && task.Attachments.some((file) => !file.FileID)) valid = false
+    // Files compare by content when the server sent its hash, else (an older server, a file just uploaded) by id.
+    const files = task.Attachments.map((file) => (file.ContentHash ? { Name: file.Name, ContentHash: file.ContentHash } : { Name: file.Name, FileID: file.FileID }))
     return {
-      ...task, ID: undefined, Flag: parts.flags ? task.Flag : undefined, Attachments: parts.files ? task.Attachments : undefined,
+      ...task, ID: undefined, Flag: parts.flags ? task.Flag : undefined, Attachments: parts.files ? files : undefined,
       LinkedDeviceID: deviceRef(task.LinkedDeviceID),
       Description: document(task.Description),
       Placeholders: task.Placeholders.map((p) => ({ ...p, Key: keys.get(p.Key) })),
@@ -92,7 +96,10 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
   const projected = {
     ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
-      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => ({ ...env, HasValue: undefined })) })),
+      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => env.Secret
+        ? { Name: env.Name, Secret: true, ValueGroup: env.ValueGroup }
+        // A plain value is known here (the server returns it), so it compares itself, edits included.
+        : { Name: env.Name, Secret: false, Value: env.Value }) })),
       Connections: variant.Topology.Connections.map((connection) => ({ ...connection, Endpoints: connection.Endpoints.map((endpoint) => ({ ...endpoint, DeviceID: endpoint.Kind === "device" ? deviceRef(endpoint.DeviceID) : endpoint.DeviceID })) })),
     },
   }

@@ -108,6 +108,30 @@ describe("planSimplify", () => {
     expect(planSimplify(numbered([secret("a"), secret("b")]))).toBeNull()
   })
 
+  it("merges imported copies whose secrets share a value group and whose files match by hash", () => {
+    const imported = (id: string, flagGroup: number, fileHash: string) => {
+      const value = variant(id, "ICE{a}")
+      value.Topology.Devices[0].EnvVars = [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: flagGroup }]
+      value.Tasks[0].Attachments = [{ FileID: `file-${id}`, Name: "capture.pcap", ContentHash: fileHash }]
+      return value
+    }
+    const plan = planSimplify(numbered([imported("a", 1, "c1"), imported("b", 1, "c1"), imported("c", 1, "c2"), imported("d", 2, "c1")]))!
+    expect(plan.merges).toEqual([{ keep: 0, removed: [1], weight: 2 }])
+    // «c» differs from variant 1 only by its file (and its flag would repeat, so it stays independent); «d» has its own secret.
+    expect(plan.links).toEqual([])
+    expect(plan.variants.map((value) => [value.ID, value.Weight])).toEqual([["a", 2], ["c", 1], ["d", 1]])
+  })
+
+  it("links a variant that differs only by flag and a file with another hash", () => {
+    const withFile = (id: string, flag: string, hash: string) => {
+      const value = variant(id, flag)
+      value.Tasks[0].Attachments = [{ FileID: `file-${id}`, Name: "capture.pcap", ContentHash: hash }]
+      return value
+    }
+    const plan = planSimplify(numbered([withFile("a", "ICE{a}", "c1"), withFile("b", "ICE{b}", "c2")]))!
+    expect(plan.links).toEqual([1])
+  })
+
   it("never makes a weight above 100", () => {
     const same = Array.from({ length: 102 }, (_, index) => variant(`v${index}`, "ICE{a}"))
     const other = variant("o", "ICE{o}", { Tasks: [{ ...emptyTask(), Name: "Other" }] })

@@ -39,7 +39,12 @@ export type PlaceholderKind = "vpn.subnet" | "internet.subnet" | "ip" | "externa
 /** Lexical JSON (json.RawMessage on the backend) — opaque object. */
 export type LexicalDoc = Record<string, unknown>
 
-export type AttachmentDTO = { FileID: string; Name: string }
+export type AttachmentDTO = {
+  FileID: string
+  Name: string
+  /** Response-only: sha256 hex of the file content; compares files across variants. Absent from older servers. */
+  ContentHash?: string
+}
 
 export type PlaceholderDTO = {
   Key?: string // stable reference for inline description tokens
@@ -60,6 +65,12 @@ export type EnvVarDTO = {
   Value?: string
   Secret: boolean
   HasValue?: boolean // response-only
+  /**
+   * Response-only, secrets with a stored value: 1, 2, … — equal numbers mean equal values WITHIN ONE response
+   * (copied, linked, kept or imported secrets; a value typed and saved has a group of its own). Meaningless across
+   * responses: never persisted, never compared between reads.
+   */
+  ValueGroup?: number
 }
 
 export type ExternalDTO = { Port: number; Protocol: Protocol }
@@ -192,7 +203,8 @@ export type NormalizedTask = {
   Hints: NormalizedHint[]
 }
 
-export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; HasValue: boolean }
+/** ValueGroup describes the stored value only: a locally typed Value makes the secret not comparable until it is saved. */
+export type NormalizedEnvVar = { Name: string; Value: string; Secret: boolean; HasValue: boolean; ValueGroup?: number }
 
 export type NormalizedInterface = {
   Name: string
@@ -330,6 +342,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
       Value: ev.Value ?? "",
       Secret: ev.Secret,
       HasValue: ev.HasValue ?? false,
+      ...(ev.Secret && typeof ev.ValueGroup === "number" && ev.ValueGroup > 0 ? { ValueGroup: ev.ValueGroup } : {}),
     })),
     External: raw.External ?? null,
     Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,

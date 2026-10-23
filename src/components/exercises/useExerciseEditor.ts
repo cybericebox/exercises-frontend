@@ -16,7 +16,7 @@ import {
 import {
   clearPendingChanges, hasDraftContent, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
 } from "@/lib/exercisePendingBuffer"
-import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
+import { capturedDraftIds, savedSecretUpdates, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
 import type { ArchiveCommitInput } from "@/api/exercises/archiveImport"
 import { clearImportReplacement, readImportReplacement, replacementMarker, registerImportEditor, sameImportPlan, writeImportReplacement, type ImportReplacementMarker } from "@/lib/importReplacement"
@@ -237,14 +237,17 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         if (mountedRef.current) setExerciseState((current) => current && { ...current, DraftVersionID: saved.ID, HasChanges: true })
         // The server recounts the resources and the elevation state on every save.
         if (mountedRef.current) setVersion((current) => current && { ...current, ID: saved.ID, Resources: saved.Resources, Elevation: saved.Elevation })
+        // Computed before the ids are written: both guard on the variant ids that were sent.
+        const secretUpdates = savedSecretUpdates(sent, saved, draftForm.getValues())
         const updates = serverIdUpdates(sent, saved, draftForm.getValues())
-        if (updates.length > 0) {
+        if (updates.length > 0 || secretUpdates.length > 0) {
           // An edit still waiting for its check is marked first: the baseline reset below must not swallow it.
           checkPendingRef.current()
           suppressRef.current = true
-          // Linked variants already hold the same ids as their base: no mirror pass while writing.
+          // Linked variants already hold the same ids (and secrets) as their base: no mirror pass while writing.
           withLinkedMirrorMuted(draftForm.control, () => {
             for (const update of updates) draftForm.setValue(update.path, update.value)
+            for (const update of secretUpdates) draftForm.setValue(update.path, update.value)
           })
           suppressRef.current = false
           lastSignatureRef.current = signature()
