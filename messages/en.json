@@ -1825,5 +1825,19 @@
   "admin.exDraft.summaryFirst": "The number, order and difficulty of subtasks are set here and are the same in every variant.",
   "admin.exDraft.summaryIndependent": "An independent variant with its own content. The number and difficulty of subtasks follow variant 1.",
   "admin.exDraft.unlinkFrom": "Unlink from variant {base}",
-  "admin.exDraft.tab.note": "Note"
+  "admin.exDraft.tab.note": "Note",
+  "admin.exGeneral.facts": "About the task",
+  "admin.exGeneral.status": "Status",
+  "admin.exGeneral.since": "since {date}",
+  "admin.exGeneral.published": "Published version",
+  "admin.exGeneral.counts": "Subtasks · variants",
+  "admin.exGeneral.countsValue": "{subtasks} · {variants}",
+  "admin.exGeneral.difficulty": "Average difficulty",
+  "admin.exGeneral.difficultyHelp": "Counted from variant 1: subtask difficulty is the same in every variant.",
+  "admin.exGeneral.resources": "Resources",
+  "admin.exGeneral.resourcesMaxHelp": "From the largest variant: what one solution needs.",
+  "admin.exGeneral.resourcesValue": "{cpu} CPU · {memory}",
+  "admin.exGeneral.owner": "Owner",
+  "admin.exGeneral.authorLabel": "Author",
+  "admin.exGeneral.usedIn": "Used in"
 }

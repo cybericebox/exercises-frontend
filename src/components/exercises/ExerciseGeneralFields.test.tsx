@@ -16,13 +16,15 @@ function Harness({ disabled, showNotes }: { disabled: boolean; showNotes?: boole
 }
 
 describe("ExerciseGeneralFields", () => {
-  it("renders the general fields with their help and without a flag-regeneration switch", () => {
+  it("renders the general fields, help only where needed, and no flag-regeneration switch", () => {
     render(<Harness disabled={false} />)
     expect(screen.getByDisplayValue("Web 101")).toBeEnabled()
     expect(screen.getByLabelText("admin.ex.field.description").tagName).toBe("TEXTAREA")
     expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toHaveValue("Day one")
-    expect(helpButton("admin.ex.help.name")).toBeInTheDocument()
-    expect(helpButton("admin.ex.field.tagsHelp")).toBeInTheDocument()
+    // «?» only where the field needs explaining: the description and the internal notes.
+    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
+    expect(helpButton("admin.exDraft.adminNoteHelp")).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: "ui.help" })).toHaveLength(2)
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
   })
 

@@ -45,6 +45,7 @@ import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerci
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
 import { useRole } from "@/lib/useRole"
 import { useExerciseAccess } from "@/components/shell/AccessContext"
+import { headerStatus } from "@/lib/catalogList"
 import { useReturnContext } from "@/components/shell/ReturnContext"
 import { defaultOwner, editorPermissions, infrastructureAllowed, isReadOnlyCatalogView, ownerOptions } from "@/lib/exerciseRights"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -358,7 +359,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             general={<div className="editor-general">
               <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} readOnly={!editing && Boolean(exercise)} autoFocusName={!exerciseId} showNotes={showNotes} />
               {exercise && <ExerciseGeneralMetadata exercise={exercise} publishedVersion={publishedVersion} publishedAt={publishedAt}
-                eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} />}
+                eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} draftForm={editor.draftForm}
+                status={headerStatus({ ...exercise, HasChanges: !readOnly && unpublishedWork })} resources={editor.version?.Resources ?? null}
+                usageEvents={actions.usageEvents.map((event) => event.Name)} />}
             </div>}
             resources={infraAllowed ? <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
               config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}

@@ -79,3 +79,15 @@
   .general-field>div:first-child { min-height:32px; }
   .general-field input,.general-field textarea { font-size:16px; min-height:44px; }
 }
+
+/* «Загальне»: the fields in one column, the task's facts in a card beside them. */
+.exercise-general-fields { display:flex; flex-direction:column; gap:16px; max-width:860px; }
+.exercise-general-fields .general-field { max-width:none; margin:0; gap:6px; }
+.exercise-general-fields .general-editor { height:auto; min-height:0; max-height:none; resize:vertical; }
+.general-facts { border:1px solid var(--ib-line); border-radius:8px; padding:12px 16px; background:var(--ib-paper); }
+.general-facts dl { display:flex; flex-direction:column; }
+.general-facts dl>div { display:flex; flex-direction:column; gap:2px; padding:8px 0; border-top:1px solid var(--ib-line); }
+.general-facts dl>div:first-child { border-top:0; padding-top:2px; }
+.general-facts dt { font-size:12px; color:var(--ib-dim); }
+.general-facts dd { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0; font-size:13.5px; color:var(--ib-ink); overflow-wrap:anywhere; }
+.general-facts .general-access { min-height:0; padding:0; text-align:left; }

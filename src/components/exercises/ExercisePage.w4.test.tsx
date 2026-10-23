@@ -201,8 +201,8 @@ describe("exercise editor — W4 rights", () => {
     fireEvent.click(screen.getByRole("button", { name: "exercises.access.save" }))
     await waitFor(() => expect(setExerciseAccess).toHaveBeenCalledWith("ex-1", { AccessLevel: "selected", EventIDs: ["ev9"] }))
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole("button", { name: "admin.exGeneral.access" }))
-    expect(await screen.findByText("exercises.access.level.selected")).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("button", { name: "exercises.access.level.selected" }))
+    expect(await screen.findByRole("dialog", { name: "admin.exGeneral.access" })).toBeInTheDocument()
   })
 })
 
@@ -245,13 +245,11 @@ describe("General published snapshot facts — review regressions", () => {
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     await screen.findByRole("heading", { name:"Working task" })
     // Wait for the actual current publication rather than confusing absence while loading with false.
-    await screen.findByText("admin.exPage.meta.published")
+    await waitFor(() => expect(document.querySelector("time[data-published]")).not.toBeNull())
     if (publishedHasProperties) {
-      expect(screen.getByRole("button", { name:"admin.exGeneral.network" })).toBeInTheDocument()
-      expect(screen.getByRole("button", { name:"exercises.res.heavy" })).toBeInTheDocument()
+            expect(document.querySelector("[data-heavy]")).not.toBeNull()
     } else {
-      expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
-      expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+            expect(document.querySelector("[data-heavy]")).toBeNull()
     }
     expect(getVersion).toHaveBeenCalledWith("ex-1", "pub-1")
     expect(getVersion).toHaveBeenCalledTimes(1)
@@ -266,12 +264,11 @@ describe("General published snapshot facts — review regressions", () => {
     await screen.findByRole("heading", { level:1 })
     expect(screen.getByText("admin.exPage.badge.published")).toBeInTheDocument()
     expect(screen.queryByText("admin.exPage.badge.none")).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name:"admin.exGeneral.access" })).toBeInTheDocument()
+    expect(document.querySelector("time[data-published]")).toBeNull()
+    expect(document.querySelector("[data-heavy]")).toBeNull()
+    expect(screen.getByText("admin.exGeneral.access")).toBeInTheDocument()
     await act(async () => { resolvePublished(withPublishedProperties(false, false)) })
-    expect(await screen.findByText("admin.exPage.meta.published")).toHaveAttribute("datetime", version.PublishedAt)
+    await waitFor(() => expect(document.querySelector("time[data-published]")).toHaveAttribute("datetime", version.PublishedAt))
   })
 
   it("does not substitute card flags when publication lookup fails", async () => {
@@ -282,9 +279,8 @@ describe("General published snapshot facts — review regressions", () => {
     await screen.findByRole("heading", { level:1 })
     await act(async () => {})
     expect(screen.getByText("admin.exPage.badge.published")).toBeInTheDocument()
-    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+    expect(document.querySelector("time[data-published]")).toBeNull()
+    expect(document.querySelector("[data-heavy]")).toBeNull()
   })
 
   it("reuses the loaded published-only snapshot without another lookup", async () => {
@@ -292,8 +288,7 @@ describe("General published snapshot facts — review regressions", () => {
     vi.mocked(getVersion).mockResolvedValue({ ...withPublishedProperties(true, true), Name:"Published reader task" })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     await screen.findByRole("heading", { name:"Published reader task" })
-    expect(screen.getByRole("button", { name:"admin.exGeneral.network" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name:"exercises.res.heavy" })).toBeInTheDocument()
+        expect(document.querySelector("[data-heavy]")).not.toBeNull()
     expect(getVersion).toHaveBeenCalledTimes(1)
     expect(getDraft).not.toHaveBeenCalled()
   })
@@ -306,10 +301,9 @@ describe("General published snapshot facts — review regressions", () => {
     render(<ExercisePage exerciseId="ex-1" versionId="history-1" />)
     await screen.findByRole("heading", { name:"Selected historical task" })
     await act(async () => {})
-    if (selectedAt) expect(screen.getByText("admin.exPage.meta.published")).toHaveAttribute("datetime", selectedAt)
-    else expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+    if (selectedAt) expect(document.querySelector("time[data-published]")).toHaveAttribute("datetime", selectedAt)
+    else expect(document.querySelector("time[data-published]")).toBeNull()
+    expect(document.querySelector("[data-heavy]")).toBeNull()
   })
 
   it("ignores late publication responses after switching task or historical selection", async () => {
@@ -328,8 +322,7 @@ describe("General published snapshot facts — review regressions", () => {
     await screen.findByRole("heading", { name:"Second selected checkpoint" })
     await act(async () => { resolveOld(withPublishedProperties(true, true)) })
     expect(screen.getByRole("heading", { level:1 })).toHaveTextContent("Second selected checkpoint")
-    expect(screen.queryByText("admin.exPage.meta.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"admin.exGeneral.network" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name:"exercises.res.heavy" })).not.toBeInTheDocument()
+    expect(document.querySelector("time[data-published]")).toBeNull()
+    expect(document.querySelector("[data-heavy]")).toBeNull()
   })
 })

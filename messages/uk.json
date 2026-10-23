@@ -1825,5 +1825,19 @@
   "admin.exDraft.summaryFirst": "Кількість підзавдань, їх порядок і складність задаються тут і однакові в усіх варіантах.",
   "admin.exDraft.summaryIndependent": "Незалежний варіант: свій вміст. Кількість і складність підзавдань — як у варіанті 1.",
   "admin.exDraft.unlinkFrom": "Відʼєднати від варіанта {base}",
-  "admin.exDraft.tab.note": "Нотатка"
+  "admin.exDraft.tab.note": "Нотатка",
+  "admin.exGeneral.facts": "Відомості про завдання",
+  "admin.exGeneral.status": "Статус",
+  "admin.exGeneral.since": "з {date}",
+  "admin.exGeneral.published": "Опублікована версія",
+  "admin.exGeneral.counts": "Підзавдання · варіанти",
+  "admin.exGeneral.countsValue": "{subtasks} · {variants}",
+  "admin.exGeneral.difficulty": "Середня складність",
+  "admin.exGeneral.difficultyHelp": "Рахується за варіантом 1: у всіх варіантах складність підзавдань однакова.",
+  "admin.exGeneral.resources": "Ресурси",
+  "admin.exGeneral.resourcesMaxHelp": "За найбільшим варіантом — стільки потрібно на одне розвʼязання.",
+  "admin.exGeneral.resourcesValue": "{cpu} CPU · {memory}",
+  "admin.exGeneral.owner": "Власник",
+  "admin.exGeneral.authorLabel": "Автор",
+  "admin.exGeneral.usedIn": "Використовується"
 }
