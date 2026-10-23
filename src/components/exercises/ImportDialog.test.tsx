@@ -94,6 +94,15 @@ it("broad ambiguous 400 stays general and fixed multi-item refusal stays at the 
  expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-invalid", "true")
 })
 
+it("the guide icon in the header looks exactly like the close button beside it", () => {
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} />)
+ const guide = screen.getByRole("link", { name: "admin.exImport.guideArchive" })
+ const close = screen.getByRole("button", { name: "admin.exImport.close" })
+ expect([...guide.classList]).toEqual(expect.arrayContaining([...close.classList]))
+ const size = (element: Element) => [...element.querySelector("svg")!.classList].filter((name) => !name.startsWith("lucide"))
+ expect(size(guide)).toEqual(size(close))
+})
+
 it("a registry an administrator must fix says so under the error, with the retry kept; an outage keeps the general line", async () => {
  vi.mocked(previewArchiveImport)
   .mockRejectedValueOnce(new ApiError(409, { Status: { Code: 72832, Context: { token: "pull", reason: "unauthorized" } } }, undefined, undefined, 72832))
