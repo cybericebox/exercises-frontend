@@ -1951,5 +1951,7 @@
   "exercises.image.own": "This variant's own image",
   "exercises.image.asInBase": "As in variant {n}",
   "exercises.image.revertOwn": "Back to the image of variant {n}",
-  "admin.exDraft.summaryOwnImages": "{summary} Own images: {devices}."
+  "admin.exDraft.summaryOwnImages": "{summary} Own images: {devices}.",
+  "exercises.catalog.resizeColumn": "Width of the «{name}» column",
+  "exercises.catalog.resizeHint": "Change the width · double-click for the default"
 }

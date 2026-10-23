@@ -83,6 +83,13 @@
 .catalog-data tbody td{background:var(--card)}
 .catalog-th{position:sticky;top:0;z-index:20;background:var(--ib-paper)!important;font-size:13px;font-weight:500;color:var(--ib-dim)}
 .catalog-th-on{color:var(--ib-ink)}
+.catalog-col-resize-wrap{position:absolute;top:0;right:0;bottom:0;display:flex}
+.catalog-col-resize{position:relative;width:12px;height:100%;cursor:col-resize;touch-action:none}
+.catalog-col-resize::after{content:"";position:absolute;top:8px;bottom:8px;right:0;width:2px;border-radius:1px;background:transparent}
+.catalog-th:hover .catalog-col-resize::after{background:var(--ib-line)}
+.catalog-col-resize:hover::after,.catalog-col-resize:focus-visible::after,.catalog-col-resize:active::after{background:var(--ib-action)}
+.catalog-col-resize:focus-visible{outline:2px solid var(--ib-action);outline-offset:-2px}
+@media (pointer:coarse){.catalog-col-resize{width:24px}.catalog-col-resize::after{background:var(--ib-line)}}
 .catalog-th-sort{display:inline-flex;max-width:100%;height:28px;align-items:center;gap:4px;margin:0 -6px;padding:0 6px;border-radius:var(--ib-r-sm);font-weight:inherit;color:inherit}
 .catalog-th-sort:hover{color:var(--ib-ink)}
 .catalog-sort-icon{width:14px;height:14px;flex:none;opacity:0}

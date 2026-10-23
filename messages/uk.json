@@ -1951,5 +1951,7 @@
   "exercises.image.own": "Власний образ цього варіанта",
   "exercises.image.asInBase": "Як у варіанті {n}",
   "exercises.image.revertOwn": "Повернути образ варіанта {n}",
-  "admin.exDraft.summaryOwnImages": "{summary} Свої образи: {devices}."
+  "admin.exDraft.summaryOwnImages": "{summary} Свої образи: {devices}.",
+  "exercises.catalog.resizeColumn": "Ширина колонки «{name}»",
+  "exercises.catalog.resizeHint": "Змінити ширину · подвійний клік — типова"
 }

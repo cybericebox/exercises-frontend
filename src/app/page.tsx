@@ -19,6 +19,7 @@ import { CatalogToolbar } from "@/components/exercises/catalog/CatalogToolbar"
 import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
 import { ImportRows } from "@/components/exercises/catalog/ImportRows"
 import { useCatalogColumns } from "@/components/exercises/catalog/useCatalogColumns"
+import { isDefaultLayout } from "@/lib/catalogColumns"
 import { useMediaQuery } from "@/components/shell/useMediaQuery"
 import type { ChoiceOption } from "@/components/exercises/catalog/FilterChip"
 import "@/styles/catalog.css"
@@ -41,7 +42,8 @@ export default function Page() {
   const originActive = useRef(true)
   useEffect(() => { originActive.current = true; return () => { originActive.current = false } }, [])
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [columns, setColumns] = useCatalogColumns()
+  const catalogColumns = useCatalogColumns()
+  const columns = catalogColumns.layout.columns
   const mobile = useMediaQuery("(max-width: 639px)", false)
   const [rows, setRows] = useState<ExerciseListItem[]>([])
   const [page, setPage] = useState(1)
@@ -209,7 +211,7 @@ export default function Page() {
       <h1 className="sr-only">{t("exercises.nav.catalog")}</h1>
       {selected.size === 0 && <CatalogToolbar filters={filters} isAdmin={isAdmin} search={search} onSearch={setSearch} onClearSearch={clearSearch}
         eventOptions={eventOptions} eventName={eventName} authorLabel={authorLabel} onAuthorsLoaded={onAuthorsLoaded} onChange={update}
-        columns={columns} onColumns={setColumns} canImport={canImport} canWrite={canWrite} onImport={openImport} onCreate={() => router.push(createHref())}
+        columns={columns} onColumns={catalogColumns.setColumns} columnsDefault={isDefaultLayout(catalogColumns.layout)} onColumnsReset={catalogColumns.reset} canImport={canImport} canWrite={canWrite} onImport={openImport} onCreate={() => router.push(createHref())}
         active={activeCount} onOpenSheet={() => setSheetOpen(true)} sheetOpen={mobile && sheetOpen} mobile={mobile} />}
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
@@ -223,7 +225,7 @@ export default function Page() {
           state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
             : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
             : rows.length === 0 ? <EmptyFiltered filtered={filtered} onReset={() => { setSearch(""); update({ ...clearedFilters(filters, isAdmin), search: "" }) }} /> : undefined} />
-        : <CatalogTable rows={rows} columns={columns} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
+        : <CatalogTable rows={rows} columns={columns} nameWidth={catalogColumns.layout.nameWidth} onWidth={catalogColumns.setWidth} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
           onToggle={toggle} onToggleAll={toggleAll} sortProps={sortProps} eventName={eventName} regionRef={tableScrollRef} busy={loading}
           state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
             : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
