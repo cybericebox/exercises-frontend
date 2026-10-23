@@ -1940,5 +1940,11 @@
   "exercises.filter.show.one": "Показати {count} завдання",
   "exercises.filter.show.few": "Показати {count} завдання",
   "exercises.filter.show.many": "Показати {count} завдань",
-  "exercises.filter.show.other": "Показати {count} завдання"
+  "exercises.filter.show.other": "Показати {count} завдання",
+  "admin.exDraft.variantOf": "Варіант {n} з {count}",
+  "admin.exTask.pick": "Підзавдання {n}: {name}. Вибрати інше",
+  "admin.exTask.count.one": "{count} підзавдання",
+  "admin.exTask.count.few": "{count} підзавдання",
+  "admin.exTask.count.many": "{count} підзавдань",
+  "admin.exTask.count.other": "{count} підзавдання"
 }

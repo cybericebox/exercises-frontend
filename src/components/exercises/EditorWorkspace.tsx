@@ -2,11 +2,12 @@
 
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useFieldArray, useWatch, type UseFormReturn } from "react-hook-form"
-import { BarChart3, Ellipsis, Link2Off, Network, Plus, Table2, Trash2 } from "lucide-react"
+import { BarChart3, ChevronDown, Ellipsis, Link2Off, Network, Plus, Table2, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useMediaQuery } from "@/components/shell/useMediaQuery"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Textarea } from "@/components/ui/textarea"
@@ -61,6 +62,8 @@ function moveFocus(event: KeyboardEvent<HTMLElement>) {
  */
 export function EditorWorkspace({ form, general, disabled, exerciseId, infrastructureBlocked = false, showNotes = true, resources }: WorkspaceProps) {
   const uid = useId()
+  // A phone has no room for a strip of numbers: the variants are one tab with a menu («Варіант 1 з 9 ⌄»).
+  const phone = useMediaQuery("(max-width: 639px)", false)
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "Variants" })
   const [tab, setTab] = useEditorPosition("tab")
   const [selected, setSelected] = useEditorPosition("variant")
@@ -135,6 +138,20 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
         <button type="button" role="tab" id={`${uid}-general`} aria-selected={tab === "general"} aria-controls={`${uid}-general-panel`} tabIndex={tab === "general" ? 0 : -1}
           className="editor-tab" onClick={() => setTab("general")}>{t("admin.ex.create.tab.general")}</button>
         <span className="editor-tabs-divider" aria-hidden="true" />
+        {phone ? <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" role="tab" id={onAll ? `${uid}-all` : `${uid}-variant-${active}`} aria-selected={onVariants || onAll} aria-controls={onAll ? `${uid}-all-panel` : `${uid}-variant-panel`}
+              tabIndex={onVariants || onAll ? 0 : -1} className="editor-tab editor-tab-picker">
+              {onAll ? t("admin.exDraft.allVariants") : t("admin.exDraft.variantOf", { n: active + 1, count: fields.length })}<ChevronDown aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-[60dvh] w-72 overflow-y-auto">
+            <DropdownMenuRadioGroup value={onAll ? "all" : onVariants ? String(active) : ""} onValueChange={(value) => value === "all" ? setTab("all") : open(Number(value))}>
+              {fields.map((field, index) => <DropdownMenuRadioItem key={field.id} value={String(index)}>{variantLabel(index)}</DropdownMenuRadioItem>)}
+              {fields.length > 1 && <DropdownMenuRadioItem value="all">{t("admin.exDraft.allVariants")}</DropdownMenuRadioItem>}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu> : <>
         <span className="editor-tabs-label" aria-hidden="true">{t("admin.exDraft.variantsCount", { count: fields.length })}</span>
         <div className="editor-variant-strip">
           {fields.map((field, index) => <HoverTooltip key={field.id} text={variantLabel(index)}>
@@ -147,6 +164,7 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
           <button type="button" role="tab" id={`${uid}-all`} aria-selected={onAll} aria-controls={`${uid}-all-panel`} aria-label={t("admin.exDraft.allVariants")} tabIndex={onAll ? 0 : -1}
             className="editor-tab editor-tab-icon" onClick={() => setTab("all")}><Table2 aria-hidden="true" className="h-4 w-4" /></button>
         </HoverTooltip>}
+        </>}
       </div>
       {!disabled && <DropdownMenu>
         <HoverTooltip text={t("admin.exDraft.addVariant")}>

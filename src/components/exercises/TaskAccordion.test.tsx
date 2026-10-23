@@ -260,3 +260,23 @@ describe('TaskAccordion with a linked variant', () => {
     expect(read()[1]).toEqual(['t2:L2', 't3:L3', ':'])
   })
 })
+
+describe('TaskAccordion on a phone', () => {
+  it('shows the subtasks as one select with the count, picks another and adds one from it', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    try {
+      render(<Harness tasks={[task('Recon'), task('Exploit')]} otherTasks={[task('Recon'), task('Exploit')]} />)
+      expect(screen.queryByRole('navigation', { name: 'admin.exDraft.tasks.title' })).not.toBeInTheDocument()
+      const picker = screen.getByRole('button', { name: 'admin.exTask.pick 1 Recon' })
+      expect(picker).toHaveTextContent('admin.exTask.count.few 2')
+      fireEvent.keyDown(picker, { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.exDraft.subtaskColumn 2 Exploit' }))
+      expect(await screen.findByRole('button', { name: 'admin.exTask.pick 2 Exploit' })).toBeInTheDocument()
+      fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTask.pick 2 Exploit' }), { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'admin.exTask.add' }))
+      await waitFor(() => expect(screen.getByTestId('variant-tasks')).toHaveTextContent('[["Recon","Exploit",""],["Recon","Exploit",""]]'))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

@@ -234,4 +234,21 @@ describe('variant modes', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /admin\.exDraft\.addIndependent/ }))
     expect(variantsJson()).toHaveLength(3)
   })
+
+  it('turns the variant numbers into one «Варіант N з M» tab with a menu on a phone', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    try {
+      render(<Harness prepare={(draft) => draft.Variants.push({ ...emptyVariant(2), Tasks: draft.Variants[0].Tasks })} />)
+      const tabs = within(screen.getByRole('tablist', { name: 'admin.exDraft.editorTabs' })).getAllByRole('tab')
+      expect(tabs.map((tab) => tab.textContent)).toEqual(['admin.ex.create.tab.general', 'admin.exDraft.variantOf{"n":1,"count":2}'])
+      fireEvent.keyDown(screen.getByRole('tab', { name: /variantOf/ }), { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.exDraft.variantN{"n":2}' }))
+      expect(await screen.findByRole('tab', { name: 'admin.exDraft.variantOf{"n":2,"count":2}' })).toHaveAttribute('aria-selected', 'true')
+      fireEvent.keyDown(screen.getByRole('tab', { name: /variantOf/ }), { key: 'ArrowDown' })
+      fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.exDraft.allVariants' }))
+      expect(await screen.findByRole('region', { name: 'admin.exDraft.allVariants' })).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

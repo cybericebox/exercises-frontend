@@ -1940,5 +1940,11 @@
   "exercises.filter.show.one": "Show {count} task",
   "exercises.filter.show.few": "Show {count} tasks",
   "exercises.filter.show.many": "Show {count} tasks",
-  "exercises.filter.show.other": "Show {count} tasks"
+  "exercises.filter.show.other": "Show {count} tasks",
+  "admin.exDraft.variantOf": "Variant {n} of {count}",
+  "admin.exTask.pick": "Subtask {n}: {name}. Choose another",
+  "admin.exTask.count.one": "{count} subtask",
+  "admin.exTask.count.few": "{count} subtasks",
+  "admin.exTask.count.many": "{count} subtasks",
+  "admin.exTask.count.other": "{count} subtasks"
 }

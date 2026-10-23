@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
-import { ArrowDown, ArrowUp, Ellipsis, Plus, Trash2 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ArrowDown, ArrowUp, ChevronDown, Ellipsis, Plus, Trash2 } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useMediaQuery } from "@/components/shell/useMediaQuery"
+import { pluralKey } from "@/lib/presetLabels"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { emptyTask, type DraftFormValues } from "@/lib/exerciseSchemas"
@@ -30,6 +32,8 @@ export function TaskAccordion({
   const [selected, setSelected] = useEditorPosition("task")
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const rows = useWatch({ control, name }) ?? []
+  // A phone shows the subtasks as one select («1 · Розвідка · 3 підзавдання ⌄») instead of the list beside the form.
+  const phone = useMediaQuery("(max-width: 639px)", false)
 
   /**
    * The other variants, linked ones first. A base update fires the live mirror at once
@@ -92,7 +96,25 @@ export function TaskAccordion({
 
   return (
     <section className="subtasks">
-      <nav aria-label={t("admin.exDraft.tasks.title")} className="subtasks-rail">
+      {phone ? <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="subtasks-picker" aria-label={t("admin.exTask.pick", { n: activeIndex + 1, name: rows[activeIndex]?.Name || t("admin.exTask.numbered", { n: activeIndex + 1 }) })}>
+            <span className="min-w-0 flex-1 truncate">{t("admin.exDraft.subtaskColumn", { n: activeIndex + 1, name: rows[activeIndex]?.Name || t("admin.exTask.numbered", { n: activeIndex + 1 }) })}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{t(pluralKey("admin.exTask.count", fields.length), { count: fields.length })}</span>
+            <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[60dvh] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+          <DropdownMenuRadioGroup value={String(activeIndex)} onValueChange={(value) => setSelected(Number(value))}>
+            {fields.map((field, ti) => <DropdownMenuRadioItem key={field.id} value={String(ti)}>{t("admin.exDraft.subtaskColumn", { n: ti + 1, name: rows[ti]?.Name || t("admin.exTask.numbered", { n: ti + 1 }) })}</DropdownMenuRadioItem>)}
+          </DropdownMenuRadioGroup>
+          {editable && <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" onSelect={addSharedTask}><Plus aria-hidden="true" className="h-4 w-4" />{t("admin.exTask.add")}</DropdownMenuItem>
+          </>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      : <nav aria-label={t("admin.exDraft.tasks.title")} className="subtasks-rail">
         <div className="subtasks-rail-head">
           <h3>{t("admin.exDraft.tasks.title")}</h3>
           {editable && <HoverTooltip text={t("admin.exTask.add")}>
@@ -112,7 +134,7 @@ export function TaskAccordion({
             </li>
           ))}
         </ol>
-      </nav>
+      </nav>}
       {fields[activeIndex] && <div key={fields[activeIndex].id} className="subtasks-pane">
         <TaskForm variantIndex={variantIndex} taskIndex={activeIndex} disabled={disabled} linked={linked} menu={menu} />
       </div>}

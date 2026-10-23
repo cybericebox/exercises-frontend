@@ -21,6 +21,8 @@
 .editor-variant-strip { display:flex; align-items:stretch; }
 .editor-tab { position:relative; display:inline-flex; align-items:center; justify-content:center; height:var(--ctl); padding:0 12px; font-size:14px; color:var(--ib-dim); white-space:nowrap; flex:none; }
 .editor-tab-number { min-width:34px; padding:0 8px; font-variant-numeric:tabular-nums; }
+.editor-tab-picker { gap:6px; }
+@media (pointer:coarse) { .editor-tab-picker { height:44px; } }
 .editor-tab:hover { color:var(--ib-ink); }
 .editor-tab[aria-selected=true] { color:var(--ib-ink); font-weight:600; }
 .editor-tab[aria-selected=true]::after { content:""; position:absolute; left:6px; right:6px; bottom:-1px; height:2px; background:var(--ib-action); }
@@ -97,6 +99,9 @@
 .subtasks { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; align-items:start; }
 @container task-screen (min-width:900px) { .subtasks { grid-template-columns:220px minmax(0,1fr); } .subtasks-rail { position:sticky; top:0; } }
 .subtasks-rail { border:1px solid var(--ib-line); border-radius:8px; padding:6px; background:var(--ib-surface); }
+.subtasks-picker { display:flex; width:100%; min-width:0; height:var(--ctl); align-items:center; gap:8px; padding:0 12px; border:1px solid var(--ib-line); border-radius:6px; background:var(--card); font-size:14px; color:var(--ib-ink); text-align:left; }
+.subtasks-picker:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
+@media (pointer:coarse) { .subtasks-picker { height:44px; } }
 .subtasks-rail-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:var(--ctl); padding:0 0 6px 8px; margin-bottom:4px; border-bottom:1px solid var(--ib-line); }
 .subtasks-rail-head h3 { font-size:12.5px; font-weight:500; color:var(--ib-dim); }
 .subtasks-item { position:relative; display:flex; align-items:center; border-radius:6px; }
