@@ -956,6 +956,31 @@ describe('environment variable limit', () => {
   })
 })
 
+describe('own images of a linked variant', () => {
+  it('reads ImageOverrides only for a linked variant and sends the full list for a linked variant only', () => {
+    const topology = { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }
+    expect(normalizeVariant({ Index: 2, LinkedTo: 'b', ImageOverrides: [{ DeviceID: 'd1', Image: 'x' }], Tasks: [], Topology: topology }).ImageOverrides).toEqual([{ DeviceID: 'd1', Image: 'x' }])
+    expect(normalizeVariant({ Index: 2, Tasks: [], Topology: topology }).ImageOverrides).toEqual([])
+    const draft = emptyDraft()
+    draft.Variants[0].ID = 'b'
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: 'd1', Name: 'web', Image: 'nginx:1.27' }, { ...emptyDevice(), ID: 'd2', Name: 'db', Image: 'postgres:16' }]
+    const linked = structuredClone(draft.Variants[0])
+    Object.assign(linked, { ID: 'l', LinkedTo: 'b' })
+    draft.Variants.push(linked)
+    const independent = structuredClone(draft.Variants[0])
+    Object.assign(independent, { ID: 'i', ImageOverrides: [{ DeviceID: 'd1', Image: 'stale' }] })
+    independent.Topology.Devices[0].Image = 'nginx:1.28'
+    draft.Variants.push(independent)
+    let sent = toSaveDraftInput(draft).Variants
+    expect(sent[1].ImageOverrides).toEqual([])
+    expect(sent[0]).not.toHaveProperty('ImageOverrides')
+    expect(sent[2]).not.toHaveProperty('ImageOverrides')
+    draft.Variants[1].ImageOverrides = [{ DeviceID: 'd2', Image: 'postgres:17' }]
+    sent = toSaveDraftInput(draft).Variants
+    expect(sent[1].ImageOverrides).toEqual([{ DeviceID: 'd2', Image: 'postgres:17' }])
+  })
+})
+
 describe('variant weight', () => {
   it('reads absent, 0 or garbage as 1 and keeps a stored weight', () => {
     expect([undefined, 0, -2, 1.5, 3].map((weight) => normalizeVariant({ Index: 1, Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }, ...(weight === undefined ? {} : { Weight: weight }) }).Weight)).toEqual([1, 1, 1, 1, 3])

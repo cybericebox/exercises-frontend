@@ -38,11 +38,16 @@ export function DeviceCard({
   deviceIndex,
   disabled,
   compact = false,
+  imageBaseIndex,
+  imageDisabled,
 }: {
   variantIndex: number
   deviceIndex: number
   disabled: boolean
   compact?: boolean
+  /** A linked variant: its base's position; the device image stays editable (its own image) while the rest is the base's. */
+  imageBaseIndex?: number
+  imageDisabled?: boolean
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
@@ -76,7 +81,7 @@ export function DeviceCard({
           // A missed drop must never open the archive in the browser; the image field takes the real ones.
           onDragOver={(event) => { if (visiblePanel === "basic") event.preventDefault() }}
           onDrop={(event) => { if (visiblePanel === "basic") event.preventDefault() }}>
-        {visiblePanel === "basic" && !forwarding && <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
+        {visiblePanel === "basic" && !forwarding && <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={imageDisabled ?? disabled} compact={compact} baseVariantIndex={imageBaseIndex} />}
         {visiblePanel === "basic" && !forwarding && <ResourcePicker variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} compact={compact} />}
         {visiblePanel === "basic" && !forwarding && <FormField control={control} name={`${base}.SecurityPreset`} render={({ field, fieldState }) => (
           <FormItem className={compact ? "space-y-1" : undefined}>

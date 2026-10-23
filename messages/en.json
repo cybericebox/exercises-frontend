@@ -1816,7 +1816,7 @@
   "admin.exDraft.addBased": "Based on a variant: differs only in part",
   "admin.exDraft.addBasedHint": "Everything comes from the base except its own flags and files.",
   "admin.exDraft.variantActions": "Variant actions",
-  "admin.exDraft.summaryLinked": "Based on variant {base}: only the flags and files are its own.",
+  "admin.exDraft.summaryLinked": "Based on variant {base}: only the flags, files and device images are its own.",
   "admin.exDraft.summaryFirst": "The number, order and difficulty of subtasks are set here and are the same in every variant.",
   "admin.exDraft.summaryIndependent": "An independent variant with its own content. The number and difficulty of subtasks follow variant 1.",
   "admin.exDraft.unlinkFrom": "Unlink from variant {base}",
@@ -1946,5 +1946,10 @@
   "admin.exTask.count.one": "{count} subtask",
   "admin.exTask.count.few": "{count} subtasks",
   "admin.exTask.count.many": "{count} subtasks",
-  "admin.exTask.count.other": "{count} subtasks"
+  "admin.exTask.count.other": "{count} subtasks",
+  "admin.exTopo.linkedImagesOnly": "As in variant {n}: only the device images change",
+  "exercises.image.own": "This variant's own image",
+  "exercises.image.asInBase": "As in variant {n}",
+  "exercises.image.revertOwn": "Back to the image of variant {n}",
+  "admin.exDraft.summaryOwnImages": "{summary} Own images: {devices}."
 }

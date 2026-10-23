@@ -1816,7 +1816,7 @@
   "admin.exDraft.addBased": "На основі варіанта — відрізняється лише частиною",
   "admin.exDraft.addBasedHint": "Усе береться з основи, свої лише прапори та файли.",
   "admin.exDraft.variantActions": "Дії з варіантом",
-  "admin.exDraft.summaryLinked": "На основі варіанта {base}: свої лише прапори та файли.",
+  "admin.exDraft.summaryLinked": "На основі варіанта {base}: свої лише прапори, файли й образи пристроїв.",
   "admin.exDraft.summaryFirst": "Кількість підзавдань, їх порядок і складність задаються тут і однакові в усіх варіантах.",
   "admin.exDraft.summaryIndependent": "Незалежний варіант: свій вміст. Кількість і складність підзавдань — як у варіанті 1.",
   "admin.exDraft.unlinkFrom": "Відʼєднати від варіанта {base}",
@@ -1946,5 +1946,10 @@
   "admin.exTask.count.one": "{count} підзавдання",
   "admin.exTask.count.few": "{count} підзавдання",
   "admin.exTask.count.many": "{count} підзавдань",
-  "admin.exTask.count.other": "{count} підзавдання"
+  "admin.exTask.count.other": "{count} підзавдання",
+  "admin.exTopo.linkedImagesOnly": "Як у варіанті {n}: змінюється лише образ пристроїв",
+  "exercises.image.own": "Власний образ цього варіанта",
+  "exercises.image.asInBase": "Як у варіанті {n}",
+  "exercises.image.revertOwn": "Повернути образ варіанта {n}",
+  "admin.exDraft.summaryOwnImages": "{summary} Свої образи: {devices}."
 }

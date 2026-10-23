@@ -12,7 +12,7 @@ import ipaddr from "ipaddr.js"
 import { t } from "@/i18n/t"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { GATEWAY_PORT, isForwardingPort } from "@/lib/topologyPorts"
-import { linkedFlagConflicts } from "@/lib/linkedVariants"
+import { linkedFlagConflicts, ownImages } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
 import { hintTextHasContent } from "@/lib/hintText"
 import { MAX_HINTS, MAX_HINT_TEXT } from "@/lib/hintLimits"
@@ -470,6 +470,7 @@ const variantSchema = z.object({
   Weight: z.number({ error: t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }) }).int(t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT }))
     .min(MIN_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })).max(MAX_VARIANT_WEIGHT, t("admin.ex.val.weight", { max: MAX_VARIANT_WEIGHT })),
   LinkedTo: z.string(),
+  ImageOverrides: z.array(z.object({ DeviceID: z.string(), Image: z.string() })).optional(),
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
@@ -625,6 +626,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       Note: v.Note ?? "",
       Weight: v.Weight ?? 1,
       LinkedTo: v.LinkedTo ?? "",
+      ImageOverrides: v.ImageOverrides ?? [],
       Tasks: v.Tasks.map((task, ti) => ({
         ...task,
         Placeholders: task.Placeholders.map((p, pi) => ({
@@ -770,6 +772,12 @@ export function isValidWeight(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= MIN_VARIANT_WEIGHT && value <= MAX_VARIANT_WEIGHT
 }
 
+/** A linked variant's own images against its base (the full list; [] when none or the base is not in the form). */
+function imageOverrides(variant: VariantFormValues, variants: VariantFormValues[]): { DeviceID: string; Image: string }[] {
+  const base = variants.find((candidate) => candidate.ID !== "" && candidate.ID === variant.LinkedTo)
+  return base ? ownImages(variant, base).map(({ DeviceID, Image }) => ({ DeviceID, Image })) : []
+}
+
 /** Form values → PUT /:id/draft (1:1, Index is renumbered by position). */
 export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
   const variants: VariantDTO[] = values.Variants.map((v, i) => ({
@@ -778,7 +786,7 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     ...(v.Note ? { Note: v.Note } : {}),
     // 1 is the default on the wire; an invalid value never leaves the form (the weight field keeps the last valid one).
     ...(isValidWeight(v.Weight) && v.Weight > 1 ? { Weight: v.Weight } : {}),
-    ...(v.LinkedTo ? { LinkedTo: v.LinkedTo } : {}),
+    ...(v.LinkedTo ? { LinkedTo: v.LinkedTo, ImageOverrides: imageOverrides(v, values.Variants) } : {}),
     // CopyOf is for a new variant only: once saved it has its own stored secrets.
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),

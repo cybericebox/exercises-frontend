@@ -103,7 +103,7 @@ describe('editor tabs', () => {
     expect(variants).toHaveLength(2)
     const { ID, LinkedTo, CopyOf, Index, ...rest } = variants[1]
     // A copy keeps the source's issue weight.
-    expect(rest).toEqual({ Note: 'Source note', Weight: 3, Tasks: variants[0].Tasks, Topology: variants[0].Topology })
+    expect(rest).toEqual({ Note: 'Source note', Weight: 3, ImageOverrides: [], Tasks: variants[0].Tasks, Topology: variants[0].Topology })
     expect([ID, LinkedTo, CopyOf, Index]).toEqual(['', '', 'src', 2])
     expect(rest.Tasks[0].Flag).toEqual(['ICE{secret}'])
     expect(screen.getByRole('tab', { name: /labelWithWeight.*"n\\":2.*"weight":3/ })).toHaveAttribute('aria-selected', 'true')

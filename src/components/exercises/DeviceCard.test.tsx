@@ -23,7 +23,7 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG, loading = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null; loading?: boolean }) {
+function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG, loading = false, linkedImage = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null; loading?: boolean; linkedImage?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   if (networks) {
@@ -34,7 +34,7 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false, c
   return (
     <FormProvider {...form}>
       <ResourcesConfigProvider value={config}><ResourcesConfigLoadingProvider value={loading}>
-        <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
+        <DeviceCard variantIndex={0} deviceIndex={0} disabled={linkedImage} compact={compact} imageBaseIndex={linkedImage ? 0 : undefined} imageDisabled={linkedImage ? false : undefined} />
       </ResourcesConfigLoadingProvider></ResourcesConfigProvider>
       <DeviceValues />
     </FormProvider>
@@ -143,6 +143,12 @@ describe('DeviceCard', () => {
     const group = screen.getByRole('group', { name: 'admin.exEnv.title' })
     expect(group).toHaveAttribute('aria-invalid', 'true')
     expect(document.getElementById(group.getAttribute('aria-describedby')!)).toHaveTextContent('admin.ex.val.envVarsMax 64')
+  })
+
+  it('keeps only the image editable in a linked variant', () => {
+    render(<Harness device={{ ...emptyDevice(), Name: 'web', Image: 'nginx:1' }} linkedImage />)
+    expect(screen.getByPlaceholderText('admin.exTopo.imagePlaceholder')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'admin.exTopo.securityPreset' })).toBeDisabled()
   })
 
   it('shows a centered loader until the platform settings arrive', () => {

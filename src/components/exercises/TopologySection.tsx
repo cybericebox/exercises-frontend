@@ -49,7 +49,14 @@ const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
 ]
 
 /** The form owns topology; only view, selection and transient actions live here. */
-export function TopologySection({ variantIndex, disabled, toolbar }: { variantIndex: number; disabled: boolean; toolbar?: ReactNode }) {
+export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseIndex, imagesEditable = false }: {
+  variantIndex: number
+  disabled: boolean
+  toolbar?: ReactNode
+  /** A linked variant: its base's position. The topology is the base's (read-only); only device images are its own. */
+  linkedBaseIndex?: number
+  imagesEditable?: boolean
+}) {
   const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology` as const
   const { fields, append, remove } = useFieldArray({ control, name: `${base}.Devices` })
@@ -393,6 +400,7 @@ export function TopologySection({ variantIndex, disabled, toolbar }: { variantIn
         </button>)}
     </nav>
     <span className="flex-1" />
+    {linkedBaseIndex !== undefined && <span className="text-sm text-muted-foreground">{t("admin.exTopo.linkedImagesOnly", { n: linkedBaseIndex + 1 })}</span>}
     {actions}
     {toolbar}
     </div>}
@@ -499,7 +507,8 @@ export function TopologySection({ variantIndex, disabled, toolbar }: { variantIn
         </p>}
         {settingsGateway ? <NetworkToggles variantIndex={variantIndex} disabled={disabled}
           network={settingsGateway === "vpn" ? "VPN" : "Internet"} showEnabled={false} />
-          : settingsDeviceIndex >= 0 && <DeviceCard key={fields[settingsDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={settingsDeviceIndex} disabled={disabled} compact />}
+          : settingsDeviceIndex >= 0 && <DeviceCard key={fields[settingsDeviceIndex]?.id} variantIndex={variantIndex} deviceIndex={settingsDeviceIndex} disabled={disabled} compact
+            imageBaseIndex={linkedBaseIndex} imageDisabled={linkedBaseIndex !== undefined ? !imagesEditable : undefined} />}
       </div>
     </aside>}
     </div>}

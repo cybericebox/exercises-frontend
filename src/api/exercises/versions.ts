@@ -157,6 +157,8 @@ export type TaskDTO = {
   Hints?: HintDTO[]
 }
 
+export type ImageOverride = { DeviceID: string; Image: string }
+
 export type VariantDTO = {
   ID?: string
   Index: number // decorative number; identity = ID
@@ -165,6 +167,11 @@ export type VariantDTO = {
   Weight?: number
   /** Base variant id (same version); sent and returned only for a linked variant. */
   LinkedTo?: string
+  /**
+   * A linked variant's own device images (container devices of the base, by id). The request sends the full list
+   * every time; the response keeps the valid ones in device order and its Topology already shows them.
+   */
+  ImageOverrides?: ImageOverride[]
   /** Request-only: the stored variant this new one is a copy of (the server uses it for unsaved variants). */
   CopyOf?: string
   Tasks: TaskDTO[]
@@ -251,6 +258,8 @@ export type NormalizedVariant = {
   /** Issue weight, always ≥ 1 (absent or 0 on the wire = 1). */
   Weight: number
   LinkedTo: string // "" = not linked
+  /** A linked variant's own device images; absent or [] = none. */
+  ImageOverrides?: ImageOverride[]
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
 }
@@ -373,6 +382,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     Note: raw.Note ?? "",
     Weight: normalizeWeight(raw.Weight),
     LinkedTo: raw.LinkedTo ?? "",
+    ImageOverrides: raw.LinkedTo ? (raw.ImageOverrides ?? []).map(({ DeviceID, Image }) => ({ DeviceID, Image })) : [],
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
   }

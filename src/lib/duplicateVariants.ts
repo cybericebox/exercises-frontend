@@ -9,11 +9,12 @@ function stable(value: unknown): unknown {
 
 /**
  * What a signature compares besides the content itself (IDs, Index, CopyOf and Weight never count).
- * flags/files: the subtask flags / files; note: the variant note; linked: compare linked variants too (their base counts).
+ * flags/files: the subtask flags / files; note: the variant note; linked: compare linked variants too (their base
+ * counts); images: the container images (false: a linked variant may own them).
  */
-export type SignatureParts = { flags: boolean; files: boolean; note: boolean; linked: boolean }
+export type SignatureParts = { flags: boolean; files: boolean; note: boolean; linked: boolean; images?: boolean }
 
-const ADVISORY: SignatureParts = { flags: false, files: true, note: true, linked: false }
+const ADVISORY: SignatureParts = { flags: false, files: true, note: true, linked: false, images: true }
 
 /**
  * A stable content signature of a variant: device and placeholder ids are replaced by their positions, so two
@@ -94,9 +95,10 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
     }
   }
   const projected = {
-    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
+    // Own images are already in the topology (and the list names devices by id).
+    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, ImageOverrides: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
-      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => env.Secret
+      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), Image: parts.images === false && device.Type === "container" ? undefined : device.Image, EnvVars: device.EnvVars.map((env) => env.Secret
         ? { Name: env.Name, Secret: true, ValueGroup: env.ValueGroup }
         // A plain value is known here (the server returns it), so it compares itself, edits included.
         : { Name: env.Name, Secret: false, Value: env.Value }) })),

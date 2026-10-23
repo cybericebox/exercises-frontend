@@ -13,7 +13,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Textarea } from "@/components/ui/textarea"
 import type { DraftFormValues, VariantFormValues } from "@/lib/exerciseSchemas"
 import type { EditorPosition } from "@/lib/editorPosition"
-import { baseCandidates, copyVariant, dependentsOf } from "@/lib/linkedVariants"
+import { baseCandidates, copyVariant, dependentsOf, ownImages } from "@/lib/linkedVariants"
 import { cn } from "@/utils/cn"
 import { useEditorPosition } from "./EditorPosition"
 import { ExerciseIdContext } from "./ExerciseIdContext"
@@ -221,7 +221,11 @@ function VariantWorkspace({ form, variantIndex, count, baseIndex, weight, disabl
   const [confirm, setConfirm] = useState<"unlink" | "remove" | null>(null)
   const [statsOpen, setStatsOpen] = useState(false)
   const linked = baseIndex >= 0
-  const kind = linked ? t("admin.exDraft.summaryLinked", { base: baseIndex + 1 })
+  // A linked variant's own device images, by name (only the string: a keystroke elsewhere does not re-render).
+  const ownImageNames = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) =>
+    linked && variants[variantIndex] && variants[baseIndex] ? ownImages(variants[variantIndex], variants[baseIndex]).map((image) => image.Name).join(", ") : "" })
+  const linkedSummary = t("admin.exDraft.summaryLinked", { base: baseIndex + 1 })
+  const kind = linked ? ownImageNames ? t("admin.exDraft.summaryOwnImages", { summary: linkedSummary, devices: ownImageNames }) : linkedSummary
     : variantIndex === 0 ? count > 1 ? t("admin.exDraft.summaryFirst") : ""
     : t("admin.exDraft.summaryIndependent")
   const summary = kind && weight > 1 ? t("admin.exDraft.summaryWithWeight", { summary: kind, weight }) : kind
@@ -256,7 +260,8 @@ function VariantWorkspace({ form, variantIndex, count, baseIndex, weight, disabl
           <Textarea id={`variant-note-${variantIndex}`} rows={6} {...form.register(`Variants.${variantIndex}.Note`)} disabled={disabled} />
         </div>
         : infrastructureBlocked ? <InfrastructureBlockedNote />
-        : <TopologySection variantIndex={variantIndex} disabled={disabled || linked} toolbar={resources} />}
+        : <TopologySection variantIndex={variantIndex} disabled={disabled || linked} toolbar={resources}
+          linkedBaseIndex={linked ? baseIndex : undefined} imagesEditable={linked && !disabled} />}
     </div>
     {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     <ConfirmDialog open={confirm === "unlink"} onCancel={() => setConfirm(null)} tone="danger"

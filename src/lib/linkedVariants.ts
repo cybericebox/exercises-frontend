@@ -22,8 +22,30 @@ function matchOwnTask(tasks: VariantFormValues["Tasks"], baseId: string, positio
   return undefined
 }
 
-function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; Note: string; Weight: number; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"] }): VariantFormValues {
+/**
+ * The own device images of a linked variant (its ImageOverrides) that apply to its base: a container device of the
+ * base with a non-empty image different from the base's. The daemon drops the others the same way.
+ */
+export function ownImages(variant: Pick<VariantFormValues, "ImageOverrides">, base: Pick<VariantFormValues, "Topology">): { DeviceID: string; Image: string; Name: string }[] {
+  return base.Topology.Devices.flatMap((device) => {
+    if (device.Type !== "container") return []
+    const image = variant.ImageOverrides?.find((override) => override.DeviceID === device.ID)?.Image.trim() ?? ""
+    return image && image !== device.Image ? [{ DeviceID: device.ID, Image: image, Name: device.Name }] : []
+  })
+}
+
+/** The variant's own image list with one device set to `image`; the base's image (or empty) removes the entry. */
+export function withOwnImage(overrides: VariantFormValues["ImageOverrides"], deviceId: string, image: string, baseImage: string): NonNullable<VariantFormValues["ImageOverrides"]> {
+  const rest = (overrides ?? []).filter((override) => override.DeviceID !== deviceId)
+  return image.trim() && image !== baseImage ? [...rest, { DeviceID: deviceId, Image: image }] : rest
+}
+
+function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; Note: string; Weight: number; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"]; ImageOverrides?: VariantFormValues["ImageOverrides"] }): VariantFormValues {
+  const applied = ownImages(own, base)
+  const images = new Map(applied.map((image) => [image.DeviceID, image.Image]))
   const rebuilt = clone(base)
+  // The topology is the base's, with the variant's own device images written in.
+  rebuilt.Topology.Devices.forEach((device) => { const image = images.get(device.ID); if (image) device.Image = image })
   rebuilt.Tasks.forEach((task, position) => {
     const mine = matchOwnTask(own.Tasks, task.ID, position)
     task.Flag = mine ? clone(mine.Flag) : []
@@ -32,8 +54,9 @@ function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; 
   rebuilt.ID = own.ID
   rebuilt.Index = own.Index
   rebuilt.Note = own.Note
-  // A linked variant keeps its own issue weight.
+  // A linked variant keeps its own issue weight and its own images (those that still apply, as the server keeps them).
   rebuilt.Weight = own.Weight
+  rebuilt.ImageOverrides = applied.map(({ DeviceID, Image }) => ({ DeviceID, Image }))
   rebuilt.LinkedTo = own.LinkedTo
   if (own.CopyOf) rebuilt.CopyOf = own.CopyOf
   else delete rebuilt.CopyOf
@@ -62,18 +85,21 @@ export function copyVariant(source: VariantFormValues, index: number): VariantFo
   copy.ID = ""
   copy.Index = index
   copy.LinkedTo = ""
+  // An independent copy owns its whole topology (with the images it showed): no own-image list.
+  copy.ImageOverrides = []
   if (source.ID) copy.CopyOf = source.ID
   else delete copy.CopyOf
   return copy
 }
 
-/** A new variant linked to the base, with only its own flags, files and note; it starts with weight 1. */
+/** A new variant linked to the base, with only its own flags, files and note (no own images); it starts with weight 1. */
 export function newLinkedVariant(base: VariantFormValues, index: number, own: { Note: string; Tasks: OwnTask[] }): VariantFormValues {
   const created = clone(base)
   created.ID = ""
   created.Index = index
   created.Note = own.Note
   created.Weight = 1
+  created.ImageOverrides = []
   created.LinkedTo = base.ID
   delete created.CopyOf
   created.Tasks.forEach((task, position) => {

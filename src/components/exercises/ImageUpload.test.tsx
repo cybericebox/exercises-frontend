@@ -448,3 +448,50 @@ describe("an archive dropped before the task has a name", () => {
     expect(screen.queryByText("exercises.image.needName")).not.toBeInTheDocument()
   })
 })
+
+describe("own image of a linked variant", () => {
+  function linkedDraft(own: string): DraftFormValues {
+    const draft = emptyDraft()
+    draft.Variants[0].ID = "b"
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Image: "nginx:1.27" }]
+    draft.Variants.push({ ...structuredClone(draft.Variants[0]), ID: "l", LinkedTo: "b", ImageOverrides: own ? [{ DeviceID: "d1", Image: own }] : [] })
+    if (own) draft.Variants[1].Topology.Devices[0].Image = own
+    return draft
+  }
+
+  function LinkedHarness({ disabled = false, own = "" }: { disabled?: boolean; own?: string }) {
+    const [draft] = useState(() => linkedDraft(own))
+    const form = useForm<DraftFormValues>({ defaultValues: draft })
+    const overrides = useWatch({ control: form.control, name: "Variants.1.ImageOverrides" })
+    const image = useWatch({ control: form.control, name: "Variants.1.Topology.Devices.0.Image" })
+    return <ExerciseIdProvider value="ex-1"><FormProvider {...form}>
+      <DeviceImageField variantIndex={1} deviceIndex={0} disabled={disabled} baseVariantIndex={0} />
+      <output data-testid="overrides">{JSON.stringify(overrides)}</output>
+      <output data-testid="linked-image">{image}</output>
+    </FormProvider></ExerciseIdProvider>
+  }
+
+  it("says it is as in the base, records a typed image as its own and offers no upload", () => {
+    render(<LinkedHarness />)
+    expect(screen.getByText("exercises.image.asInBase 1")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "exercises.image.uploadTip" })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByPlaceholderText("admin.exTopo.imagePlaceholder"), { target: { value: "nginx:1.28" } })
+    expect(screen.getByTestId("overrides")).toHaveTextContent('[{"DeviceID":"d1","Image":"nginx:1.28"}]')
+    expect(screen.getByText("exercises.image.own")).toBeInTheDocument()
+  })
+
+  it("goes back to the base's image with ×", () => {
+    render(<LinkedHarness own="nginx:1.28" />)
+    expect(screen.getByText("exercises.image.own")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "exercises.image.revertOwn 1" }))
+    expect(screen.getByTestId("overrides")).toHaveTextContent("[]")
+    expect(screen.getByTestId("linked-image")).toHaveTextContent("nginx:1.27")
+    expect(screen.getByText("exercises.image.asInBase 1")).toBeInTheDocument()
+  })
+
+  it("is read-only in a read-only editor", () => {
+    render(<LinkedHarness disabled own="nginx:1.28" />)
+    expect(screen.getByPlaceholderText("admin.exTopo.imagePlaceholder")).toBeDisabled()
+    expect(screen.queryByRole("button", { name: "exercises.image.revertOwn 1" })).not.toBeInTheDocument()
+  })
+})

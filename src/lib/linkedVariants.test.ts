@@ -9,7 +9,9 @@ import {
   dependentsOf,
   linkedFlagConflicts,
   newLinkedVariant,
+  ownImages,
   syncLinkedVariants,
+  withOwnImage,
 } from "./linkedVariants"
 
 function task(id: string, name: string, flag: string[] = [], files: string[] = []) {
@@ -200,5 +202,51 @@ describe("linkedFlagConflicts", () => {
     const l1 = variant("l1", 2, [task("t1", "One", ["y"])], "b")
     const l2 = variant("l2", 3, [task("t1", "One", ["z", "y"])], "b")
     expect(linkedFlagConflicts([base, l1, l2])).toEqual([{ variantIndex: 2, taskIndex: 0, flagIndex: 1 }])
+  })
+})
+
+describe("own device images of a linked variant", () => {
+  function pair() {
+    const base = variant("b", 1, [task("t1", "One")])
+    base.Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Image: "nginx:1.27" }, { ...emptyDevice(), ID: "d2", Name: "db", Image: "postgres:16" },
+      { ...emptyDevice(), ID: "sw", Name: "switch", Type: "unmanaged-switch", Image: "", Interfaces: [] }]
+    const linked = syncLinkedVariants([base, variant("l", 2, [task("t1", "One")], "b")])[1]
+    return { base, linked }
+  }
+
+  it("applies only the own images of container devices the base has, different from the base's", () => {
+    const { base } = pair()
+    const own = (overrides: { DeviceID: string; Image: string }[]) => ownImages({ ImageOverrides: overrides }, base)
+    expect(own([])).toEqual([])
+    expect(own([{ DeviceID: "d1", Image: "nginx:1.28" }])).toEqual([{ DeviceID: "d1", Image: "nginx:1.28", Name: "web" }])
+    expect(own([{ DeviceID: "d1", Image: "" }, { DeviceID: "sw", Image: "x" }, { DeviceID: "gone", Image: "x" }, { DeviceID: "d2", Image: "postgres:16" }])).toEqual([])
+  })
+
+  it("keeps the own image when the base changes and follows the base everywhere else", () => {
+    const { base, linked } = pair()
+    linked.ImageOverrides = withOwnImage(linked.ImageOverrides, "d1", "nginx:1.28", "nginx:1.27")
+    const edited = structuredClone(base)
+    edited.Topology.Devices[0].Name = "frontend"
+    edited.Topology.Devices[1].Image = "postgres:17"
+    const out = syncLinkedVariants([edited, linked])[1]
+    expect(out.Topology.Devices.map((device) => [device.Name, device.Image])).toEqual([["frontend", "nginx:1.28"], ["db", "postgres:17"], ["switch", ""]])
+    expect(out.ImageOverrides).toEqual([{ DeviceID: "d1", Image: "nginx:1.28" }])
+  })
+
+  it("drops the own image of a device the base no longer has, and the base's image again ends it", () => {
+    const { base, linked } = pair()
+    linked.ImageOverrides = [{ DeviceID: "d2", Image: "mysql:8" }]
+    const edited = structuredClone(base)
+    edited.Topology.Devices.splice(1, 1)
+    expect(syncLinkedVariants([edited, linked])[1].ImageOverrides).toEqual([])
+    expect(withOwnImage([{ DeviceID: "d1", Image: "nginx:1.28" }], "d1", "nginx:1.27", "nginx:1.27")).toEqual([])
+    expect(withOwnImage([], "d1", "", "nginx:1.27")).toEqual([])
+  })
+
+  it("an independent copy and a new linked variant start without own images", () => {
+    const { base, linked } = pair()
+    linked.ImageOverrides = [{ DeviceID: "d1", Image: "nginx:1.28" }]
+    expect(copyVariant(syncLinkedVariants([base, linked])[1], 3).ImageOverrides).toEqual([])
+    expect(newLinkedVariant(base, 3, { Note: "", Tasks: [{ Flag: [], Attachments: [] }] }).ImageOverrides).toEqual([])
   })
 })
