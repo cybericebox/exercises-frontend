@@ -25,7 +25,7 @@ import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBa
 import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
 import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
 import { TopologyResourcesButton } from "@/components/exercises/TopologyResourcesPanel"
-import { ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
+import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
 import type { ResourcesConfig } from "@/api/exercises/capabilities"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
@@ -95,6 +95,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [devicePersistence, setDevicePersistence] = useState(false)
   const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
+  const [capabilitiesDone, setCapabilitiesDone] = useState(false)
   const [publishedVersions, setPublishedVersions] = useState<Partial<Record<string, Version>>>({})
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
@@ -179,8 +180,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null) } })
-      .catch(() => { if (!cancelled) setLaboratories(false) })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setCapabilitiesDone(true) } })
+      .catch(() => { if (!cancelled) { setLaboratories(false); setCapabilitiesDone(true) } })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
 
@@ -274,7 +275,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : exercise ? { kind: exerciseBadgeKind({ ...exercise, HasChanges: !readOnly && unpublishedWork }) } : null
 
-  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
+  return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><ResourcesConfigLoadingProvider value={permissions.write && !isVersion && !capabilitiesDone}><EditorPositionProvider position={position} onChange={updatePosition}>
     <div className="exercise-general-screen">
       <ExerciseHeader
         mode={headerMode}
@@ -413,5 +414,5 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
-  </EditorPositionProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
+  </EditorPositionProvider></ResourcesConfigLoadingProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }

@@ -24,7 +24,7 @@ import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
 import { selectedPreset } from "@/lib/deviceResources"
 import { unitHelp } from "@/lib/presetLabels"
-import { useResourcesConfig } from "./ResourcesConfigContext"
+import { useResourcesConfig, useResourcesConfigLoading } from "./ResourcesConfigContext"
 import { ResourceSelect } from "./ResourceSelect"
 import { LoadingArea } from "@/components/ui/spinner"
 
@@ -176,6 +176,7 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
 }) {
   const { control, setValue } = useFormContext<DraftFormValues>()
   const config = useResourcesConfig()
+  const loading = useResourcesConfigLoading()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const preset = useWatch({ control, name: `${base}.ResourcePreset` })
 
@@ -185,7 +186,9 @@ function ResourcePicker({ variantIndex, deviceIndex, disabled, compact }: {
       ? <ResourceSelect config={config} disabled={disabled} ariaLabel={t("admin.exTopo.resources")}
         value={selectedPreset({ ResourcePreset: preset }, config)}
         onChange={(next) => setValue(`${base}.ResourcePreset`, next, { shouldDirty: true })} />
-      : <LoadingArea compact className="h-10" label={t("admin.loading")} />}
+      : loading ? <LoadingArea compact className="h-10" label={t("admin.loading")} />
+      // No settings (read-only view, an older server, a failed load): the stored size as text.
+      : <p className="flex min-h-9 items-center text-sm text-muted-foreground">{preset ? t("admin.exTopo.resourcesPreset", { preset }) : t("admin.exTopo.resourcesDefault")}</p>}
   </div>
 }
 

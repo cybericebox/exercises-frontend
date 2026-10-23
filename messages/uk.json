@@ -1898,5 +1898,11 @@
   "admin.exSimplify.removed": "Із завдання буде видалено варіанти {variants}. Інші варіанти отримають нові номери.",
   "admin.exSimplify.cancel": "Не зараз",
   "admin.exSimplify.apply": "Спростити",
-  "admin.ex.val.envVarsMax": "Не більше {max} змінних оточення на пристрій."
+  "admin.ex.val.envVarsMax": "Не більше {max} змінних оточення на пристрій.",
+  "admin.exGuide.prapory": "Про прапори",
+  "admin.exGuide.notatky": "Про нотатки",
+  "admin.exGuide.arkhiv": "Про архів і приклади",
+  "admin.exGuide.pomylky": "Типові помилки імпорту",
+  "admin.exTopo.resourcesPreset": "Розмір: {preset}",
+  "admin.exTopo.resourcesDefault": "Типовий розмір платформи"
 }

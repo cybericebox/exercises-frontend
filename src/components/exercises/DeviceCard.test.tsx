@@ -14,7 +14,7 @@ import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } 
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
 import { EditorPositionProvider } from './EditorPosition'
 import { DevicePersistenceProvider } from './DevicePersistenceContext'
-import { ResourcesConfigProvider } from './ResourcesConfigContext'
+import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from './ResourcesConfigContext'
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
 
 function DeviceValues() {
@@ -23,7 +23,7 @@ function DeviceValues() {
   return <output data-testid="device-values">{JSON.stringify(device)}</output>
 }
 
-function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null }) {
+function Harness({ device, compact = false, networks = false, vpnDhcp = false, config = RESOURCES_CONFIG, loading = false }: { device: DeviceFormValues; compact?: boolean; networks?: boolean; vpnDhcp?: boolean; config?: typeof RESOURCES_CONFIG | null; loading?: boolean }) {
   const draft = emptyDraft()
   draft.Variants[0].Topology.Devices = [device]
   if (networks) {
@@ -33,9 +33,9 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false, c
   const form = useForm<DraftFormValues>({ defaultValues: draft })
   return (
     <FormProvider {...form}>
-      <ResourcesConfigProvider value={config}>
+      <ResourcesConfigProvider value={config}><ResourcesConfigLoadingProvider value={loading}>
         <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} compact={compact} />
-      </ResourcesConfigProvider>
+      </ResourcesConfigLoadingProvider></ResourcesConfigProvider>
       <DeviceValues />
     </FormProvider>
   )
@@ -146,9 +146,19 @@ describe('DeviceCard', () => {
   })
 
   it('shows a centered loader until the platform settings arrive', () => {
-    const { container } = render(<Harness device={emptyDevice()} config={null} />)
+    const { container } = render(<Harness device={emptyDevice()} config={null} loading />)
     expect(container.querySelector('.loading-area')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'admin.exTopo.resources' })).not.toBeInTheDocument()
+  })
+
+  it('shows the stored size as text, never an endless loader, when there are no platform settings', () => {
+    const device = { ...emptyDevice(), ResourcePreset: 'max' }
+    const { container, unmount } = render(<Harness device={device} config={null} />)
+    expect(container.querySelector('.loading-area')).not.toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.resourcesPreset max')).toBeInTheDocument()
+    unmount()
+    render(<Harness device={emptyDevice()} config={null} />)
+    expect(screen.getByText('admin.exTopo.resourcesDefault')).toBeInTheDocument()
   })
 
   it('shows one static address field and editable route rows', () => {

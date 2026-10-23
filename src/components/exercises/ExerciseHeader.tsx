@@ -182,11 +182,13 @@ function MoreMenu(props: ExerciseHeaderProps) {
   const lifecycle = permissions.write || permissions.delete
   const inUse = usageEvents.length > 0
   return <DropdownMenu onOpenChange={(open) => { if (open) setVariants(props.getTestVariants()) }}>
-    <DropdownMenuTrigger asChild>
-      <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className="general-utility">
-        <Ellipsis aria-hidden="true" className={ICON} />
-      </Button>
-    </DropdownMenuTrigger>
+    <HoverTooltip text={t("admin.exPage.action.more")}>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className="general-utility">
+          <Ellipsis aria-hidden="true" className={ICON} />
+        </Button>
+      </DropdownMenuTrigger>
+    </HoverTooltip>
     <DropdownMenuContent align="end" className="w-72">
       {props.testAvailable && <>
         <DropdownMenuGroup aria-label={t("admin.exPage.action.test")} className="general-phone-test">
