@@ -1,7 +1,6 @@
 "use client"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, SlidersHorizontal, Upload, X } from "lucide-react"
 import { t } from "@/i18n/t"
 import { useRole } from "@/lib/useRole"
 import { listExerciseAuthors, listExercisesPage, type Exercise, type ExerciseListItem } from "@/api/exercises/catalog"
@@ -11,10 +10,15 @@ import { accessFromRbac, canCreateExercise, ownerOptions, writableEvents } from 
 import {
   clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
-import { CatalogFilterFields, ScopeFilterField } from "@/components/exercises/catalog/CatalogFilterFields"
+import { CatalogFilterFields, FilterField, ScopeFilterField } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
 import { CatalogTable } from "@/components/exercises/catalog/CatalogTable"
-import { AppliedFilters } from "@/components/exercises/catalog/AppliedFilters"
+import { CatalogCards } from "@/components/exercises/catalog/CatalogCards"
+import { CatalogFooter } from "@/components/exercises/catalog/CatalogFooter"
+import { CatalogToolbar } from "@/components/exercises/catalog/CatalogToolbar"
+import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
+import { ImportRows } from "@/components/exercises/catalog/ImportRows"
+import { useCatalogColumns } from "@/components/exercises/catalog/useCatalogColumns"
 import { useMediaQuery } from "@/components/shell/useMediaQuery"
 import type { FilterOption } from "@/components/exercises/catalog/FilterCombobox"
 import "@/styles/catalog.css"
@@ -23,12 +27,11 @@ import { EXPORT_LIMIT } from "@/api/exercises/archive"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
 import { onImportsDone } from "@/lib/importJobs"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
-import { TablePagination } from "@/components/ui/table-pagination"
 /** Filters from the URL (static export: read once on mount, no Suspense needed). */
 function initialFilters(isAdmin: boolean): CatalogFilters {
   return typeof window === "undefined" ? defaultFilters(isAdmin) : filtersFromSearch(window.location.search, isAdmin)
@@ -39,7 +42,7 @@ export default function Page() {
   const originActive = useRef(true)
   useEffect(() => { originActive.current = true; return () => { originActive.current = false } }, [])
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [columns, setColumns] = useCatalogColumns()
   const mobile = useMediaQuery("(max-width: 639px)", false)
   const [rows, setRows] = useState<ExerciseListItem[]>([])
   const [page, setPage] = useState(1)
@@ -199,54 +202,38 @@ export default function Page() {
   const onAuthorsLoaded = useCallback((options: FilterOption[]) => setAuthorNames((before) => new Map([...before, ...options.map(({ value, label }) => [value, label] as const)])), [])
   const fieldsProps = { filters, isAdmin, eventOptions, authorLabel, onAuthorsLoaded, onChange: update }
   const clearSearch = () => { setSearch(""); update({ search: "" }) }
-  const searchControl = <CatalogSearch value={search} onChange={setSearch} onClear={clearSearch} />
-  const filterFields = <>
-    <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope) => update({ scope })} className="catalog-storage-field" />
-    <CatalogFilterFields {...fieldsProps} className="catalog-filter-grid" />
-  </>
   const sortProps = { activeField: filters.sortBy, direction: filters.sortDir, onSort: sort }
+  const openImport = () => { setImportJobId(undefined); setImportOpen(true) }
 
   return (
-    <div className="catalog-screen frost-panel">
+    <div className="catalog-screen">
       <h1 className="sr-only">{t("exercises.nav.catalog")}</h1>
-      <div className="catalog-toolbar">
-        <div className="catalog-search-toolbar">
-          {!mobile && searchControl}
-          <Button type="button" variant="outline" aria-expanded={mobile ? sheetOpen : filtersOpen} aria-controls={mobile ? undefined : "catalog-filters"} aria-haspopup={mobile ? "dialog" : undefined} onClick={() => mobile ? setSheetOpen(true) : setFiltersOpen((open) => !open)}>
-            <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
-            {activeCount > 0 ? t("exercises.filter.openCount", { count: activeCount }) : t("exercises.filter.open")}
-          </Button>
-        </div>
-        {(canWrite || canImport) && <div className="catalog-create-actions">
-          {canImport && <Button type="button" variant="outline" onClick={() => { setImportJobId(undefined); setImportOpen(true) }}><Upload aria-hidden="true" className="h-4 w-4" />{t("admin.exImport.button")}</Button>}
-          {canWrite && <Button type="button" onClick={() => router.push(createHref())}>{t("admin.ex.create.button")}</Button>}
-        </div>}
-      </div>
-      <AppliedFilters filters={filters} isAdmin={isAdmin} mobile={mobile} eventLabel={eventName} authorLabel={authorLabel} onChange={update} onClearSearch={clearSearch} onReset={reset} active={activeCount} />
-      {!mobile && filtersOpen && <section id="catalog-filters" aria-label={t("exercises.filter.label")} className="catalog-filter-panel">
-        <div className="catalog-panel-heading"><h2>{t("exercises.filter.label")}</h2><Button variant="ghost" size="sm" onClick={() => setFiltersOpen(false)}><X aria-hidden="true" className="h-4 w-4" />{t("exercises.catalog.collapseFilters")}</Button></div>
-        {filterFields}
-        <div className="catalog-panel-done"><Button variant="outline" onClick={() => setFiltersOpen(false)}>{t("exercises.filter.done")}</Button></div>
-      </section>}
-      <FiltersSheet open={mobile && sheetOpen} onOpenChange={setSheetOpen} active={activeCount} onReset={reset}>
-        <div className="catalog-sheet-fields">{mobile && searchControl}{filterFields}</div>
-      </FiltersSheet>
-      <div className="catalog-result-meta" role="status" aria-live="polite">
-        <span>{loading && rows.length === 0 ? t("admin.loading") : error ? t("exercises.nav.catalog") : t("exercises.catalog.total", { count: total })}</span>
-        <span>{t("exercises.catalog.storageSummary", { value: filters.scope ? t(`exercises.scope.${filters.scope}`) : t("exercises.catalog.storageAll") })}</span>
-      </div>
-
+      {selected.size === 0 && <CatalogToolbar filters={filters} isAdmin={isAdmin} search={search} onSearch={setSearch} onClearSearch={clearSearch}
+        eventOptions={eventOptions} eventName={eventName} authorLabel={authorLabel} onAuthorsLoaded={onAuthorsLoaded} onChange={update}
+        columns={columns} onColumns={setColumns} canImport={canImport} canWrite={canWrite} onImport={openImport} onCreate={() => router.push(createHref())}
+        active={activeCount} onOpenSheet={() => setSheetOpen(true)} sheetOpen={mobile && sheetOpen} mobile={mobile} />}
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
-
-      <CatalogTable rows={rows} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
-        onToggle={toggle} onToggleAll={toggleAll} sortProps={sortProps} eventName={eventName} canWrite={canWrite} canImport={canImport} userId={me?.ID ?? null}
-        onImportDetails={(jobId) => { setImportJobId(jobId || undefined); setImportOpen(true) }} regionRef={tableScrollRef} busy={loading}
-        state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
-          : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
-          : rows.length === 0 ? <EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} /> : undefined} />
-      <TablePagination page={page} pageSize={pageSize} total={total}
-        onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
+      <FiltersSheet open={mobile && sheetOpen} onOpenChange={setSheetOpen} active={activeCount} onReset={reset}>
+        <div className="catalog-sheet-fields">
+          <SortField filters={filters} onChange={update} />
+          <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope) => update({ scope })} />
+          <CatalogFilterFields {...fieldsProps} className="catalog-filter-grid" />
+        </div>
+      </FiltersSheet>
+      {canWrite && <BrowserDraftRow userId={me?.ID ?? null} />}
+      {canImport && <ImportRows onDetails={(jobId) => { setImportJobId(jobId || undefined); setImportOpen(true) }} />}
+      {mobile
+        ? <CatalogCards rows={rows} sortBy={filters.sortBy} sortDir={filters.sortDir} total={total} page={page} pageSize={pageSize} onPage={goToPage} busy={loading}
+          state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
+            : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
+            : rows.length === 0 ? <EmptyFiltered filtered={filtered} onReset={() => { setSearch(""); update({ ...clearedFilters(filters, isAdmin), search: "" }) }} /> : undefined} />
+        : <CatalogTable rows={rows} columns={columns} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
+          onToggle={toggle} onToggleAll={toggleAll} sortProps={sortProps} eventName={eventName} regionRef={tableScrollRef} busy={loading}
+          state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
+            : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
+            : rows.length === 0 ? <EmptyFiltered filtered={filtered} onReset={() => { setSearch(""); update({ ...clearedFilters(filters, isAdmin), search: "" }) }} /> : undefined}
+          footer={<CatalogFooter page={page} pageSize={pageSize} total={total} shown={rows.length} onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />} />}
       {exportOpen && <ExportDialog exerciseIds={[...selected.keys()]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Map())} />}
       {importOpen && <ImportDialog key={importJobId ?? "new"} jobId={importJobId}
         isOriginActive={() => originActive.current} targets={ownerOptions(access, t("exercises.owner.catalog"))} initialTarget={filteredEvent}
@@ -255,12 +242,23 @@ export default function Page() {
   )
 }
 
-function CatalogSearch({ value, onChange, onClear }: { value: string; onChange: (value: string) => void; onClear: () => void }) {
-  return <div className="catalog-search">
-    <label className="catalog-search-label" htmlFor="catalog-search">{t("admin.ex.search")}</label>
-    <div className="catalog-search-input"><Search aria-hidden="true" />
-      <Input id="catalog-search" type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={t("admin.ex.search")} aria-label={t("admin.ex.search")} />
-      {value && <button type="button" className="catalog-icon" aria-label={t("exercises.catalog.clearSearch")} onClick={onClear}><X aria-hidden="true" /></button>}
-    </div>
+/** Nothing to show: the tray and a line; after a filter or search, a way back to every task. */
+function EmptyFiltered({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
+  return <div className="flex flex-col items-center gap-1">
+    <EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} className="min-h-0 pb-2" />
+    {filtered && <Button type="button" size="sm" variant="outline" onClick={onReset}>{t("exercises.filter.reset")}</Button>}
   </div>
+}
+
+/** Phone: the order of the cards (the columns are not there to click). */
+function SortField({ filters, onChange }: { filters: CatalogFilters; onChange: (patch: Partial<CatalogFilters>) => void }) {
+  const fields = ["updated", "name", "status", "author", "subtasks", "variants", "difficulty"]
+  return <FilterField label={t("exercises.catalog.sortBy")}>
+    <div className="flex gap-2">
+      <SelectMenu value={filters.sortBy} onChange={(sortBy) => onChange({ sortBy, sortDir: sortBy === "updated" ? "desc" : "asc" })} ariaLabel={t("exercises.catalog.sortBy")}
+        options={fields.map((field) => ({ value: field, label: t(`admin.ex.col.${field}`) }))} className="min-w-0 flex-1" />
+      <SelectMenu value={filters.sortDir} onChange={(sortDir) => onChange({ sortDir: sortDir as "asc" | "desc" })} ariaLabel={t("exercises.catalog.sortDir")}
+        options={[{ value: "asc", label: t("exercises.catalog.sortAsc") }, { value: "desc", label: t("exercises.catalog.sortDesc") }]} className="w-36" />
+    </div>
+  </FilterField>
 }

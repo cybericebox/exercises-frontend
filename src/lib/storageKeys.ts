@@ -4,6 +4,7 @@
 export const STORAGE_INBOX_READ = "cib_inbox_read"
 export const STORAGE_BACK = "cib_back"
 export const STORAGE_EXERCISES_RETURN = "cib_exercises_return"
+export const STORAGE_CATALOG_COLUMNS = "cib_catalog_columns"
 export const STORAGE_TOPOLOGY_INSPECTOR_WIDTH = "cib_topology_inspector_width"
 const SITE_BANNER_DISMISSED = "cib_site_banner_dismissed"
 const EXERCISE_POSITION = "cib_exercise_position"

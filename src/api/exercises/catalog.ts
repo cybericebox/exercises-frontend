@@ -72,6 +72,8 @@ export type ExerciseListItem = ExerciseOwnership & {
   TaskCount: number | null
   /** Their names in order (the count's popover); empty without a variant or from an older API. */
   TaskNames: string[]
+  /** How many variants the working copy (or else the published version) has; null without one or from an older API. */
+  VariantCount: number | null
 }
 
 export type Exercise = ExerciseOwnership & {
@@ -159,7 +161,7 @@ export type ExercisesPageFilter = {
 }
 
 type RawOwnership = Partial<Omit<ExerciseOwnership, "AccessEventIDs" | "AccessEvents">> & { AccessEventIDs?: string[] | null; AccessEvents?: EventRef[] | null }
-type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames" | keyof ExerciseOwnership> & RawOwnership & {
+type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Status" | "AuthorID" | "AuthorName" | "AvgDifficulty" | "TaskCount" | "TaskNames" | "VariantCount" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
   ArchivedAt?: string | null
   Status?: ExerciseStatus | null
@@ -168,6 +170,7 @@ type RawExerciseListItem = Omit<ExerciseListItem, "Tags" | "ArchivedAt" | "Statu
   AvgDifficulty?: number | null
   TaskCount?: number | null
   TaskNames?: string[] | null
+  VariantCount?: number | null
 }
 export type RawExercise = Omit<Exercise, "Tags" | "ArchivedAt" | "HasChanges" | keyof ExerciseOwnership> & RawOwnership & {
   Tags: string[] | null
@@ -201,6 +204,7 @@ function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
     AuthorID: raw.AuthorID ?? null, AuthorName: raw.AuthorName ?? "", AvgDifficulty: typeof raw.AvgDifficulty === "number" ? raw.AvgDifficulty : null,
     TaskCount: typeof raw.TaskCount === "number" ? raw.TaskCount : null,
     TaskNames: raw.TaskNames ?? [],
+    VariantCount: typeof raw.VariantCount === "number" ? raw.VariantCount : null,
   }
 }
 

@@ -35,12 +35,12 @@ export function Segmented({ value, onChange, options, ariaLabel, className }: {
   }
 
   return <div role="radiogroup" aria-label={ariaLabel}
-    className={cn("inline-flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-[var(--ib-line)] bg-[var(--ib-seg-bg,var(--ib-paper))] p-[3px]", className)}>
+    className={cn("inline-flex max-w-full gap-0.5 overflow-x-auto rounded-md border border-[var(--ib-line)] bg-[var(--ib-seg-bg,var(--ib-paper))] p-[3px]", className)}>
     {options.map((option, index) => {
       const on = index === checked
       return <button key={option.value} ref={(node) => { refs.current[index] = node }} type="button" role="radio" aria-checked={on}
         tabIndex={on ? 0 : -1} onClick={() => onChange(option.value)} onKeyDown={(event) => onKeyDown(event, index)}
-        className={cn("inline-flex h-8 shrink-0 items-center rounded-md border border-transparent px-3 text-sm transition-colors",
+        className={cn("inline-flex h-7 shrink-0 items-center rounded-sm border pointer-coarse:h-9 border-transparent px-3 text-sm transition-colors",
           "focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]",
           on ? "border-[var(--ib-line)] bg-[var(--ib-raised)] font-semibold text-[var(--ib-ink)]" : "text-[var(--ib-dim)] hover:text-[var(--ib-ink)]")}>
         {option.label}

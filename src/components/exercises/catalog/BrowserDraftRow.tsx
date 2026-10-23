@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { TABLE_CELL } from "@/components/ui/table"
 import { t } from "@/i18n/t"
 import { clearPendingChanges, hasDraftContent, pendingBufferKey, readPendingChanges } from "@/lib/exercisePendingBuffer"
 
@@ -15,10 +14,10 @@ function readDraftTitle(userId: string | null): string | null {
 }
 
 /**
- * The unsaved new task (nothing on the server yet): the first row of the catalog table, tinted
+ * The unsaved new task (nothing on the server yet): a strip above the catalog table, tinted
  * with the warning colour, to continue or delete it. Re-read whenever the page is shown again.
  */
-export function BrowserDraftRow({ userId, columns }: { userId: string | null; columns: number }) {
+export function BrowserDraftRow({ userId }: { userId: string | null }) {
   const router = useRouter()
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -40,24 +39,13 @@ export function BrowserDraftRow({ userId, columns }: { userId: string | null; co
 
   if (title === null || !userId) return null
 
-  const cell = `${TABLE_CELL} bg-[var(--ib-warn-bg)]`
   return <>
-    <tbody data-unsaved-draft>
-      <tr className="h-10">
-        <td colSpan={columns - 2} className={cell}>
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="rounded-[4px] bg-[var(--ib-warn)] px-2 py-0.5 text-xs font-medium text-[var(--ib-warn-bg)]">{t("admin.ex.localDraft.badge")}</span>
-            <span className="min-w-0 truncate font-medium">{title || t("admin.ex.localDraft.untitled")}</span>
-          </span>
-        </td>
-        <td colSpan={2} className={cell}>
-          <span className="flex justify-end gap-2">
-            <Button type="button" size="sm" onClick={() => router.push("/new?draft=continue")}>{t("admin.ex.localDraft.continue")}</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(true)}>{t("admin.ex.localDraft.delete")}</Button>
-          </span>
-        </td>
-      </tr>
-    </tbody>
+    <div data-unsaved-draft className="catalog-strip catalog-strip-warn">
+      <span className="shrink-0 rounded-[4px] bg-[var(--ib-warn)] px-2 py-0.5 text-xs font-medium text-[var(--ib-warn-bg)]">{t("admin.ex.localDraft.badge")}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{title || t("admin.ex.localDraft.untitled")}</span>
+      <Button type="button" size="sm" onClick={() => router.push("/new?draft=continue")}>{t("admin.ex.localDraft.continue")}</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(true)}>{t("admin.ex.localDraft.delete")}</Button>
+    </div>
     <ConfirmDialog open={confirming} tone="danger" onCancel={() => setConfirming(false)}
       title={t("admin.ex.localDraft.deleteTitle")} description={t("admin.ex.localDraft.deleteDescription")}
       confirmLabel={t("admin.ex.localDraft.delete")}

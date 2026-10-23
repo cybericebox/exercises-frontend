@@ -64,6 +64,6 @@ describe("unsaved draft flow", () => {
     vi.useRealTimers()
     render(<CatalogPage />)
     expect(await screen.findByText("admin.ex.localDraft.badge")).toBeInTheDocument()
-    expect(screen.getByText("admin.ex.localDraft.badge").closest("tbody")).toHaveAttribute("data-unsaved-draft")
+    expect(screen.getByText("admin.ex.localDraft.badge").closest("[data-unsaved-draft]")).not.toBeNull()
   })
 })

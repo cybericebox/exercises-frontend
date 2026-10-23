@@ -39,7 +39,7 @@ export function StatusCell({ item, compact = false }: { item: ExerciseListItem; 
   if (compact) {
     const status = catalogStatus(item)
     const badge = STATUS_BADGES[status].at(-1)!
-    return <span data-status={status}><Badge tone={badge.tone} data-badge={badge.tone}>{t(badge.key)}</Badge></span>
+    return <span data-status={status}><Badge tone={badge.tone} data-badge={badge.tone}>{t(`exercises.status.short.${status}`)}</Badge></span>
   }
   return <span className="inline-flex flex-wrap items-center gap-1">
     <StatusBadges status={catalogStatus(item)} />
@@ -127,7 +127,7 @@ export function DifficultyCell({ average }: { average: number | null }) {
 /** The author's name; «—» when unknown. */
 export function AuthorCell({ name, wrap = false }: { name: string; wrap?: boolean }) {
   return name
-    ? <span className={wrap ? "break-words" : "block max-w-48 truncate"} title={name}>{name}</span>
+    ? wrap ? <span className="break-words">{name}</span> : <HoverTooltip text={name} truncated><span className="block truncate">{name}</span></HoverTooltip>
     : <span aria-label={t("exercises.author.unknown")} className="text-muted-foreground">—</span>
 }
 
@@ -138,7 +138,7 @@ export function SubtaskCountCell({ count, names = [] }: { count: number | null; 
   return <Popover>
     <PopoverTrigger asChild>
       <button type="button" aria-label={t("exercises.subtasks.show", { count })}
-        className="relative z-10 inline-flex h-6 min-w-7 items-center justify-center rounded-md border border-border px-1.5 tabular-nums underline decoration-dotted underline-offset-4 hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-primary">
+        className="relative z-10 inline-flex h-7 min-w-7 items-center rounded-sm px-1 tabular-nums underline decoration-dotted underline-offset-4 hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-primary">
         {count}
       </button>
     </PopoverTrigger>
@@ -151,11 +151,16 @@ export function SubtaskCountCell({ count, names = [] }: { count: number | null; 
   </Popover>
 }
 
-/** When the task changed: the date over the time, so the column stays narrow; «—» when unknown. */
-export function UpdatedCell({ iso }: { iso: string }) {
+/** When the task changed, in one short line («сьогодні», «вчора», «20 жовт.», with the year when it is another one); the full date and time in a tooltip. */
+export function UpdatedCell({ iso, now: fixedNow }: { iso: string; now?: Date }) {
+  const [renderedAt] = useState(() => new Date())
+  const now = fixedNow ?? renderedAt
   if (!iso) return <span aria-label={t("admin.ex.none")}>—</span>
-  return <time dateTime={iso} className="flex flex-col leading-tight">
-    <span>{formatExerciseDate(iso)}</span>
-    <span className="text-xs">{formatExerciseTime(iso)}</span>
-  </time>
+  const date = new Date(iso)
+  const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
+  const ago = Math.round((day(now) - day(date)) / 86_400_000)
+  const short = ago === 0 ? t("exercises.date.today") : ago === 1 ? t("exercises.date.yesterday")
+    : date.toLocaleDateString("uk-UA", date.getFullYear() === now.getFullYear() ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" })
+  const full = `${formatExerciseDate(iso)}, ${formatExerciseTime(iso)}`
+  return <HoverTooltip text={full}><time dateTime={iso} className="whitespace-nowrap text-muted-foreground">{short}<span className="sr-only">, {full}</span></time></HoverTooltip>
 }

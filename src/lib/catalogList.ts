@@ -88,12 +88,16 @@ export function difficultyName(average: number): DifficultyLevel {
 }
 
 export type SortDir = "asc" | "desc"
-export const SORT_FIELDS = ["name", "author", "tags", "subtasks", "difficulty", "status", "updated"] as const
+export const SORT_FIELDS = ["name", "author", "tags", "subtasks", "variants", "difficulty", "status", "updated"] as const
+
+/** How the chosen tags combine: every one of them, or at least one. */
+export type TagMode = "all" | "any"
 
 export type CatalogFilters = {
   search: string
-  /** Tasks having every one of these tags. */
+  /** Tasks having every one of these tags («all»), or at least one of them («any»). */
   tags: string[]
+  tagMode: TagMode
   /** Tasks having none of these tags. */
   notTags: string[]
   statuses: StatusFilter[]
@@ -110,7 +114,7 @@ export type CatalogFilters = {
 
 export function defaultFilters(isAdmin: boolean): CatalogFilters {
   return {
-    search: "", tags: [], notTags: [], statuses: [], authors: [], difficultyMin: null, difficultyMax: null,
+    search: "", tags: [], tagMode: "all", notTags: [], statuses: [], authors: [], difficultyMin: null, difficultyMax: null,
     scope: isAdmin ? "" : "event", events: [], infrastructure: "", sortBy: "updated", sortDir: "desc",
   }
 }
@@ -132,7 +136,7 @@ export function countActiveFilters(filters: CatalogFilters, isAdmin: boolean): n
 
 /** Every filter back to its default; the search and the sorting stay. */
 export function clearedFilters(filters: CatalogFilters, isAdmin: boolean): CatalogFilters {
-  return { ...defaultFilters(isAdmin), search: filters.search, sortBy: filters.sortBy, sortDir: filters.sortDir }
+  return { ...defaultFilters(isAdmin), search: filters.search, sortBy: filters.sortBy, sortDir: filters.sortDir, tagMode: filters.tagMode }
 }
 
 function unique(values: string[]): string[] {
@@ -145,7 +149,7 @@ function level(raw: string | null): number | null {
 }
 
 /**
- * Reads ?q=&tag=&notag=&status=&author=&dmin=&dmax=&scope=&event=&infra=&sort=&dir= (repeated params for lists;
+ * Reads ?q=&tag=&tagmode=&notag=&status=&author=&dmin=&dmax=&scope=&event=&infra=&sort=&dir= (repeated params for lists;
  * unknown values → defaults). A reversed difficulty range is swapped.
  */
 export function filtersFromSearch(search: string, isAdmin: boolean): CatalogFilters {
@@ -164,6 +168,7 @@ export function filtersFromSearch(search: string, isAdmin: boolean): CatalogFilt
   return {
     search: params.get("q")?.trim() ?? "",
     tags,
+    tagMode: params.get("tagmode") === "any" ? "any" : "all",
     notTags: unique(params.getAll("notag")).filter((tag) => !tags.includes(tag)),
     statuses,
     authors: unique(params.getAll("author")),
@@ -183,6 +188,7 @@ export function filtersToSearch(filters: CatalogFilters, isAdmin: boolean): stri
   const params = new URLSearchParams()
   if (filters.search) params.set("q", filters.search)
   for (const tag of filters.tags) params.append("tag", tag)
+  if (filters.tagMode === "any" && filters.tags.length) params.set("tagmode", "any")
   for (const tag of filters.notTags) params.append("notag", tag)
   for (const status of filters.statuses) params.append("status", status)
   for (const author of filters.authors) params.append("author", author)
@@ -208,7 +214,7 @@ export const MAX_AUTHORS = 100
 export function loadCatalogPage(fetchPage: PageFetcher, filters: CatalogFilters, page: number, pageSize: number): Promise<OffsetPage<ExerciseListItem>> {
   return fetchPage({
     search: filters.search,
-    ...(filters.tags.length ? { withTags: filters.tags } : {}),
+    ...(filters.tags.length ? filters.tagMode === "any" ? { tags: filters.tags } : { withTags: filters.tags } : {}),
     ...(filters.notTags.length ? { withoutTags: filters.notTags } : {}),
     ...(filters.statuses.length ? { statuses: statusQuery(filters.statuses) } : {}),
     ...(filters.authors.length ? { authors: filters.authors.slice(0, MAX_AUTHORS) } : {}),

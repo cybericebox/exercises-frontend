@@ -10,7 +10,7 @@ import { emptyDraft } from "@/lib/exerciseSchemas"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 
 function Row({ userId }: { userId: string | null }) {
-  return <table><BrowserDraftRow userId={userId} columns={6} /></table>
+  return <BrowserDraftRow userId={userId} />
 }
 
 const KEY = pendingBufferKey("u1", null)
@@ -28,10 +28,10 @@ beforeEach(() => {
 describe("BrowserDraftRow", () => {
   it("renders nothing without a draft or with an untouched form", () => {
     const { container, rerender } = render(<Row userId="u1" />)
-    expect(container.querySelector("tbody")).toBeNull()
+    expect(container.querySelector("[data-unsaved-draft]")).toBeNull()
     writePendingChanges(KEY, { Name: "", Description: "", Tags: [] }, emptyDraft())
     rerender(<Row userId="u1" />)
-    expect(container.querySelector("tbody")).toBeNull()
+    expect(container.querySelector("[data-unsaved-draft]")).toBeNull()
   })
 
   it("shows the entered text as title and continues into the new editor", () => {
@@ -46,10 +46,10 @@ describe("BrowserDraftRow", () => {
   it("is a warning-tinted table row and appears once the user is known", () => {
     writePendingChanges(KEY, { Name: "Qz", Description: "", Tags: [] }, emptyDraft())
     const { container, rerender } = render(<Row userId={null} />)
-    expect(container.querySelector("tbody")).toBeNull()
+    expect(container.querySelector("[data-unsaved-draft]")).toBeNull()
     rerender(<Row userId="u1" />)
-    expect(container.querySelector("tbody[data-unsaved-draft] tr")).toBeInTheDocument()
-    expect(container.querySelector("td")).toHaveClass("bg-[var(--ib-warn-bg)]")
+    expect(container.querySelector("[data-unsaved-draft]")).toBeInTheDocument()
+    expect(container.querySelector("[data-unsaved-draft]")).toHaveClass("catalog-strip-warn")
   })
 
   it("falls back to the untitled label", () => {
