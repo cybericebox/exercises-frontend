@@ -161,11 +161,16 @@ button.subtask-drop:hover { border-color:var(--ib-action); color:var(--ib-ink); 
 button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .subtask-flag-box { display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
 .subtask-flag-delivery { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
-.flag-mode-switch { display:inline-flex; flex:none; gap:2px; padding:2px; border-radius:4px; background:var(--ib-hero); }
-.flag-mode-switch>button,.flag-mode-switch>span>button,.flag-mode-switch>span:not([role]) { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:4px; font-size:12.5px; color:var(--ib-dim); white-space:nowrap; }
+/* «Заданий» / «Шаблон»: a segment attached to the left of the flag field, its full height; the field's border and
+   6px radius round its outer corners, the inner side is square with a divider before the input. */
+.flag-mode-switch { display:inline-flex; flex:none; height:100%; border-right:1px solid var(--ib-line); background:var(--ib-hero); }
+.flag-mode-switch>* { height:100%; }
+.flag-mode-switch>button,.flag-mode-switch>span>button,.flag-mode-switch>span:not([role]) { display:inline-flex; align-items:center; height:100%; padding:0 12px; border-radius:0; font-size:12.5px; color:var(--ib-dim); white-space:nowrap; }
+.flag-mode-switch>*+* { border-left:1px solid var(--ib-line); }
+.flag-mode-switch button:not(.on):not([aria-disabled=true]):hover { color:var(--ib-ink); }
 .flag-mode-switch .on.on { background:var(--ib-action); color:var(--ib-on-action); }
 .flag-mode-switch [aria-disabled=true] { opacity:.45; cursor:default; }
-.flag-mode-switch button:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
+.flag-mode-switch button:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
 
 /* Infrastructure: the views and the actions in one row, the canvas down to the bottom of the screen. */
 .editor-form,.editor-panel,.variant-workspace,.variant-mode-panel { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; }

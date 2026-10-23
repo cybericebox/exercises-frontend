@@ -14,6 +14,27 @@ describe('FlagInput', () => {
   const onChange = vi.fn()
   beforeEach(() => vi.clearAllMocks())
 
+  it('the mode is a segment attached to the left of the field: first in it, full height, no inset', () => {
+    render(<FlagInput value={['template:ICE{a}', 'ICE{b}']} onChange={onChange} linkedDeviceID="vm-1" />)
+    for (const control of screen.getAllByTestId('flag-candidate-control')) {
+      expect(control).not.toHaveClass('pl-1')
+      const segment = control.querySelector('.flag-mode-switch')!
+      expect(control.firstElementChild).toContainElement(segment as HTMLElement)
+      expect(control.firstElementChild).toHaveClass('h-full')
+      expect(segment).toHaveAttribute('role', 'radiogroup')
+    }
+  })
+
+  it('a single-mode flag shows the same segment without a choice, its reason said once under the field', () => {
+    render(<FlagInput value={['ICE{b}']} onChange={onChange} linkedDeviceID="" hasLinkableDevice />)
+    const segment = screen.getByTestId('flag-candidate-control').querySelector('.flag-mode-switch')!
+    expect(segment).not.toHaveAttribute('role')
+    expect(segment).toHaveTextContent('admin.exTask.flag.modeFixed')
+    // No tooltip repeating the help line.
+    expect(segment.parentElement).not.toHaveAttribute('data-hover-tooltip')
+    expect(screen.getAllByText('admin.exTask.flag.unlinkedTypeHelp')).toHaveLength(1)
+  })
+
   it('0 values → "random flag" caption', () => {
     render(<FlagInput value={[]} onChange={onChange} />)
     expect(screen.getByText('admin.exTask.flag.semantics0')).toBeInTheDocument()

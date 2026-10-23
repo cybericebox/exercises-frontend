@@ -60,11 +60,10 @@ function FlagModeSwitch({ label, template, templateAllowed, onChange }: { label:
   </span>
 }
 
-/** Candidate editor. The explicit mode switch never exposes the storage marker. */
-// The same explanation is already shown as help text below the field, so the hint is for the mouse only.
-function FlagModeLabel({ hint, children }: { hint?: string; children: string }) {
-  const label = <span className="flag-mode-switch"><span className="on">{children}</span></span>
-  return hint ? <HoverTooltip text={hint}>{label}</HoverTooltip> : label
+/** The only mode a candidate can have here (read-only, or a static flag): the same attached segment, no choice.
+ * Why there is no choice is said once, in the help line under the field. */
+function FlagModeLabel({ children }: { children: string }) {
+  return <span className="flag-mode-switch"><span className="on">{children}</span></span>
 }
 
 export function FlagInput({
@@ -184,11 +183,11 @@ export function FlagInput({
           <div className="min-w-0">
           <div data-testid="flag-candidate-main" className="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-1">
           <div className="min-w-0 max-w-[48rem] flex-[1_1_35rem]">
-          <div data-testid="flag-candidate-control" className="flex h-9 min-w-0 w-full items-center gap-1 overflow-hidden rounded-md border border-border bg-card pl-1 pr-0.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 pointer-coarse:h-11">
+          <div data-testid="flag-candidate-control" className="flex h-9 min-w-0 w-full items-center gap-1 overflow-hidden rounded-md border border-border bg-card pr-0.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 pointer-coarse:h-11">
             <div className="h-full shrink-0">
               {!disabled && (dynamic || template) ? <FlagModeSwitch label={t("admin.exTask.flag.modeN", { n: index + 1 })} template={template} templateAllowed={dynamic}
                 onChange={(mode) => update(index, mode === "template" ? TEMPLATE_PREFIX + visible : visible)} />
-                : <FlagModeLabel hint={!dynamic ? t(semanticsKey) : undefined}>{t(template ? "admin.exTask.flag.modeTemplate" : "admin.exTask.flag.modeFixed")}</FlagModeLabel>}
+                : <FlagModeLabel>{t(template ? "admin.exTask.flag.modeTemplate" : "admin.exTask.flag.modeFixed")}</FlagModeLabel>}
             </div>
             <Input name={namePrefix ? `${namePrefix}.${index}` : undefined} value={visible} placeholder={template ? String.raw`ICE{room-\d}` : "ICE{...}"}
               ref={(node) => { if (node) inputRefs.current.set(index, node); else inputRefs.current.delete(index) }}
