@@ -1,13 +1,16 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { useFormState, useWatch, type UseFormReturn } from "react-hook-form"
-import { Paperclip } from "lucide-react"
+import { Layers, Paperclip } from "lucide-react"
 import { t } from "@/i18n/t"
+import { Button } from "@/components/ui/button"
 import { FieldHelp } from "@/components/ui/field-help"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { MAX_VARIANT_WEIGHT, MIN_VARIANT_WEIGHT, isValidWeight, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { planSimplify } from "@/lib/simplifyVariants"
 import { issueOrder } from "@/lib/variantWeights"
+import { SimplifyVariantsDialog } from "./SimplifyVariantsDialog"
 import { cn } from "@/utils/cn"
 
 const TEMPLATE_PREFIX = "template:"
@@ -53,17 +56,30 @@ function WeightInput({ form, index, value, disabled, formError }: { form: UseFor
  * (edited in place), its files, the infrastructure (own or the base's) and the note. A number opens the variant.
  */
 export function AllVariantsTable({ form, disabled, onOpen }: { form: UseFormReturn<DraftFormValues>; disabled: boolean; onOpen: (index: number) => void }) {
-  const variants = useWatch({ control: form.control, name: "Variants" }) ?? []
+  const watched = useWatch({ control: form.control, name: "Variants" })
+  const variants = useMemo(() => watched ?? [], [watched])
   const { errors } = useFormState({ control: form.control, name: "Variants" })
   const subtasks = variants[0]?.Tasks ?? []
   const baseIndex = (linkedTo: string) => linkedTo ? variants.findIndex((variant) => variant.ID !== "" && variant.ID === linkedTo) : -1
   const order = issueOrder(variants.map((variant) => variant.Weight), ORDER_PREVIEW)
+  const plan = useMemo(() => planSimplify(variants), [variants])
+  const [simplifyOpen, setSimplifyOpen] = useState(false)
   return <div className="all-variants">
     <div className="all-variants-toolbar">
       <HoverTooltip text={t("admin.exDraft.issueOrderRule")}>
         <p className="all-variants-order" tabIndex={0}>{t("admin.exDraft.issueOrder", { order: order.join(" ") })}</p>
       </HoverTooltip>
+      {!disabled && plan && plan.count > 0 && <HoverTooltip text={t("admin.exSimplify.openHint")}>
+        <Button type="button" variant="outline" size="sm" className="ml-auto gap-2" onClick={() => setSimplifyOpen(true)}>
+          <Layers aria-hidden="true" className="h-4 w-4" />{t("admin.exSimplify.open", { count: plan.count })}
+        </Button>
+      </HoverTooltip>}
     </div>
+    {simplifyOpen && plan && <SimplifyVariantsDialog plan={plan} before={variants.length} onClose={() => setSimplifyOpen(false)} onApply={() => {
+      // At once in the form; the autosave queue saves it.
+      form.setValue("Variants", plan.variants, { shouldDirty: true })
+      setSimplifyOpen(false)
+    }} />}
     <div className="all-variants-scroll" role="region" aria-label={t("admin.exDraft.allVariants")} tabIndex={0}>
       <table className="all-variants-table">
         <thead><tr>

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
+import { useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key}${JSON.stringify(vars)}` : key }))
@@ -85,4 +86,51 @@ describe("AllVariantsTable", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: 'admin.exDraft.weightCell{"n":1}' }), { target: { value: "2" } })
     expect(screen.getByText('admin.exDraft.issueOrder{"order":"1 2 1 2 1 2 1 2 1 2 1 2 1 2"}')).toBeInTheDocument()
   })
+
+  it("offers no simplify when every variant is different, nor when read-only", () => {
+    render(<Harness />)
+    expect(screen.queryByRole("button", { name: /admin\.exSimplify\.open/ })).not.toBeInTheDocument()
+    render(<SimplifyHarness disabled />)
+    expect(screen.queryByRole("button", { name: /admin\.exSimplify\.open/ })).not.toBeInTheDocument()
+  })
+
+  it("simplifies identical variants and linkable ones from the dialog, keeping the kept ids", () => {
+    render(<SimplifyHarness />)
+    fireEvent.click(screen.getByRole("button", { name: 'admin.exSimplify.open{"count":2}' }))
+    const dialog = screen.getByRole("dialog", { name: "admin.exSimplify.title" })
+    expect(within(dialog).getByText('admin.exSimplify.sameTitle{"variants":"1, 2, 4"}')).toBeInTheDocument()
+    expect(within(dialog).getByText('admin.exSimplify.sameResult{"n":1,"weight":3}')).toBeInTheDocument()
+    expect(within(dialog).getByText('admin.exSimplify.linkTitle{"variants":"3"}')).toBeInTheDocument()
+    expect(within(dialog).getByText('admin.exSimplify.variantsCount{"count":4}')).toBeInTheDocument()
+    expect(within(dialog).getByText('admin.exSimplify.afterValue{"count":2,"weights":"3 : 1"}')).toBeInTheDocument()
+    expect(within(dialog).getByText("admin.exSimplify.proportions")).toBeInTheDocument()
+    expect(within(dialog).getByText('admin.exSimplify.removed{"variants":"2, 4"}')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exSimplify.apply" }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(JSON.parse(screen.getByTestId("simplified").textContent ?? "[]")).toEqual([["a", "", 3], ["c", "a", 1]])
+    expect(screen.queryByRole("button", { name: /admin\.exSimplify\.open/ })).not.toBeInTheDocument()
+  })
+
+  it("closes the dialog without changes on «Не зараз»", () => {
+    render(<SimplifyHarness />)
+    fireEvent.click(screen.getByRole("button", { name: /admin\.exSimplify\.open/ }))
+    fireEvent.click(screen.getByRole("button", { name: "admin.exSimplify.cancel" }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(JSON.parse(screen.getByTestId("simplified").textContent ?? "[]")).toHaveLength(4)
+  })
 })
+
+function SimplifyHarness({ disabled = false }: { disabled?: boolean }) {
+  const [defaults] = useState(() => {
+    const value = emptyDraft()
+    const make = (id: string, flag: string) => ({ ...emptyVariant(1), ID: id, Tasks: [{ ...emptyTask(), ID: "t1", Name: "Scan", Flag: [flag] }] })
+    value.Variants = [make("a", "ICE{a}"), make("b", "ICE{a}"), make("c", "ICE{c}"), make("d", "ICE{a}")]
+    return value
+  })
+  const form = useForm<DraftFormValues>({ defaultValues: defaults })
+  const variants = useWatch({ control: form.control, name: "Variants" })
+  return <>
+    <AllVariantsTable form={form} disabled={disabled} onOpen={vi.fn()} />
+    <output data-testid="simplified">{JSON.stringify(variants.map((variant) => [variant.ID, variant.LinkedTo, variant.Weight]))}</output>
+  </>
+}

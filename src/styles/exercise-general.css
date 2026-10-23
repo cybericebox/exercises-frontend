@@ -181,3 +181,8 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .all-variants-weight-input[aria-invalid=true] { border-color:var(--ib-danger); }
 .all-variants-weight-input:disabled { background:var(--ib-paper); color:var(--ib-dim); }
 .all-variants-weight-error { margin:0; max-width:160px; white-space:normal; font-size:12px; line-height:1.3; color:var(--ib-danger); }
+.simplify-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; font-size:14px; }
+.simplify-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
+.simplify-item > svg { margin-top:2px; }
+.simplify-outcome { display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px; font-size:13px; }
+.simplify-figure { font-size:20px; font-weight:600; color:var(--ib-ink); overflow-wrap:anywhere; }

@@ -7,8 +7,21 @@ function stable(value: unknown): unknown {
   return value
 }
 
-function fingerprint(variant: VariantFormValues): string | null {
-  if (variant.LinkedTo) return null
+/**
+ * What a signature compares besides the content itself (IDs, Index, CopyOf and Weight never count).
+ * flags/files: the subtask flags / files; note: the variant note; linked: compare linked variants too (their base counts).
+ */
+export type SignatureParts = { flags: boolean; files: boolean; note: boolean; linked: boolean }
+
+const ADVISORY: SignatureParts = { flags: false, files: true, note: true, linked: false }
+
+/**
+ * A stable content signature of a variant: device and placeholder ids are replaced by their positions, so two
+ * variants built the same way compare equal. null when it cannot be compared honestly (a stored secret the
+ * client cannot read, a file without an id, a dangling reference).
+ */
+export function variantSignature(variant: VariantFormValues, parts: SignatureParts = ADVISORY): string | null {
+  if (variant.LinkedTo && !parts.linked) return null
   const ids = new Map<string, string>()
   for (const [index, device] of variant.Topology.Devices.entries()) {
     if (!device.ID || ids.has(device.ID)) return null
@@ -41,9 +54,9 @@ function fingerprint(variant: VariantFormValues): string | null {
         return [key, document(entry)]
       }))
     }
-    if (task.Attachments.some((file) => !file.FileID)) valid = false
+    if (parts.files && task.Attachments.some((file) => !file.FileID)) valid = false
     return {
-      ...task, ID: undefined, Flag: undefined,
+      ...task, ID: undefined, Flag: parts.flags ? task.Flag : undefined, Attachments: parts.files ? task.Attachments : undefined,
       LinkedDeviceID: deviceRef(task.LinkedDeviceID),
       Description: document(task.Description),
       Placeholders: task.Placeholders.map((p) => ({ ...p, Key: keys.get(p.Key) })),
@@ -77,7 +90,7 @@ function fingerprint(variant: VariantFormValues): string | null {
     }
   }
   const projected = {
-    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, Tasks: tasks,
+    ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
       Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), EnvVars: device.EnvVars.map((env) => ({ ...env, HasValue: undefined })) })),
       Connections: variant.Topology.Connections.map((connection) => ({ ...connection, Endpoints: connection.Endpoints.map((endpoint) => ({ ...endpoint, DeviceID: endpoint.Kind === "device" ? deviceRef(endpoint.DeviceID) : endpoint.DeviceID })) })),
@@ -90,7 +103,7 @@ function fingerprint(variant: VariantFormValues): string | null {
 export function duplicateVariantGroups(variants: VariantFormValues[]): number[][] {
   const groups = new Map<string, number[]>()
   variants.forEach((variant, index) => {
-    const key = fingerprint(variant)
+    const key = variantSignature(variant)
     if (key !== null) groups.set(key, [...(groups.get(key) ?? []), index])
   })
   return [...groups.values()].filter((group) => group.length > 1)
