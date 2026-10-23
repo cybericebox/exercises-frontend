@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DEFAULT_COLUMNS, isDefaultColumns, moveColumn, normalizeColumns, toggleColumn } from "./catalogColumns"
+import { DEFAULT_COLUMNS, MAX_WIDTH, MIN_WIDTH, NAME_COLUMN, NAME_MIN_WIDTH, clampWidth, isDefaultColumns, isDefaultLayout, layoutToStored, moveColumn, normalizeColumns, normalizeLayout, toggleColumn, withLocalWidths, withWidth } from "./catalogColumns"
 
 describe("catalog columns", () => {
   it("shows access, status, subtasks, variants, author and updated by default", () => {
@@ -25,5 +25,31 @@ describe("catalog columns", () => {
     expect(toggled.find((column) => column.key === "tags")?.visible).toBe(true)
     expect(DEFAULT_COLUMNS.find((column) => column.key === "tags")?.visible).toBe(false)
     expect(isDefaultColumns(toggled)).toBe(false)
+  })
+})
+
+describe("column widths", () => {
+  it("keeps a stored width inside the column's bounds and treats 0 or garbage as unset", () => {
+    const columns = normalizeColumns([{ key: "author", visible: true, width: 10 }, { key: "status", visible: true, width: 5000 }, { key: "access", visible: true, width: 0 }, { key: "tags", visible: false, width: "wide" }])
+    expect(columns.slice(0, 4)).toEqual([{ key: "author", visible: true, width: MIN_WIDTH }, { key: "status", visible: true, width: MAX_WIDTH }, { key: "access", visible: true }, { key: "tags", visible: false }])
+  })
+
+  it("stores the «Назва» width on a name entry and reads it back", () => {
+    const layout = withWidth(withWidth({ columns: DEFAULT_COLUMNS }, NAME_COLUMN, 150), "author", 222)
+    expect(layout.nameWidth).toBe(NAME_MIN_WIDTH)
+    const stored = layoutToStored(layout)
+    expect(stored[0]).toEqual({ key: NAME_COLUMN, visible: true, width: NAME_MIN_WIDTH })
+    expect(normalizeLayout(JSON.parse(JSON.stringify(stored)))).toEqual(layout)
+    expect(isDefaultLayout(layout)).toBe(false)
+    expect(isDefaultLayout(withWidth(withWidth(layout, NAME_COLUMN, undefined), "author", undefined))).toBe(true)
+  })
+
+  it("keeps this browser's widths when the profile does not carry them", () => {
+    const server = normalizeLayout([{ key: "author", visible: true }, { key: "status", visible: false, width: 150 }])
+    const local = normalizeLayout([{ key: NAME_COLUMN, visible: true, width: 300 }, { key: "author", visible: true, width: 240 }, { key: "status", visible: true, width: 99 }])
+    const merged = withLocalWidths(server, local)
+    expect(merged.nameWidth).toBe(300)
+    expect(merged.columns.slice(0, 2)).toEqual([{ key: "author", visible: true, width: 240 }, { key: "status", visible: false, width: 150 }])
+    expect(clampWidth("author", 79.6)).toBe(MIN_WIDTH)
   })
 })

@@ -12,6 +12,7 @@ import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/f
 import { emptyInterface, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
+import { REVEAL_ON_HOVER } from "./RemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 import { useEditorPosition } from "./EditorPosition"
 import { addressReferenceOverlapsDHCP, StaticAddressReference } from "./StaticAddressReference"
@@ -51,10 +52,10 @@ function StaticRouteCard({ routesName, index, disabled, compact, vpn, internet, 
 
   const errorId = `${routesName}-${index}`
 
-  return <div data-route-card className="space-y-1 rounded-md border border-border p-2">
+  return <div data-route-card className="group space-y-1 rounded-md border border-border p-2">
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs font-medium text-muted-foreground">{t("admin.exTopo.routeItemN", { n: index + 1 })}</span>
-      {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeRoute")} onClick={onRemove} className="h-7 w-7" />}
+      {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeRoute")} onClick={onRemove} className="h-7 w-7" wrapperClassName={REVEAL_ON_HOVER} />}
     </div>
     <div data-route-fields className={`grid ${compact ? "grid-cols-1 gap-2" : "gap-2 sm:grid-cols-2"}`}>
       <FormField control={control} name={destinationName} render={({ field }) => <FormItem className="space-y-1">
@@ -214,7 +215,7 @@ export function InterfaceForm({
           onClick={() => setSelectedIndex(ii)}
           className={`rounded-md px-3 py-1.5 text-sm ${activeIndex === ii ? "font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
           {rows[ii]?.Name || t("admin.exTopo.interfaceItemN", { n: ii + 1 })}
-        </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => removeInterface(ii)} className="mr-1 h-7 w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />}</div>)}
+        </button>{!disabled && <RemoveAction ariaLabel={t("admin.exTopo.removeInterface")} onClick={() => removeInterface(ii)} className="mr-1 h-7 w-7" wrapperClassName={REVEAL_ON_HOVER} />}</div>)}
       </div>}
 
       {fields.map((field, ii) => {

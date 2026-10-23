@@ -15,7 +15,7 @@ import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { flagCandidateErrorKey, parseFlagCandidate } from "@/lib/flagPattern"
 import { baseCandidates, linkedFlagConflicts, newLinkedVariant } from "@/lib/linkedVariants"
 import type { VariantFormValues } from "@/lib/exerciseSchemas"
-import { RemoveAction } from "./RemoveAction"
+import { RemoveAction, REVEAL_ON_HOVER } from "./RemoveAction"
 import { GuideLink } from "./GuideLink"
 import { AttachmentDownload } from "./AttachmentDownload"
 import { useExerciseId } from "./ExerciseIdContext"
@@ -246,9 +246,9 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
                     className="font-mono" spellCheck={false} autoComplete="off" />
                   {flagError && <p id={flagErrorId} className="text-xs text-destructive">{flagError}</p>}
                   {cell.files.length > 0 && <ul className="space-y-1">
-                    {cell.files.map((file, index) => <li key={`${file.FileID}-${index}`} className="flex min-w-0 items-center gap-2 text-sm">
+                    {cell.files.map((file, index) => <li key={`${file.FileID}-${index}`} className="group flex min-w-0 items-center gap-2 text-sm">
                       <AttachmentDownload file={file} />
-                      <RemoveAction ariaLabel={t("admin.exLinked.removeFile", { name: file.Name })} className="h-7 w-7"
+                      <RemoveAction ariaLabel={t("admin.exLinked.removeFile", { name: file.Name })} className="h-7 w-7" wrapperClassName={REVEAL_ON_HOVER}
                         onClick={() => updateCell(row.key, column, (current) => ({ ...current, files: current.files.filter((_, i) => i !== index) }))} />
                     </li>)}
                   </ul>}

@@ -83,7 +83,7 @@ function CatalogLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--ib-surface)]">
         <SiteBanners />
         <TopBar onMenuClick={() => setMenuOpen(true)} menuButtonRef={menuButton} />
-        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-auto bg-[var(--ib-surface)] p-3 md:p-4">{children}</main>
+        <main id="main" tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col overflow-auto bg-[var(--ib-surface)] p-4 md:p-6">{children}</main>
       </div>
     </div>
   </>

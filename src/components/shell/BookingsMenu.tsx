@@ -141,9 +141,9 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
         onCloseAutoFocus={onCloseAutoFocus ? (event) => { event.preventDefault(); onCloseAutoFocus() } : undefined}>
         <header className="bookings-header">
           <DialogTitle ref={titleRef} tabIndex={-1} className="bookings-title">{t("exercises.book.listTitle")}</DialogTitle>
-          <div ref={headerActionsRef} className="bookings-header-actions"><GuideLink topic="infrastruktura" iconOnly />
+          <div ref={headerActionsRef} className="bookings-header-actions"><GuideLink topic="infrastruktura" variant="dialog" />
           <DialogClose asChild>
-            <button type="button" aria-label={t("exercises.book.close")} className="ib-hit shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-5 w-5" /></button>
+            <Button type="button" variant="ghost" size="icon" aria-label={t("exercises.book.close")}><X aria-hidden="true" className="h-4 w-4" /></Button>
           </DialogClose>
           </div>
         </header>

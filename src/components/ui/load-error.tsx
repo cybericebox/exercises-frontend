@@ -20,8 +20,10 @@ export function errorCode(error: unknown): number | undefined {
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
  * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
  */
-export function LoadError({ message = t("error.load.title"), onRetry, error, compact = false, className, actions, details, retryRef }: {
+export function LoadError({ message = t("error.load.title"), help, onRetry, error, compact = false, className, actions, details, retryRef }: {
   message?: string
+  /** The help line, when the general «check the connection» one does not fit the failure. */
+  help?: string | null
   onRetry?: () => void
   /** Optional logical focus destination when a dialog removes its opener. */
   retryRef?: React.Ref<HTMLButtonElement>
@@ -39,7 +41,7 @@ export function LoadError({ message = t("error.load.title"), onRetry, error, com
       <TriangleAlert size={compact ? 20 : 24} className="text-destructive" aria-hidden />
       <p className="text-sm font-medium text-foreground">{message}</p>
       {details}
-      <p className={cn("max-w-sm text-muted-foreground", compact ? "text-xs" : "text-sm")}>{t("error.load.body")}</p>
+      <p className={cn("max-w-sm text-muted-foreground", compact ? "text-xs" : "text-sm")}>{help || t("error.load.body")}</p>
       {code !== undefined && <p className="font-mono text-xs text-muted-foreground">{t("error.load.code", { code })}</p>}
       {(onRetry || actions) && <div className="flex flex-wrap items-center justify-center gap-2">
         {actions}

@@ -251,4 +251,11 @@ describe('variant modes', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('says «на основі варіанта N» in the tab name and tooltip, without a dot on the number', () => {
+    render(<Harness prepare={linkedDraft} />)
+    const tab = screen.getByRole('tab', { name: 'admin.exDraft.variantBasedOn{"n":2,"base":1}' })
+    expect(tab).toHaveTextContent(/^2$/)
+    expect(tab.className).not.toMatch(/linked/)
+  })
 })

@@ -1,16 +1,17 @@
 import { useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { FormProvider, useForm, type UseFormReturn } from "react-hook-form"
 import { draftSchema, emptyDraft, emptyVariant, type DraftFormValues } from "@/lib/exerciseSchemas"
-import { HintsEditor } from "./HintsEditor"
+import { HintsEditor, type DescriptionEditorConfig } from "./HintsEditor"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 // Lexical does not type in jsdom: a textarea stands in and emits a document.
 vi.mock("@/components/editor/RichTextEditor", () => ({
-  default: ({ ariaLabel, disabled, invalid, allowAlignment, contentHeight, onChange }: { ariaLabel: string; disabled: boolean; invalid: boolean; allowAlignment: boolean; contentHeight?: number; onChange: (state: unknown) => void }) => (
-    <textarea aria-label={ariaLabel} disabled={disabled} aria-invalid={invalid} data-alignment={String(allowAlignment)} data-content-height={contentHeight} onChange={(event) => onChange({
+  default: ({ ariaLabel, disabled, invalid, allowAlignment, maxContentHeight, variables, onInsertVariable, onChange }: { ariaLabel: string; disabled: boolean; invalid: boolean; allowAlignment?: boolean; maxContentHeight?: number; variables?: { name: string }[]; onInsertVariable?: unknown; onChange: (state: unknown) => void }) => (
+    <textarea aria-label={ariaLabel} disabled={disabled} aria-invalid={invalid} data-alignment={String(allowAlignment)} data-max-height={maxContentHeight}
+      data-variables={variables?.map((variable) => variable.name).join(",")} data-insert={String(Boolean(onInsertVariable))} onChange={(event) => onChange({
       root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: event.target.value }] }] },
     })} />
   ),
@@ -24,10 +25,10 @@ function twoVariants(): DraftFormValues {
 
 let current: UseFormReturn<DraftFormValues> | null = null
 const keep = (methods: UseFormReturn<DraftFormValues>) => { current = methods }
-function Harness({ disabled = false }: { disabled?: boolean }) {
+function Harness({ disabled = false, editor }: { disabled?: boolean; editor?: DescriptionEditorConfig }) {
   const methods = useForm<DraftFormValues>({ defaultValues: twoVariants(), resolver: zodResolver(draftSchema) })
   useEffect(() => keep(methods), [methods])
-  return <FormProvider {...methods}><HintsEditor variantIndex={0} taskIndex={0} disabled={disabled} /></FormProvider>
+  return <FormProvider {...methods}><HintsEditor variantIndex={0} taskIndex={0} disabled={disabled} editor={editor} /></FormProvider>
 }
 const hints = (variant: number) => current!.getValues().Variants[variant].Tasks[0].Hints
 
@@ -69,10 +70,15 @@ describe("HintsEditor", () => {
     expect(hints(0)[0].Level).toBe("nudge")
   })
 
-  it("offers no text alignment for hints", () => {
-    render(<Harness />)
+  it("passes the description editor's configuration to the hint text editor, unchanged", () => {
+    const config = { maxContentHeight: 320, variables: [{ name: "ph_ip", description: "IP", example: "10.0.0.5" }], unavailableLabels: {}, onInsertVariable: vi.fn(), onEditVariable: vi.fn() }
+    render(<Harness editor={config} />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
-    expect(screen.getByLabelText("exercises.hints.textAria").getAttribute("data-alignment")).toBe("false")
+    const editor = screen.getByLabelText("exercises.hints.textAria")
+    expect(editor).toHaveAttribute("data-max-height", "320")
+    expect(editor).toHaveAttribute("data-alignment", "undefined")
+    expect(editor).toHaveAttribute("data-variables", "ph_ip")
+    expect(editor).toHaveAttribute("data-insert", "true")
   })
 
   it("blocks publish validation on a hint without text and marks the card", async () => {
@@ -91,10 +97,28 @@ describe("HintsEditor", () => {
   })
 })
 
-it("uses a fixed 144px hint text viewport", () => {
+it("puts «+ Додати підказку» in the section header, right-aligned; none below the list", () => {
  render(<Harness />)
- fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
- expect(screen.getByLabelText("exercises.hints.textAria")).toHaveAttribute("data-content-height", "144")
+ const add = screen.getByRole("button", { name: "exercises.hints.add" })
+ expect(add.closest(".subtask-section-title")).toBeInTheDocument()
+ expect(add.closest(".subtask-section-action")).toBeInTheDocument()
+ expect(screen.getAllByRole("button", { name: "exercises.hints.add" })).toHaveLength(1)
+ // A compact empty state.
+ expect(screen.getByText("exercises.hints.empty").closest("[data-empty-state]")).toHaveClass("min-h-0")
+})
+
+it("blocks the add at 10/10 and says why in a tooltip, keeping the button focusable", () => {
+ render(<Harness />)
+ const add = screen.getByRole("button", { name: "exercises.hints.add" })
+ for (let i = 0; i < 10; i += 1) fireEvent.click(add)
+ const blocked = screen.getByRole("button", { name: "exercises.hints.add" })
+ expect(hints(0)).toHaveLength(10)
+ expect(blocked).toHaveAttribute("aria-disabled", "true")
+ expect(blocked).not.toBeDisabled()
+ fireEvent.click(blocked)
+ expect(hints(0)).toHaveLength(10)
+ fireEvent.mouseEnter(blocked.parentElement!)
+ expect(screen.getByRole("tooltip")).toHaveTextContent("exercises.hints.limitReached")
 })
 
 describe("hint rows", () => {
@@ -118,6 +142,41 @@ describe("hint rows", () => {
     // Viewing writes nothing back.
     expect(current!.getValues().Variants[0].Tasks[0].Hints[0].Text).toBe("Почніть зі сканування портів.")
     expect(current!.formState.isDirty).toBe(false)
+  })
+
+  it("collapsed: chevron on the left, then number, preview and level; expanded: the level select in the header, no preview", () => {
+    render(<Loaded />)
+    const [row] = screen.getAllByTestId("hint-row")
+    const toggle = within(row).getByRole("button", { name: "exercises.hints.rowLabel" })
+    expect(toggle.firstElementChild).toHaveClass("hint-row-chevron")
+    expect(toggle.children[1]).toHaveTextContent("1.")
+    expect(toggle).toHaveTextContent("Почніть зі сканування портів.")
+    expect(toggle).toHaveTextContent("exercises.hints.rowLevel")
+    expect(within(row).queryByRole("button", { name: "exercises.hints.level" })).toBeNull()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(toggle).not.toHaveTextContent("Почніть зі сканування портів.")
+    const level = within(row).getByRole("button", { name: "exercises.hints.level" })
+    const head = row.querySelector(".hint-row-head")!
+    expect(head).toContainElement(level)
+    // Keyboard order: chevron, level, then the actions.
+    const order = [...head.querySelectorAll("button")].map((button) => button.getAttribute("aria-label"))
+    expect(order.indexOf("exercises.hints.rowLabel")).toBeLessThan(order.indexOf("exercises.hints.level"))
+    expect(order.indexOf("exercises.hints.level")).toBeLessThan(order.indexOf("exercises.hints.up"))
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("a click anywhere on the header toggles; its controls keep their own clicks", () => {
+    render(<Loaded />)
+    const [row] = screen.getAllByTestId("hint-row")
+    const toggle = within(row).getByRole("button", { name: "exercises.hints.rowLabel" })
+    fireEvent.click(row.querySelector(".hint-row-head")!)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(within(row).getByRole("button", { name: "exercises.hints.level" }))
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(within(row).getByRole("button", { name: "exercises.hints.down" }))
+    expect(current!.getValues().Variants[0].Tasks[0].Hints[1].ID).toBe("h1")
   })
 
   it("reveals the row actions on hover or focus and keeps them on touch", () => {

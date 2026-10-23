@@ -166,12 +166,12 @@ describe('TaskAccordion', () => {
     expect(await screen.findByText(/ICE\{0{12}\}/)).toBeInTheDocument()
   })
 
-  it('drops a file onto the selected stage rather than its neighbor', async () => {
+  it('drops a file onto the files block of the selected stage rather than its neighbor', async () => {
     vi.mocked(uploadExerciseAttachment).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
     render(<Harness tasks={[task('first'), task('second')]} />)
     fireEvent.click(screen.getByRole('button', { name: 'second' }))
     const file = new File(['x'], 'image.png', { type: 'image/png' })
-    const dropZone = screen.getByTestId('task-drop-zone')
+    const dropZone = screen.getByTestId('attachments-drop-zone')
     fireEvent.dragEnter(dropZone, { dataTransfer: { files: [file], types: ['Files'] } })
     fireEvent.drop(dropZone, { dataTransfer: { files: [file], types: ['Files'] } })
     await waitFor(() => expect(screen.getByTestId('variant-files')).toHaveTextContent('[[[],[{"FileID":"file-2","Name":"image.png"}]]]'))

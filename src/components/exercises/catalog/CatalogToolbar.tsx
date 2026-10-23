@@ -54,6 +54,10 @@ export type ToolbarProps = {
   onChange: (patch: Partial<CatalogFilters>) => void
   columns: ColumnSetting[]
   onColumns: (columns: ColumnSetting[]) => void
+  /** The layout is the default (no «Скинути» in the columns menu). */
+  columnsDefault: boolean
+  /** Default order, visibility and widths. */
+  onColumnsReset: () => void
   canImport: boolean
   canWrite: boolean
   onImport: () => void
@@ -87,7 +91,7 @@ function ToolButton({ label, onClick, children }: { label: string; onClick: () =
   return <HoverTooltip text={label}><button type="button" className="catalog-tool" aria-label={label} onClick={onClick}>{children}</button></HoverTooltip>
 }
 
-function DesktopToolbar({ filters, isAdmin, search, onSearch, onClearSearch, eventOptions, eventName, authorLabel, onAuthorsLoaded, onChange, columns, onColumns, canImport, canWrite, onImport, onCreate }: ToolbarProps) {
+function DesktopToolbar({ filters, isAdmin, search, onSearch, onClearSearch, eventOptions, eventName, authorLabel, onAuthorsLoaded, onChange, columns, onColumns, columnsDefault, onColumnsReset, canImport, canWrite, onImport, onCreate }: ToolbarProps) {
   const [added, setAdded] = useState<ExtraFilter[]>([])
   const [openChip, setOpenChip] = useState<string | null>(null)
   const chipOpen = (id: string) => ({ open: openChip === id, onOpenChange: (open: boolean) => setOpenChip(open ? id : null) })
@@ -146,7 +150,7 @@ function DesktopToolbar({ filters, isAdmin, search, onSearch, onClearSearch, eve
       </PopoverContent>
     </Popover>}
     </div>
-    <ColumnsMenu columns={columns} onChange={onColumns} />
+    <ColumnsMenu columns={columns} onChange={onColumns} isDefault={columnsDefault} onReset={onColumnsReset} />
     {canImport && <ToolButton label={t("exercises.catalog.importTip")} onClick={onImport}><Upload aria-hidden="true" /></ToolButton>}
     <GuideLink topic="zavdannia" variant="tool" />
     {canWrite && <Button type="button" onClick={onCreate}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("exercises.catalog.create")}</Button>}

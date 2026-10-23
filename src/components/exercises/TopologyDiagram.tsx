@@ -227,8 +227,15 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   const viewportRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const spaceHeld = useRef(false)
+  // Touch points on the canvas; two of them pinch-zoom the view toward their midpoint (and pan with it).
+  const touches = useRef(new Map<number, Point>())
+  const pinch = useRef<{ distance: number; mid: Point; initial: TopologyViewport } | null>(null)
   const pointerInside = useRef(false)
+  // World size (node positions are fractions of it) and the visible box (screen space of the svg). The world may be
+  // larger than the box; the view moves over it by the viewport transform, never by scrolling the canvas element.
   const W = Math.max(size.width, 680)
+  const VW = size.width
+  const VH = size.height
   const ignoreClick = useRef(false)
   const clipPrefix = useId().replaceAll(":", "")
   const controlsHelpId = useId()
@@ -365,29 +372,48 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     const svg = svgRef.current
     if (!svg) return
     const onWheel = (event: WheelEvent) => {
-      // Leave ordinary wheel/trackpad movement to native page and canvas scrolling.
-      // Ctrl also covers trackpad pinch gestures; Meta supports the macOS shortcut.
-      if (!event.ctrlKey && !event.metaKey) return
+      // Ctrl also covers trackpad pinch gestures; Meta supports the macOS shortcut. A plain wheel or a two-finger
+      // trackpad scroll pans the view.
       event.preventDefault()
       viewportTouched.current = true
+      if (!event.ctrlKey && !event.metaKey) {
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? VH : 1
+        const dx = (event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX) * unit
+        const dy = (event.shiftKey && !event.deltaX ? 0 : event.deltaY) * unit
+        setViewport((current) => ({ ...current, tx: current.tx - dx, ty: current.ty - dy }))
+        return
+      }
       const rect = svg.getBoundingClientRect()
-      const anchor = { x: ((event.clientX - rect.left) / (rect.width || W)) * W,
-        y: ((event.clientY - rect.top) / (rect.height || H)) * H }
+      const anchor = { x: ((event.clientX - rect.left) / (rect.width || VW)) * VW,
+        y: ((event.clientY - rect.top) / (rect.height || VH)) * VH }
       setViewport((current) => zoomViewportAt(current, current.scale * Math.exp(-event.deltaY * 0.0015), anchor))
     }
     svg.addEventListener("wheel", onWheel, { passive: false })
     return () => svg.removeEventListener("wheel", onWheel)
-  }, [W, H])
+  }, [VW, VH])
 
   function canvasPoint(clientX: number, clientY: number, svg: SVGSVGElement): Point {
     const rect = svg.getBoundingClientRect()
-    return { x: ((clientX - rect.left) / (rect.width || W)) * W,
-      y: ((clientY - rect.top) / (rect.height || H)) * H }
+    return { x: ((clientX - rect.left) / (rect.width || VW)) * VW,
+      y: ((clientY - rect.top) / (rect.height || VH)) * VH }
   }
 
   function pointerPoint(event: PointerEvent<SVGSVGElement>): Point {
     if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return drag?.kind === "node" ? drag.point : { x: W / 2, y: H / 2 }
     return pointInWorld(canvasPoint(event.clientX, event.clientY, event.currentTarget), viewport)
+  }
+
+  function touchPinch(svg: SVGSVGElement): { distance: number; mid: Point } | null {
+    const [a, b] = [...touches.current.values()]
+    if (!a || !b) return null
+    const pa = canvasPoint(a.x, a.y, svg)
+    const pb = canvasPoint(b.x, b.y, svg)
+    return { distance: Math.hypot(pa.x - pb.x, pa.y - pb.y), mid: { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 } }
+  }
+
+  function endTouch(pointerId: number) {
+    touches.current.delete(pointerId)
+    if (touches.current.size < 2) pinch.current = null
   }
 
   function beginPan(event: PointerEvent<SVGSVGElement>) {
@@ -466,18 +492,29 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
 
   return (
     <div className="relative h-full min-w-0 bg-background">
-    <div ref={viewportRef} className="h-full min-w-0 overflow-auto">
+    <div ref={viewportRef} className="h-full min-w-0 overflow-hidden">
     <svg
       ref={svgRef}
-      viewBox={`0 0 ${W} ${H}`}
+      viewBox={`0 0 ${VW} ${VH}`}
       role="group"
       aria-label={t("admin.exTopo.diagram")}
       aria-describedby={controlsHelpId}
-      className={`block h-full w-full min-w-[680px] ${pan ? "cursor-grabbing" : "cursor-grab"}`}
-      style={{ minHeight: H }}
+      className={`block h-full w-full touch-none select-none ${pan ? "cursor-grabbing" : "cursor-grab"}`}
       onPointerEnter={() => { pointerInside.current = true }}
       onPointerLeave={() => { pointerInside.current = false }}
       onPointerDownCapture={(event) => {
+        if (event.pointerType === "touch") {
+          touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          const start = touches.current.size === 2 ? touchPinch(event.currentTarget) : null
+          if (start) {
+            // A second finger turns the gesture into a pinch: no node drag, no pan, no click.
+            event.stopPropagation()
+            pinch.current = { ...start, initial: viewport }
+            if (pan?.moved || drag?.moved) suppressDragClick()
+            setPan(null); setDrag(null)
+            return
+          }
+        }
         if (!spaceHeld.current || event.button !== 0) return
         event.preventDefault()
         event.stopPropagation()
@@ -500,14 +537,24 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           position: { x: Number((position.x / W).toFixed(4)), y: Number((position.y / H).toFixed(4)) } })
       }}
       onPointerMove={(event) => {
+        if (event.pointerType === "touch" && touches.current.has(event.pointerId)) touches.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+        if (pinch.current) {
+          const now = touchPinch(event.currentTarget)
+          if (!now || pinch.current.distance <= 0) return
+          viewportTouched.current = true
+          const { initial, distance, mid } = pinch.current
+          const zoomed = zoomViewportAt(initial, initial.scale * now.distance / distance, mid)
+          setViewport({ ...zoomed, tx: zoomed.tx + now.mid.x - mid.x, ty: zoomed.ty + now.mid.y - mid.y })
+          return
+        }
         if (pan) {
           const dx = event.clientX - pan.start.x
           const dy = event.clientY - pan.start.y
           if (!pan.moved && Math.hypot(dx, dy) < 5) return
           viewportTouched.current = true
           const rect = event.currentTarget.getBoundingClientRect()
-          setViewport({ ...pan.initial, tx: pan.initial.tx + dx * W / (rect.width || W),
-            ty: pan.initial.ty + dy * H / (rect.height || H) })
+          setViewport({ ...pan.initial, tx: pan.initial.tx + dx * VW / (rect.width || VW),
+            ty: pan.initial.ty + dy * VH / (rect.height || VH) })
           if (!pan.captured) event.currentTarget.setPointerCapture?.(event.pointerId)
           setPan({ ...pan, moved: true, captured: true })
           return
@@ -518,15 +565,17 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         if (drag.kind === "node") setDrag({ ...drag, point: pointerPoint(event), moved: true })
         else {
           const rect = event.currentTarget.getBoundingClientRect()
-          const dx = (event.clientX - drag.start.x) * W / (rect.width || W) / viewport.scale
-          const dy = (event.clientY - drag.start.y) * H / (rect.height || H) / viewport.scale
+          const dx = (event.clientX - drag.start.x) * VW / (rect.width || VW) / viewport.scale
+          const dy = (event.clientY - drag.start.y) * VH / (rect.height || VH) / viewport.scale
           setDrag({ ...drag, offset: drag.kind === "label"
             ? { x: drag.initial.x + dx, y: drag.initial.y + dy }
             : { x: drag.initial.x + dx * drag.axis.x + dy * drag.axis.y,
               y: drag.initial.y - dx * drag.axis.y + dy * drag.axis.x }, moved: true })
         }
       }}
-      onPointerUp={() => {
+      onPointerUp={(event) => {
+        if (pinch.current) { endTouch(event.pointerId); suppressDragClick(); return }
+        endTouch(event.pointerId)
         if (pan) {
           if (pan.moved) suppressDragClick()
           setPan(null)
@@ -542,13 +591,13 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
         }
         setDrag(null)
       }}
-      onPointerCancel={() => { setPan(null); setDrag(null) }}
+      onPointerCancel={(event) => { endTouch(event.pointerId); setPan(null); setDrag(null) }}
     >
       <defs>
         <pattern id={`${clipPrefix}-grid`} width="10" height="10" patternUnits="userSpaceOnUse"
           patternTransform={`translate(${viewport.tx} ${viewport.ty}) scale(${viewport.scale})`}><circle cx="1" cy="1" r="0.9" className="fill-muted-foreground/30" /></pattern>
       </defs>
-      <rect data-canvas-background width={W} height={H} fill={`url(#${clipPrefix}-grid)`} onClick={onCanvasSelect} />
+      <rect data-canvas-background width={VW} height={VH} fill={`url(#${clipPrefix}-grid)`} onClick={onCanvasSelect} />
       <g data-viewport-content transform={`translate(${viewport.tx} ${viewport.ty}) scale(${viewport.scale})`}>
       {/* Edges — drawn under the nodes */}
       {edges.map((edge) => {

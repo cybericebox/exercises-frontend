@@ -314,7 +314,7 @@ export async function setExerciseAccess(id: string, input: AccessInput): Promise
 export const DEFAULT_OWNERSHIP: ExerciseOwnership = normalizeOwnership({})
 
 /** One column of the user's catalog table (the frontend owns what the keys mean). */
-export type StoredCatalogColumn = { key: string; visible: boolean }
+export type StoredCatalogColumn = { key: string; visible: boolean; width?: number }
 
 /** GET /api/exercises/preferences/catalog-columns — null until the user arranged the columns once. */
 export async function getCatalogColumns(): Promise<StoredCatalogColumn[] | null> {

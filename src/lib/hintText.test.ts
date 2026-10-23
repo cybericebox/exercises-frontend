@@ -20,10 +20,10 @@ describe("hint text", () => {
     expect(stateToHintText({ root: { type: "root", children: [{ type: "paragraph", children: [] }] } })).toBe("")
   })
 
-  it("strips text alignment, keeping text formats", () => {
+  it("keeps text alignment and text formats, as the description does", () => {
     const doc = { root: { type: "root", format: "", children: [{ type: "heading", tag: "h2", format: "center", children: [{ type: "text", text: "Hi", format: 1 }] }] } }
     const stored = JSON.parse(stateToHintText(doc))
-    expect(stored.root.children[0].format).toBe("")
+    expect(stored.root.children[0].format).toBe("center")
     expect(stored.root.children[0].children[0].format).toBe(1)
   })
 

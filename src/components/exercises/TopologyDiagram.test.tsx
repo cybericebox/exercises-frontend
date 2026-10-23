@@ -125,13 +125,12 @@ describe('TopologyDiagram', () => {
     }))
     const { container } = render(<TopologyDiagram topology={{ ...topology, VPN: { Enabled: false, DHCP: false }, Devices: devices, Connections: [], VisualRender: null }} />)
     const svg = container.querySelector('svg[role="group"]')!
-    const [, , width, height] = svg.getAttribute('viewBox')!.split(' ').map(Number)
-    const points = Array.from(container.querySelectorAll('[data-icon-hitbox]')).map((rect) =>
-      `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
-    expect(Number(height)).toBeGreaterThan(560)
-    expect(Number(width)).toBe(960)
+    const hitboxes = Array.from(container.querySelectorAll('[data-icon-hitbox]'))
+    const points = hitboxes.map((rect) => `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
+    // The board grows below the visible box; the view pans over it, the canvas element itself never scrolls.
+    expect(Math.max(...hitboxes.map((rect) => Number(rect.getAttribute('y'))))).toBeGreaterThan(560)
     expect(new Set(points).size).toBe(30)
-    expect(svg.parentElement).toHaveClass('overflow-auto')
+    expect(svg.parentElement).toHaveClass('overflow-hidden')
   })
 
   it('does not reserve empty gateway rows above a standalone forwarding device', () => {
@@ -727,6 +726,59 @@ describe('TopologyDiagram', () => {
     expect(topology.VisualRender).toBeNull()
   })
 
+  it('a background drag changes only the view transform; no device moves, a still click still deselects', () => {
+    const onCanvasSelect = vi.fn()
+    const onPositionChange = vi.fn()
+    const { container } = render(<TopologyDiagram topology={topology} onCanvasSelect={onCanvasSelect} onPositionChange={onPositionChange} />)
+    const svg = container.querySelector('svg[role="group"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    expect(svg).toHaveClass('select-none', 'touch-none')
+    const nodes = () => Array.from(container.querySelectorAll('[data-icon-hitbox]')).map((rect) => `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
+    const before = nodes()
+    const content = container.querySelector('[data-viewport-content]')!
+    const initial = content.getAttribute('transform')
+    const background = container.querySelector('[data-canvas-background]')!
+    fireEvent(background, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, clientY: 100 }))
+    for (const step of [10, 40, 80]) fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 100 + step, clientY: 100 + step / 2 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 180, clientY: 140 }))
+    fireEvent.click(background) // the browser's click after the drag: swallowed, no deselect
+    expect(onCanvasSelect).not.toHaveBeenCalled()
+    expect(content.getAttribute('transform')).not.toBe(initial)
+    expect(nodes()).toEqual(before)
+    expect(onPositionChange).not.toHaveBeenCalled()
+    // A click without movement on the background keeps deselecting.
+    fireEvent(background, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 50, clientY: 50 }))
+    fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: 50, clientY: 50 }))
+    fireEvent.click(background)
+    expect(onCanvasSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('pinches with two fingers to zoom toward their midpoint; one finger on the background pans', () => {
+    const { container } = render(<TopologyDiagram topology={topology} />)
+    const svg = container.querySelector('svg[role="group"]')!
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
+    const touch = (type: string, id: number, x: number, y: number, target: Element = svg) => {
+      const event = new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y })
+      Object.defineProperties(event, { pointerId: { value: id }, pointerType: { value: 'touch' } })
+      fireEvent(target, event)
+    }
+    const content = container.querySelector('[data-viewport-content]')!
+    const transform = () => content.getAttribute('transform')!.match(/-?[\d.]+/g)!.map(Number)
+    const background = container.querySelector('[data-canvas-background]')!
+    const [, , scale] = transform()
+    touch('pointerdown', 1, 400, 280, background)
+    touch('pointerdown', 2, 500, 280, background)
+    touch('pointermove', 2, 600, 280)
+    touch('pointerup', 2, 600, 280)
+    touch('pointerup', 1, 400, 280)
+    expect(transform()[2]).toBeCloseTo(Math.min(2.5, scale * 2))
+    const [tx, ty, zoomed] = transform()
+    touch('pointerdown', 3, 300, 300, background)
+    touch('pointermove', 3, 360, 330)
+    touch('pointerup', 3, 360, 330)
+    expect(transform()).toEqual([tx + 60, ty + 30, zoomed])
+  })
+
   it('uses Space-drag over a node for panning rather than moving or selecting that node', () => {
     const onNodeSelect = vi.fn()
     const onPositionChange = vi.fn()
@@ -758,14 +810,16 @@ describe('TopologyDiagram', () => {
     expect(onCanvasAddNode.mock.calls[0][1].x).toBeCloseTo(256 / 960, 3)
   })
 
-  it('leaves ordinary wheel scrolling native without changing the diagram viewport', () => {
+  it('pans the view with a plain wheel or two-finger trackpad scroll, without scrolling the canvas element', () => {
     const { container } = render(<TopologyDiagram topology={topology} />)
     const svg = screen.getByRole('group', { name: 'admin.exTopo.diagram' })
-    const initial = container.querySelector('[data-viewport-content]')!.getAttribute('transform')
-    const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 })
+    const content = container.querySelector('[data-viewport-content]')!
+    const [tx, ty, scale] = content.getAttribute('transform')!.match(/-?[\d.]+/g)!.map(Number)
+    const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 30, deltaY: 120 })
     fireEvent(svg, wheel)
-    expect(wheel.defaultPrevented).toBe(false)
-    expect(container.querySelector('[data-viewport-content]')).toHaveAttribute('transform', initial)
+    expect(wheel.defaultPrevented).toBe(true)
+    const [nx, ny, nscale] = content.getAttribute('transform')!.match(/-?[\d.]+/g)!.map(Number)
+    expect([nx, ny, nscale]).toEqual([tx - 30, ty - 120, scale])
     expect(svg).toHaveAccessibleDescription('admin.exTopo.canvasControlsHelp')
     // No «?» on the canvas: the zoom controls name their shortcuts in tooltips and point to the same description.
     expect(screen.queryByRole('button', { name: 'admin.exTopo.canvasControls' })).not.toBeInTheDocument()
