@@ -256,7 +256,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
           : running || flow.busy ? <div className="exercise-import-state"><LoadingArea message={job ? importStageText(job) : busyLabel} />{progressBar(job ? importStageText(job) : busyLabel)}<p>{t(running ? "admin.exImport.update.runningHelp" : "admin.exImport.update.checkHelp")}</p></div>
           : uncertain ? <div className="exercise-import-state"><TriangleAlert aria-hidden="true" className="h-6 w-6" /><p role="alert">{flow.error ?? t("admin.exImport.update.unknown")}</p><Button type="button" onClick={() => void recover()}>{t("admin.exImport.update.recover")}</Button></div>
           : job?.state === "failed" ? <div className="exercise-import-state"><TriangleAlert aria-hidden="true" className="h-6 w-6" /><p role="alert">{exerciseErrorMessage(job.error)}</p><Button type="button" variant="outline" onClick={() => { dismissImportJob(job.jobID); setActiveJob(null); setRecovery(null); flow.invalidate(); dispatched.current = false; cancelReplacement?.() }}>{t("admin.exImport.update.chooseAgain")}</Button></div>
-          : flow.error && !flow.items.length ? <LoadError className="exercise-import-empty" message={flow.error} onRetry={() => void flow.previewArchive()} />
+          : flow.error && !flow.items.length ? <LoadError className="exercise-import-empty" message={flow.error} help={flow.errorHelp} onRetry={() => void flow.previewArchive()} />
           : <>
             {stale && <p className="exercise-import-notice" role="alert">{t("admin.exImport.update.stale")}</p>}
             {flow.error && <p className="exercise-import-notice text-destructive" role="alert">{flow.error}</p>}

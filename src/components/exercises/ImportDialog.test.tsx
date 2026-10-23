@@ -94,6 +94,25 @@ it("broad ambiguous 400 stays general and fixed multi-item refusal stays at the 
  expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-invalid", "true")
 })
 
+it("a registry an administrator must fix says so under the error, with the retry kept; an outage keeps the general line", async () => {
+ vi.mocked(previewArchiveImport)
+  .mockRejectedValueOnce(new ApiError(409, { Status: { Code: 72832, Context: { token: "pull", reason: "unauthorized" } } }, undefined, undefined, 72832))
+  .mockRejectedValueOnce(new ApiError(409, { Status: { Code: 72801 } }, undefined, undefined, 72801))
+  .mockRejectedValueOnce(new ApiError(409, { Status: { Code: 72802, Context: { reason: "unreachable" } } }, undefined, undefined, 72802))
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} />)
+ pick()
+ await screen.findByText("exercises.image.registryHelp")
+ expect(screen.queryByText("error.load.body")).toBeNull()
+ fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
+ await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(2))
+ await screen.findByText("exercises.image.registryHelp")
+ fireEvent.click(screen.getByRole("button", { name: "error.load.retry" }))
+ await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(3))
+ await screen.findByText("error.load.body")
+ expect(screen.queryByText("exercises.image.registryHelp")).toBeNull()
+ expect(screen.getByRole("button", { name: "error.load.retry" })).toBeInTheDocument()
+})
+
 it("a minimized initiated queued update opens only its exact done result, once", async () => {
  const { getImportJob } = await import("@/api/exercises/archiveJobs")
  const { trackImportJob } = await import("@/lib/importJobs")
