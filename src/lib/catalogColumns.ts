@@ -16,9 +16,13 @@ export type CatalogLayout = { columns: ColumnSetting[]; nameWidth?: number }
 /** «Назва» is not in the list (always first); in the stored list its width rides on an entry with this key. */
 export const NAME_COLUMN = "name"
 
-/** Default widths in px; «Назва» takes at least its width and any space the others leave. */
-export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 140, subtasks: 134, variants: 112, author: 160, updated: 124, difficulty: 160, tags: 200, owner: 190 }
-export const NAME_WIDTH = 240
+/**
+ * Default widths in px. Every column, «Назва» too, has exactly its width (the user's or this one): space the columns
+ * leave goes to an empty filler at the end, never to a column, so a narrower column always stays narrower. The
+ * defaults of the shown-by-default columns (with the selection box) fill the table block of a 1440px screen.
+ */
+export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 128, subtasks: 134, variants: 112, author: 150, updated: 124, difficulty: 160, tags: 200, owner: 190 }
+export const NAME_WIDTH = 268
 export const NAME_MIN_WIDTH = 200
 export const NAME_MAX_WIDTH = 900
 export const MIN_WIDTH = 80

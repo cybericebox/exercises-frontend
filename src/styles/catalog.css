@@ -81,6 +81,8 @@
 .catalog-data-state .ib-table__state td{height:auto;vertical-align:middle}
 .catalog-data th,.catalog-data td{height:40px;padding:0 12px;border-bottom:1px solid var(--ib-line);text-align:left;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .catalog-data tbody td{background:var(--card)}
+/* The empty filler after the last column: no text, no divider of its own; the row background and line go on. */
+.catalog-data .catalog-filler{padding:0}
 .catalog-th{position:sticky;top:0;z-index:20;background:var(--ib-paper)!important;font-size:13px;font-weight:500;color:var(--ib-dim)}
 .catalog-th-on{color:var(--ib-ink)}
 .catalog-col-resize-wrap{position:absolute;top:0;right:0;bottom:0;display:flex}

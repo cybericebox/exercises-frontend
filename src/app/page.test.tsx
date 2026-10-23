@@ -1,6 +1,8 @@
 /**
  * page.test.tsx — exercises catalog table and create link.
  */
+import { DEFAULT_COLUMNS } from '@/lib/catalogColumns'
+import { STORAGE_CATALOG_COLUMNS } from '@/lib/storageKeys'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { ApiError } from '@/api/client'
@@ -163,14 +165,14 @@ describe('catalog columns', () => {
     const handle = () => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === 'admin.ex.col.author')!
     fireEvent.keyDown(handle(), { key: 'ArrowRight' })
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0]).toContainEqual({ key: 'author', visible: true, width: 176 })
+    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0]).toContainEqual({ key: 'author', visible: true, width: 166 })
     unmount()
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(handle()).toHaveAttribute('aria-valuenow', '176')
+    expect(handle()).toHaveAttribute('aria-valuenow', '166')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
     fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.columnsReset' }))
-    expect(handle()).toHaveAttribute('aria-valuenow', '160')
+    expect(handle()).toHaveAttribute('aria-valuenow', '150')
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
     expect(vi.mocked(saveCatalogColumns).mock.calls[1][0].every((column) => !('width' in column))).toBe(true)
   })
@@ -186,7 +188,41 @@ describe('catalog columns', () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     await waitFor(() => expect(getCatalogColumns).toHaveBeenCalledTimes(2))
-    expect(handle()).toHaveAttribute('aria-valuenow', '144')
+    expect(handle()).toHaveAttribute('aria-valuenow', '134')
+  })
+
+  it('narrows «Назва» by 150px and widens «Теги» by 150px with the mouse; both are saved and come back on the next visit', async () => {
+    vi.mocked(getCatalogColumns).mockResolvedValue(null)
+    const tagsShown = DEFAULT_COLUMNS.map((column) => column.key === 'tags' ? { ...column, visible: true } : column)
+    localStorage.setItem(STORAGE_CATALOG_COLUMNS, JSON.stringify([{ key: 'name', visible: true, width: 360 }, ...tagsShown]))
+    const first = render(<Page />)
+    await screen.findByText('SQLi basics')
+    const handle = (label: string) => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === label)!
+    const drag = (label: string, dx: number) => {
+      fireEvent.pointerDown(handle(label), { pointerId: 1, button: 0, clientX: 600 })
+      fireEvent.pointerMove(handle(label), { pointerId: 1, clientX: 600 + dx })
+      fireEvent.pointerUp(handle(label), { pointerId: 1, clientX: 600 + dx })
+    }
+    const others = () => screen.getAllByRole('separator').filter((node) => !['admin.ex.col.name', 'admin.ex.col.tags'].includes(node.closest('th')!.getAttribute('aria-label')!)).map((node) => node.getAttribute('aria-valuenow'))
+    const before = others()
+    drag('admin.ex.col.name', -150)
+    expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
+    drag('admin.ex.col.tags', 150)
+    expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '350')
+    // Narrowing «Назва» stays narrow: nothing gives its space back to it.
+    expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
+    expect(others()).toEqual(before)
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
+    const saved = vi.mocked(saveCatalogColumns).mock.calls[1][0]
+    expect(saved).toContainEqual({ key: 'name', visible: true, width: 210 })
+    expect(saved).toContainEqual({ key: 'tags', visible: true, width: 350 })
+    first.unmount()
+    vi.mocked(getCatalogColumns).mockResolvedValue(saved)
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    await waitFor(() => expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '350'))
+    expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
+    expect(others()).toEqual(before)
   })
 
   it('keeps a change made before the profile answers', async () => {
