@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { emptyPlaceholder, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
+import { REVEAL_ON_HOVER } from "./RemoveAction"
 import { FieldHelp } from "@/components/ui/field-help"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 
@@ -73,7 +74,7 @@ export function PlaceholderList({
           option.value === ipRef || option.value === "static" ||
           (option.value === "vpn" && vpn) || (option.value === "internet" && internet))
         return (
-          <div key={field.id} className="space-y-2 rounded-md border border-border p-3">
+          <div key={field.id} className="group space-y-2 rounded-md border border-border p-3">
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <ExerciseFieldLabel labelKey="admin.exPh.kind" helpKey="admin.exPh.kindHelp" required />
@@ -92,7 +93,7 @@ export function PlaceholderList({
                 />
               </div>
               {!disabled && (
-                <RemoveAction ariaLabel={t("admin.exPh.remove")} onClick={() => remove(pi)} />
+                <RemoveAction ariaLabel={t("admin.exPh.remove")} onClick={() => remove(pi)} wrapperClassName={REVEAL_ON_HOVER} />
               )}
             </div>
 

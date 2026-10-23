@@ -157,6 +157,38 @@ describe('catalog columns', () => {
     expect(vi.mocked(saveCatalogColumns).mock.calls[0][0].slice(0, 3)).toEqual([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: true }])
   })
 
+  it('saves a resized column through the queue, keeps it for the next visit, and «Скинути» resets the widths', async () => {
+    const { unmount } = render(<Page />)
+    await screen.findByText('SQLi basics')
+    const handle = () => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === 'admin.ex.col.author')!
+    fireEvent.keyDown(handle(), { key: 'ArrowRight' })
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0]).toContainEqual({ key: 'author', visible: true, width: 176 })
+    unmount()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    expect(handle()).toHaveAttribute('aria-valuenow', '176')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.columnsReset' }))
+    expect(handle()).toHaveAttribute('aria-valuenow', '160')
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(saveCatalogColumns).mock.calls[1][0].every((column) => !('width' in column))).toBe(true)
+  })
+
+  it('keeps the browser widths when the profile answers without them (an older server drops widths)', async () => {
+    vi.mocked(getCatalogColumns).mockResolvedValue([{ key: 'author', visible: true }])
+    const first = render(<Page />)
+    await screen.findByText('SQLi basics')
+    const handle = () => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === 'admin.ex.col.author')!
+    fireEvent.keyDown(handle(), { key: 'ArrowLeft' })
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalled())
+    first.unmount()
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    await waitFor(() => expect(getCatalogColumns).toHaveBeenCalledTimes(2))
+    expect(handle()).toHaveAttribute('aria-valuenow', '144')
+  })
+
   it('keeps a change made before the profile answers', async () => {
     let answer!: (columns: { key: string; visible: boolean }[]) => void
     vi.mocked(getCatalogColumns).mockReturnValue(new Promise((resolve) => { answer = resolve }))

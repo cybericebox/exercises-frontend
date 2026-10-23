@@ -7,6 +7,7 @@ import { ARCHIVE_CONTENT_ERROR_CODES, archiveErrorMessage, errorContext, exercis
 import { hasImportEditors, prepareImportEditors, releaseImportEditors } from "@/lib/importReplacement"
 import { importInitiationScope, isImportInitiationCurrent } from "@/lib/importJobs"
 import { t } from "@/i18n/t"
+import { registryErrorHelp } from "@/lib/imageErrors"
 
 export const IMPORT_CONFIRMATION_STALE = 72906
 /** The archive is protected and no password came / the password does not open it. */
@@ -44,6 +45,8 @@ export function useArchiveImport(options: Options = {}) {
   const [fileError, setFileError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** The help line under `error` when the general one does not fit (a registry an administrator must fix). */
+  const [errorHelp, setErrorHelp] = useState<string | null>(null)
   const [targetErrors, setTargetErrors] = useState<Record<string, string>>({})
   const state = useRef({ file: null as File | null, password: "", source: null as ArchiveImportSource | null, choices: undefined as ImportTarget[] | undefined, preview: null as ArchiveImportPreview | null, revision: 0, prepared: [] as string[], dispatched: false })
   const optionsRef = useRef(options)
@@ -54,7 +57,7 @@ export function useArchiveImport(options: Options = {}) {
     mounted.current = false; controller.current?.abort(); current.revision += 1
     if (!current.dispatched && optionsRef.current.actorID) releaseImportEditors(optionsRef.current.actorID, current.prepared)
   } }, [])
-  function invalidate() { state.current.revision += 1; state.current.preview = null; setPreview(null); setError(null); setTargetErrors({}); controller.current?.abort(); setBusy(false); setPhase(null) }
+  function invalidate() { state.current.revision += 1; state.current.preview = null; setPreview(null); setError(null); setErrorHelp(null); setTargetErrors({}); controller.current?.abort(); setBusy(false); setPhase(null) }
   function chooseFile(next: File | null) {
     invalidate(); setPasswordError(null); state.current.source = null; state.current.choices = undefined
     const valid = !next || next.name.toLowerCase().endsWith(".zip")
@@ -86,7 +89,7 @@ export function useArchiveImport(options: Options = {}) {
       if (optionsRef.current.prepareReplacement) {
         setPhase("saving")
         if (!await optionsRef.current.prepareReplacement()) {
-          if (active()) setError(t("admin.exImport.update.saveFirst"))
+          if (active()) { setError(t("admin.exImport.update.saveFirst")); setErrorHelp(null) }
           return
         }
       }
@@ -109,7 +112,7 @@ export function useArchiveImport(options: Options = {}) {
       const unprepared = destinations.filter(id => !current.prepared.includes(id))
       if (actorID && unprepared.length && hasImportEditors(actorID, unprepared)) {
         setPhase("saving")
-        if (!await prepareImportEditors(actorID, unprepared)) { if (active()) setError(t("admin.exImport.update.saveFirst")); return }
+        if (!await prepareImportEditors(actorID, unprepared)) { if (active()) { setError(t("admin.exImport.update.saveFirst")); setErrorHelp(null) }; return }
         if (!active()) { releaseImportEditors(actorID, unprepared); return }
         current.prepared.push(...unprepared)
         setPhase("checking")
@@ -128,7 +131,7 @@ export function useArchiveImport(options: Options = {}) {
       if (failure.password) setPasswordError(failure.password)
       else if (failure.file) setFileError(failure.file)
       else if (failure.itemKey && current.choices?.some(choice => choice.ItemKey === failure.itemKey)) setTargetErrors({ [failure.itemKey]: failure.message })
-      else setError(failure.message)
+      else { setError(failure.message); setErrorHelp(registryErrorHelp(cause)) }
     } finally { if (active()) { setBusy(false); setPhase(null) } }
   }
   async function chooseTarget(key: string, target: ImportTarget, targetExercise?: ImportTargetExercise) {
@@ -150,5 +153,5 @@ export function useArchiveImport(options: Options = {}) {
   }
   function retainEditors() { state.current.dispatched = true }
   async function commit(confirmed: boolean) { return commitArchiveImport(commitInput(confirmed)) }
-  return { releaseEditors, retainEditors, file, password, passwordError, preview, items, busy, sourceReady, phase, uploadProgress, fileError, error, targetErrors, chooseFile, setPassword, ownerChanged, previewArchive, chooseTarget, commitInput, commit, setError, setFileError, setTargetErrors, invalidate }
+  return { releaseEditors, retainEditors, file, password, passwordError, preview, items, busy, sourceReady, phase, uploadProgress, fileError, error, errorHelp, targetErrors, chooseFile, setPassword, ownerChanged, previewArchive, chooseTarget, commitInput, commit, setError, setFileError, setTargetErrors, invalidate }
 }

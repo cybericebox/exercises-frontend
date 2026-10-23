@@ -4,9 +4,6 @@
 .exercise-import-head{display:flex;align-items:center;gap:8px;padding:16px 16px 12px 20px;flex:none}
 .exercise-import-head h2{flex:1;min-width:0;font-size:18px;font-weight:600;line-height:1.3}.exercise-import-head h2:focus{outline:none}
 .exercise-import-header-actions{display:flex;align-items:center;gap:2px;flex:none}
-.exercise-import-guide{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;color:var(--ib-dim)}
-.exercise-import-guide:hover{background:var(--ib-hover);color:var(--ib-ink)}.exercise-import-guide[aria-disabled=true]{opacity:.5;cursor:default}
-.exercise-import-guide:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
 .exercise-import-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 20px 16px}
 .exercise-import-dropzone{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 16px;border:1px dashed var(--ib-control);border-radius:8px;background:var(--ib-surface);text-align:center;color:var(--ib-dim)}
 .exercise-import-dropzone>p:first-of-type{color:var(--ib-ink)}

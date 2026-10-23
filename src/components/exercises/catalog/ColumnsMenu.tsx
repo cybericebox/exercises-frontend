@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, Columns3, GripVertical, Lock } from "lucide-rea
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
-import { DEFAULT_COLUMNS, isDefaultColumns, moveColumn, toggleColumn, type ColumnSetting } from "@/lib/catalogColumns"
+import { moveColumn, toggleColumn, type ColumnSetting } from "@/lib/catalogColumns"
 import { cn } from "@/utils/cn"
 
 export const columnLabel = (key: string) => t(`admin.ex.col.${key}`)
@@ -14,7 +14,14 @@ export const columnLabel = (key: string) => t(`admin.ex.col.${key}`)
  * «Колонки»: show or hide each column and put them in order. A row moves by dragging, by its arrows, or with
  * Alt+↑/↓ while it has focus; the new position is announced. The name column is always first.
  */
-export function ColumnsMenu({ columns, onChange }: { columns: ColumnSetting[]; onChange: (columns: ColumnSetting[]) => void }) {
+export function ColumnsMenu({ columns, onChange, isDefault, onReset }: {
+  columns: ColumnSetting[]
+  onChange: (columns: ColumnSetting[]) => void
+  /** The layout (order, visibility, widths) is the default: no «Скинути». */
+  isDefault: boolean
+  /** «Скинути»: default order, visibility and widths. */
+  onReset: () => void
+}) {
   const [announcement, setAnnouncement] = useState("")
   const [dragging, setDragging] = useState<number | null>(null)
   const [over, setOver] = useState<number | null>(null)
@@ -52,7 +59,7 @@ export function ColumnsMenu({ columns, onChange }: { columns: ColumnSetting[]; o
     <PopoverContent align="end" className="w-72 p-1.5" aria-label={label}>
       <div className="flex items-center justify-between px-2 pb-1 pt-1">
         <span className="text-xs text-muted-foreground">{label}</span>
-        {!isDefaultColumns(columns) && <button type="button" className="catalog-link-btn" onClick={() => { onChange(DEFAULT_COLUMNS.map((column) => ({ ...column }))); setAnnouncement(t("exercises.catalog.columnsReset")) }}>{t("exercises.catalog.columnsReset")}</button>}
+        {!isDefault && <button type="button" className="catalog-link-btn" onClick={() => { onReset(); setAnnouncement(t("exercises.catalog.columnsReset")) }}>{t("exercises.catalog.columnsReset")}</button>}
       </div>
       <div className="catalog-opt text-muted-foreground"><Lock aria-hidden="true" className="h-4 w-4" /><span className="flex-1">{columnLabel("name")}</span><span className="text-xs">{t("exercises.catalog.nameFirst")}</span></div>
       <ul aria-label={label}>

@@ -1,5 +1,6 @@
 /* The editor: a full-width screen — one header row, one tab row («Загальне» | variant numbers), the open tab. */
-.exercise-general-screen { --ctl:36px; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:100%; container:task-screen / inline-size; }
+/* Fills the main area (its padding stays outside) and grows with long content, which then scrolls the main area. */
+.exercise-general-screen { --ctl:36px; display:flex; flex:1 0 auto; flex-direction:column; gap:12px; min-width:0; container:task-screen / inline-size; }
 @media(pointer:coarse){ .exercise-general-screen { --ctl:44px; } }
 .general-shared-header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:var(--ctl); }
 .general-back { display:inline-flex; width:var(--ctl); height:var(--ctl); flex:none; align-items:center; justify-content:center; border-radius:6px; color:var(--ib-dim); }
@@ -27,7 +28,6 @@
 .editor-tab[aria-selected=true] { color:var(--ib-ink); font-weight:600; }
 .editor-tab[aria-selected=true]::after { content:""; position:absolute; left:6px; right:6px; bottom:-1px; height:2px; background:var(--ib-action); }
 .editor-tab:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; border-radius:4px; }
-.editor-tab-linked::before { content:""; position:absolute; top:6px; right:4px; width:4px; height:4px; border-radius:50%; background:var(--ib-faint); }
 .editor-tabs-divider { width:1px; align-self:center; height:20px; margin:0 8px; background:var(--ib-line); flex:none; }
 .editor-tabs-label { align-self:center; margin-right:4px; font-size:12.5px; color:var(--ib-faint); white-space:nowrap; flex:none; }
 .editor-panel { display:flex; flex:1; flex-direction:column; min-width:0; padding-top:16px; }
@@ -126,38 +126,63 @@
 .subtask-files,.subtask-flag,.subtask-hints { display:flex; flex-direction:column; gap:8px; }
 .hint-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
 .hint-row { border:1px solid var(--ib-line); border-radius:8px; background:var(--card); }
-.hint-row-head { display:flex; align-items:center; gap:4px; min-height:36px; padding-right:4px; }
-.hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
-.hint-row-toggle:hover { background:var(--ib-soft); }
+/* Header: chevron (left, always shown) and number; collapsed adds the text preview and the level, expanded the level
+   field. The actions sit flush right, shown on hover or focus. An open row's header is a light band. */
+.hint-row-head { display:flex; align-items:center; gap:8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
+.hint-row-open .hint-row-head { border-radius:8px 8px 0 0; background:var(--ib-paper); }
+.hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px 0 8px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
+.hint-row-open .hint-row-toggle { flex:none; }
+.hint-row-head:hover { background:var(--ib-soft); }
 .hint-row-toggle:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.hint-row-num { flex-shrink:0; font-variant-numeric:tabular-nums; }
 .hint-row-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hint-row-level { flex-shrink:0; color:var(--ib-dim); }
-.hint-row-chevron { flex-shrink:0; margin-left:auto; color:var(--ib-dim); transition:transform .15s; }
+.hint-row-chevron { flex-shrink:0; color:var(--ib-dim); transition:transform .15s; }
 .hint-row-open .hint-row-chevron { transform:rotate(180deg); }
-.hint-row-actions { display:flex; align-items:center; gap:2px; opacity:0; transition:opacity .15s; }
+.hint-row-level-field { display:flex; flex:1; min-width:0; align-items:center; gap:8px; cursor:default; }
+.hint-row-actions { display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; cursor:default; }
 .hint-row:hover .hint-row-actions,.hint-row-head:focus-within .hint-row-actions { opacity:1; }
 @media (hover:none) { .hint-row-actions { opacity:1; } }
 @media (pointer:coarse) { .hint-row-head,.hint-row-toggle { min-height:44px; } }
 @media (prefers-reduced-motion:reduce) { .hint-row-chevron,.hint-row-actions { transition:none; } }
-.hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:4px 12px 12px; border-top:1px solid var(--ib-line); padding-top:12px; }
-.subtask-filebar { position:relative; display:flex; align-items:center; font-size:13.5px; }
-.subtask-filebar>div:first-child>button { padding-right:76px; }
-.subtask-filebar>span:last-child { position:absolute; top:0; right:36px; }
+.hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:12px; border-top:1px solid var(--ib-line); }
+/* A section's «+ Додати …» sits at the right end of its header. */
+.subtask-section-action { margin-left:auto; }
+.subtask-filebar { display:flex; flex-wrap:wrap; align-items:center; min-width:0; font-size:13.5px; }
 .subtask-filebar>:first-child { flex:1; min-width:0; }
+/* An editable row: the name (a click renames it) and its actions flush at the right padding, shown on hover or focus. */
+.subtask-filebar.group { gap:2px; min-height:var(--ctl); padding-right:2px; border:1px solid var(--ib-line); border-radius:6px; background:var(--card); }
+.subtask-filebar.group:focus-within { border-color:var(--ring); }
+.subtask-file-name { display:flex; min-width:0; min-height:34px; align-items:center; padding:0 12px; border-radius:6px; text-align:left; color:var(--ib-ink); }
+.subtask-file-name:hover { text-decoration:underline; text-underline-offset:3px; }
+.subtask-file-name:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.subtask-file-input { width:100%; height:34px; padding:0 12px; border:0; border-radius:6px; background:transparent; color:var(--ib-ink); outline:none; }
+.subtask-file-input[aria-invalid=true] { border-color:var(--ib-danger); }
+.subtask-file-actions { display:flex; align-items:center; gap:2px; opacity:0; transition:opacity .15s; }
+.subtask-filebar.group:hover .subtask-file-actions,.subtask-filebar.group:focus-within .subtask-file-actions { opacity:1; }
+@media (hover:none) { .subtask-file-actions { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .subtask-file-actions { transition:none; } }
+/* Files dropped anywhere over the block go to this subtask. */
+.subtask-files-dropping { border-radius:8px; outline:2px dashed var(--ib-action); outline-offset:6px; background:var(--ib-soft); }
 .subtask-drop { display:flex; align-items:center; gap:8px; width:100%; min-height:var(--ctl); padding:0 12px; border:1px dashed var(--ib-control); border-radius:6px; color:var(--ib-dim); font-size:13px; text-align:left; }
 button.subtask-drop:hover { border-color:var(--ib-action); color:var(--ib-ink); }
 button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .subtask-flag-box { display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
 .subtask-flag-delivery { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
-.flag-mode-switch { display:inline-flex; flex:none; gap:2px; padding:2px; border-radius:4px; background:var(--ib-hero); }
-.flag-mode-switch>button,.flag-mode-switch>span>button,.flag-mode-switch>span:not([role]) { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:4px; font-size:12.5px; color:var(--ib-dim); white-space:nowrap; }
+/* «Заданий» / «Шаблон»: a segment attached to the left of the flag field, its full height; the field's border and
+   6px radius round its outer corners, the inner side is square with a divider before the input. */
+.flag-mode-switch { display:inline-flex; flex:none; height:100%; border-right:1px solid var(--ib-line); background:var(--ib-hero); }
+.flag-mode-switch>* { height:100%; }
+.flag-mode-switch>button,.flag-mode-switch>span>button,.flag-mode-switch>span:not([role]) { display:inline-flex; align-items:center; height:100%; padding:0 12px; border-radius:0; font-size:12.5px; color:var(--ib-dim); white-space:nowrap; }
+.flag-mode-switch>*+* { border-left:1px solid var(--ib-line); }
+.flag-mode-switch button:not(.on):not([aria-disabled=true]):hover { color:var(--ib-ink); }
 .flag-mode-switch .on.on { background:var(--ib-action); color:var(--ib-on-action); }
 .flag-mode-switch [aria-disabled=true] { opacity:.45; cursor:default; }
-.flag-mode-switch button:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
+.flag-mode-switch button:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
 
 /* Infrastructure: the views and the actions in one row, the canvas down to the bottom of the screen. */
 .editor-form,.editor-panel,.variant-workspace,.variant-mode-panel { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; }
-.topology-workspace { display:flex; flex:1 1 auto; flex-direction:column; gap:12px; min-width:0; min-height:max(28rem, calc(100dvh - 260px)); }
+.topology-workspace { display:flex; flex:1 1 auto; flex-direction:column; gap:12px; min-width:0; min-height:18rem; flex-basis:0; }
 .topology-subtabs { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .topology-views { display:inline-flex; gap:2px; padding:2px; border-radius:6px; background:var(--ib-hero); }
 .topology-views>button { height:calc(var(--ctl) - 4px); padding:0 12px; border-radius:4px; font-size:13.5px; color:var(--ib-dim); }
@@ -171,7 +196,7 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 /* All variants: one row per variant, a column per subtask; the variant number stays on the left. */
 .editor-tab-icon { width:36px; padding:0; }
 .all-variants { display:flex; flex:1; flex-direction:column; min-height:0; }
-.all-variants-scroll { overflow:auto; border:1px solid var(--ib-line); border-radius:8px; max-height:calc(100dvh - 240px); }
+.all-variants-scroll { flex:1 1 0; min-height:12rem; overflow:auto; border:1px solid var(--ib-line); border-radius:8px; }
 .all-variants-scroll:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .all-variants-table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:13.5px; }
 .all-variants-table th,.all-variants-table td { height:44px; padding:4px 12px; border-bottom:1px solid var(--ib-line); text-align:left; vertical-align:middle; white-space:nowrap; background:var(--card); }

@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea"
 import type { DraftFormValues, VariantFormValues } from "@/lib/exerciseSchemas"
 import type { EditorPosition } from "@/lib/editorPosition"
 import { baseCandidates, copyVariant, dependentsOf, ownImages } from "@/lib/linkedVariants"
-import { cn } from "@/utils/cn"
 import { useEditorPosition } from "./EditorPosition"
 import { ExerciseIdContext } from "./ExerciseIdContext"
 import { InfrastructureBlockedNote } from "./EventBanners"
@@ -157,7 +156,7 @@ export function EditorWorkspace({ form, general, disabled, exerciseId, infrastru
           {fields.map((field, index) => <HoverTooltip key={field.id} text={variantLabel(index)}>
             <button type="button" role="tab" id={`${uid}-variant-${index}`} aria-selected={onVariants && index === active} aria-controls={`${uid}-variant-panel`}
               aria-label={variantLabel(index)} tabIndex={onVariants && index === active ? 0 : -1}
-              className={cn("editor-tab editor-tab-number", baseOf(index) >= 0 && "editor-tab-linked")} onClick={() => open(index)}>{index + 1}</button>
+              className="editor-tab editor-tab-number" onClick={() => open(index)}>{index + 1}</button>
           </HoverTooltip>)}
         </div>
         {fields.length > 1 && <HoverTooltip text={t("admin.exDraft.allVariants")}>
