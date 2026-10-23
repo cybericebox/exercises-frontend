@@ -1865,5 +1865,7 @@
   "admin.exDraft.infraAsIn": "як у {n}",
   "admin.exDraft.infraMain": "основна",
   "admin.exDraft.infraOwn": "своя",
-  "exercises.catalog.columnsSaveError": "Не вдалося зберегти колонки в профілі. На цьому пристрої вони залишаться."
+  "exercises.catalog.columnsSaveError": "Не вдалося зберегти колонки в профілі. На цьому пристрої вони залишаться.",
+  "admin.exImport.update.error.22909": "Архів захищено паролем. Введіть пароль і перевірте ще раз.",
+  "admin.exImport.update.error.22910": "Пароль не підходить до цього архіву."
 }

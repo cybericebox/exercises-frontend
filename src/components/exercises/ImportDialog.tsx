@@ -205,7 +205,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
   const applyLabel = updates && creates ? t("admin.exImport.update.applyBoth", { updates, created: creates })
     : updates ? t("admin.exImport.update.applyUpdates", { updates }) : creates ? t("admin.exImport.update.applyNew", { created: creates }) : t("admin.exImport.update.apply")
   const choosing = !busy && !activeJob && !recovery && !result && !uncertain
-  const passwordShown = showPassword || Boolean(flow.password) || Boolean(flow.fileError)
+  const passwordShown = showPassword || Boolean(flow.password) || Boolean(flow.fileError) || Boolean(flow.passwordError)
   const fileInput = (control: Partial<FieldControlProps>, bare: boolean) => <FileInput {...control} accept=".zip,application/zip" file={flow.file}
     buttonOnly={bare} chooseLabel={bare ? t("admin.exImport.otherFile") : undefined}
     className={bare ? undefined : `exercise-import-file${!flow.file ? " exercise-import-file-empty" : ""}`} disabled={busy || Boolean(activeJob) || uncertain} onFile={chooseArchive} />
@@ -239,7 +239,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
             {fileInput(control, true)}
           </div>}</Field>
           {passwordShown && !activeJob && !result && <div className="exercise-import-password">
-            <Field label={t("admin.exImport.password")} hint={t("admin.exImport.update.passwordHelp")}>{control => <PasswordInput {...control} autoComplete="off" value={flow.password} disabled={busy} onChange={event => flow.setPassword(event.target.value)} />}</Field>
+            <Field label={t("admin.exImport.password")} hint={flow.passwordError ? undefined : t("admin.exImport.update.passwordHelp")} error={flow.passwordError}>{control => <PasswordInput {...control} autoComplete="off" autoFocus={Boolean(flow.passwordError)} value={flow.password} disabled={busy} onChange={event => flow.setPassword(event.target.value)} />}</Field>
             {!flow.preview && <Button type="button" variant="outline" busy={busy} busyLabel={busyLabel} disabled={busy || !flow.file} onClick={() => void flow.previewArchive()}>{t("admin.exImport.update.check")}</Button>}
           </div>}
           {!fixedExercise && hasNew && !running && !activeJob && !result && !uncertain && <div className="exercise-import-destination"><Field label={t("admin.exImport.update.destination")} error={ownerError}>{control => targets.length > 1

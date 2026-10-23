@@ -9,8 +9,15 @@ import { importInitiationScope, isImportInitiationCurrent } from "@/lib/importJo
 import { t } from "@/i18n/t"
 
 export const IMPORT_CONFIRMATION_STALE = 72906
-export function importFieldFailure(cause: unknown): { file?: string; itemKey?: string; message: string } {
+/** The archive is protected and no password came / the password does not open it. */
+export const ARCHIVE_PASSWORD_REQUIRED = 22909
+export const ARCHIVE_PASSWORD_WRONG = 22910
+export function importFieldFailure(cause: unknown): { file?: string; itemKey?: string; password?: string; message: string } {
   const code = exerciseErrorCode(cause)
+  if (code === ARCHIVE_PASSWORD_REQUIRED || code === ARCHIVE_PASSWORD_WRONG) {
+    const message = t(`admin.exImport.update.error.${code}`)
+    return { password: message, message }
+  }
   const context = errorContext(cause)
   const message = code && code >= 22901 && code <= 22908 || code === 72906 || code === 72907
     ? t(`admin.exImport.update.error.${code}`) : exerciseErrorMessage(cause)
@@ -35,6 +42,7 @@ export function useArchiveImport(options: Options = {}) {
   const [phase, setPhase] = useState<"saving" | "uploading" | "checking" | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [targetErrors, setTargetErrors] = useState<Record<string, string>>({})
   const state = useRef({ file: null as File | null, password: "", source: null as ArchiveImportSource | null, choices: undefined as ImportTarget[] | undefined, preview: null as ArchiveImportPreview | null, revision: 0, prepared: [] as string[], dispatched: false })
@@ -48,12 +56,12 @@ export function useArchiveImport(options: Options = {}) {
   } }, [])
   function invalidate() { state.current.revision += 1; state.current.preview = null; setPreview(null); setError(null); setTargetErrors({}); controller.current?.abort(); setBusy(false); setPhase(null) }
   function chooseFile(next: File | null) {
-    invalidate(); state.current.source = null; state.current.choices = undefined
+    invalidate(); setPasswordError(null); state.current.source = null; state.current.choices = undefined
     const valid = !next || next.name.toLowerCase().endsWith(".zip")
     state.current.file = valid ? next : null
     setSourceReady(false); setFile(state.current.file); setItems([]); setFileError(valid ? null : t("admin.exImport.notZip"))
   }
-  function setPassword(next: string) { invalidate(); state.current.password = next; passwordState(next) }
+  function setPassword(next: string) { invalidate(); setPasswordError(null); state.current.password = next; passwordState(next) }
   function ownerChanged() { invalidate() }
   async function previewArchive(choices = state.current.choices) {
     const current = state.current
@@ -117,7 +125,8 @@ export function useArchiveImport(options: Options = {}) {
     } catch (cause) {
       if (!active() || request.signal.aborted) return
       const failure = importFieldFailure(cause)
-      if (failure.file) setFileError(failure.file)
+      if (failure.password) setPasswordError(failure.password)
+      else if (failure.file) setFileError(failure.file)
       else if (failure.itemKey && current.choices?.some(choice => choice.ItemKey === failure.itemKey)) setTargetErrors({ [failure.itemKey]: failure.message })
       else setError(failure.message)
     } finally { if (active()) { setBusy(false); setPhase(null) } }
@@ -141,5 +150,5 @@ export function useArchiveImport(options: Options = {}) {
   }
   function retainEditors() { state.current.dispatched = true }
   async function commit(confirmed: boolean) { return commitArchiveImport(commitInput(confirmed)) }
-  return { releaseEditors, retainEditors, file, password, preview, items, busy, sourceReady, phase, uploadProgress, fileError, error, targetErrors, chooseFile, setPassword, ownerChanged, previewArchive, chooseTarget, commitInput, commit, setError, setFileError, setTargetErrors, invalidate }
+  return { releaseEditors, retainEditors, file, password, passwordError, preview, items, busy, sourceReady, phase, uploadProgress, fileError, error, targetErrors, chooseFile, setPassword, ownerChanged, previewArchive, chooseTarget, commitInput, commit, setError, setFileError, setTargetErrors, invalidate }
 }
