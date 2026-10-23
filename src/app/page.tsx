@@ -36,6 +36,8 @@ function initialFilters(isAdmin: boolean): CatalogFilters {
 
 export default function Page() {
   const router = useRouter()
+  const originActive = useRef(true)
+  useEffect(() => { originActive.current = true; return () => { originActive.current = false } }, [])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const mobile = useMediaQuery("(max-width: 639px)", false)
@@ -239,7 +241,7 @@ export default function Page() {
 
       <CatalogTable rows={rows} selected={selected} selecting={selecting} selectable={selectable} atLimit={atLimit} allOnPage={allOnPage} pageSelectable={pageRows.length}
         onToggle={toggle} onToggleAll={toggleAll} sortProps={sortProps} eventName={eventName} canWrite={canWrite} canImport={canImport} userId={me?.ID ?? null}
-        onImportDetails={(jobId) => { setImportJobId(jobId); setImportOpen(true) }} regionRef={tableScrollRef} busy={loading}
+        onImportDetails={(jobId) => { setImportJobId(jobId || undefined); setImportOpen(true) }} regionRef={tableScrollRef} busy={loading}
         state={error ? <LoadError message={t("admin.ex.loadError")} error={error.cause} onRetry={retry} />
           : loading && rows.length === 0 ? <LoadingArea label={t("admin.loading")} />
           : rows.length === 0 ? <EmptyState message={t(filtered ? "admin.ex.emptyFiltered" : "admin.ex.empty")} /> : undefined} />
@@ -247,7 +249,7 @@ export default function Page() {
         onPage={goToPage} onPageSize={(size) => { setPageSize(size); goToPage(1) }} />
       {exportOpen && <ExportDialog exerciseIds={[...selected.keys()]} onClose={() => setExportOpen(false)} onExported={() => setSelected(new Map())} />}
       {importOpen && <ImportDialog key={importJobId ?? "new"} jobId={importJobId}
-        targets={ownerOptions(access, t("exercises.owner.catalog"))} initialTarget={filteredEvent}
+        isOriginActive={() => originActive.current} targets={ownerOptions(access, t("exercises.owner.catalog"))} initialTarget={filteredEvent}
         onClose={() => { setImportOpen(false); setImportJobId(undefined) }} onImported={() => setReloadKey((key) => key + 1)} />}
     </div>
   )

@@ -8,6 +8,11 @@ import type { Exercise } from "@/api/exercises/catalog"
 import { listDeploys, type DeployListItem } from "@/api/exercises/deploy"
 import { getVersion, type DeviceOutside, type Version } from "@/api/exercises/versions"
 import { ErrorPage } from "@/components/ErrorPage"
+import { Button } from "@/components/ui/button"
+import { useImportJob } from "@/lib/importJobs"
+import { importStageText } from "@/lib/importStage"
+import { Spinner } from "@/components/ui/spinner"
+import { ImportDialog } from "./ImportDialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
@@ -51,7 +56,7 @@ import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose"
+type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import"
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -125,7 +130,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const infraAllowed = infrastructureAllowed(access, ownerEventId)
   const publishedIdRef = useRef<string | null | undefined>(undefined)
   const archived = Boolean(exercise?.ArchivedAt)
-  const editing = !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
+  const editing = !editor.replacementActive && !isVersion && !archived && mode === "edit" && permissions.write && !readOnly && (exercise !== null || owner !== null)
+  const replacementJob = useImportJob(editor.replacementRecovery?.jobID ?? null)
+  const [replacementError, setReplacementError] = useState<string | null>(null)
+  const reconciling = useRef(false)
+  useEffect(() => {
+    if (!editor.replacementRecovery || editor.loadState !== "ready" || dialog === "import" || reconciling.current || replacementError) return
+    if (replacementJob?.state === "failed") { editor.cancelImportReplacement(); return }
+    if (replacementJob?.state !== "done" && editor.replacementRecovery.state !== "done") return
+    reconciling.current = true
+    void editor.reconcileImportReplacement().catch(() => setReplacementError(t("admin.exImport.update.reconcileError"))).finally(() => { reconciling.current = false })
+  }, [replacementJob, editor, dialog, replacementError])
   const saveStatus = editor.autosave.status
   // A new task without a name is not on the server: only this browser holds it.
   const leave = useExerciseLeaveGuard(
@@ -272,7 +287,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         publishable={exercise ? canPublishExercise({ ...exercise, HasChanges: unpublishedWork }) : false}
         publishBlockedReason={resourceBlocked ? t("exercises.res.publishBlockedShort") : undefined}
         revertable={Boolean(exercise?.PublishedVersionID && exercise.HasChanges)}
-        busy={actions.busy}
+        busy={actions.busy || editor.replacementActive}
         running={actions.running}
         testAvailable={permissions.write}
         getTestVariants={getTestVariants}
@@ -305,6 +320,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onPublish={() => void actions.publish()}
         onSnapshot={() => setDialog("snapshot")}
         onRevert={() => { actions.clearConfirmError(); setDialog("revert") }}
+        onImportUpdate={exercise && permissions.write && !archived && !isVersion && !readOnly && !editor.replacementActive ? () => setDialog("import") : undefined}
         onExport={() => setDialog("export")}
         onArchive={() => { actions.clearConfirmError(); setDialog("archive") }}
         onUnarchive={() => void actions.unarchive()}
@@ -324,6 +340,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
           {owner === null && <span className="text-xs text-muted-foreground">{t("exercises.owner.required")}</span>}
         </div>
       )}
+      {editor.replacementActive && <div className="exercise-import-strip" role="status"><span><Spinner size="sm" />{replacementError ?? (editor.replacementRecovery?.state === "unknown" || editor.replacementRecovery?.jobID && !replacementJob ? t("admin.exImport.update.unknown") : replacementJob?.state === "running" ? importStageText(replacementJob) : t("admin.exImport.update.fenced"))}</span><Button type="button" variant="outline" size="sm" onClick={() => { setReplacementError(null); setDialog("import") }}>{t("admin.exImport.update.reopen")}</Button></div>}
       {readOnly && <ReadOnlyBanner returnUrl={returnUrl} />}
       {returnUrl && justDone && <EventReturnCallout returnUrl={returnUrl} kind={justDone} />}
       {!infraAllowed && !readOnly && <InfrastructureBlockedNote />}
@@ -382,6 +399,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     <ConfirmDialog open={dialog === "delete"} busy={actions.busy} error={actions.confirmError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
       title={t("admin.exPage.delete.title")} description={t("admin.exPage.delete.description")} confirmLabel={t("admin.exPage.delete.confirm")} busyLabel={t("admin.exPage.delete.busy")}
       onCancel={() => setDialog(null)} onConfirm={() => void actions.remove().then((ok) => { if (ok) setDialog(null) })} />
+    {dialog === "import" && exercise && <ImportDialog fixedExercise={{ ID: exercise.ID, Name: selectedName }}
+      onClose={() => setDialog(null)} prepareReplacement={editor.prepareImportReplacement} cancelReplacement={editor.cancelImportReplacement}
+      recordDispatch={editor.recordImportDispatch} onReconcile={editor.reconcileImportReplacement} />}
     {dialog === "export" && exercise && <ExportDialog exerciseIds={[exercise.ID]} onClose={() => setDialog(null)} />}
     {dialog === "access" && exercise && <AccessDialog exercise={exercise} originEventName={originEventName} onClose={() => setDialog(null)}
       onSaved={(updated) => { editor.setExercise(updated) }} />}

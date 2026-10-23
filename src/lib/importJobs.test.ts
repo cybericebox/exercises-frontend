@@ -196,3 +196,26 @@ describe("background import jobs", () => {
     })
   })
 })
+
+describe("scoped initiated completion", () => {
+ beforeEach(() => { vi.useFakeTimers(); resetImportJobsForTests(); localStorage.clear(); vi.clearAllMocks(); mockList.mockResolvedValue([]) })
+ afterEach(() => vi.useRealTimers())
+ it("delivers only the exact initiated job once and drops late prior-actor polls", async () => {
+  const { setImportActor, initiateImportJob } = await import("./importJobs")
+  setImportActor("actor-a")
+  let finish!: (value: ImportJobStatus) => void
+  mockGet.mockImplementationOnce(() => new Promise(r => { finish = r })).mockResolvedValue(status({ state: "done", stage: "done", exercises: [task("target")] }))
+  const completed = vi.fn()
+  initiateImportJob("mine", completed)
+  await vi.advanceTimersByTimeAsync(POLL)
+  setImportActor("actor-b")
+  finish(status({ state: "done", stage: "done", exercises: [task("wrong")] }))
+  await Promise.resolve()
+  expect(completed).not.toHaveBeenCalled()
+  initiateImportJob("current", completed)
+  trackImportJob("unrelated")
+  await vi.advanceTimersByTimeAsync(POLL * 2)
+  expect(completed).toHaveBeenCalledTimes(1)
+  expect(completed.mock.calls[0][0].jobID).toBe("current")
+ })
+})

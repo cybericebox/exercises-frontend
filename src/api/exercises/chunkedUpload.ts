@@ -60,8 +60,11 @@ function writeStored(key: string, value: string | null): void {
   } catch { /* A browser without storage still uploads; it just cannot resume after a reload. */ }
 }
 
-function fileKey(file: File): string {
-  return chunkedUploadKey(`${file.name}:${file.size}:${file.lastModified}`)
+function fileKey(file: File, purpose?: string): string {
+  // Archive preview requires an archive-purpose immutable source. A legacy file/image
+  // upload of identical bytes cannot stand in for that source; preserve its own cache.
+  const suffix = purpose === "exercise-archive" ? ":exercise-archive" : ""
+  return chunkedUploadKey(`${file.name}:${file.size}:${file.lastModified}${suffix}`)
 }
 
 function isApiError(error: unknown, code: number): boolean {
@@ -133,7 +136,7 @@ async function sendChunks(
   hash: boolean,
 ): Promise<Sent> {
   const sleep = options.sleep ?? defaultSleep
-  const key = fileKey(file)
+  const key = fileKey(file, options.purpose)
   const report = (sent: number) => onProgress?.(Math.min(99, Math.floor(sent / file.size * 100)))
   onProgress?.(0)
 
@@ -209,8 +212,8 @@ export async function uploadChunks(
 }
 
 /** Forgets the stored upload id of the file (the server is not asked): the next upload of the file starts anew. */
-export function forgetChunkedUpload(file: File): void {
-  writeStored(fileKey(file), null)
+export function forgetChunkedUpload(file: File, purpose?: string): void {
+  writeStored(fileKey(file, purpose), null)
 }
 
 /** Gives up an upload: the server drops it with its chunks and the browser forgets it. */

@@ -157,7 +157,7 @@ describe("exercise archive client", () => {
     const huge = new File(["zip"], "huge.zip")
     Object.defineProperty(huge, "size", { value: MAX_PLAIN_ARCHIVE_BYTES + 1 })
     expect(await startImport(huge, "")).toEqual({ kind: "done", exercises: [] })
-    expect(mockForget).toHaveBeenCalledWith(huge)
+    expect(mockForget).toHaveBeenCalledWith(huge, ARCHIVE_UPLOAD_PURPOSE)
   })
 
   it("keeps the upload for a retry when the import fails, and forgets one the server no longer has", async () => {
@@ -171,7 +171,7 @@ describe("exercise archive client", () => {
     const gone = Object.assign(new client.ApiError(404, null), { code: 31006 })
     mockPost.mockRejectedValueOnce(gone)
     await expect(startImport(huge, "")).rejects.toBe(gone)
-    expect(mockForget).toHaveBeenCalledWith(huge)
+    expect(mockForget).toHaveBeenCalledWith(huge, ARCHIVE_UPLOAD_PURPOSE)
   })
 })
 

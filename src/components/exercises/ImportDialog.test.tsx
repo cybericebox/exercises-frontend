@@ -1,488 +1,247 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { beforeEach, expect, it, vi } from "vitest"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { downloadImportExample } from "@/api/exercises/archive"
+import { downloadBlob } from "@/lib/downloadBlob"
+import type { ImportJobStatus } from "@/api/exercises/archiveJobs"
 import { ApiError } from "@/api/client"
-import type { Exercise } from "@/api/exercises/catalog"
-
 const push = vi.fn()
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => vars ? `${key} ${JSON.stringify(vars)}` : key }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
-vi.mock("@/api/exercises/archive", () => ({ startImport: vi.fn(), downloadImportExample: vi.fn() }))
-vi.mock("@/api/exercises/archiveJobs", () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
+vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "actor" } }) }))
+vi.mock("@/api/exercises/archiveImport", () => ({ prepareArchiveImport: vi.fn(), previewArchiveImport: vi.fn(), commitArchiveImport: vi.fn(), listArchiveImportTargets: vi.fn() }))
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
-vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
-
-import { downloadImportExample, startImport } from "@/api/exercises/archive"
-import { getImportJob, type ImportJobStatus } from "@/api/exercises/archiveJobs"
-import { downloadBlob } from "@/lib/downloadBlob"
-import { IMPORT_JOBS_KEY, resetImportJobsForTests, trackImportJob } from "@/lib/importJobs"
-import { defaultImportTarget, ImportDialog } from "./ImportDialog"
-import { OWNERSHIP } from "@/test/exerciseFixtures"
-
-const mockImport = vi.mocked(startImport)
-const mockExample = vi.mocked(downloadImportExample)
-const mockSave = vi.mocked(downloadBlob)
-const mockJob = vi.mocked(getImportJob)
-const status = (patch: Partial<ImportJobStatus>): ImportJobStatus => ({
-  state: "running", stage: "unpacking", imagesDone: 0, imagesTotal: 0, tasksDone: 0, tasksTotal: 0, bytesPushed: 0, bytesTotal: 0, exercises: [], ...patch,
+vi.mock("@/api/exercises/archive", () => ({ downloadImportExample: vi.fn() }))
+vi.mock("@/api/exercises/archiveJobs", () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
+import { prepareArchiveImport, previewArchiveImport, commitArchiveImport, type ArchivePreviewItem } from "@/api/exercises/archiveImport"
+import { resetImportJobsForTests } from "@/lib/importJobs"
+import { ImportDialog, defaultImportTarget } from "./ImportDialog"
+const item: ArchivePreviewItem = { ItemKey: "folder", Name: "Archive task", SourceExerciseID: "different", SourceVersion: { Position: 0, Status: "draft" }, Target: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, SuggestedTarget: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, TargetExercise: { ID: "target", Name: "Chosen task", Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEventTag: "", HasDraft: true }, SourceIDMismatch: true, ConfirmationRevision: "rev1", ReplacesDraft: true, Summary: { Variants: { Added: 1, Removed: 0, Changed: 2 }, Subtasks: { Before: 3, After: 4 }, FlagsChanged: 2, Files: { Added: 2, Removed: 1 }, Images: { New: 1, Reused: 2 }, MetadataChanged: true } }
+function pick() { fireEvent.change(screen.getByLabelText(/^admin.exImport.file/), { target: { files: [new File(["zip"], "a.zip")] } }) }
+async function preview() { pick(); await screen.findByText("Archive task") }
+beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests(); vi.mocked(prepareArchiveImport).mockReset().mockResolvedValue({ UploadID: "owned" }); vi.mocked(previewArchiveImport).mockReset().mockResolvedValue({ Items: [item] }); vi.mocked(commitArchiveImport).mockReset() })
+it("preserves owner defaults", () => { expect(defaultImportTarget([{ value: "", label: "catalog", event: null }], null)).toBe("") })
+it("requires Cancel/Replace consent before committing a complete selected target and navigates only after done", async () => {
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1 })
+ render(<ImportDialog onClose={vi.fn()} />)
+ await preview()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ const confirm = await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })
+ expect(within(confirm).getByRole("button", { name: "confirm.cancel" })).toHaveFocus()
+ expect(commitArchiveImport).not.toHaveBeenCalled()
+ fireEvent.click(within(confirm).getByRole("button", { name: "confirm.cancel" }))
+ expect(commitArchiveImport).not.toHaveBeenCalled()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringContaining("target")))
+ expect(commitArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ UploadID: "owned", Targets: [item.Target], ConfirmedUpdates: [{ ItemKey: "folder", Revision: "rev1", ReplaceDraft: true }] }))
 })
-const imported = (id: string, name: string): Exercise => ({
-  ...OWNERSHIP,
-  ID: id, Name: name, Description: "", Tags: [], DraftVersionID: null, PublishedVersionID: null, ArchivedAt: null,
-  HasChanges: true, CreatedAt: "", CreatedBy: null, UpdatedAt: "", UpdatedBy: null,
+it("fixed context is named and immutable, warns different ID and prepares before preview", async () => {
+ const prepare = vi.fn(async () => true)
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current task" }} prepareReplacement={prepare} />)
+ await preview()
+ expect(prepare).toHaveBeenCalledTimes(1)
+ expect(screen.getByText("Current task")).toBeInTheDocument()
+ expect(screen.getByText("admin.exImport.update.mismatch")).toBeInTheDocument()
+ expect(screen.queryByRole("button", { name: /targetName/ })).not.toBeInTheDocument()
+ expect(previewArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ FixedExerciseID: "target" }), expect.any(AbortSignal))
 })
-
-function chooseFile() {
-  fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
-    target: { files: [new File(["zip"], "web.cybericebox.zip", { type: "application/zip" })] },
-  })
-}
-
-const ev = (id: string, name: string) => ({ value: id, label: name, event: { ID: id, Name: name, Tag: id, CanWrite: true, InfrastructureAllowed: true } })
-const catalog = { value: "", label: "exercises.owner.catalog", event: null }
-
-describe("defaultImportTarget", () => {
-  it("takes the requested event, else the catalog, else the only target", () => {
-    expect(defaultImportTarget([catalog, ev("a", "A")], "a")).toBe("a")
-    expect(defaultImportTarget([catalog, ev("a", "A")], "zzz")).toBe("")
-    expect(defaultImportTarget([ev("a", "A")], null)).toBe("a")
-    expect(defaultImportTarget([ev("a", "A"), ev("b", "B")], null)).toBeNull()
-    expect(defaultImportTarget([], null)).toBeNull()
-  })
-})
-
-describe("ImportDialog targets", () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests() })
-
-  it("imports a moderator's archive into their only event and says so", async () => {
-    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
-    render(<ImportDialog onClose={vi.fn()} targets={[ev("ev1", "Winter CTF")]} />)
-    expect(screen.getByText(/admin\.exImport\.targetEvent.*Winter CTF/)).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /admin\.exImport\.target\b/ })).not.toBeInTheDocument()
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), "ev1"))
-  })
-
-  it("asks where to import when there are several targets and keeps the error beside the field", async () => {
-    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
-    render(<ImportDialog onClose={vi.fn()} targets={[ev("ev1", "Winter CTF"), ev("ev2", "Spring Cup")]} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByText("admin.exImport.targetRequired")).toBeInTheDocument()
-    expect(mockImport).not.toHaveBeenCalled()
-    const field = screen.getByLabelText(/^admin\.exImport\.target/)
-    expect(field).toHaveAttribute("aria-invalid", "true")
-    fireEvent.keyDown(field, { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Spring Cup" }))
-    expect(screen.queryByText("admin.exImport.targetRequired")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), "ev2"))
-  })
-
-  it("starts an admin on the catalog, or on the event the filter names", async () => {
-    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
-    const { unmount } = render(<ImportDialog onClose={vi.fn()} targets={[catalog, ev("ev1", "Winter CTF")]} />)
-    expect(screen.getByText("admin.exImport.targetCatalog")).toBeInTheDocument()
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    await waitFor(() => expect(mockImport).toHaveBeenLastCalledWith(expect.any(File), "", undefined, expect.any(Function), expect.any(AbortSignal), null))
-    unmount()
-    render(<ImportDialog onClose={vi.fn()} targets={[catalog, ev("ev1", "Winter CTF")]} initialTarget="ev1" />)
-    expect(screen.getByText(/admin\.exImport\.targetEvent.*Winter CTF/)).toBeInTheDocument()
-  })
+it("refreshes a stale revision and requires renewed replacement consent", async () => {
+ vi.mocked(commitArchiveImport).mockRejectedValue(new ApiError(409, { Status: { Code: 72906, Context: { itemKey: "folder", field: "confirmation" } } }, undefined, undefined, 72906))
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(2))
+ expect(commitArchiveImport).toHaveBeenCalledTimes(1)
+ expect(screen.getByText("admin.exImport.update.stale")).toBeInTheDocument()
+ expect(push).not.toHaveBeenCalled()
 })
 
-describe("ImportDialog", () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests() })
-
-  it("says that import never overwrites and waits for a file", () => {
-    render(<ImportDialog onClose={vi.fn()} />)
-    expect(screen.getByText("admin.exImport.description")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeDisabled()
-  })
-
-  it("keeps the how-to closed by default and shows four steps when opened", () => {
-    const { container } = render(<ImportDialog onClose={vi.fn()} />)
-    const details = container.ownerDocument.querySelector("details")!
-    expect(details).not.toHaveAttribute("open")
-    expect(details.querySelector("summary")).toHaveTextContent("admin.exImport.howTo")
-    fireEvent.click(details.querySelector("summary")!)
-    details.open = true
-    expect(details.querySelectorAll("ol > li")).toHaveLength(4)
-    for (const n of [1, 2, 3, 4]) expect(screen.getByText(new RegExp(`admin\\.exImport\\.step${n}`))).toBeInTheDocument()
-  })
-
-  it("labels the example button with visible text", () => {
-    render(<ImportDialog onClose={vi.fn()} />)
-    expect(screen.getByRole("button", { name: "admin.exImport.example" })).toHaveTextContent("admin.exImport.example")
-  })
-
-  it("opens the only imported exercise", async () => {
-    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e9", "Web 101")] })
-    const onClose = vi.fn()
-    const onImported = vi.fn()
-    render(<ImportDialog onClose={onClose} onImported={onImported} />)
-    chooseFile()
-    fireEvent.change(screen.getByLabelText(/^admin\.exImport\.password/), { target: { value: "pw" } })
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=e9"))
-    expect(mockImport).toHaveBeenCalledWith(expect.any(File), "pw", undefined, expect.any(Function), expect.any(AbortSignal), null)
-    expect(onImported).toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalled()
-  })
-
-  it("lists several imported exercises with links", async () => {
-    mockImport.mockResolvedValue({ kind: "done", exercises: [imported("e1", "One"), imported("e2", "Two")] })
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("link", { name: "Two" })).toHaveAttribute("href", "/detail?id=e2")
-    expect(push).not.toHaveBeenCalled()
-  })
-
-  it("keeps ambiguous archive failures global and offers conditional password guidance", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20000, Message: "zip: not a valid zip file" } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("admin.ex.err.genericWith")
-    expect(screen.getByText("admin.exImport.passwordNeeded")).toBeInTheDocument()
-    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
-  })
-
-  it("places a rejected archive size at the file picker instead of the password or footer", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 21002 } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    const message = await screen.findByRole("alert")
-    const file = screen.getByLabelText(/^admin\.exImport\.file/)
-    expect(file).toHaveAttribute("aria-invalid", "true")
-    expect(file).toHaveAttribute("aria-describedby", message.id)
-    expect(file.parentElement?.parentElement).toContainElement(message)
-    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
-  })
-
-  it("shows the example button and downloads on click", async () => {
-    const blob = new Blob(["zip"])
-    mockExample.mockResolvedValue({ blob, filename: "example-task.cybericebox.zip" })
-    render(<ImportDialog onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
-    await waitFor(() => expect(mockSave).toHaveBeenCalledWith(blob, "example-task.cybericebox.zip"))
-  })
-
-  it("takes a dropped .zip and rejects other files", () => {
-    render(<ImportDialog onClose={vi.fn()} />)
-    const zone = screen.getByText("admin.exImport.noFile").parentElement!
-    fireEvent.drop(zone, { dataTransfer: { files: [new File(["x"], "notes.txt", { type: "text/plain" })] } })
-    expect(screen.getByText("admin.exImport.notZip")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeDisabled()
-    fireEvent.drop(zone, { dataTransfer: { files: [new File(["zip"], "web.zip", { type: "application/zip" })] } })
-    expect(screen.getByText("web.zip")).toBeInTheDocument()
-    expect(screen.queryByText("admin.exImport.notZip")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
-  })
-
-  describe("whole-dialog drop", () => {
-    const files = { types: ["Files"] }
-    const zip = () => new File(["zip"], "web.zip", { type: "application/zip" })
-    const dialog = () => screen.getByRole("dialog")
-    const overlay = () => screen.queryByText("admin.exImport.dropHere")
-
-    it("shows the overlay over the dialog on a file drag and hides it on leave", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      expect(overlay()).not.toBeInTheDocument()
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      expect(overlay()).toBeInTheDocument()
-      expect(dialog()).toContainElement(overlay()!)
-      fireEvent.dragLeave(dialog(), { dataTransfer: files })
-      expect(overlay()).not.toBeInTheDocument()
-    })
-
-    it("dims the content beneath the overlay while dragging and restores it after", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      const content = () => screen.getByTestId("import-content")
-      expect(content()).not.toHaveAttribute("data-dimmed")
-      expect(content()).not.toHaveAttribute("aria-hidden")
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      expect(content()).toHaveAttribute("data-dimmed")
-      expect(content()).toHaveAttribute("aria-hidden", "true")
-      expect(content()).toHaveClass("invisible")
-      expect(content()).not.toContainElement(overlay())
-      fireEvent.dragLeave(dialog(), { dataTransfer: files })
-      expect(content()).not.toHaveAttribute("data-dimmed")
-      expect(content()).not.toHaveClass("invisible")
-    })
-
-    it("takes a drop outside the field like a field drop", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      fireEvent.drop(screen.getByText("admin.exImport.description"), { dataTransfer: { ...files, files: [zip()] } })
-      expect(overlay()).not.toBeInTheDocument()
-      expect(screen.getByText("web.zip")).toBeInTheDocument()
-      fireEvent.drop(screen.getByText("admin.exImport.title"), { dataTransfer: { ...files, files: [new File(["x"], "n.txt")] } })
-      expect(screen.getByText("admin.exImport.notZip")).toBeInTheDocument()
-    })
-
-    it("does not take a field drop twice", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      const zone = screen.getByText("admin.exImport.noFile").parentElement!
-      fireEvent.dragEnter(zone, { dataTransfer: files })
-      fireEvent.drop(zone, { dataTransfer: { ...files, files: [zip()] } })
-      expect(screen.getByText("web.zip")).toBeInTheDocument()
-      expect(overlay()).not.toBeInTheDocument()
-    })
-
-    it("ignores text drags", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      fireEvent.dragEnter(dialog(), { dataTransfer: { types: ["text/plain"] } })
-      expect(overlay()).not.toBeInTheDocument()
-    })
-
-    it("does not flicker while moving over children", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      const child = screen.getByText("admin.exImport.title")
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      fireEvent.dragEnter(child, { dataTransfer: files })
-      fireEvent.dragLeave(dialog(), { dataTransfer: files })
-      expect(overlay()).toBeInTheDocument()
-      fireEvent.dragLeave(child, { dataTransfer: files })
-      expect(overlay()).not.toBeInTheDocument()
-    })
-
-    it("hides on Escape", () => {
-      render(<ImportDialog onClose={vi.fn()} />)
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      fireEvent.keyDown(document, { key: "Escape" })
-      expect(overlay()).not.toBeInTheDocument()
-    })
-
-    it("shows no overlay while an import runs", async () => {
-      mockImport.mockReturnValue(new Promise(() => undefined))
-      render(<ImportDialog onClose={vi.fn()} />)
-      chooseFile()
-      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-      await waitFor(() => expect(mockImport).toHaveBeenCalled())
-      fireEvent.dragEnter(dialog(), { dataTransfer: files })
-      expect(overlay()).not.toBeInTheDocument()
-    })
-  })
-
-  it("keeps the button busy only while loading and the file form usable", async () => {
-    let resolve: (value: { blob: Blob; filename: string }) => void = () => undefined
-    mockExample.mockReturnValue(new Promise((r) => { resolve = r }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    const button = screen.getByRole("button", { name: "admin.exImport.example" })
-    fireEvent.click(button)
-    await waitFor(() => expect(button).toHaveAttribute("aria-busy", "true"))
-    chooseFile()
-    expect(screen.getByRole("button", { name: "admin.exImport.submit" })).toBeEnabled()
-    expect(screen.getByLabelText(/^admin\.exImport\.password/)).toBeEnabled()
-    resolve({ blob: new Blob(["zip"]), filename: "e.zip" })
-    await waitFor(() => expect(button).not.toHaveAttribute("aria-busy"))
-  })
-
-  it("shows the localized error on failure without marking the password", async () => {
-    mockExample.mockRejectedValue(new Error("network"))
-    render(<ImportDialog onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("admin.exImport.exampleError")
-    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/^admin\.exImport\.password/)).not.toHaveAttribute("aria-invalid", "true")
-  })
-
-  it.each([20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991])(
-    "archive-content errors are not password hints (%i)", async (code) => {
-      mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: code } }))
-      render(<ImportDialog onClose={vi.fn()} />)
-      chooseFile()
-      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-      const message = await screen.findByRole("alert")
-      expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
-      expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
-    })
-  it("shows the file named in the error context inline", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20982, Context: { file: "web/a.png" } } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("alert")).toHaveTextContent("web/a.png")
-  })
-
-  it("shows the placeholder key and task of a 20984", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20984, Context: { key: "ip", task: "Login" } } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    const alert = await screen.findByRole("alert")
-    expect(alert).toHaveTextContent("admin.exImport.errKeyInTask")
-    expect(alert).toHaveTextContent("Login")
-  })
-
-  // A published version refused by the publish gate (presets, elevations, content): the backend names the version
-  // (and the device) in "field"; it belongs to the archive, not to the password.
-  it("shows a publish-gate refusal with its archive path at the file picker", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20966, Context: {
-      field: "versions[1]", devices: "web: 32 blocks (500m / 2147483648)", variant: "",
-    } } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    const message = await screen.findByRole("alert")
-    expect(message).toHaveTextContent("versions[1]")
-    expect(message).toHaveTextContent("web: 32 blocks")
-    expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
-    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
-  })
-
-  it("shows the plain message without a context", async () => {
-    mockImport.mockRejectedValue(new ApiError(400, { Status: { Code: 20982 } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("alert")).not.toHaveTextContent("admin.exImport.errDetail")
-  })
-
-  it("uses the coded message when the example download is refused", async () => {
-    mockExample.mockRejectedValue(new ApiError(403, { Status: { Code: 20000, Message: "no" } }))
-    render(<ImportDialog onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
-    expect(await screen.findByRole("alert")).not.toHaveTextContent("admin.exImport.exampleError")
-  })
-
-  it("says archives can carry images", () => {
-    render(<ImportDialog onClose={vi.fn()} />)
-    expect(screen.getByText("admin.exImport.imagesHint")).toBeInTheDocument()
-  })
-
-  describe("a queued background import", () => {
-    const submit = () => {
-      chooseFile()
-      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    }
-
-    it("closes by itself once the job is queued and the import goes on without the dialog", async () => {
-      mockImport.mockResolvedValue({ kind: "job", jobID: "j1" })
-      mockJob.mockResolvedValue(status({ stage: "images", imagesDone: 1, imagesTotal: 2 }))
-      const onClose = vi.fn()
-      const onImported = vi.fn()
-      const { unmount } = render(<ImportDialog onClose={onClose} onImported={onImported} />)
-      submit()
-      await waitFor(() => expect(onClose).toHaveBeenCalled())
-      expect(screen.queryByRole("button", { name: "admin.exImport.background" })).not.toBeInTheDocument()
-      expect(JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")).toEqual(["j1"])
-      expect(push).not.toHaveBeenCalled()
-      expect(onImported).not.toHaveBeenCalled()
-      unmount()
-      await waitFor(() => expect(mockJob.mock.calls.length).toBeGreaterThanOrEqual(2))
-    })
-
-    it("stays open while the archive goes up, with the percent on the busy button", async () => {
-      mockImport.mockImplementation(async (_file, _password, onProgress, onStage) => {
-        onStage?.("uploading")
-        onProgress?.(40)
-        return new Promise(() => undefined)
-      })
-      const onClose = vi.fn()
-      render(<ImportDialog onClose={onClose} />)
-      fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
-        target: { files: [Object.defineProperty(new File(["zip"], "big.zip"), "size", { value: 600 * 1024 * 1024 })] },
-      })
-      fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-      expect(await screen.findByText('admin.exImport.uploadingPercent {"percent":40}')).toBeInTheDocument()
-      expect(onClose).not.toHaveBeenCalled()
-    })
-
-    it("opened from «Подробиці» of a failed import it shows the error and takes the job off the table", async () => {
-      mockJob.mockResolvedValue(status({ state: "failed", stage: "failed", error: new ApiError(409, { Status: { Code: 22829, Context: { file: "images/web.tar", reason: "gzip" } } }, undefined, undefined, 22829) }))
-      trackImportJob("j8", 0)
-      await waitFor(() => expect(JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")).toEqual(["j8"]))
-      await waitFor(() => expect(mockJob).toHaveBeenCalled())
-      render(<ImportDialog jobId="j8" onClose={vi.fn()} />)
-      const message = await screen.findByRole("alert")
-      expect(message).toHaveTextContent("images/web.tar")
-      expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
-      await waitFor(() => expect(localStorage.getItem(IMPORT_JOBS_KEY)).toBeNull())
-    })
-  })
-
-  it("names the operation on the busy button while a small archive is sent", async () => {
-    mockImport.mockReturnValue(new Promise(() => undefined))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    const button = (await screen.findByText("admin.exImport.importing")).closest("button")!
-    expect(button).toBeDisabled()
-    expect(button).toHaveAttribute("aria-busy", "true")
-  })
-
-  it("shows the progress of a large archive upload", async () => {
-    mockImport.mockImplementation(async (_file, _password, onProgress, onStage) => {
-      onStage?.("uploading")
-      onProgress?.(40)
-      return new Promise(() => undefined)
-    })
-    render(<ImportDialog onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText(/^admin\.exImport\.file/), {
-      target: { files: [Object.defineProperty(new File(["zip"], "big.zip"), "size", { value: 600 * 1024 * 1024 })] },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("progressbar")).toHaveAttribute("aria-valuenow", "40")
-    expect(screen.getByText('admin.exImport.uploadingPercent {"percent":40}').closest("button")).toHaveAttribute("aria-busy", "true")
-  })
-
-  it("shows an unreadable image file at the file picker with its reason", async () => {
-    mockImport.mockRejectedValue(new ApiError(409, { Status: { Code: 22829, Context: { file: "images/web.tar", reason: "gzip" } } }, undefined, undefined, 22829))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    const message = await screen.findByRole("alert")
-    expect(message).toHaveTextContent("images/web.tar")
-    expect(message).toHaveTextContent("admin.exImport.imageReason.gzip")
-    expect(screen.getByLabelText(/^admin\.exImport\.file/)).toHaveAttribute("aria-describedby", message.id)
-    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
-  })
-
-  it.each([72801, 72802, 70993, 70994, 70995, 30992])("a job or registry refusal (%i) is shown as a plain error, not a password hint", async (code) => {
-    mockImport.mockRejectedValue(new ApiError(409, { Status: { Code: code } }, undefined, undefined, code))
-    render(<ImportDialog onClose={vi.fn()} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    expect(await screen.findByRole("alert")).toBeInTheDocument()
-    expect(screen.queryByText("admin.exImport.passwordNeeded")).not.toBeInTheDocument()
-  })
-
-  it("lets an upload be stopped after a danger confirmation, and keeps it going on «continue»", async () => {
-    let signal: AbortSignal | undefined
-    mockImport.mockImplementation((...args: unknown[]) => { signal = args[4] as AbortSignal; return new Promise(() => undefined) })
-    const onClose = vi.fn()
-    render(<ImportDialog onClose={onClose} />)
-    chooseFile()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.submit" }))
-    await waitFor(() => expect(mockImport).toHaveBeenCalled())
-    const cancel = screen.getByRole("button", { name: "admin.exPage.dialog.cancel" })
-    expect(cancel).toBeEnabled()
-    fireEvent.click(cancel)
-    expect(await screen.findByRole("dialog", { name: "admin.exImport.stopTitle" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exImport.stopKeep" }))
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "admin.exImport.stopTitle" })).not.toBeInTheDocument())
-    expect(onClose).not.toHaveBeenCalled()
-    expect(signal?.aborted).toBe(false)
-    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" }))
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exImport.stopConfirm" }))
-    expect(onClose).toHaveBeenCalled()
-    expect(signal?.aborted).toBe(true)
-  })
+it("keeps unknown dispatch fenced, persists no password, and recovers the same immutable plan after remount", async () => {
+ vi.mocked(commitArchiveImport).mockRejectedValueOnce(new TypeError("lost response")).mockResolvedValueOnce({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1 })
+ const cancel = vi.fn(), reconcile = vi.fn(async () => {})
+ const first = render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} cancelReplacement={cancel} onReconcile={reconcile} />)
+ await preview()
+ fireEvent.change(screen.getByLabelText("admin.exImport.password"), { target: { value: "do-not-store" } })
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.check" }))
+ await screen.findByText("Archive task")
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await screen.findByRole("button", { name: "admin.exImport.update.recover" })
+ expect(cancel).not.toHaveBeenCalled()
+ expect(localStorage.getItem("exercises.importReplacement:actor:target")).not.toContain("do-not-store")
+ first.unmount()
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} onReconcile={reconcile} />)
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.recover" }))
+ await waitFor(() => expect(reconcile).toHaveBeenCalledTimes(1))
+ expect(prepareArchiveImport).toHaveBeenCalledTimes(1)
+ expect(commitArchiveImport).toHaveBeenLastCalledWith(expect.objectContaining({ UploadID: "owned", Targets: [item.Target], Password: "" }))
+ expect(push).not.toHaveBeenCalled()
+})
+it("broad ambiguous 400 stays general and fixed multi-item refusal stays at the archive field", async () => {
+ vi.mocked(previewArchiveImport).mockRejectedValueOnce(new ApiError(400, { Status: { Code: 20000 } }, undefined, undefined, 20000)).mockRejectedValueOnce(new ApiError(400, { Status: { Code: 22904 } }, undefined, undefined, 22904))
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} />)
+ pick()
+ await waitFor(() => expect(previewArchiveImport).toHaveBeenCalledTimes(1))
+ await waitFor(() => expect(screen.getByRole("button", { name: "admin.exImport.update.check" })).toBeEnabled())
+ expect(screen.getByLabelText("admin.exImport.password")).not.toHaveAttribute("aria-invalid", "true")
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.check" }))
+ await screen.findByText("admin.exImport.update.error.22904")
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-invalid", "true")
 })
 
-describe("ImportDialog guide links", () => {
-  it("links to the archive page and the whole guide, and closes the dialog on the way", () => {
-    const onClose = vi.fn()
-    render(<ImportDialog onClose={onClose} />)
-    const archive = screen.getByRole("link", { name: "admin.exImport.guideArchive" })
-    expect(archive).toHaveAttribute("href", expect.stringMatching(/^\/guide\/arkhiv\/?$/))
-    expect(screen.getByRole("link", { name: "admin.exImport.guideAll" })).toHaveAttribute("href", expect.stringMatching(/^\/guide\/?$/))
-    fireEvent.click(archive)
-    expect(onClose).toHaveBeenCalledOnce()
-  })
+it("a minimized initiated queued update opens only its exact done result, once", async () => {
+ const { getImportJob } = await import("@/api/exercises/archiveJobs")
+ const { trackImportJob } = await import("@/lib/importJobs")
+ let finish!: (value: ImportJobStatus) => void
+ vi.mocked(getImportJob).mockImplementation(async id => id === "mine" ? new Promise(resolve => { finish = resolve }) : ({ state: "done", stage: "done", exercises: [], results: [{ ItemKey: "other", Mode: "update", ExerciseID: "unrelated" }] } as never))
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "job", jobID: "mine" })
+ const view = render(<ImportDialog onClose={vi.fn()} isOriginActive={() => true} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await waitFor(() => expect(getImportJob).toHaveBeenCalledWith("mine"))
+ expect(push).not.toHaveBeenCalled()
+ view.unmount()
+ trackImportJob("unrelated", 0)
+ await waitFor(() => expect(getImportJob).toHaveBeenCalledWith("unrelated"))
+ expect(push).not.toHaveBeenCalled()
+ finish({ state: "done", stage: "done", imagesDone: 0, imagesTotal: 0, tasksDone: 1, tasksTotal: 1, bytesPushed: 0, bytesTotal: 0, exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1 })
+ await waitFor(() => expect(push).toHaveBeenCalledWith("/detail?id=target"))
+ expect(push).toHaveBeenCalledTimes(1)
+})
+it("batch completion presents exact mixed result destinations and counts without choosing a task", async () => {
+ const second = { ...item, Name: "Second source task", ItemKey: "second", Target: { ItemKey: "second", Mode: "new" as const }, TargetExercise: null, ReplacesDraft: false }
+ vi.mocked(previewArchiveImport).mockResolvedValue({ Items: [item, second] })
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }, { ItemKey: "second", Mode: "new", ExerciseID: "created" }], created: 1, updated: 1 })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ expect(await screen.findByText('admin.exImport.update.doneCounts {"created":1,"updated":1}')).toBeInTheDocument()
+ expect(screen.getAllByRole("link", { name: "admin.exImport.update.open" }).map(link => link.getAttribute("href"))).toEqual(["/detail?id=target", "/detail?id=created"])
+ expect(push).not.toHaveBeenCalled()
+})
+
+it.each([20978,20979,20980,20981,20982,20983,20984,20985,20986,20987,20988,20989,20990,20991,22829])("keeps canonical archive-content failure %i beside the archive", async code => {
+ vi.mocked(previewArchiveImport).mockRejectedValueOnce(new ApiError(400, { Status: { Code: code, Context: { file: "web/a.png" } } }, undefined, undefined, code))
+ render(<ImportDialog onClose={vi.fn()} />); pick()
+ const message = await screen.findByRole("alert")
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-describedby", message.id)
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-invalid", "true")
+})
+it("upload size rejection belongs to the archive field and never reaches preview", async () => {
+ vi.mocked(prepareArchiveImport).mockRejectedValueOnce(new ApiError(400, { Status: { Code: 21002 } }, undefined, undefined, 21002))
+ render(<ImportDialog onClose={vi.fn()} />); pick()
+ const message = await screen.findByRole("alert")
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-describedby", message.id)
+ expect(previewArchiveImport).not.toHaveBeenCalled()
+})
+it("keeps published-version validation paths and placeholder task context at the archive", async () => {
+ vi.mocked(previewArchiveImport).mockRejectedValueOnce(new ApiError(400, { Status: { Code: 20966, Context: { field: "versions[1]", devices: "web: 32 blocks" } } }, undefined, undefined, 20966))
+ render(<ImportDialog onClose={vi.fn()} />); pick()
+ const message = await screen.findByRole("alert")
+ expect(message).toHaveTextContent("versions[1]")
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toHaveAttribute("aria-describedby", message.id)
+})
+it("handles a field drop once, ignores text drags, and rejects non-ZIP files locally", async () => {
+ render(<ImportDialog onClose={vi.fn()} />)
+ const input = screen.getByLabelText(/^admin.exImport.file/)
+ fireEvent.drop(input.parentElement!, { dataTransfer: { types: ["Files"], files: [new File(["zip"], "drop.zip")] } })
+ await screen.findByText("Archive task")
+ expect(prepareArchiveImport).toHaveBeenCalledTimes(1)
+ fireEvent.drop(screen.getByRole("dialog"), { dataTransfer: { types: ["text/plain"], files: [] } })
+ expect(prepareArchiveImport).toHaveBeenCalledTimes(1)
+ fireEvent.drop(screen.getByRole("dialog"), { dataTransfer: { types: ["Files"], files: [new File(["x"], "bad.txt")] } })
+ expect(await screen.findByText("admin.exImport.notZip")).toBeInTheDocument()
+ expect(prepareArchiveImport).toHaveBeenCalledTimes(1)
+})
+it("retains the sole NEW owner destination separately from per-item target selection", async () => {
+ const newItem = { ...item, Target: { ItemKey: "folder", Mode: "new" as const }, SuggestedTarget: { ItemKey: "folder", Mode: "new" as const }, TargetExercise: null, ReplacesDraft: false }
+ vi.mocked(previewArchiveImport).mockResolvedValue({ Items: [newItem] })
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "new", ExerciseID: "new" }], created: 1, updated: 0 })
+ const event = { ID: "event", Name: "Winter CTF", Tag: "winter", CanWrite: true, InfrastructureAllowed: true }
+ render(<ImportDialog onClose={vi.fn()} targets={[{ value: "event", label: "Winter CTF", event }]} />)
+ await preview()
+ expect(screen.getByText("Winter CTF")).toBeInTheDocument()
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+ await waitFor(() => expect(commitArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ OwnerEventID: "event", Targets: [newItem.Target] })))
+})
+
+it("starts compact without password, uploads on selection and expands as soon as immutable upload finishes", async () => {
+ let uploaded!: (source: { UploadID: string }) => void
+ vi.mocked(prepareArchiveImport).mockImplementationOnce((_file, progress) => { progress?.(42); return new Promise(resolve => { uploaded = resolve }) })
+ render(<ImportDialog onClose={vi.fn()} />)
+ expect(screen.queryByLabelText("admin.exImport.password")).toBeNull()
+ expect(screen.getByRole("button", { name: "admin.exImport.example" })).toBeInTheDocument()
+ expect(screen.getByRole("link", { name: "admin.exImport.guideArchive" })).toHaveAttribute("href", expect.stringMatching(/^\/guide\/arkhiv\/?$/))
+ pick()
+ expect(await screen.findByRole("progressbar")).toHaveAttribute("aria-valuenow", "42")
+ expect(screen.queryByLabelText("admin.exImport.password")).toBeNull()
+ expect(screen.queryByRole("button", { name: "admin.exImport.example" })).toBeNull()
+ await act(async () => uploaded({ UploadID: "owned" }))
+ await screen.findByText("Archive task")
+ expect(screen.getByLabelText("admin.exImport.password").closest("aside")).not.toBeNull()
+ expect(screen.queryByRole("button", { name: "admin.exImport.example" })).toBeNull()
+})
+it("keeps example download operable only in the initial form, with a truthful busy label", async () => {
+ let ready!: (archive: { blob: Blob; filename: string }) => void
+ vi.mocked(downloadImportExample).mockImplementationOnce(() => new Promise(resolve => { ready = resolve }))
+ render(<ImportDialog onClose={vi.fn()} />)
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.example" }))
+ expect(screen.getByRole("button", { name: /admin.exImport.update.exampleDownloading/ })).toHaveAttribute("aria-busy", "true")
+ expect(screen.getByLabelText(/^admin.exImport.file/)).toBeEnabled()
+ const archive = { blob: new Blob(["zip"]), filename: "example.zip" }
+ await act(async () => ready(archive))
+ expect(downloadBlob).toHaveBeenCalledWith(archive.blob, archive.filename)
+ expect(screen.getByRole("button", { name: "admin.exImport.example" })).toBeEnabled()
+})
+it("asks before aborting the browser upload and never dispatches an import on cancellation", async () => {
+ let signal!: AbortSignal
+ vi.mocked(prepareArchiveImport).mockImplementationOnce((_file, _progress, nextSignal) => { signal = nextSignal!; return new Promise(() => {}) })
+ const close = vi.fn()
+ render(<ImportDialog onClose={close} />); pick()
+ await waitFor(() => expect(prepareArchiveImport).toHaveBeenCalledTimes(1))
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.close" }))
+ const confirm = await screen.findByRole("dialog", { name: "admin.exImport.stopTitle" })
+ fireEvent.click(within(confirm).getByRole("button", { name: "admin.exImport.stopKeep" }))
+ expect(signal.aborted).toBe(false)
+ fireEvent.click(screen.getByRole("button", { name: "admin.exImport.close" }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.stopTitle" })).getByRole("button", { name: "admin.exImport.stopConfirm" }))
+ expect(signal.aborted).toBe(true)
+ expect(commitArchiveImport).not.toHaveBeenCalled()
+ expect(close).toHaveBeenCalledTimes(1)
+})
+
+it("refuses dispatch when durable actor/task recovery markers cannot be stored", async () => {
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1 })
+ const original = Storage.prototype.setItem
+ const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function(this: Storage, key, value) {
+  if (key.startsWith("exercises.importReplacement:")) throw new DOMException("Quota exceeded", "QuotaExceededError")
+  original.call(this, key, value)
+ })
+ try {
+  const cancel = vi.fn(), record = vi.fn()
+  render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} prepareReplacement={async () => true} cancelReplacement={cancel} recordDispatch={record} />); await preview()
+  fireEvent.click(screen.getByRole("button", { name: "admin.exImport.update.apply" }))
+  fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+  await screen.findByText("admin.exImport.update.storageError")
+  expect(commitArchiveImport).not.toHaveBeenCalled()
+  expect(cancel).toHaveBeenCalled()
+  expect(record).not.toHaveBeenCalled()
+ } finally { storage.mockRestore() }
+})
+
+it("a missing queued job offers same-plan recovery instead of leaving the task permanently locked", async () => {
+ const { recordImportPlan } = await import("@/lib/importReplacement")
+ const { getImportJob } = await import("@/api/exercises/archiveJobs")
+ const plan = { UploadID: "owned", Password: "", FixedExerciseID: "target", Targets: [item.Target], ConfirmedUpdates: [{ ItemKey: "folder", Revision: "rev1", ReplaceDraft: true }] }
+ recordImportPlan("actor", plan, "missing")
+ vi.mocked(getImportJob).mockRejectedValue(new ApiError(404, null))
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1 })
+ const reconcile = vi.fn(async () => {})
+ render(<ImportDialog onClose={vi.fn()} fixedExercise={{ ID: "target", Name: "Current" }} onReconcile={reconcile} />)
+ await waitFor(() => expect(getImportJob).toHaveBeenCalledWith("missing"))
+ fireEvent.click(await screen.findByRole("button", { name: "admin.exImport.update.recover" }))
+ await waitFor(() => expect(reconcile).toHaveBeenCalledTimes(1))
+ expect(prepareArchiveImport).not.toHaveBeenCalled()
+ expect(commitArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ UploadID: "owned", Targets: [item.Target] }))
+ expect(push).not.toHaveBeenCalled()
 })

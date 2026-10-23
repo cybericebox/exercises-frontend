@@ -18,6 +18,8 @@ import {
 } from "@/lib/exercisePendingBuffer"
 import { capturedDraftIds, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
+import type { ArchiveCommitInput } from "@/api/exercises/archiveImport"
+import { clearImportReplacement, readImportReplacement, replacementMarker, registerImportEditor, sameImportPlan, writeImportReplacement, type ImportReplacementMarker } from "@/lib/importReplacement"
 import { useExerciseAutosave, type ExerciseAutosave } from "./useExerciseAutosave"
 
 export type ExerciseLoadState = "loading" | "ready" | "notFound" | "error"
@@ -48,6 +50,12 @@ export type UseExerciseEditorOptions = {
 }
 
 export type ExerciseEditor = {
+  replacementActive: boolean
+  replacementRecovery: ImportReplacementMarker | null
+  prepareImportReplacement: () => Promise<boolean>
+  cancelImportReplacement: () => void
+  recordImportDispatch: (input: ArchiveCommitInput, jobID?: string) => void
+  reconcileImportReplacement: () => Promise<void>
   loadState: ExerciseLoadState
   /** The failure behind loadState "error" (carries the code shown by LoadError). */
   loadError: unknown
@@ -104,6 +112,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const optionsRef = useRef(options)
   optionsRef.current = options
 
+  const [replacementActive, setReplacementActive] = useState(false)
+  const [replacementRecovery, setReplacementRecovery] = useState<ImportReplacementMarker | null>(null)
+  const replacementFence = useRef(false)
+  useEffect(() => {
+    const marker = userId && exerciseId ? readImportReplacement(userId, exerciseId) : null
+    if (marker) { replacementFence.current = true; setReplacementActive(true); setReplacementRecovery(marker) }
+  }, [userId, exerciseId])
   const [loadState, setLoadState] = useState<ExerciseLoadState>("loading")
   const [loadError, setLoadError] = useState<unknown>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -261,11 +276,12 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
 
   const autosave = useExerciseAutosave({
     save,
+    isReplacementFenced: () => replacementFence.current,
     onSaved: () => {
       const id = exerciseIdRef.current
       const revision = authorityRevisionRef.current
       if (id) void getExercise(id).then((refreshed) => {
-        if (!mountedRef.current || revision !== authorityRevisionRef.current) return
+        if (replacementFence.current || !mountedRef.current || revision !== authorityRevisionRef.current) return
         // A late card from an earlier snapshot must not undo acknowledged state.
         // A matching post-save card may still supply truthful HasChanges and ACL data.
         if ((refreshed.DraftVersionID ?? "") !== draftVersionIdRef.current) return
@@ -349,7 +365,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           }
           const key = !versionId ? pendingBufferKey(knownUserId, exerciseId) : null
           const pending = key ? readPendingChanges(key) : null
-          const apply = pending !== null && canWrite && !loaded.ArchivedAt
+          const recovering = readImportReplacement(knownUserId, exerciseId) !== null
+          const apply = pending !== null && canWrite && !loaded.ArchivedAt && !recovering
           if (key && pending && !apply) clearPendingChanges(key)
           setExercise(loaded)
           setVersion(loadedVersion)
@@ -407,7 +424,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     let active = true
     const check = () => {
       scheduled = false
-      if (!active) return
+      if (!active || replacementFence.current) return
       const next = signature()
       if (next === lastSignatureRef.current) return
       lastSignatureRef.current = next
@@ -460,6 +477,79 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     applyValues(identityOf(loaded, draft), workingCopyValues(draft))
   }, [applyValues, rememberDraftVersion, setExercise])
 
+  const prepareImportReplacement = useCallback(async () => {
+    checkPendingRef.current()
+    replacementFence.current = true
+    setReplacementActive(true)
+    const ok = await autosave.prepareReplacement()
+    if (!ok) { replacementFence.current = false; setReplacementActive(false) }
+    return ok
+  }, [autosave])
+  const cancelImportReplacement = useCallback(() => {
+    const id = exerciseIdRef.current
+    if (userId && id) clearImportReplacement(userId, id)
+    replacementFence.current = false
+    autosave.resumeReplacement()
+    setReplacementActive(false)
+    setReplacementRecovery(null)
+  }, [autosave, userId])
+  const recordImportDispatch = useCallback((input: ArchiveCommitInput, jobID?: string) => {
+    const id = exerciseIdRef.current
+    if (!userId || !id) return
+    const existing = readImportReplacement(userId, id)
+    const marker = existing && sameImportPlan(existing, input) ? existing : replacementMarker(userId, id, input)
+    const next: ImportReplacementMarker = { ...marker, ...(jobID ? { jobID, state: "running" as const } : {}) }
+    writeImportReplacement(next)
+    setReplacementRecovery(next)
+  }, [userId])
+  const reconcileImportReplacement = useCallback(async () => {
+    replacementFence.current = true
+    setReplacementActive(true)
+    // An authoritative reload failure must leave the fence and exact old form values in place.
+    const id = exerciseIdRef.current
+    if (!id) return
+    const [loaded, draft] = await Promise.all([getExercise(id), getDraft(id)])
+    await autosave.discard()
+    authorityRevisionRef.current += 1
+    setExercise(loaded); setVersion(draft); rememberDraftVersion(draft.ID)
+    savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
+    savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
+    applyValues(identityOf(loaded, draft), workingCopyValues(draft))
+    if (userId) clearImportReplacement(userId, id)
+    replacementFence.current = false
+    autosave.resumeReplacement()
+    setReplacementActive(false); setReplacementRecovery(null)
+  }, [autosave, userId, setExercise, rememberDraftVersion, applyValues])
+
+  const replacementMethods = useRef({ prepare: prepareImportReplacement, cancel: cancelImportReplacement })
+  useLayoutEffect(() => { replacementMethods.current = { prepare: prepareImportReplacement, cancel: cancelImportReplacement } })
+  useEffect(() => {
+    if (!userId || !exerciseId) return
+    const unregister = registerImportEditor(userId, exerciseId, { prepare: () => replacementMethods.current.prepare(), cancel: () => replacementMethods.current.cancel() })
+    return () => {
+      // Retain an orphan only while its old PATCH/PUT drain is unresolved. A later catalog
+      // import awaits it before obtaining the target's final revision preview.
+      if (autosave.hasUnsaved()) void autosave.prepareReplacement?.().finally(unregister)
+      else unregister()
+    }
+    // Queue methods are stable; the ref supplies current editor callbacks without re-registering on save status.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, exerciseId, autosave.hasUnsaved, autosave.prepareReplacement])
+
+  useEffect(() => {
+    if (!userId || !exerciseId) return
+    const update = () => {
+      const marker = readImportReplacement(userId, exerciseId)
+      if (!marker) return
+      replacementFence.current = true
+      setReplacementActive(true)
+      setReplacementRecovery(marker)
+    }
+    window.addEventListener("exercises:import-replacement", update)
+    window.addEventListener("storage", update)
+    return () => { window.removeEventListener("exercises:import-replacement", update); window.removeEventListener("storage", update) }
+  }, [userId, exerciseId])
+
   const retryLoad = useCallback(() => {
     loadStartedRef.current = false
     setLoadError(null)
@@ -479,6 +569,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   }), [autosave])
 
   return {
+    replacementActive, replacementRecovery, prepareImportReplacement, cancelImportReplacement, recordImportDispatch, reconcileImportReplacement,
     loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
   }
 }

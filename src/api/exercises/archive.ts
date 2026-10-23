@@ -11,7 +11,7 @@
  * With images an export (IncludeImages) and an import that names image files run as server jobs: the start answers
  * 202 {JobID}. An export is awaited by archiveJobs.ts; an import is handed to lib/importJobs.ts, which polls its
  * progress in the background.
- * Import never overwrites: every archive creates new exercises.
+ * Explicit archive targets may replace a working snapshot; legacy imports create new exercises.
  */
 import { ApiError, apiGet, apiGetBlob, apiPost, apiPostMultipart } from "@/api/client"
 import { waitForExportJob } from "@/api/exercises/archiveJobs"
@@ -74,10 +74,13 @@ export async function downloadImportExample(): Promise<ExportedArchive> {
 }
 
 /** What an import start came to: the tasks created at once, or (an archive naming image files) a job to follow. */
-export type ImportStart = { kind: "done"; exercises: Exercise[] } | { kind: "job"; jobID: string }
+export type ImportResult = { ItemKey: string; Mode: "new" | "update"; ExerciseID: string }
+export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number }
+export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number } | { kind: "job"; jobID: string }
 
-function importStarted(answer: RawExercise[] | null | Started): ImportStart {
+export function normalizeImportStart(answer: ImportAnswer): ImportStart {
   if (isJob(answer)) return { kind: "job", jobID: answer.JobID }
+  if (answer && !Array.isArray(answer)) return { kind: "done", exercises: (answer.Exercises ?? []).map(normalizeExercise), results: answer.Results ?? [], created: answer.Created, updated: answer.Updated }
   return { kind: "done", exercises: (answer ?? []).map(normalizeExercise) }
 }
 
@@ -99,13 +102,13 @@ export async function startImport(
     const uploadID = await uploadChunks(file, onProgress, signal, { purpose: ARCHIVE_UPLOAD_PURPOSE })
     try {
       const answer = await apiPost<RawExercise[] | null | Started>(`${BASE}/import/upload`, { UploadID: uploadID, Password: password, OwnerEventID: ownerEventId })
-      const started = importStarted(answer)
+      const started = normalizeImportStart(answer)
       // A job keeps its upload: a failed import runs again from it when the same file is submitted. The server drops
       // the upload of a finished import, so a stale id is only a 404 that starts the upload anew.
-      if (started.kind === "done") forgetChunkedUpload(file)
+      if (started.kind === "done") forgetChunkedUpload(file, ARCHIVE_UPLOAD_PURPOSE)
       return started
     } catch (error) {
-      if (error instanceof ApiError && error.code === ERR_UPLOAD_NOT_FOUND) forgetChunkedUpload(file)
+      if (error instanceof ApiError && error.code === ERR_UPLOAD_NOT_FOUND) forgetChunkedUpload(file, ARCHIVE_UPLOAD_PURPOSE)
       throw error
     }
   }
@@ -113,13 +116,13 @@ export async function startImport(
   if (file.size > SINGLE_REQUEST_MAX) {
     onStage?.("uploading")
     const uploaded = await uploadInChunks(file, onProgress)
-    return importStarted(await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password, OwnerEventID: ownerEventId }))
+    return normalizeImportStart(await apiPost<RawExercise[] | null | Started>(`${BASE}/import/uploaded`, { FileID: uploaded.FileID, Password: password, OwnerEventID: ownerEventId }))
   }
   const form = new FormData()
   form.append("archive", file)
   if (password) form.append("password", password)
   if (ownerEventId) form.append("OwnerEventID", ownerEventId)
-  return importStarted(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form))
+  return normalizeImportStart(await apiPostMultipart<RawExercise[] | null | Started>(`${BASE}/import`, form))
 }
 
 /** The full example task document in both formats (the real example/exercise.yaml and its JSON form). */

@@ -31,6 +31,29 @@ const watched = new Map<string, number>()
 const doneHandlers = new Set<(exercises: Exercise[]) => void>()
 let snapshot: TrackedImport[] = []
 let restored = false
+let actor: string | null | undefined
+let sessionGeneration = 0
+const retained = new Set<string>()
+const initiated = new Map<string, (job: TrackedImport) => void>()
+const storageKey = () => actor === undefined ? IMPORT_JOBS_KEY : `${IMPORT_JOBS_KEY}:${actor ?? "anonymous"}`
+
+/** A client lifetime generation, in addition to actor ID; never a claimed server session identity. */
+export function setImportActor(next: string | null) {
+  if (actor === next) return
+  sessionGeneration += 1
+  timers.forEach(clearTimeout)
+  timers.clear(); jobs.clear(); seenRunning.clear(); watched.clear(); initiated.clear(); retained.clear()
+  actor = next; restored = false; emit()
+}
+export function importInitiationScope() { return { actor, generation: sessionGeneration } }
+export function isImportInitiationCurrent(scope: ReturnType<typeof importInitiationScope>) {
+  return scope.actor === actor && scope.generation === sessionGeneration
+}
+export function initiateImportJob(jobID: string, onTerminal: (job: TrackedImport) => void, retainResults = false) {
+  if (retainResults) retained.add(jobID)
+  initiated.set(jobID, onTerminal)
+  trackImportJob(jobID)
+}
 
 const EMPTY: TrackedImport[] = []
 const EMPTY_STATUS: ImportJobStatus = {
@@ -44,7 +67,7 @@ function emit() {
 
 function readStored(): string[] {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(IMPORT_JOBS_KEY) ?? "[]")
+    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey()) ?? "[]")
     return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []
   } catch {
     return []
@@ -54,9 +77,10 @@ function readStored(): string[] {
 // Running and failed jobs are kept; a finished one is not.
 function persist() {
   try {
-    const ids = [...jobs.values()].filter((job) => job.state !== "done").map((job) => job.jobID)
-    if (ids.length > 0) localStorage.setItem(IMPORT_JOBS_KEY, JSON.stringify(ids))
-    else localStorage.removeItem(IMPORT_JOBS_KEY)
+    const ids = [...jobs.values()].filter((job) => (job.state !== "done" || retained.has(job.jobID))).map((job) => job.jobID)
+    localStorage.setItem(`${storageKey()}:results`, JSON.stringify([...retained]))
+    if (ids.length > 0) localStorage.setItem(storageKey(), JSON.stringify(ids))
+    else localStorage.removeItem(storageKey())
   } catch { /* A browser without storage still follows the job; it just cannot resume after a reload. */ }
 }
 
@@ -70,24 +94,26 @@ function forget(jobID: string) {
   timers.delete(jobID)
   seenRunning.delete(jobID)
   jobs.delete(jobID)
+  retained.delete(jobID)
   persist()
   emit()
 }
 
 async function poll(jobID: string) {
+  const generation = sessionGeneration
   timers.delete(jobID)
-  if (!jobs.has(jobID)) return
+  if (generation !== sessionGeneration || !jobs.has(jobID)) return
   let status: ImportJobStatus
   try {
     status = await getImportJob(jobID)
   } catch (error) {
-    if (!jobs.has(jobID)) return
+    if (generation !== sessionGeneration || !jobs.has(jobID)) return
     if (isPassing(error)) return schedule(jobID, JOB_POLL_MS)
     // A job that is gone (another account's, or removed): nothing to follow.
     if (error instanceof ApiError && error.status === 404) return forget(jobID)
     status = { ...EMPTY_STATUS, state: "failed", stage: "failed", error: error instanceof ApiError ? error : new ApiError(500, null) }
   }
-  if (!jobs.has(jobID)) return
+  if (generation !== sessionGeneration || !jobs.has(jobID)) return
   const live = seenRunning.has(jobID)
   jobs.set(jobID, { jobID, ...status })
   if (status.state === "running") {
@@ -95,11 +121,14 @@ async function poll(jobID: string) {
     schedule(jobID, JOB_POLL_MS)
   } else {
     seenRunning.delete(jobID)
+    const terminal = initiated.get(jobID)
+    initiated.delete(jobID)
+    terminal?.({ jobID, ...status })
     persist()
     if (status.state === "done") {
       toast.success(t("admin.exImport.done", { count: status.exercises.length }))
       doneHandlers.forEach((handler) => handler(status.exercises))
-      if (!watched.has(jobID)) return forget(jobID)
+      if (!watched.has(jobID) && !retained.has(jobID)) return forget(jobID)
     } else if (live) {
       toast.error(t("admin.exImport.failed"))
     }
@@ -123,8 +152,14 @@ export function trackImportJob(jobID: string, firstPollIn = JOB_POLL_MS) {
 export function restoreImportJobs() {
   if (restored) return
   restored = true
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(`${storageKey()}:results`) ?? "[]")
+    if (Array.isArray(ids)) for (const id of ids) if (typeof id === "string") retained.add(id)
+  } catch { /* damaged optional result retention */ }
   for (const jobID of readStored()) trackImportJob(jobID, 0)
-  listRunningImports().then((ids) => { for (const jobID of ids) trackImportJob(jobID, 0) }).catch(() => undefined)
+  const generation = sessionGeneration
+  if (actor === null) return
+  listRunningImports().then((ids) => { if (generation !== sessionGeneration) return; for (const jobID of ids) trackImportJob(jobID, 0) }).catch(() => undefined)
 }
 
 /** Stops showing a finished or failed import. */
@@ -148,7 +183,7 @@ function subscribe(listener: () => void) {
 /** All imports this browser follows (running, and failed until dismissed; a done one only until it is read). */
 export function useImportJobs(): TrackedImport[] {
   const all = useSyncExternalStore(subscribe, () => snapshot, () => EMPTY)
-  useEffect(() => { restoreImportJobs() }, [])
+  useEffect(() => { restoreImportJobs() }, [all])
   return all
 }
 
@@ -163,7 +198,7 @@ export function useImportJob(jobID: string | null): TrackedImport | undefined {
       if (left > 0) watched.set(jobID, left)
       else watched.delete(jobID)
       // The dialog went away with the job already over: nothing reads it any more.
-      if (left === 0 && jobs.get(jobID)?.state === "done") forget(jobID)
+      if (left === 0 && !retained.has(jobID) && jobs.get(jobID)?.state === "done") forget(jobID)
     }
   }, [jobID])
   return jobID ? all.find((job) => job.jobID === jobID) : undefined
@@ -178,6 +213,7 @@ export function resetImportJobsForTests() {
   watched.clear()
   doneHandlers.clear()
   restored = false
+  actor = undefined; sessionGeneration += 1; initiated.clear(); retained.clear()
   snapshot = []
   emit()
 }
