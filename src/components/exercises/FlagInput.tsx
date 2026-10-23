@@ -183,7 +183,7 @@ export function FlagInput({
           overlap ? t("admin.exTask.flag.overlap") : null,
         ].filter((warning): warning is string => Boolean(warning))
         return <div key={index} data-testid="flag-candidate-row" className="group grid min-w-0 gap-x-2 py-1" style={{ gridTemplateColumns: "1.5rem minmax(0, 1fr)" }}>
-          <span className="pt-2 text-sm font-medium tabular-nums text-muted-foreground">{index + 1}.</span>
+          <span className="pt-2 text-sm font-medium tabular-nums text-muted-foreground pointer-coarse:pt-3">{index + 1}.</span>
           <div className="min-w-0">
           <div data-testid="flag-candidate-main" className="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-1">
           <div className="min-w-0 max-w-[48rem] flex-[1_1_35rem]">

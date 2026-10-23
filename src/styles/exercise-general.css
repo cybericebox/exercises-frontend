@@ -136,7 +136,7 @@
 .hint-row { border:1px solid var(--ib-line); border-radius:8px; background:var(--card); }
 /* Header: chevron (left, always shown) and number; collapsed adds the text preview and the level, expanded the level
    field. The actions sit flush right, shown on hover or focus. An open row's header is a light band. */
-.hint-row-head { display:flex; align-items:center; gap:8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
+.hint-row-head { display:flex; flex-wrap:wrap; align-items:center; gap:0 8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
 .hint-row-open .hint-row-head { border-radius:8px 8px 0 0; background:var(--ib-paper); }
 .hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px 0 8px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
 .hint-row-open .hint-row-toggle { flex:none; }
@@ -148,6 +148,8 @@
 .hint-row-chevron { flex-shrink:0; color:var(--ib-dim); transition:transform .15s; }
 .hint-row-open .hint-row-chevron { transform:rotate(180deg); }
 .hint-row-level-field { display:flex; flex:1; min-width:0; align-items:center; gap:8px; cursor:default; }
+/* On a phone the level goes to its own line under «⌃ 1.» and the actions, so nothing overlaps. */
+@media (max-width:639px) { .hint-row-level-field { order:3; flex-basis:100%; padding:0 8px 8px; } .hint-row-level-field>:last-child { flex:1; width:auto; } }
 .hint-row-actions { display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; cursor:default; }
 .hint-row:hover .hint-row-actions,.hint-row-head:focus-within .hint-row-actions { opacity:1; }
 @media (hover:none) { .hint-row-actions { opacity:1; } }
@@ -216,7 +218,8 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .all-variants-open:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
 .all-variants-base { margin-left:4px; font-size:12px; color:var(--ib-dim); }
 .all-variants-cell { display:flex; align-items:center; gap:6px; }
-.all-variants-flag { width:160px; height:32px; padding:0 8px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font:13px/1 var(--font-mono, ui-monospace, monospace); color:var(--ib-ink); }
+.all-variants-flag { width:160px; height:36px; padding:0 8px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font:13px/1 var(--font-mono, ui-monospace, monospace); color:var(--ib-ink); }
+@media (pointer:coarse) { .all-variants-flag { height:44px; } }
 .all-variants-flag:focus { outline:none; border-color:var(--ring); box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 40%,transparent); }
 .all-variants-flag[aria-invalid=true] { border-color:var(--ib-danger); }
 .all-variants-flag:disabled { background:var(--ib-paper); color:var(--ib-dim); }
