@@ -139,10 +139,22 @@
 @media (pointer:coarse) { .hint-row-head,.hint-row-toggle { min-height:44px; } }
 @media (prefers-reduced-motion:reduce) { .hint-row-chevron,.hint-row-actions { transition:none; } }
 .hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:4px 12px 12px; border-top:1px solid var(--ib-line); padding-top:12px; }
-.subtask-filebar { position:relative; display:flex; align-items:center; font-size:13.5px; }
-.subtask-filebar>div:first-child>button { padding-right:76px; }
-.subtask-filebar>span:last-child { position:absolute; top:0; right:36px; }
+.subtask-filebar { display:flex; flex-wrap:wrap; align-items:center; min-width:0; font-size:13.5px; }
 .subtask-filebar>:first-child { flex:1; min-width:0; }
+/* An editable row: the name (a click renames it) and its actions flush at the right padding, shown on hover or focus. */
+.subtask-filebar.group { gap:2px; min-height:var(--ctl); padding-right:2px; border:1px solid var(--ib-line); border-radius:6px; background:var(--card); }
+.subtask-filebar.group:focus-within { border-color:var(--ring); }
+.subtask-file-name { display:flex; min-width:0; min-height:34px; align-items:center; padding:0 12px; border-radius:6px; text-align:left; color:var(--ib-ink); }
+.subtask-file-name:hover { text-decoration:underline; text-underline-offset:3px; }
+.subtask-file-name:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.subtask-file-input { width:100%; height:34px; padding:0 12px; border:0; border-radius:6px; background:transparent; color:var(--ib-ink); outline:none; }
+.subtask-file-input[aria-invalid=true] { border-color:var(--ib-danger); }
+.subtask-file-actions { display:flex; align-items:center; gap:2px; opacity:0; transition:opacity .15s; }
+.subtask-filebar.group:hover .subtask-file-actions,.subtask-filebar.group:focus-within .subtask-file-actions { opacity:1; }
+@media (hover:none) { .subtask-file-actions { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .subtask-file-actions { transition:none; } }
+/* Files dropped anywhere over the block go to this subtask. */
+.subtask-files-dropping { border-radius:8px; outline:2px dashed var(--ib-action); outline-offset:6px; background:var(--ib-soft); }
 .subtask-drop { display:flex; align-items:center; gap:8px; width:100%; min-height:var(--ctl); padding:0 12px; border:1px dashed var(--ib-control); border-radius:6px; color:var(--ib-dim); font-size:13px; text-align:left; }
 button.subtask-drop:hover { border-color:var(--ib-action); color:var(--ib-ink); }
 button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }

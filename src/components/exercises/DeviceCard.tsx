@@ -16,6 +16,7 @@ import { DeviceImageField } from "./ImageUpload"
 import { SecretInput } from "./SecretInput"
 import { ExerciseFieldLabel } from "./ExerciseFieldLabel"
 import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
+import { REVEAL_ON_HOVER } from "./RemoveAction"
 import { useEditorPosition } from "./EditorPosition"
 import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -287,7 +288,7 @@ function EnvVarsList({
         const lockSecret = isSecret && hasValue && value === ""
         return (
           <div key={field.id} data-env-row role="group" aria-label={t("admin.exEnv.variableN", { n: ei + 1 })}
-            className={`relative min-w-0 rounded-md border border-border ${compact ? "p-4" : "p-3"}`}>
+            className={`group relative min-w-0 rounded-md border border-border ${compact ? "p-4" : "p-3"}`}>
             <div data-env-actions className="absolute right-3 top-3 flex items-center gap-1">
               <Controller control={control} name={`${name}.${ei}.Secret`} render={({ field: secretField }) => (
                 <HoverTooltip text={lockSecret ? t("admin.exSecret.lockedHint") : t("admin.exEnv.secretHelp")}><button type="button" ref={secretField.ref} aria-label={t("admin.exEnv.secret")}
@@ -297,7 +298,7 @@ function EnvVarsList({
                   {secretField.value ? <LockKeyhole className="h-4 w-4" /> : <LockKeyholeOpen className="h-4 w-4" />}
                 </button></HoverTooltip>
               )} />
-              {!disabled && <RemoveAction ariaLabel={t("admin.exEnv.remove")} onClick={() => remove(ei)} className="h-8 w-8" />}
+              {!disabled && <RemoveAction ariaLabel={t("admin.exEnv.remove")} onClick={() => remove(ei)} className="h-8 w-8" wrapperClassName={REVEAL_ON_HOVER} />}
             </div>
             <div data-env-fields className={`grid min-w-0 ${compact ? "grid-cols-1 gap-2 @min-[40rem]:grid-cols-2" : "gap-2 sm:grid-cols-2"}`}>
               <FormField control={control} name={`${name}.${ei}.Name`} render={({ field: nameField, fieldState }) => (

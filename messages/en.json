@@ -1953,5 +1953,12 @@
   "exercises.image.revertOwn": "Back to the image of variant {n}",
   "admin.exDraft.summaryOwnImages": "{summary} Own images: {devices}.",
   "exercises.catalog.resizeColumn": "Width of the «{name}» column",
-  "exercises.catalog.resizeHint": "Change the width · double-click for the default"
+  "exercises.catalog.resizeHint": "Change the width · double-click for the default",
+  "admin.exFiles.rename": "Rename",
+  "admin.exFiles.renameNamed": "Rename the file {name}",
+  "admin.exFiles.download": "Download",
+  "admin.exFiles.nameN": "Name of file {n}",
+  "admin.exFiles.nameRequired": "Enter a file name.",
+  "admin.exFiles.nameSlash": "A file name cannot contain «/» or «\\».",
+  "admin.exFiles.nameDuplicate": "This subtask already has a file with this name."
 }

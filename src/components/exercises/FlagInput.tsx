@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { RemoveAction } from "./RemoveAction"
+import { RemoveAction, REVEAL_ON_HOVER } from "./RemoveAction"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, type ParsedFlagCandidate } from "@/lib/flagPattern"
@@ -217,7 +217,7 @@ export function FlagInput({
               </DropdownMenuContent>
             </DropdownMenu>}
             {!disabled && <RemoveAction ariaLabel={t("admin.exTask.flag.remove")} onClick={() => { setTouched(new Set()); onChange(value.filter((_, i) => i !== index)) }}
-              className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />}
+              className="h-8 w-8" wrapperClassName={REVEAL_ON_HOVER} />}
           </div>
           <p id={`${feedbackId}-${index}`} role={issue ? "alert" : warnings.length ? "status" : undefined} className="min-h-5 pt-1 text-xs leading-4">
             {issue && <span className="text-destructive">{warnings.length ? issue.replace(/[.!?…]\s*$/, "") : issue}</span>}

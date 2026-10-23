@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { FieldHelp } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { RemoveAction } from "./RemoveAction"
+import { RemoveAction, REVEAL_ON_HOVER } from "./RemoveAction"
 import { Plus, TriangleAlert } from "lucide-react"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import type { DHCPRangeDTO } from "@/api/exercises/versions"
@@ -98,7 +98,7 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
             </Button>
           </div>
           {ranges.length === 0 && <p role="alert" className="text-xs text-destructive">{t("admin.ex.val.dhcpRangesRequired")}</p>}
-          {ranges.map((range, index) => <div key={index} className="flex items-center gap-2">
+          {ranges.map((range, index) => <div key={index} className="group flex items-center gap-2">
             <span className="shrink-0 text-xs text-muted-foreground">.</span>
             <Input type="number" min={2} max={254} step={1} value={range.Start} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeStartN", { n: index + 1 })}
               aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `${rangesName}-error` : undefined}
@@ -108,7 +108,7 @@ function NetworkToggle({ variantIndex, disabled, network, label, showEnabled, sh
             <Input type="number" min={2} max={254} step={1} value={range.End} disabled={disabled} aria-label={t("admin.exTopo.dhcp.rangeEndN", { n: index + 1 })}
               aria-invalid={Boolean(fieldState.error)} aria-describedby={fieldState.error ? `${rangesName}-error` : undefined}
               className="h-9 min-w-0" onChange={(event) => field.onChange(ranges.map((item, i) => i === index ? { ...item, End: Number(event.target.value) } : item))} />
-            {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.dhcp.removeRangeN", { n: index + 1 })} onClick={() => field.onChange(ranges.filter((_, i) => i !== index))} className="h-9 w-9 shrink-0" />}
+            {!disabled && <RemoveAction ariaLabel={t("admin.exTopo.dhcp.removeRangeN", { n: index + 1 })} onClick={() => field.onChange(ranges.filter((_, i) => i !== index))} className="h-9 w-9 shrink-0" wrapperClassName={REVEAL_ON_HOVER} />}
           </div>)}
           {fieldState.error?.message && <p id={`${rangesName}-error`} role="alert" className="text-xs text-destructive">{fieldState.error.message}</p>}
         </div>

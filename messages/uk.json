@@ -1953,5 +1953,12 @@
   "exercises.image.revertOwn": "Повернути образ варіанта {n}",
   "admin.exDraft.summaryOwnImages": "{summary} Свої образи: {devices}.",
   "exercises.catalog.resizeColumn": "Ширина колонки «{name}»",
-  "exercises.catalog.resizeHint": "Змінити ширину · подвійний клік — типова"
+  "exercises.catalog.resizeHint": "Змінити ширину · подвійний клік — типова",
+  "admin.exFiles.rename": "Перейменувати",
+  "admin.exFiles.renameNamed": "Перейменувати файл {name}",
+  "admin.exFiles.download": "Завантажити",
+  "admin.exFiles.nameN": "Назва файлу {n}",
+  "admin.exFiles.nameRequired": "Введіть назву файлу.",
+  "admin.exFiles.nameSlash": "Назва файлу не може містити «/» чи «\\».",
+  "admin.exFiles.nameDuplicate": "У цьому підзавданні вже є файл із такою назвою."
 }

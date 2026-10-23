@@ -211,7 +211,7 @@ describe('FlagInput', () => {
     expect(rows[0].querySelector('span')).toHaveClass('text-sm')
     const remove = within(rows[0]).getByRole('button', { name: 'admin.exTask.flag.remove' })
     expect(rows[0].querySelector('input')!.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: 'admin.exTask.flag.remove' })[0]).toHaveClass('opacity-0')
+    expect(screen.getAllByRole('button', { name: 'admin.exTask.flag.remove' })[0].parentElement).toHaveClass('opacity-0', '[@media(hover:none)]:opacity-100')
   })
 
   it('offers insertion only for a focused template and keeps deletion available on hover or focus', () => {
@@ -220,7 +220,7 @@ describe('FlagInput', () => {
     const remove = screen.getByRole('button', { name: 'admin.exTask.flag.remove' })
     expect(insert).toHaveClass('opacity-0', 'group-focus-within:opacity-100')
     expect(insert).not.toHaveClass('group-hover:opacity-100')
-    expect(remove).toHaveClass('group-hover:opacity-100', 'group-focus-within:opacity-100')
+    expect(remove.parentElement).toHaveClass('group-hover:opacity-100', 'group-focus-within:opacity-100')
     expect(screen.getByTestId('flag-candidate-row')).toContainElement(insert)
     expect(insert.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })

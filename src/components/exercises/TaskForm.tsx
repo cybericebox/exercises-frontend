@@ -79,7 +79,6 @@ export function TaskForm({
   const [placeholderOpen, setPlaceholderOpen] = useState(false)
   const [editingPlaceholderKey, setEditingPlaceholderKey] = useState<string | null>(null)
   const editingPlaceholder = placeholders.find((placeholder) => placeholder.Key === editingPlaceholderKey) ?? null
-  const [dragDepth, setDragDepth] = useState(0)
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
   const [policyError, setPolicyError] = useState<{ cause: unknown } | null>(null)
   const [policyRetry, setPolicyRetry] = useState(0)
@@ -95,23 +94,8 @@ export function TaskForm({
     return () => { current = false }
   }, [policyRetry])
 
-  function hasDraggedFiles(event: React.DragEvent<HTMLDivElement>): boolean {
-    return Array.from(event.dataTransfer?.types ?? []).includes("Files")
-  }
-
   return (
-    <div data-testid="task-drop-zone" className="subtask-form"
-      onDragEnter={(event) => { if (!disabled && hasDraggedFiles(event)) { event.preventDefault(); setDragDepth((depth) => depth + 1) } }}
-      onDragLeave={(event) => { if (hasDraggedFiles(event)) { event.preventDefault(); setDragDepth((depth) => Math.max(0, depth - 1)) } }}
-      onDragOver={(event) => { if (!disabled && hasDraggedFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy" } }}
-      onDrop={(event) => {
-        if (disabled || !hasDraggedFiles(event)) return
-        event.preventDefault()
-        setDragDepth(0)
-        const file = event.dataTransfer.files?.[0]
-        if (file) void attachmentRef.current?.upload(file)
-      }}>
-      {dragDepth > 0 && <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-md border-2 border-dashed border-primary bg-accent/90 text-sm font-medium text-foreground">{t("admin.exFiles.dropHere")}</div>}
+    <div data-testid="task-drop-zone" className="subtask-form">
       <section className="subtask-fields">
       <div className="subtask-head">
         {/* Name grows; Difficulty is a small enum — size it to content, not half the row. */}
