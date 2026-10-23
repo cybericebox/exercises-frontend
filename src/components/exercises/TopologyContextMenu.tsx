@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { keepOwnScroll } from "@/components/ui/keep-own-scroll"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { cn } from "@/utils/cn"
 
@@ -95,7 +96,7 @@ export function TopologyContextMenu({ x, y, label, entries, onClose, returnFocus
     }
   }
 
-  return createPortal(<div ref={menuRef} role="menu" aria-label={label} onKeyDown={onKeyDown}
+  return createPortal(<div ref={menuRef} {...keepOwnScroll({})} role="menu" aria-label={label} onKeyDown={onKeyDown}
     onContextMenu={(event) => event.preventDefault()}
     className="fixed z-(--ib-z-popover) max-h-[calc(100dvh-1rem)] min-w-48 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground"
     style={{ left: position?.left ?? x, top: position?.top ?? y, visibility: position ? undefined : "hidden" }}>
