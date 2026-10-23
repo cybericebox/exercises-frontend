@@ -71,9 +71,10 @@ describe('AttachmentList', () => {
     const file = new File(['x'], 'dump.bin')
     fireEvent.change(input, { target: { files: [file] } })
     // The new row opens in rename mode with the name before the extension selected.
+    // The row renders first; focus and selection follow in the effect after it, so wait for them.
     const name = await screen.findByDisplayValue('dump.bin') as HTMLInputElement
-    expect(name).toHaveFocus()
-    expect([name.selectionStart, name.selectionEnd]).toEqual([0, 4])
+    await waitFor(() => expect(name).toHaveFocus())
+    await waitFor(() => expect([name.selectionStart, name.selectionEnd]).toEqual([0, 4]))
     expect(mockUpload).toHaveBeenCalledWith(null, file, expect.any(Function))
   })
 
