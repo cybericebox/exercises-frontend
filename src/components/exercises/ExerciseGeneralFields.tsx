@@ -20,7 +20,8 @@ function GeneralSectionHeading({ labelKey, helpKey }: { labelKey:string; helpKey
 }
 
 /**
- * The General tab: ordinary text in read mode, the existing forms in edit/new.
+ * The General tab: in read mode every field is the same outlined box as in edit (border, 6px radius, padding,
+ * control height), its text read-only; the forms in edit/new.
  * showNotes: the internal notes are for full access only (admins, the owner event's owners/managers); the API
  * blanks them for everyone else, and the field is left out rather than shown empty.
  */
@@ -66,14 +67,14 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
     </div>}
     <div className="general-field">
       {readOnly ? <GeneralSectionHeading labelKey="admin.ex.field.description" helpKey="admin.ex.field.descriptionHelp" /> : <ExerciseFieldLabel labelKey="admin.ex.field.description" helpKey="admin.ex.field.descriptionHelp" htmlFor="exercise-description" />}
-      {readOnly ? <p className="general-read-value">{description || <span className="text-muted-foreground">{t("admin.exGeneral.noDescription")}</span>}</p> : <>
+      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{description || <span className="text-muted-foreground">{t("admin.exGeneral.noDescription")}</span>}</p> : <>
         <Textarea disabled={disabled} id="exercise-description" rows={4} className="general-editor" aria-invalid={Boolean(errors.Description)} aria-describedby={errors.Description ? "exercise-description-error" : undefined} {...identityForm.register("Description", { onChange: () => { if (errors.Description?.type === "server") identityForm.clearErrors("Description") } })} />
         {errors.Description && <p id="exercise-description-error" role="alert" className="text-xs text-destructive">{errors.Description.message}</p>}
       </>}
     </div>
     <div className="general-field">
       {readOnly ? <GeneralSectionHeading labelKey="admin.ex.field.tags" /> : <ExerciseFieldLabel labelKey="admin.ex.field.tags" htmlFor="exercise-tags" />}
-      {readOnly ? <div className="flex flex-wrap gap-1.5">{tags.length ? tags.map((tag) => <span key={tag} className="general-tag">{tag}</span>) : <span className="text-sm text-muted-foreground">{t("admin.exGeneral.noTags")}</span>}</div> : <>
+      {readOnly ? <div className="general-read-box general-read-tags" data-read-field>{tags.length ? tags.map((tag) => <span key={tag} className="general-tag">{tag}</span>) : <span className="text-sm text-muted-foreground">{t("admin.exGeneral.noTags")}</span>}</div> : <>
         <TagInput disabled={disabled} id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} aria-invalid={Boolean(tagErrorMessage)} aria-describedby={tagErrorMessage ? "exercise-tags-error" : undefined}
           draftValue={pendingTag} suggestions={tagSuggestions} onDraftValueChange={setPendingTag} />
         {tagErrorMessage && <p id="exercise-tags-error" role="alert" className="text-xs text-destructive">{tagErrorMessage}</p>}
@@ -81,7 +82,7 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
     </div>
     {showNotes && <div className="general-field">
       {readOnly ? <GeneralSectionHeading labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" /> : <ExerciseFieldLabel labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" htmlFor="draft-admin-note" />}
-      {readOnly ? <p className="general-read-value">{adminNote || <span className="text-muted-foreground">{t("admin.exGeneral.noNotes")}</span>}</p> : <Textarea disabled={disabled} id="draft-admin-note" rows={3} className="general-editor general-editor-notes" {...draftForm.register("AdminNote")} />}
+      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{adminNote || <span className="text-muted-foreground">{t("admin.exGeneral.noNotes")}</span>}</p> : <Textarea disabled={disabled} id="draft-admin-note" rows={3} className="general-editor general-editor-notes" {...draftForm.register("AdminNote")} />}
     </div>}
   </div>
 }

@@ -164,7 +164,8 @@ describe('DeviceCard', () => {
     expect(screen.getByText('admin.exTopo.resourcesPreset max')).toBeInTheDocument()
     unmount()
     render(<Harness device={emptyDevice()} config={null} />)
-    expect(screen.getByText('admin.exTopo.resourcesDefault')).toBeInTheDocument()
+    expect(screen.getByText('admin.exTopo.resourcesDefault')).toHaveAttribute('data-read-field')
+    expect(screen.getByText('admin.exTopo.resourcesDefault')).toHaveClass('border', 'rounded-md', 'h-9')
   })
 
   it('shows one static address field and editable route rows', () => {

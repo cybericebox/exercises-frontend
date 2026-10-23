@@ -124,7 +124,7 @@ function cell(key: CatalogColumn, item: ExerciseListItem, eventName: (id: string
 export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, selecting, selectable, atLimit, allOnPage, pageSelectable, onToggle, onToggleAll, sortProps, eventName, regionRef, busy, state, footer }: {
   rows: ExerciseListItem[]
   columns: ColumnSetting[]
-  /** The user's width of «Назва» (its minimum: it also takes the free space); absent = default. */
+  /** The user's width of «Назва»; absent = default. */
   nameWidth?: number
   /** A column's new width, or `undefined` back to the default (saved with the column settings). */
   onWidth: (key: CatalogColumn | typeof NAME_COLUMN, width: number | undefined) => void
@@ -145,13 +145,14 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
 }) {
   const visible = columns.filter((column) => column.visible)
   const shown = visible.map((column) => column.key)
-  const span = shown.length + (selecting ? 2 : 1)
+  const span = shown.length + (selecting ? 3 : 2)
   // A drag previews its width here and saves once, at the end.
   const [preview, setPreview] = useState<{ key: ResizeKey; width: number } | null>(null)
   const widthOf = (key: ResizeKey) => preview?.key === key ? preview.width
     : key === NAME_COLUMN ? nameWidth ?? NAME_WIDTH : visible.find((column) => column.key === key)?.width ?? COLUMN_WIDTH[key]
-  // The table fills the block (the free space goes to «Назва»); below this width it scrolls sideways (the name and
-  // the selection stay). Fixed widths: states and long values never move the columns.
+  // Every column has exactly its width, so resizing one never moves another. The table is their sum; in a wider
+  // block an empty filler column takes the rest (the rows and dividers still span the block), in a narrower one it
+  // scrolls sideways (the name and the selection stay). States and long values never move the columns.
   const minWidth = (selecting ? SELECT_WIDTH : 0) + widthOf(NAME_COLUMN) + shown.reduce((sum, key) => sum + widthOf(key), 0)
   const resize = (key: ResizeKey, label: string) => <ResizeHandle name={label} columnKey={key} width={widthOf(key)}
     onPreview={(width) => setPreview(width === null ? null : { key, width })} onCommit={(width) => onWidth(key, width)} />
@@ -160,8 +161,9 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
       className={cn("catalog-data", selecting && "catalog-has-selection", state && "catalog-data-state")}>
       <colgroup>
         {selecting && <col style={{ width: SELECT_WIDTH }} />}
-        <col />
+        <col style={{ width: widthOf(NAME_COLUMN) }} />
         {shown.map((key) => <col key={key} style={{ width: widthOf(key) }} />)}
+        <col data-catalog-filler />
       </colgroup>
       <thead><tr>
         {selecting && <th scope="col" className="catalog-th catalog-select"><label className="catalog-check">
@@ -170,6 +172,7 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
         </label></th>}
         <Head label={columnLabel("name")} field="name" sortProps={sortProps} className="catalog-name" handle={resize(NAME_COLUMN, columnLabel("name"))} />
         {shown.map((key) => <Head key={key} label={columnLabel(key)} field={COLUMN_SORT[key]} sortProps={sortProps} handle={resize(key, columnLabel(key))} />)}
+        <td aria-hidden="true" className="catalog-th catalog-filler" />
       </tr></thead>
       {state ? <TableState colSpan={span}>{state}</TableState> : <tbody>{rows.map((item) => {
         const picked = selected.has(item.ID)
@@ -180,6 +183,7 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
             <InfrastructureIcon show={item.Infrastructure} />
           </div></td>
           {shown.map((key) => <td key={key}>{cell(key, item, eventName)}</td>)}
+          <td aria-hidden="true" className="catalog-filler" />
         </tr>
       })}</tbody>}
     </Table>

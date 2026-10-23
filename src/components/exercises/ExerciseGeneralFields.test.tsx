@@ -37,6 +37,12 @@ describe("ExerciseGeneralFields", () => {
     expect(screen.getByText("web")).toBeInTheDocument()
   })
 
+  it("shows every read field in the same outlined box as its edit field, never as loose text", () => {
+    render(<Harness disabled />)
+    for (const text of ["About", "Day one", "web"]) expect(screen.getByText(text).closest("[data-read-field]")).toHaveClass("general-read-box")
+    expect(document.querySelectorAll("[data-read-field]")).toHaveLength(3)
+  })
+
   it.each([true, false])("exposes read sections to heading navigation (private notes=%s)", (showNotes) => {
     render(<Harness disabled showNotes={showNotes} />)
     const titles = screen.getAllByRole("heading", { level:2 }).map((heading) => heading.textContent)

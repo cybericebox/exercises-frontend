@@ -16,20 +16,25 @@
 .general-phone-test { display:none; }
 .general-running-test { flex-basis:100%; order:5; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ib-dim); }
 .editor-form { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
-.editor-tabs { display:flex; align-items:center; gap:4px; min-height:var(--ctl); border-bottom:1px solid var(--ib-line); }
-.editor-tablist { display:flex; align-items:stretch; min-width:0; overflow-x:auto; scrollbar-width:none; }
+/* The tab strip: one control height (36px, 44px on touch). Its bottom divider is a line drawn under the tabs; the
+   active tab's 2px bar sits exactly on it, as wide as the tab's label padding. Every tab (Загальне, the variant
+   numbers, the table icon) has the same states: hover darkens the text, focus-visible draws a ring. */
+.editor-tabs { position:relative; display:flex; align-items:stretch; gap:4px; height:var(--ctl); }
+.editor-tabs::after { content:""; position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--ib-line); pointer-events:none; }
+.editor-tabs>:not(.editor-tablist) { align-self:center; }
+.editor-tablist { position:relative; z-index:1; display:flex; align-items:stretch; min-width:0; overflow-x:auto; scrollbar-width:none; }
 .editor-tablist::-webkit-scrollbar { display:none; }
-.editor-variant-strip { display:flex; align-items:stretch; }
-.editor-tab { position:relative; display:inline-flex; align-items:center; justify-content:center; height:var(--ctl); padding:0 12px; font-size:14px; color:var(--ib-dim); white-space:nowrap; flex:none; }
-.editor-tab-number { min-width:34px; padding:0 8px; font-variant-numeric:tabular-nums; }
+.editor-variant-strip,.editor-variant-strip>span,.editor-tablist>span:not(.editor-tabs-divider):not(.editor-tabs-label) { display:flex; align-items:stretch; }
+.editor-tab { --tab-pad:12px; position:relative; display:inline-flex; align-items:center; justify-content:center; height:100%; padding:0 var(--tab-pad); font-size:14px; line-height:20px; color:var(--ib-dim); white-space:nowrap; flex:none; }
+.editor-tab-number { --tab-pad:8px; min-width:34px; font-variant-numeric:tabular-nums; }
+.editor-tab-icon { --tab-pad:8px; width:36px; padding:0; }
 .editor-tab-picker { gap:6px; }
-@media (pointer:coarse) { .editor-tab-picker { height:44px; } }
 .editor-tab:hover { color:var(--ib-ink); }
 .editor-tab[aria-selected=true] { color:var(--ib-ink); font-weight:600; }
-.editor-tab[aria-selected=true]::after { content:""; position:absolute; left:6px; right:6px; bottom:-1px; height:2px; background:var(--ib-action); }
-.editor-tab:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; border-radius:4px; }
+.editor-tab[aria-selected=true]::after { content:""; position:absolute; left:var(--tab-pad); right:var(--tab-pad); bottom:0; height:2px; border-radius:1px 1px 0 0; background:var(--ib-action); }
+.editor-tab:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; border-radius:6px; }
 .editor-tabs-divider { width:1px; align-self:center; height:20px; margin:0 8px; background:var(--ib-line); flex:none; }
-.editor-tabs-label { align-self:center; margin-right:4px; font-size:12.5px; color:var(--ib-faint); white-space:nowrap; flex:none; }
+.editor-tabs-label { align-self:center; margin-right:4px; font-size:12.5px; line-height:20px; color:var(--ib-faint); white-space:nowrap; flex:none; }
 .editor-panel { display:flex; flex:1; flex-direction:column; min-width:0; padding-top:16px; }
 .editor-panel[hidden] { display:none; }
 .variant-workspace { display:flex; flex:1; flex-direction:column; gap:12px; min-width:0; }
@@ -66,6 +71,9 @@
 .general-field { max-width:800px; min-width:0; display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
 .general-field>div:first-child { min-height:28px; }
 .general-read-value { max-width:70ch; font-size:14px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+/* A read-mode field: the same outline, radius, padding and height as the edit field, so it never reads as loose text. */
+.general-read-box { max-width:none; min-height:var(--ctl); padding:7px 12px; border:1px solid var(--ib-line); border-radius:6px; background:var(--card); color:var(--ib-ink); }
+.general-read-tags { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:5px 8px; }
 .general-tag { max-width:100%; border:1px solid var(--ib-line); border-radius:4px; padding:2px 8px; background:var(--ib-paper); font-size:13px; line-height:20px; overflow-wrap:anywhere; }
 .general-private-field { border-top:1px solid var(--ib-line); padding-top:20px; margin-top:28px; }
 .general-private-field>.general-field { margin-bottom:0; }
@@ -128,7 +136,7 @@
 .hint-row { border:1px solid var(--ib-line); border-radius:8px; background:var(--card); }
 /* Header: chevron (left, always shown) and number; collapsed adds the text preview and the level, expanded the level
    field. The actions sit flush right, shown on hover or focus. An open row's header is a light band. */
-.hint-row-head { display:flex; align-items:center; gap:8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
+.hint-row-head { display:flex; flex-wrap:wrap; align-items:center; gap:0 8px; min-height:36px; padding-right:4px; border-radius:8px; cursor:pointer; }
 .hint-row-open .hint-row-head { border-radius:8px 8px 0 0; background:var(--ib-paper); }
 .hint-row-toggle { display:flex; flex:1; min-width:0; align-items:center; gap:6px; min-height:36px; padding:0 12px 0 8px; border-radius:8px; text-align:left; font-size:14px; color:var(--ib-ink); }
 .hint-row-open .hint-row-toggle { flex:none; }
@@ -140,6 +148,8 @@
 .hint-row-chevron { flex-shrink:0; color:var(--ib-dim); transition:transform .15s; }
 .hint-row-open .hint-row-chevron { transform:rotate(180deg); }
 .hint-row-level-field { display:flex; flex:1; min-width:0; align-items:center; gap:8px; cursor:default; }
+/* On a phone the level goes to its own line under «⌃ 1.» and the actions, so nothing overlaps. */
+@media (max-width:639px) { .hint-row-level-field { order:3; flex-basis:100%; padding:0 8px 8px; } .hint-row-level-field>:last-child { flex:1; width:auto; } }
 .hint-row-actions { display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .15s; cursor:default; }
 .hint-row:hover .hint-row-actions,.hint-row-head:focus-within .hint-row-actions { opacity:1; }
 @media (hover:none) { .hint-row-actions { opacity:1; } }
@@ -194,7 +204,6 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .resources-popover [data-resources-panel] { margin:0; padding:0; border:0; }
 
 /* All variants: one row per variant, a column per subtask; the variant number stays on the left. */
-.editor-tab-icon { width:36px; padding:0; }
 .all-variants { display:flex; flex:1; flex-direction:column; min-height:0; }
 .all-variants-scroll { flex:1 1 0; min-height:12rem; overflow:auto; border:1px solid var(--ib-line); border-radius:8px; }
 .all-variants-scroll:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
@@ -209,7 +218,8 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .all-variants-open:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
 .all-variants-base { margin-left:4px; font-size:12px; color:var(--ib-dim); }
 .all-variants-cell { display:flex; align-items:center; gap:6px; }
-.all-variants-flag { width:160px; height:32px; padding:0 8px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font:13px/1 var(--font-mono, ui-monospace, monospace); color:var(--ib-ink); }
+.all-variants-flag { width:160px; height:36px; padding:0 8px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font:13px/1 var(--font-mono, ui-monospace, monospace); color:var(--ib-ink); }
+@media (pointer:coarse) { .all-variants-flag { height:44px; } }
 .all-variants-flag:focus { outline:none; border-color:var(--ring); box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 40%,transparent); }
 .all-variants-flag[aria-invalid=true] { border-color:var(--ib-danger); }
 .all-variants-flag:disabled { background:var(--ib-paper); color:var(--ib-dim); }
