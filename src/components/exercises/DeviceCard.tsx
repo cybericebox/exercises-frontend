@@ -19,7 +19,7 @@ import { ConfirmRemoveAction as RemoveAction } from "./ConfirmRemoveAction"
 import { useEditorPosition } from "./EditorPosition"
 import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
 import { EmptyState } from "@/components/ui/empty-state"
-import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { MAX_ENV_VARS, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
 import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
 import { selectedPreset } from "@/lib/deviceResources"
@@ -205,6 +205,9 @@ function EnvVarsList({
   const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.EnvVars` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
+  const full = rows.length >= MAX_ENV_VARS
+  const tooMany = rows.length > MAX_ENV_VARS
+  const limitErrorId = `${name}-limit-error`
   const deviceID = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
   const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
   const flagBindings = tasks.flatMap((task, taskIndex) => task.LinkedDeviceID === deviceID && task.DeviceFlagVar.trim()
@@ -239,7 +242,7 @@ function EnvVarsList({
   }
 
   return (
-    <section className={compact ? "space-y-2" : "space-y-3"}>
+    <section role="group" aria-label={t("admin.exEnv.title")} aria-invalid={tooMany || undefined} aria-describedby={tooMany ? limitErrorId : undefined} className={compact ? "space-y-2" : "space-y-3"}>
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">{t("admin.exEnv.title")}</h4>
         {!disabled && <div className="flex shrink-0 items-center gap-1.5">
@@ -248,17 +251,16 @@ function EnvVarsList({
           <HoverTooltip text={t("admin.exEnv.importFile")}><Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0"
             aria-label={t("admin.exEnv.importFile")}
             onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button></HoverTooltip>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addVariable}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            {t("admin.exEnv.add")}
-          </Button>
+          <HoverTooltip text={full ? t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS }) : t("admin.exEnv.add")} describe={full ? "always" : false}>
+            <Button type="button" variant="outline" size="sm" aria-disabled={full || undefined}
+              className={full ? "opacity-50" : undefined} onClick={() => { if (!full) addVariable() }}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("admin.exEnv.add")}
+            </Button>
+          </HoverTooltip>
         </div>}
       </div>
+      {tooMany && <p id={limitErrorId} role="alert" className="text-xs text-destructive">{t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS })}</p>}
       {importResult && <p role="status" className="text-xs text-muted-foreground">
         {importResult === "read-error" ? t("admin.exEnv.importReadError")
           : t("admin.exEnv.importSummary", { imported: importResult.imported.length, duplicates: importResult.duplicates, invalid: importResult.invalid })}

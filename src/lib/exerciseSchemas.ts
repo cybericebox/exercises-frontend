@@ -242,6 +242,9 @@ const externalSchema = z
     }
   })
 
+/** Daemon limit of environment variables per device. */
+export const MAX_ENV_VARS = 64
+
 const deviceSchema = z
   .object({
     ID: z.string(),
@@ -262,6 +265,9 @@ const deviceSchema = z
     const forwarding = d.Type === "unmanaged-switch" || d.Type === "hub"
     if (forwarding && (d.Image !== "" || d.Interfaces.length > 0 || d.EnvVars.length > 0 || d.External.Enabled || d.Persistence?.Enabled || d.WaitReadyFile || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
+    }
+    if (d.EnvVars.length > MAX_ENV_VARS) {
+      ctx.addIssue({ code: "custom", path: ["EnvVars"], message: t("admin.ex.val.envVarsMax", { max: MAX_ENV_VARS }) })
     }
     if (!forwarding && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })

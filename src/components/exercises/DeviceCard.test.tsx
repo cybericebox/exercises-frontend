@@ -128,6 +128,23 @@ describe('DeviceCard', () => {
     expect(screen.getByRole('button', { name: 'admin.exTopo.resources' })).not.toHaveTextContent('exercises.res.tag.approval')
   })
 
+  it('stops adding environment variables at 64 and shows the limit beside the list when over it', () => {
+    const many = (count: number) => ({ ...emptyDevice(), Name: 'web', EnvVars: Array.from({ length: count }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false })) })
+    const { unmount } = render(<Harness device={many(64)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const add = screen.getByRole('button', { name: 'admin.exEnv.add' })
+    expect(add).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(add)
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).EnvVars).toHaveLength(64)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    unmount()
+    render(<Harness device={many(65)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
+    const group = screen.getByRole('group', { name: 'admin.exEnv.title' })
+    expect(group).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById(group.getAttribute('aria-describedby')!)).toHaveTextContent('admin.ex.val.envVarsMax 64')
+  })
+
   it('shows a centered loader until the platform settings arrive', () => {
     const { container } = render(<Harness device={emptyDevice()} config={null} />)
     expect(container.querySelector('.loading-area')).toBeInTheDocument()

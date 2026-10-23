@@ -941,6 +941,21 @@ describe('content hashes', () => {
   })
 })
 
+describe('environment variable limit', () => {
+  it('allows 64 variables per device and puts a 65th on the list', () => {
+    const draft = validDraft()
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.EnvVars = Array.from({ length: 64 }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false }))
+    draft.Variants[0].Topology.Devices = [device]
+    expect(draftSchema.safeParse(draft).success).toBe(true)
+    device.EnvVars.push({ Name: 'V64', Value: 'x', Secret: false, HasValue: false })
+    const result = draftSchema.safeParse(draft)
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Topology.Devices.0.EnvVars')
+  })
+})
+
 describe('variant weight', () => {
   it('reads absent, 0 or garbage as 1 and keeps a stored weight', () => {
     expect([undefined, 0, -2, 1.5, 3].map((weight) => normalizeVariant({ Index: 1, Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false } }, ...(weight === undefined ? {} : { Weight: weight }) }).Weight)).toEqual([1, 1, 1, 1, 3])

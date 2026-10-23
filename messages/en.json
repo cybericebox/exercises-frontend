@@ -1897,5 +1897,6 @@
   "admin.exSimplify.proportions": "The issue proportions stay the same.",
   "admin.exSimplify.removed": "Variants {variants} will be removed from the task. The other variants get new numbers.",
   "admin.exSimplify.cancel": "Not now",
-  "admin.exSimplify.apply": "Simplify"
+  "admin.exSimplify.apply": "Simplify",
+  "admin.ex.val.envVarsMax": "At most {max} environment variables per device."
 }

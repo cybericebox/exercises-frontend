@@ -1897,5 +1897,6 @@
   "admin.exSimplify.proportions": "Пропорції видачі не зміняться.",
   "admin.exSimplify.removed": "Із завдання буде видалено варіанти {variants}. Інші варіанти отримають нові номери.",
   "admin.exSimplify.cancel": "Не зараз",
-  "admin.exSimplify.apply": "Спростити"
+  "admin.exSimplify.apply": "Спростити",
+  "admin.ex.val.envVarsMax": "Не більше {max} змінних оточення на пристрій."
 }
