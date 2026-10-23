@@ -2,6 +2,7 @@
 
 import { useId, useState, useRef, useLayoutEffect, type Ref } from "react"
 import { createPortal } from "react-dom"
+import { keepOwnScroll } from "@/components/ui/keep-own-scroll"
 import { X } from "lucide-react"
 import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
@@ -137,7 +138,7 @@ export function TagInput({
         className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-placeholder"
       />
     </div>
-    {showSuggestions && position && createPortal(<div id={listId} role="listbox" style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight, transform: position.above ? "translateY(-100%)" : undefined }} className="fixed z-(--ib-z-popover) overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1 text-popover-foreground">
+    {showSuggestions && position && createPortal(<div id={listId} role="listbox" {...keepOwnScroll({})} style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight, transform: position.above ? "translateY(-100%)" : undefined }} className="fixed z-(--ib-z-popover) overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1 text-popover-foreground">
       {matchingSuggestions.map(({ Tag, Count }, index) => <div key={Tag} id={`${listId}-${index}`} role="option" aria-selected={activeSuggestion === index}
         onPointerDown={(event) => { event.preventDefault(); commit(Tag) }}
         className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-[var(--ib-hover)]", activeSuggestion === index && "bg-[var(--ib-soft)]")}
