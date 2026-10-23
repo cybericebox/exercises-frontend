@@ -44,6 +44,7 @@ import {
   type Spread,
   type BaseSelection,
   type TextFormatType,
+  HISTORY_MERGE_TAG,
 } from "lexical";
 import { $generateNodesFromSerializedNodes } from "@lexical/clipboard";
 import { $generateNodesFromDOM } from "@lexical/html";
@@ -1057,10 +1058,13 @@ function ExternalStateSync({ value, lastEmittedRef }: { value: LexicalState | nu
     // flushSync internally, which throws when invoked from a lifecycle method.
     queueMicrotask(() => {
       try {
+        // Loading a value is not an edit: the history-merge tag keeps it out of onChange (OnChangePlugin
+        // ignores it) and out of undo. Otherwise Lexical's own serialization of a loaded document (or of a
+        // plain-text hint) differed from the stored one and was written back on view, dirtying the draft.
         if (serialized) {
-          editor.setEditorState(editor.parseEditorState(serialized));
+          editor.setEditorState(editor.parseEditorState(serialized), { tag: HISTORY_MERGE_TAG });
         } else {
-          editor.update(() => $getRoot().clear().append($createParagraphNode()));
+          editor.update(() => $getRoot().clear().append($createParagraphNode()), { tag: HISTORY_MERGE_TAG });
         }
       } catch {
         // malformed or empty root state — leave the editor as is
