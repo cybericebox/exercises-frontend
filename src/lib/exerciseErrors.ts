@@ -28,6 +28,8 @@ export const ERR_PROPOSAL_NOT_FOUND = 30954
 export const ERR_PROPOSAL_INVALID = 70955
 export const ERR_PROPOSAL_DECIDED = 70956
 export const ERR_EXERCISE_FORBIDDEN = 60957
+/** A linked variant's own device image is not a valid reference (publish; context variant = 1-based position, device = name). */
+export const ERR_DEVICE_IMAGE_INVALID = 22831
 
 export const CODE_TO_KEY: Record<number, string> = {
   // exercise: not found / exists / conflicts
@@ -167,6 +169,18 @@ export function errorContext(e: unknown): Record<string, string> {
     }
   }
   return out
+}
+
+/**
+ * Where a 22831 (an own device image that is not a valid reference) points in the form: its context names the
+ * variant by 1-based position and the device by name. null for another error or an unknown place.
+ */
+export function deviceImageErrorTarget(e: unknown, variants: { Topology: { Devices: { Name: string }[] } }[]): { variantIndex: number; deviceIndex: number } | null {
+  if (exerciseErrorCode(e) !== ERR_DEVICE_IMAGE_INVALID) return null
+  const context = errorContext(e)
+  const variantIndex = Number(context.variant) - 1
+  const deviceIndex = variants[variantIndex]?.Topology.Devices.findIndex((device) => device.Name === context.device) ?? -1
+  return deviceIndex >= 0 ? { variantIndex, deviceIndex } : null
 }
 
 /** Why an image file was refused (22829) and why the registry did not give an image up (72830). */
