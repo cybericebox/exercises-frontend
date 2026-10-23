@@ -183,7 +183,7 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Description: null }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.ex.create.tab.variants", selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
     expect(publishDraft).not.toHaveBeenCalled()
   })
 
@@ -191,7 +191,7 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Name: "" }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.ex.create.tab.variants", selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
     expect(publishDraft).not.toHaveBeenCalled()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
   })

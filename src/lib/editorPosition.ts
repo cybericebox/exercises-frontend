@@ -3,7 +3,7 @@ import { exercisePositionKey } from "@/lib/storageKeys"
 export type EditorPosition = {
   tab: "general" | "variants"
   variant: number
-  section: "tasks" | "topology"
+  section: "tasks" | "topology" | "note"
   task: number
   topologySection: string
   devicePanel: "basic" | "resources" | "interfaces" | "env" | "external"
@@ -42,7 +42,7 @@ export function normalizeEditorPosition(position: unknown): EditorPosition | nul
   return {
     tab: position.tab === "variants" ? "variants" : "general",
     variant: index(position.variant),
-    section: position.section === "topology" ? "topology" : "tasks",
+    section: position.section === "topology" || position.section === "note" ? position.section : "tasks",
     task: index(position.task),
     topologySection: typeof position.topologySection === "string" ? position.topologySection : "diagram",
     devicePanel: panel === "resources" || panel === "interfaces" || panel === "env" || panel === "external" ? panel : "basic",

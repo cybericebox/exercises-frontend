@@ -16,7 +16,7 @@ import { ImportDialog } from "./ImportDialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
-import { DraftVariants } from "@/components/exercises/DraftFields"
+import { EditorWorkspace } from "@/components/exercises/EditorWorkspace"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
 import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
@@ -37,7 +37,6 @@ import { ExerciseGeneralMetadata } from "./ExerciseGeneralMetadata"
 import "@/styles/exercise-general.css"
 import { Form } from "@/components/ui/form"
 import { LoadingArea } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
@@ -275,8 +274,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     : exercise ? { kind: exerciseBadgeKind({ ...exercise, HasChanges: !readOnly && unpublishedWork }) } : null
 
   return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><EditorPositionProvider position={position} onChange={updatePosition}>
-    <Tabs value={position.tab} onValueChange={(value) => updatePosition("tab", value === "variants" ? "variants" : "general")}
-      className="exercise-general-screen flex min-h-full min-w-0 w-full flex-col gap-4">
+    <div className="exercise-general-screen">
       <ExerciseHeader
         mode={headerMode}
         title={exercise ? selectedName : t("admin.ex.create.title")}
@@ -351,35 +349,24 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         onBack={() => void actions.openVersion(null)}
         onRestore={() => { actions.clearConfirmError(); setDialog("restore") }} />}
       {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} unarchiving={actions.running === "unarchive"} onUnarchive={() => void actions.unarchive()} />}
-      <div className="general-tab-context">
-        <div className="general-section-nav">
-          <TabsList className="h-11 w-fit shrink-0 rounded-md">
-            <TabsTrigger className="min-h-9 px-4" value="general">{t("admin.ex.create.tab.general")}</TabsTrigger>
-            <TabsTrigger className="min-h-9 px-4" value="variants">{t("admin.ex.create.tab.variants")}</TabsTrigger>
-          </TabsList>
-        </div>
-        {position.tab === "general" && exercise && <ExerciseGeneralMetadata exercise={exercise} publishedVersion={publishedVersion} publishedAt={publishedAt}
-          eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} />}
-      </div>
       <Form {...editor.draftForm}>
         {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
         <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
         {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
-        <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`flex flex-1 flex-col gap-5${editing ? "" : " exercise-view"}`}>
-          <TabsContent value="general" forceMount className="m-0 flex-1 data-[state=inactive]:hidden">
-            <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} readOnly={!editing && Boolean(exercise)} autoFocusName={!exerciseId} showNotes={showNotes} />
-          </TabsContent>
-          <TabsContent value="variants" forceMount className="m-0 flex-1 pt-5 data-[state=inactive]:hidden">
-            {infraAllowed && <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+        <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`editor-form${editing ? "" : " exercise-view"}`}>
+          <EditorWorkspace form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes}
+            general={<div className="editor-general">
+              <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} readOnly={!editing && Boolean(exercise)} autoFocusName={!exerciseId} showNotes={showNotes} />
+              {exercise && <ExerciseGeneralMetadata exercise={exercise} publishedVersion={publishedVersion} publishedAt={publishedAt}
+                eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} />}
+            </div>}
+            resources={infraAllowed ? <TopologyResourcesPanel form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
               config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
-              flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} />}
-            <DraftVariants form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes} />
-          </TabsContent>
+              flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} /> : undefined} />
         </form>
         </ImageUploadsProvider>
       </Form>
-
-    </Tabs>
+    </div>
 
     {dialog === "history" && exercise && <HistoryDialog exerciseId={exercise.ID} viewingVersionId={versionId}
       onClose={() => setDialog(null)}
