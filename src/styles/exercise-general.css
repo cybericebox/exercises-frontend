@@ -44,7 +44,9 @@
 .editor-general { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; align-items:start; }
 @container task-screen (min-width:1100px) { .editor-general { grid-template-columns:minmax(0,860px) minmax(280px,340px); justify-content:space-between; } }
 @media(max-width:767px) {
-  .general-primary-actions { order:6; flex-basis:100%; }
+  /* Phone: the main actions in a bar fixed at the bottom, within thumb reach; the page keeps room for it. */
+  .exercise-general-screen:has(.general-primary-actions) { padding-bottom:72px; }
+  .general-primary-actions { position:fixed; left:0; right:0; bottom:0; z-index:30; padding:10px 12px max(10px, env(safe-area-inset-bottom)); border-top:1px solid var(--ib-line); background:var(--ib-surface); }
   .general-primary-actions>* { flex:1; }
   .general-direct-test { display:none; }
   .general-phone-test { display:block; }
