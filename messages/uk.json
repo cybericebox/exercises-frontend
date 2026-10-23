@@ -1594,7 +1594,7 @@
   "admin.exFiles.uploadingProgress": "Завантажуємо {percent}%…",
   "admin.exLive.resetting": "Скидаємо…",
   "admin.exTopo.canvasControls": "Керування схемою",
-  "admin.exTopo.canvasControlsHelp": "Прокручування — сторінка. Ctrl/⌘ + прокручування — масштаб. Перетягніть порожнє місце або утримуйте пробіл, щоб пересунути схему. Масштаб також доступний кнопками.",
+  "admin.exTopo.canvasControlsHelp": "Перетягніть порожнє місце, прокрутіть двома пальцями або утримуйте пробіл, щоб пересунути схему. Ctrl/⌘ + прокручування або щипок — масштаб. Масштаб також доступний кнопками.",
   "admin.exGuide.zavdannia": "Про завдання",
   "admin.exGuide.variant": "Про варіанти",
   "admin.exGuide.pidzavdannia": "Про підзавдання",

@@ -1594,7 +1594,7 @@
   "admin.exFiles.uploadingProgress": "Uploading {percent}%…",
   "admin.exLive.resetting": "Resetting…",
   "admin.exTopo.canvasControls": "Diagram controls",
-  "admin.exTopo.canvasControlsHelp": "Scroll to move the page. Ctrl/⌘ + scroll to zoom. Drag empty space or hold Space to pan the diagram. Zoom buttons are also available.",
+  "admin.exTopo.canvasControlsHelp": "Drag empty space, scroll with two fingers or hold Space to pan the diagram. Ctrl/⌘ + scroll or pinch to zoom. Zoom buttons are also available.",
   "admin.exGuide.zavdannia": "About tasks",
   "admin.exGuide.variant": "About variants",
   "admin.exGuide.pidzavdannia": "About subtasks",
