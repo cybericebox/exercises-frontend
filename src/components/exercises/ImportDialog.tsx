@@ -30,6 +30,7 @@ import { importStagePercent, importStageText } from "@/lib/importStage"
 import type { OwnerOption } from "@/lib/exerciseRights"
 import { useRole } from "@/lib/useRole"
 import { ImportTargetPicker, importTargetContext } from "./ImportTargetPicker"
+import { pluralKey } from "@/lib/presetLabels"
 import { IMPORT_CONFIRMATION_STALE, importFieldFailure, isUnknownImportOutcome, useArchiveImport } from "./useArchiveImport"
 import "@/styles/exercise-import.css"
 
@@ -290,18 +291,19 @@ export function unchangedUpdate(item: ArchivePreviewItem): boolean {
     && s.Subtasks.Before === s.Subtasks.After && s.Files.Added + s.Files.Removed === 0 && s.Images.New === 0
 }
 
-/** The change chips of an update: «+added ~changed −removed» per part, the words in a tooltip. */
-function changeChips(summary: ArchiveImportSummary): { key: string; text: string; tip: string }[] {
-  const counts = (added: number, changed: number, removed: number) => [added && `+${added}`, changed && `~${changed}`, removed && `−${removed}`].filter(Boolean).join(" ")
-  const chips: { key: string; text: string; tip: string }[] = []
-  const variants = counts(summary.Variants.Added, summary.Variants.Changed, summary.Variants.Removed)
-  if (variants) chips.push({ key: "variants", text: t("admin.exImport.chip.variants", { counts: variants }), tip: t("admin.exImport.update.variantCounts", { added: summary.Variants.Added, removed: summary.Variants.Removed, changed: summary.Variants.Changed }) })
-  if (summary.Subtasks.Before !== summary.Subtasks.After) chips.push({ key: "subtasks", text: t("admin.exImport.chip.subtasks", { before: summary.Subtasks.Before, after: summary.Subtasks.After }), tip: t("admin.exImport.update.subtaskCounts", { before: summary.Subtasks.Before, after: summary.Subtasks.After }) })
-  if (summary.FlagsChanged) chips.push({ key: "flags", text: t("admin.exImport.chip.flags", { counts: `~${summary.FlagsChanged}` }), tip: t("admin.exImport.update.changed", { count: summary.FlagsChanged }) })
-  const files = counts(summary.Files.Added, 0, summary.Files.Removed)
-  if (files) chips.push({ key: "files", text: t("admin.exImport.chip.files", { counts: files }), tip: t("admin.exImport.update.fileCounts", { added: summary.Files.Added, removed: summary.Files.Removed }) })
-  if (summary.Images.New) chips.push({ key: "images", text: t("admin.exImport.chip.images", { counts: `+${summary.Images.New}` }), tip: t("admin.exImport.update.imageCounts", { new: summary.Images.New, reused: summary.Images.Reused }) })
-  if (summary.MetadataChanged) chips.push({ key: "general", text: t("admin.exImport.chip.general"), tip: t("admin.exImport.update.changedYes") })
+/** The change chips of an update, each one fact in words: «+1 варіант», «змінено 2 прапори», «1 новий образ». */
+function changeChips(summary: ArchiveImportSummary): { key: string; text: string }[] {
+  const chips: { key: string; text: string }[] = []
+  const add = (key: string, count: number) => { if (count > 0) chips.push({ key, text: t(pluralKey(`admin.exImport.chip.${key}`, count), { count }) }) }
+  add("variantsAdded", summary.Variants.Added)
+  add("variantsChanged", summary.Variants.Changed)
+  add("variantsRemoved", summary.Variants.Removed)
+  if (summary.Subtasks.Before !== summary.Subtasks.After) chips.push({ key: "subtasks", text: t("admin.exImport.chip.subtasks", { before: summary.Subtasks.Before, after: summary.Subtasks.After }) })
+  add("flagsChanged", summary.FlagsChanged)
+  add("filesAdded", summary.Files.Added)
+  add("filesRemoved", summary.Files.Removed)
+  add("imagesNew", summary.Images.New)
+  if (summary.MetadataChanged) chips.push({ key: "general", text: t("admin.exImport.chip.general") })
   return chips
 }
 
@@ -322,9 +324,9 @@ function ImportRow({ item, fixedExercise, error, onTarget }: { item: ArchivePrev
       <div role="cell" className="exercise-import-chips">
         {!update ? <span className="exercise-import-chip exercise-import-chip-new">{t("admin.exImport.chip.new")}</span>
           : same ? <span className="exercise-import-chip exercise-import-chip-same"><Check aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.same")}</span>
-          : changeChips(item.Summary).map(chip => <HoverTooltip key={chip.key} text={chip.tip}><span className="exercise-import-chip" tabIndex={0}>{chip.text}</span></HoverTooltip>)}
+          : changeChips(item.Summary).map(chip => <span key={chip.key} className="exercise-import-chip">{chip.text}</span>)}
+        {/* «Стане чернеткою» is said once for all rows, in the footer. */}
         {update && item.ReplacesDraft && <span className="exercise-import-chip exercise-import-chip-warn"><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.replacesDraft")}</span>}
-        {update && !item.ReplacesDraft && !same && <span className="exercise-import-chip exercise-import-chip-quiet">{t("admin.exImport.chip.draft")}</span>}
         {item.SourceIDMismatch && <HoverTooltip text={t("admin.exImport.update.mismatch")} describe><span className="exercise-import-chip exercise-import-chip-warn" tabIndex={0}><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.otherId")}</span></HoverTooltip>}
       </div>
       <div role="cell">{update && !same && <HoverTooltip text={detailsLabel}><button type="button" className="exercise-import-toggle" aria-expanded={open} aria-label={detailsLabel} onClick={() => setOpen(value => !value)}><ChevronDown aria-hidden="true" className={open ? "h-4 w-4 rotate-180" : "h-4 w-4"} /></button></HoverTooltip>}</div>

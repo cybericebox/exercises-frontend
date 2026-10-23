@@ -257,15 +257,19 @@ it("a missing queued job offers same-plan recovery instead of leaving the task p
  expect(commitArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ UploadID: "owned", Targets: [item.Target] }))
  expect(push).not.toHaveBeenCalled()
 })
-it("lays the archive tasks out as rows: how each was matched, its target, change chips with details, and «Без змін»", async () => {
+it("lays the archive tasks out as rows: how each was matched, its target, change chips in words with details, and «Без змін»", async () => {
  const same = { ...item, ItemKey: "same", Name: "Same task", SourceIDMismatch: false, ReplacesDraft: false, Target: { ItemKey: "same", Mode: "update" as const, ExerciseID: "other" }, SuggestedTarget: { ItemKey: "same", Mode: "update" as const, ExerciseID: "other" },
   Summary: { Variants: { Added: 0, Removed: 0, Changed: 0 }, Subtasks: { Before: 2, After: 2 }, FlagsChanged: 0, Files: { Added: 0, Removed: 0 }, Images: { New: 0, Reused: 3 }, MetadataChanged: false } }
  vi.mocked(previewArchiveImport).mockResolvedValue({ Items: [item, same] })
  render(<ImportDialog onClose={vi.fn()} />); await preview()
  expect(screen.getAllByRole("row")).toHaveLength(3)
  expect(screen.getAllByText("admin.exImport.row.matched")).toHaveLength(2)
- expect(screen.getByText('admin.exImport.chip.variants {"counts":"+1 ~2"}')).toBeInTheDocument()
- expect(screen.getByText('admin.exImport.chip.files {"counts":"+2 −1"}')).toBeInTheDocument()
+ expect(screen.getByText('admin.exImport.chip.variantsAdded.one {"count":1}')).toBeInTheDocument()
+ expect(screen.getByText('admin.exImport.chip.variantsChanged.few {"count":2}')).toBeInTheDocument()
+ expect(screen.getByText('admin.exImport.chip.filesAdded.few {"count":2}')).toBeInTheDocument()
+ expect(screen.getByText('admin.exImport.chip.filesRemoved.one {"count":1}')).toBeInTheDocument()
+ // «Стане чернеткою» is said once, in the footer, not per row.
+ expect(screen.queryByText("admin.exImport.chip.draft")).not.toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.replacesDraft")).toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.same")).toBeInTheDocument()
  // Details only for a real change.
