@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { ApiError } from "@/api/client"
 import type { ImportJobStatus } from "@/api/exercises/archiveJobs"
 
@@ -73,5 +73,20 @@ describe("ImportRows", () => {
     act(() => trackImportJob("j1", 0))
     await screen.findByText(/stage\.tasksCount/)
     await vi.waitFor(() => expect(document.querySelector("[data-import-job]")).toBeNull())
+  })
+})
+
+describe('dismissing a finished import', () => {
+  it('lets a failed strip go and keeps a running one', async () => {
+    vi.mocked(getImportJob).mockImplementation(async (id) => id === 'run'
+      ? { state: 'running' as const, stage: 'tasks' as const, imagesDone: 0, imagesTotal: 0, tasksDone: 1, tasksTotal: 2, bytesPushed: 0, bytesTotal: 0, exercises: [] } as never
+      : { state: 'failed', stage: 'failed', imagesDone: 0, imagesTotal: 0, tasksDone: 0, tasksTotal: 0, bytesPushed: 0, bytesTotal: 0, exercises: [], error: new ApiError(409, null) } as never)
+    table(<ImportRows onDetails={vi.fn()} />)
+    act(() => { trackImportJob('run', 0); trackImportJob('bad', 0) })
+    await waitFor(() => expect(document.querySelector('[data-import-job="failed"]')).not.toBeNull())
+    expect(within(document.querySelector<HTMLElement>('[data-import-job="running"]')!).queryByRole('button', { name: 'admin.exImport.dismiss' })).toBeNull()
+    fireEvent.click(within(document.querySelector<HTMLElement>('[data-import-job="failed"]')!).getByRole('button', { name: 'admin.exImport.dismiss' }))
+    await waitFor(() => expect(document.querySelector('[data-import-job="failed"]')).toBeNull())
+    expect(document.querySelector('[data-import-job="running"]')).not.toBeNull()
   })
 })

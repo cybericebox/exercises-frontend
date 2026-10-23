@@ -15,7 +15,7 @@ vi.mock("@/api/exercises/archiveJobs", () => ({
 
 import { getImportJob, listRunningImports } from "@/api/exercises/archiveJobs"
 import { toast } from "@/components/ui/toast"
-import { IMPORT_JOBS_KEY, dismissImportJob, onImportsDone, resetImportJobsForTests, trackImportJob, useImportJob, useImportJobs } from "./importJobs"
+import { IMPORT_JOBS_KEY, MAX_POLL_FAILURES, dismissImportJob, failureDelay, idleDelay, onImportsDone, resetImportJobsForTests, trackImportJob, useImportJob, useImportJobs } from "./importJobs"
 
 const mockGet = vi.mocked(getImportJob)
 const mockList = vi.mocked(listRunningImports)
@@ -66,6 +66,30 @@ describe("background import jobs", () => {
     act(() => trackImportJob("j1"))
     await act(() => vi.advanceTimersByTimeAsync(POLL * 2))
     expect(result.current[0]).toMatchObject({ state: "running", stage: "images" })
+  })
+
+  it("waits longer after each failed poll and stops asking after a bound, showing the job unreachable", async () => {
+    expect([1, 2, 3, 4, 10].map((count) => failureDelay(count, POLL))).toEqual([2000, 4000, 8000, 16000, 30000])
+    mockGet.mockRejectedValue(new ApiError(0, null))
+    const { result } = renderHook(() => useImportJobs())
+    act(() => trackImportJob("j1"))
+    await act(() => vi.advanceTimersByTimeAsync(POLL + 2000 + 4000))
+    expect(mockGet).toHaveBeenCalledTimes(3)
+    await act(() => vi.advanceTimersByTimeAsync(30_000 * MAX_POLL_FAILURES))
+    expect(mockGet).toHaveBeenCalledTimes(MAX_POLL_FAILURES)
+    expect(result.current[0]).toMatchObject({ jobID: "j1", state: "failed" })
+    expect(stored()).toEqual(["j1"])
+  })
+
+  it("polls a running job without progress less and less often", async () => {
+    expect([0, 9, 10, 20, 100].map((count) => idleDelay(count, POLL))).toEqual([2000, 2000, 4000, 24000, 30000])
+    mockGet.mockResolvedValue(status({ stage: "images" }))
+    renderHook(() => useImportJobs())
+    act(() => trackImportJob("j1"))
+    await act(() => vi.advanceTimersByTimeAsync(POLL * 11))
+    const after = mockGet.mock.calls.length
+    await act(() => vi.advanceTimersByTimeAsync(POLL * 10))
+    expect(mockGet.mock.calls.length - after).toBeLessThan(10)
   })
 
   it("on completion: a toast, the done handlers, the id forgotten", async () => {

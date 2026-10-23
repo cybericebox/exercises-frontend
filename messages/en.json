@@ -1868,5 +1868,6 @@
   "exercises.catalog.columnsSaveError": "Could not save the columns to your profile. They stay on this device.",
   "admin.exImport.update.error.22909": "The archive is password-protected. Enter the password and check again.",
   "admin.exImport.update.error.22910": "The password does not open this archive.",
-  "admin.exImport.update.replaceTasksMore": "{names} and {count} more"
+  "admin.exImport.update.replaceTasksMore": "{names} and {count} more",
+  "admin.exImport.dismiss": "Dismiss"
 }

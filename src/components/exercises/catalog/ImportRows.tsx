@@ -1,14 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { readImportReplacement, type ImportReplacementMarker } from "@/lib/importReplacement"
+import { X } from "lucide-react"
+import { clearImportReplacement, readImportReplacement, type ImportReplacementMarker } from "@/lib/importReplacement"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { useRole } from "@/lib/useRole"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { formatBytes } from "@/lib/formatBytes"
-import { useImportJobs } from "@/lib/importJobs"
+import { dismissImportJob, useImportJobs } from "@/lib/importJobs"
 import { importStagePercent, importStageText } from "@/lib/importStage"
 
 /**
@@ -33,6 +35,7 @@ export function ImportRows({ onDetails }: { onDetails: (jobID: string) => void }
     {recovery && !jobs.some(job => job.jobID === recovery.jobID) && <div className="catalog-strip" data-import-recovery>
       <span className="min-w-0 flex-1 truncate">{t(recovery.state === "unknown" ? "admin.exImport.update.unknown" : "admin.exImport.resultTitle")}</span>
       <Button type="button" size="sm" variant="outline" onClick={() => onDetails(recovery.jobID ?? "")}>{t("admin.exImport.details")}</Button>
+      <DismissButton onClick={() => { if (me?.ID) clearImportReplacement(me.ID, "__catalog__"); setRecovery(null) }} />
     </div>}
     {jobs.map((job) => {
       const failed = job.state === "failed"
@@ -54,7 +57,15 @@ export function ImportRows({ onDetails }: { onDetails: (jobID: string) => void }
           ? <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{t("admin.exImport.bytes", { done: formatBytes(job.bytesPushed), total: formatBytes(job.bytesTotal) })}</span>
           : !failed && percent !== null ? <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{percent}%</span> : null}
         <Button type="button" size="sm" variant="outline" onClick={() => onDetails(job.jobID)}>{t("admin.exImport.details")}</Button>
+        {(done || failed) && <DismissButton onClick={() => dismissImportJob(job.jobID)} />}
       </div>
     })}
   </div>
+}
+
+/** Hides a finished or failed import's strip (nothing is lost: the tasks are in the catalog, the error in the details). */
+function DismissButton({ onClick }: { onClick: () => void }) {
+  return <HoverTooltip text={t("admin.exImport.dismiss")}>
+    <Button type="button" size="icon" variant="ghost" aria-label={t("admin.exImport.dismiss")} onClick={onClick}><X aria-hidden="true" className="h-4 w-4" /></Button>
+  </HoverTooltip>
 }
