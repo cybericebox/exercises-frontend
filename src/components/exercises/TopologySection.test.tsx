@@ -265,8 +265,6 @@ describe("topology workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
     expect(diagram()).toBeInTheDocument()
     const host = within(diagram()).getByRole("button", { name: "host-1" })
-    fireEvent.click(host)
-    expect(screen.queryByRole("complementary", { name: "admin.exTopo.deviceSettings" })).not.toBeInTheDocument()
     fireEvent.keyDown(host, { key: "F10", shiftKey: true })
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
     expect(screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })).toBeInTheDocument()
@@ -388,12 +386,14 @@ describe("topology workspace", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
-  it("opens configuration on a double click and does not toggle it closed on a third click", () => {
+  it("opens configuration on a select (as in the prototype) and keeps it on another click or a double click", () => {
     render(<Harness />)
     addNode("container")
+    // Adding a node only selects it.
+    expect(screen.queryByRole("complementary", { name: "admin.exTopo.deviceSettings" })).not.toBeInTheDocument()
     const host = within(diagram()).getByRole("button", { name: "host-1" })
     fireEvent.click(host)
-    expect(screen.queryByRole("complementary", { name: "admin.exTopo.deviceSettings" })).not.toBeInTheDocument()
+    expect(screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })).toBeInTheDocument()
     fireEvent.doubleClick(host)
     const panel = screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })
     fireEvent.click(host)

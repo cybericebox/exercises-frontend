@@ -291,14 +291,10 @@ export function TopologySection({ variantIndex, disabled, toolbar }: { variantIn
 
   function selectNode(key: string) {
     if (connectMode && unavailableConnectionNodes.includes(key)) return
+    // As in the prototype, selecting a node opens its panel (outside the connect mode).
+    if (!connectMode) { openSettings(key); return }
     setSelectedKey(key)
     setSelectedConnectionIndex(null)
-    if (!connectMode && settingsTarget) {
-      if (renamingKey && renamingKey !== key) setRenamingKey(null)
-      if (activeSection.startsWith("device:")) setActiveSection(`device:${key}`)
-      else setSettingsTarget(key)
-    }
-    if (!connectMode) return
     setLinkNodes((current) => current.length === 0 || current.length === 2
       ? [key] : current[0] === key ? [] : [current[0], key])
   }
