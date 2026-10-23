@@ -7,10 +7,6 @@
 @import '../styles/layers.css';
 @import '../styles/touch.css';
 
-.exercise-settings-layout {
-	display: grid;
-}
-
 /* Viewing an exercise (no edit mode, a version, a read-only catalog task): the values are read, not typed, so a
    disabled field shows them in full ink, without the dimming that makes them look empty or like placeholders. */
 .exercise-view :is(input, textarea):disabled {
@@ -25,47 +21,6 @@
 	-webkit-text-fill-color: transparent;
 }
 
-.exercise-variant-tabs {
-	height: 44px;
-	padding: 4px;
-	gap: 4px;
-}
-
-.exercise-variant-tab {
-	height: 36px;
-}
-
-.exercise-variant-item:hover .exercise-variant-tab:not([data-state='active']),
-.exercise-variant-item:focus-within .exercise-variant-tab:not([data-state='active']) {
-	background: var(--background);
-	color: var(--foreground);
-	outline: 1px solid var(--border);
-	outline-offset: -1px;
-}
-
-.exercise-variant-remove-anchor {
-	position: absolute;
-	right: 2px;
-	top: 50%;
-	transform: translateY(-50%);
-}
-
-.exercise-variant-remove {
-	opacity: 0;
-	transition: opacity 150ms ease;
-}
-
-.exercise-variant-item:hover .exercise-variant-remove,
-.exercise-variant-item:focus-within .exercise-variant-remove {
-	opacity: 1;
-}
-
-.exercise-flag-mode {
-	height: 40px;
-	margin: -1px 0 -1px -1px;
-	border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px);
-}
-
 .exercise-editor-toolbar button:not(.bg-primary):hover,
 .exercise-editor-toolbar button:not(.bg-primary):focus-visible {
 	background: var(--accent);
@@ -76,18 +31,6 @@
 
 .exercise-editor-toolbar button.bg-primary:hover {
 	filter: brightness(0.94);
-}
-
-@media (hover: none) {
-	.exercise-variant-remove {
-		opacity: 1;
-	}
-}
-
-@media (min-width: 64rem) {
-	.exercise-settings-layout {
-		grid-template-columns: 13rem minmax(0, 1fr);
-	}
 }
 
 @custom-variant dark (&:is([data-theme="dark"] *));

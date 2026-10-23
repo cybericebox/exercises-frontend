@@ -264,7 +264,7 @@ export function InterfaceForm({
                       disabled={disabled}
                       ariaLabel={t("admin.exTopo.ipType")}
                       options={IP_TYPES.map((o) => ({ value: o.value, label: t(o.labelKey), description: t(`${o.labelKey}Help`) }))}
-                      className="h-10 w-full"
+                      className="w-full"
                       menuClassName="w-[30rem] max-w-[90vw]"
                     />
                   )}

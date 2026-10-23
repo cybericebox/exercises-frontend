@@ -112,7 +112,7 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
     <PopoverPrimitive.Anchor asChild><div ref={anchorRef} className={cn("relative min-w-0", className)}>
-      <div className="flex min-h-10 items-start gap-1 rounded-md border border-border bg-card py-1 pl-2 pr-1 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]"
+      <div className="flex min-h-9 items-start gap-1 rounded-md border pointer-coarse:min-h-11 border-border bg-card py-1 pl-2 pr-1 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]"
         onPointerDown={(event) => { if (event.target === event.currentTarget) { event.preventDefault(); inputRef.current?.focus() } }}>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 py-0.5">
           {chips.map(({ item, no }) => (
@@ -127,7 +127,7 @@ export function FilterCombobox({ label, placeholder, value, onChange, excluded, 
               <button type="button"
                 aria-label={triState ? t("exercises.filter.tags.remove", { value: chipLabel(item), state: t(no ? "exercises.filter.tags.no" : "exercises.filter.tags.yes") }) : t("exercises.filter.remove", { value: chipLabel(item) })}
                 onClick={() => remove(item, no)}
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">
                 <X aria-hidden="true" className="h-3.5 w-3.5 opacity-70" />
               </button>
             </span>

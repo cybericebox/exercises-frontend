@@ -12,7 +12,7 @@ const codeClass = "rounded bg-muted px-1 py-0.5 font-mono text-2xs text-foregrou
 export function FlagHelp() {
   const contentRef = useRef<HTMLDivElement>(null)
   return <Popover><PopoverTrigger asChild>
-    <button type="button" aria-label={t("admin.exTask.flag.helpTitle")} className="rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+    <button type="button" aria-label={t("admin.exTask.flag.helpTitle")} className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
       <HelpCircle aria-hidden="true" className="h-3.5 w-3.5" />
     </button>
   </PopoverTrigger><PopoverContent ref={contentRef} side="bottom" sideOffset={6} avoidCollisions collisionPadding={12}

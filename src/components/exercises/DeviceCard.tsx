@@ -84,7 +84,7 @@ export function DeviceCard({
             <FormControl><SelectMenu value={field.value || "standard"} onChange={field.onChange} disabled={disabled}
               ariaLabel={t("admin.exTopo.securityPreset")}
               options={SECURITY_PRESETS.map((preset) => ({ value: preset, label: t(`admin.exTopo.security.${preset}`), description: t(`admin.exTopo.security.${preset}Help`) }))}
-              className="h-10 w-full" /></FormControl>
+              className="w-full" /></FormControl>
             {fieldState.error && <FormMessage className="leading-5" />}
           </FormItem>
         )} />}
@@ -132,7 +132,7 @@ export function DeviceCard({
                       disabled={disabled}
                       ariaLabel={t("admin.exTopo.protocol")}
                       options={PROTOCOLS.map((p) => ({ value: p, label: p }))}
-                      className="h-10 w-full"
+                      className="w-full"
                     />
                   )}
                 />

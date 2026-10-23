@@ -248,7 +248,7 @@ describe('DeviceCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.interfaces' }))
     expect(screen.getByText('admin.exTopo.ifaceName').closest('label')).toHaveTextContent('*')
     expect(helpButton('admin.exTopo.ipTypeHelp')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-10')
+    expect(screen.getByRole('button', { name: 'admin.exTopo.ipType' })).toHaveClass('h-9')
     expect(screen.queryByText('admin.exTopo.image')).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'admin.exTopo.external' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.basic' }))

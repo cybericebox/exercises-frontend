@@ -85,13 +85,13 @@ export function DifficultyRange({ min, max, onChange }: { min: number | null; ma
         <span id={fromId} className="shrink-0 text-xs text-muted-foreground">{t("exercises.filter.difficulty.from")}</span>
         <SelectMenu value={min === null ? "" : String(min)} onChange={(value) => onChange(parse(value), max)}
           ariaLabel={t("exercises.filter.difficulty.fromLabel")} options={options((level) => max !== null && level > max)}
-          className="h-10 min-w-0 flex-1 text-sm" aria-describedby={fromId} />
+          className="min-w-0 flex-1 text-sm" aria-describedby={fromId} />
       </div>
       <div className="flex min-w-0 items-center gap-1.5">
         <span id={toId} className="shrink-0 text-xs text-muted-foreground">{t("exercises.filter.difficulty.to")}</span>
         <SelectMenu value={max === null ? "" : String(max)} onChange={(value) => onChange(min, parse(value))}
           ariaLabel={t("exercises.filter.difficulty.toLabel")} options={options((level) => min !== null && level < min)}
-          className="h-10 min-w-0 flex-1 text-sm" aria-describedby={toId} />
+          className="min-w-0 flex-1 text-sm" aria-describedby={toId} />
       </div>
     </div>
   )
@@ -150,7 +150,7 @@ export function CatalogFilterFields({ filters, isAdmin, eventOptions, authorLabe
             { value: "yes", label: t("exercises.filter.infraYes") },
             { value: "no", label: t("exercises.filter.infraNo") },
           ]}
-          ariaLabel={t("exercises.filter.infra")} className="h-10 w-full text-sm" />
+          ariaLabel={t("exercises.filter.infra")} className="w-full text-sm" />
       </FilterField>
       </fieldset>
       <fieldset className="catalog-filter-group"><legend>{t("exercises.catalog.group.content")}</legend>

@@ -78,7 +78,7 @@ export function TagInput({
 
   return (
     <div ref={anchor} className="relative min-w-0">
-    <div className={cn("flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]", className)}>
+    <div className={cn("flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 pointer-coarse:min-h-11 focus-within:border-[var(--ib-action)] focus-within:outline focus-within:outline-2 focus-within:outline-[var(--ib-action)]", className)}>
       {value.map((tag) => (
         <span
           key={tag}
@@ -87,7 +87,7 @@ export function TagInput({
           {tag}
           {disabled ? <span className="pr-1.5" /> : (
             <button type="button" aria-label={t("admin.ex.tag.remove", { tag })} onClick={() => onChange(value.filter((x) => x !== tag))}
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">
+              className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ib-action)]">
               <X aria-hidden="true" className="h-3.5 w-3.5 opacity-70" />
             </button>
           )}

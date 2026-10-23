@@ -35,7 +35,7 @@ function IconButton({ label, onClick, disabled, children, className }: { label: 
   </button></HoverTooltip>
 }
 
-const CONTROL = "flex min-h-10 w-full min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
+const CONTROL = "flex min-h-9 w-full pointer-coarse:min-h-11 min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
 
 /** The note under the field for the stage of a running upload. */
 function stageNote(progress: ImageUploadProgress): string | null {

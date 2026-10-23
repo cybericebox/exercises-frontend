@@ -335,7 +335,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
             ? <span className="text-sm text-muted-foreground">{owners[0].label}</span>
             : <SelectMenu value={owner ?? "__none"} onChange={(value) => { setOwnerTouched(true); setOwner(value === "__none" ? null : value) }} ariaLabel={t("exercises.owner.label")}
                 options={[...(owner === null ? [{ value: "__none", label: t("exercises.owner.pick") }] : []), ...owners.map((option) => ({ value: option.value, label: option.label }))]}
-                className="h-10 min-w-0 w-full sm:min-w-56 sm:w-auto text-sm" />}
+                className="min-w-0 w-full sm:min-w-56 sm:w-auto text-sm" />}
           {owner === null && <span className="text-xs text-muted-foreground">{t("exercises.owner.required")}</span>}
         </div>
       )}

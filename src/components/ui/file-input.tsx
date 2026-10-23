@@ -24,7 +24,7 @@ export function FileInput({ file, onFile, className, disabled, chooseLabel, butt
   const [dragging, setDragging] = React.useState(false)
   return (
     <div
-      className={cn(buttonOnly ? "inline-flex" : "flex min-h-10 items-center gap-3 rounded-md border border-dashed border-border bg-card px-2 py-1", dragging && "border-ring bg-accent", className)}
+      className={cn(buttonOnly ? "inline-flex" : "flex min-h-9 items-center gap-3 rounded-md border border-dashed border-border bg-card px-2 py-1", dragging && "border-ring bg-accent", className)}
       onDragOver={(event) => { if (!disabled) { event.preventDefault(); setDragging(true) } }}
       onDragLeave={() => setDragging(false)}
       onDrop={(event) => {
