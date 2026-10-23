@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
-import { emptyDevice, emptyTask, emptyVariant, type VariantFormValues } from "./exerciseSchemas"
+import { emptyDevice, emptyTask, emptyVariant, toSaveDraftInput, type VariantFormValues } from "./exerciseSchemas"
 import { planSimplify } from "./simplifyVariants"
 import { issueOrder } from "./variantWeights"
 
@@ -130,6 +130,17 @@ describe("planSimplify", () => {
     }
     const plan = planSimplify(numbered([withFile("a", "ICE{a}", "c1"), withFile("b", "ICE{b}", "c2")]))!
     expect(plan.links).toEqual([1])
+  })
+
+  it("links a variant that differs only by a device image, which becomes its own image on the base's device", () => {
+    const own = variant("b", "ICE{b}")
+    own.Topology.Devices[0].Image = "web:2"
+    const plan = planSimplify(numbered([variant("a", "ICE{a}"), own]))!
+    expect(plan.links).toEqual([1])
+    const linked = plan.variants[1]
+    expect(linked.LinkedTo).toBe("a")
+    expect(linked.Topology.Devices.map((device) => [device.ID, device.Image])).toEqual([["dev-a", "web:2"]])
+    expect(toSaveDraftInput({ AdminNote: "", Variants: plan.variants }).Variants[1].ImageOverrides).toEqual([{ DeviceID: "dev-a", Image: "web:2" }])
   })
 
   it("never makes a weight above 100", () => {

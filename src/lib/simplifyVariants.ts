@@ -2,7 +2,8 @@
  * simplifyVariants.ts — the «Спростити» plan for many identical variants (typically after an import).
  *
  *  (a) identical variants (same content incl. flags and files) → the first one stays with the summed weight;
- *  (b) independent variants that differ from variant 1 only by flags and/or files → linked to variant 1.
+ *  (b) independent variants that differ from variant 1 only by flags, files and/or device images → linked to
+ *      variant 1 (the images become its own images, ImageOverrides).
  *
  * Weights are then reduced by their common divisor, so the issue proportions stay exactly the same.
  * Kept variants keep their ids; the removed ones disappear. Pure: nothing here mutates its input.
@@ -13,8 +14,8 @@ import { variantSignature, type SignatureParts } from "@/lib/duplicateVariants"
 import { dependentsOf, linkedFlagConflicts, syncLinkedVariants } from "@/lib/linkedVariants"
 import { gcd, normalizeWeight } from "@/lib/variantWeights"
 
-const SAME: SignatureParts = { flags: true, files: true, note: false, linked: true }
-const SAME_BUT_OWN: SignatureParts = { flags: false, files: false, note: false, linked: false }
+const SAME: SignatureParts = { flags: true, files: true, note: false, linked: true, images: true }
+const SAME_BUT_OWN: SignatureParts = { flags: false, files: false, note: false, linked: false, images: false }
 
 /** Why the variants that could be linked to variant 1 cannot be linked now. */
 export type LinkBlock = "baseUnsaved" | "baseLinked"
@@ -102,9 +103,16 @@ export function planSimplify(variants: VariantFormValues[]): SimplifyPlan | null
   }
 
   if (merges.length === 0 && links.length === 0 && !blocked) return null
-  // A linked variant's own flags and files follow the base's subtasks by id (as on the server): take the base ids by position.
+  // A linked variant's own flags, files and images follow the base's subtasks and devices by id (as on the server):
+  // take the base ids by position (the signatures matched them by position).
   const linked = result.map((variant, index) => (links.includes(index)
-    ? { ...variant, LinkedTo: first.ID, Tasks: variant.Tasks.map((task, position) => ({ ...task, ID: first.Tasks[position]?.ID ?? task.ID })) }
+    ? { ...variant, LinkedTo: first.ID,
+      Tasks: variant.Tasks.map((task, position) => ({ ...task, ID: first.Tasks[position]?.ID ?? task.ID })),
+      Topology: { ...variant.Topology, Devices: variant.Topology.Devices.map((device, position) => ({ ...device, ID: first.Topology.Devices[position]?.ID ?? device.ID })) },
+      ImageOverrides: first.Topology.Devices.flatMap((device, position) => {
+        const image = variant.Topology.Devices[position]?.Image ?? ""
+        return device.Type === "container" && image && image !== device.Image ? [{ DeviceID: device.ID, Image: image }] : []
+      }) }
     : variant))
   const next = syncLinkedVariants(linked.filter((_, index) => !removed.has(index)).map((variant, index) => ({ ...variant, Index: index + 1 })))
   return {
