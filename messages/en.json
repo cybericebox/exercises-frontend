@@ -1864,5 +1864,6 @@
   "admin.exDraft.filesCount": "Files: {count}",
   "admin.exDraft.infraAsIn": "as in {n}",
   "admin.exDraft.infraMain": "main",
-  "admin.exDraft.infraOwn": "own"
+  "admin.exDraft.infraOwn": "own",
+  "exercises.catalog.columnsSaveError": "Could not save the columns to your profile. They stay on this device."
 }

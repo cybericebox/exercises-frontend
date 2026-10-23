@@ -25,6 +25,8 @@ vi.mock('@/api/exercises/catalog', () => ({
   listExerciseTags: vi.fn(),
   listExerciseAuthors: vi.fn(),
   getExercise: vi.fn(),
+  getCatalogColumns: vi.fn(),
+  saveCatalogColumns: vi.fn(),
 }))
 vi.mock('@/api/exercises/archive', () => ({ EXPORT_LIMIT: 100 }))
 vi.mock('@/api/events/list', () => ({ listEventOptions: vi.fn().mockResolvedValue([]) }))
@@ -39,7 +41,7 @@ vi.mock('@/components/exercises/ImportDialog', () => ({
 vi.mock('@/api/exercises/archiveJobs', () => ({ getImportJob: vi.fn(), listRunningImports: vi.fn().mockResolvedValue([]), JOB_POLL_MS: 5, isPassing: () => false }))
 vi.mock('@/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
-import { getExercise, listExerciseAuthors, listExercisesPage, listExerciseTags } from '@/api/exercises/catalog'
+import { getCatalogColumns, getExercise, listExerciseAuthors, listExercisesPage, listExerciseTags, saveCatalogColumns } from '@/api/exercises/catalog'
 import { getImportJob, listRunningImports } from '@/api/exercises/archiveJobs'
 import { IMPORT_JOBS_KEY, resetImportJobsForTests } from '@/lib/importJobs'
 import Page from './page'
@@ -55,6 +57,8 @@ function resetStorage() {
   window.history.replaceState(null, '', '/')
   mockTags.mockResolvedValue([{ Tag: 'crypto', Count: 3 }])
   mockAuthors.mockResolvedValue([{ ID: 'u1', Name: 'Ада Лавлейс', Count: 2 }])
+  vi.mocked(getCatalogColumns).mockReset().mockResolvedValue(null)
+  vi.mocked(saveCatalogColumns).mockReset().mockResolvedValue(undefined)
   const storage = new Map<string, string>()
   Object.defineProperty(window, 'localStorage', { configurable: true, value: {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -140,6 +144,29 @@ describe('catalog columns', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.columnsReset' }))
     expect(headers()).toContain('admin.ex.col.access')
     expect(headers()).not.toContain('admin.ex.col.tags')
+  })
+
+  it('takes the columns from the profile and saves every change there', async () => {
+    vi.mocked(getCatalogColumns).mockResolvedValue([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: false }])
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    await waitFor(() => expect(headers().slice(0, 4)).toEqual(['', 'admin.ex.col.name', 'admin.ex.col.author', 'admin.ex.col.status']))
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: 'admin.ex.col.access' }))
+    await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0].slice(0, 3)).toEqual([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: true }])
+  })
+
+  it('keeps a change made before the profile answers', async () => {
+    let answer!: (columns: { key: string; visible: boolean }[]) => void
+    vi.mocked(getCatalogColumns).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: 'admin.ex.col.tags' }))
+    await act(async () => answer([{ key: 'owner', visible: true }]))
+    expect(headers()).toContain('admin.ex.col.tags')
+    expect(headers()).not.toContain('admin.ex.col.owner')
   })
 
   it('sorts by every sortable column from its header and marks the sorted one', async () => {

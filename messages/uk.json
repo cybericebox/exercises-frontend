@@ -1864,5 +1864,6 @@
   "admin.exDraft.filesCount": "Файлів: {count}",
   "admin.exDraft.infraAsIn": "як у {n}",
   "admin.exDraft.infraMain": "основна",
-  "admin.exDraft.infraOwn": "своя"
+  "admin.exDraft.infraOwn": "своя",
+  "exercises.catalog.columnsSaveError": "Не вдалося зберегти колонки в профілі. На цьому пристрої вони залишаться."
 }

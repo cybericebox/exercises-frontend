@@ -312,3 +312,16 @@ export async function setExerciseAccess(id: string, input: AccessInput): Promise
 
 /** Defaults for an exercise without W4 ownership data (a plain catalog exercise). */
 export const DEFAULT_OWNERSHIP: ExerciseOwnership = normalizeOwnership({})
+
+/** One column of the user's catalog table (the frontend owns what the keys mean). */
+export type StoredCatalogColumn = { key: string; visible: boolean }
+
+/** GET /api/exercises/preferences/catalog-columns — null until the user arranged the columns once. */
+export async function getCatalogColumns(): Promise<StoredCatalogColumn[] | null> {
+  return (await apiGet<StoredCatalogColumn[] | null>(`${BASE}/preferences/catalog-columns`)) ?? null
+}
+
+/** PUT /api/exercises/preferences/catalog-columns — the whole list in order. */
+export async function saveCatalogColumns(columns: StoredCatalogColumn[]): Promise<void> {
+  await apiPut<StoredCatalogColumn[]>(`${BASE}/preferences/catalog-columns`, columns)
+}
