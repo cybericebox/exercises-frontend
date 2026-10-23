@@ -50,8 +50,7 @@ export function ImportTargetPicker({ itemKey, selected, onChange, disabled, ...c
   }
   return <Popover open={open} onOpenChange={changeOpen}>
     <PopoverTrigger asChild><Button {...control} type="button" variant="outline" disabled={disabled} className="exercise-import-target">
-      <span><strong>{selected ? t("admin.exImport.update.targetName", { name: selected.Name }) : t("admin.exImport.update.new")}</strong>
-        <small>{selected ? t("admin.exImport.update.updateContext", { owner: importTargetContext(selected) }) : t("admin.exImport.update.newHint")}</small></span><ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
+      <span>{selected ? t("admin.exImport.update.targetName", { name: selected.Name }) : t("admin.exImport.update.new")}</span><ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
     </Button></PopoverTrigger>
     <PopoverContent className="exercise-import-picker" align="start">
       <Input autoFocus aria-label={t("admin.exImport.update.search")} placeholder={t("admin.exImport.update.search")} value={search} onChange={event => { setCursor(undefined); setItems([]); setSearch(event.target.value); void load(undefined, event.target.value) }} />
