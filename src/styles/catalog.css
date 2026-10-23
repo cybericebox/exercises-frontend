@@ -121,9 +121,12 @@
 
 /* The phone filter sheet. */
 .catalog-sheet-fields{display:flex;flex-direction:column;gap:20px}
-.catalog-sheet-fields .catalog-filter-grid{display:flex;flex-direction:column;gap:20px}
-.catalog-filter-group{display:flex;min-width:0;flex-direction:column;gap:16px;margin:0;padding:0;border:0}
-.catalog-filter-group legend{padding:0;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--ib-ink)}
+.catalog-sheet-chips{display:flex;flex-wrap:wrap;gap:8px}
+.catalog-sheet-chip{display:inline-flex;height:36px;max-width:100%;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--ib-line);border-radius:var(--ib-r);background:var(--card);font-size:14px;color:var(--ib-ink)}
+.catalog-sheet-chip[aria-pressed=true]{border-color:var(--ib-action);background:var(--ib-action);color:var(--ib-on-action)}
+.catalog-sheet-chip:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}
+@media (pointer:coarse){.catalog-sheet-chip{height:44px}}
+.catalog-sheet-authors .catalog-opt-block{height:auto;min-height:88px;overflow:visible}
 @media(pointer:coarse){.catalog-search input{font-size:16px}.catalog-check{width:44px;height:44px}.catalog-check input{width:20px;height:20px}.catalog-opt{min-height:44px}.catalog-icon,.catalog-search-x,.catalog-fchip-x{width:36px;height:36px}}
 
 @media(max-width:639px){.catalog-screen{height:auto;min-height:100%}}

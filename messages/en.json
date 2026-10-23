@@ -1933,5 +1933,12 @@
   "admin.exImport.chip.imagesNew.one": "{count} new image",
   "admin.exImport.chip.imagesNew.few": "{count} new images",
   "admin.exImport.chip.imagesNew.many": "{count} new images",
-  "admin.exImport.chip.imagesNew.other": "{count} new images"
+  "admin.exImport.chip.imagesNew.other": "{count} new images",
+  "exercises.filter.sheetTitle": "Filters and sorting",
+  "exercises.filter.resetShort": "Reset",
+  "exercises.catalog.sortChip": "{field}, {direction}",
+  "exercises.filter.show.one": "Show {count} task",
+  "exercises.filter.show.few": "Show {count} tasks",
+  "exercises.filter.show.many": "Show {count} tasks",
+  "exercises.filter.show.other": "Show {count} tasks"
 }

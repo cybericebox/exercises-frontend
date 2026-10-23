@@ -10,8 +10,8 @@ import { accessFromRbac, canCreateExercise, ownerOptions, writableEvents } from 
 import {
   clearedFilters, countActiveFilters, defaultFilters, filtersFromSearch, filtersToSearch, hasActiveFilters, loadCatalogPage, MAX_AUTHORS, mergeCardIntoRow, type CatalogFilters,
 } from "@/lib/catalogList"
-import { CatalogFilterFields, FilterField, ScopeFilterField } from "@/components/exercises/catalog/CatalogFilterFields"
 import { FiltersSheet } from "@/components/exercises/catalog/FiltersSheet"
+import { PhoneFilters } from "@/components/exercises/catalog/PhoneFilters"
 import { CatalogTable } from "@/components/exercises/catalog/CatalogTable"
 import { CatalogCards } from "@/components/exercises/catalog/CatalogCards"
 import { CatalogFooter } from "@/components/exercises/catalog/CatalogFooter"
@@ -20,7 +20,7 @@ import { BrowserDraftRow } from "@/components/exercises/catalog/BrowserDraftRow"
 import { ImportRows } from "@/components/exercises/catalog/ImportRows"
 import { useCatalogColumns } from "@/components/exercises/catalog/useCatalogColumns"
 import { useMediaQuery } from "@/components/shell/useMediaQuery"
-import type { FilterOption } from "@/components/exercises/catalog/FilterCombobox"
+import type { ChoiceOption } from "@/components/exercises/catalog/FilterChip"
 import "@/styles/catalog.css"
 import { BulkActions } from "@/components/exercises/catalog/BulkActions"
 import { EXPORT_LIMIT } from "@/api/exercises/archive"
@@ -28,7 +28,6 @@ import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { ImportDialog } from "@/components/exercises/ImportDialog"
 import { onImportsDone } from "@/lib/importJobs"
 import { Button } from "@/components/ui/button"
-import { SelectMenu } from "@/components/ui/select-menu"
 import { LoadingArea } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
@@ -199,7 +198,7 @@ export default function Page() {
   const activeCount = countActiveFilters(filters, isAdmin)
   const reset = () => update(clearedFilters(filters, isAdmin))
   const authorLabel = (id: string) => authorNames.get(id)
-  const onAuthorsLoaded = useCallback((options: FilterOption[]) => setAuthorNames((before) => new Map([...before, ...options.map(({ value, label }) => [value, label] as const)])), [])
+  const onAuthorsLoaded = useCallback((options: ChoiceOption[]) => setAuthorNames((before) => new Map([...before, ...options.map(({ value, label }) => [value, label] as const)])), [])
   const fieldsProps = { filters, isAdmin, eventOptions, authorLabel, onAuthorsLoaded, onChange: update }
   const clearSearch = () => { setSearch(""); update({ search: "" }) }
   const sortProps = { activeField: filters.sortBy, direction: filters.sortDir, onSort: sort }
@@ -214,12 +213,8 @@ export default function Page() {
         active={activeCount} onOpenSheet={() => setSheetOpen(true)} sheetOpen={mobile && sheetOpen} mobile={mobile} />}
       <BulkActions selected={[...selected.values()]} canExport={canExport} atLimit={atLimit} onExport={() => setExportOpen(true)}
         onClear={() => setSelected(new Map())} onChanged={applyCards} />
-      <FiltersSheet open={mobile && sheetOpen} onOpenChange={setSheetOpen} active={activeCount} onReset={reset}>
-        <div className="catalog-sheet-fields">
-          <SortField filters={filters} onChange={update} />
-          <ScopeFilterField filters={filters} isAdmin={isAdmin} onChange={(scope) => update({ scope })} />
-          <CatalogFilterFields {...fieldsProps} className="catalog-filter-grid" />
-        </div>
+      <FiltersSheet open={mobile && sheetOpen} onOpenChange={setSheetOpen} active={activeCount} total={total} onReset={reset}>
+        <PhoneFilters {...fieldsProps} open={mobile && sheetOpen} />
       </FiltersSheet>
       {canWrite && <BrowserDraftRow userId={me?.ID ?? null} />}
       {canImport && <ImportRows onDetails={(jobId) => { setImportJobId(jobId || undefined); setImportOpen(true) }} />}
@@ -251,14 +246,3 @@ function EmptyFiltered({ filtered, onReset }: { filtered: boolean; onReset: () =
 }
 
 /** Phone: the order of the cards (the columns are not there to click). */
-function SortField({ filters, onChange }: { filters: CatalogFilters; onChange: (patch: Partial<CatalogFilters>) => void }) {
-  const fields = ["updated", "name", "status", "author", "subtasks", "variants", "difficulty"]
-  return <FilterField label={t("exercises.catalog.sortBy")}>
-    <div className="flex gap-2">
-      <SelectMenu value={filters.sortBy} onChange={(sortBy) => onChange({ sortBy, sortDir: sortBy === "updated" ? "desc" : "asc" })} ariaLabel={t("exercises.catalog.sortBy")}
-        options={fields.map((field) => ({ value: field, label: t(`admin.ex.col.${field}`) }))} className="min-w-0 flex-1" />
-      <SelectMenu value={filters.sortDir} onChange={(sortDir) => onChange({ sortDir: sortDir as "asc" | "desc" })} ariaLabel={t("exercises.catalog.sortDir")}
-        options={[{ value: "asc", label: t("exercises.catalog.sortAsc") }, { value: "desc", label: t("exercises.catalog.sortDesc") }]} className="w-36" />
-    </div>
-  </FilterField>
-}

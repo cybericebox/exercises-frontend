@@ -85,12 +85,12 @@ export function useLoadedOptions(load: (query: string) => Promise<ChoiceOption[]
 }
 
 /** The search field at the top of an options popover. */
-export function OptionSearch({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
+export function OptionSearch({ value, onChange, placeholder, autoFocus = true }: { value: string; onChange: (value: string) => void; placeholder: string; autoFocus?: boolean }) {
   const id = useId()
   return <div className="catalog-opt-search">
     <Search aria-hidden="true" />
     <label htmlFor={id} className="sr-only">{placeholder}</label>
-    <input id={id} type="search" autoFocus value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+    <input id={id} type="search" autoFocus={autoFocus} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
   </div>
 }
 

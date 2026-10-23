@@ -22,12 +22,14 @@ export function tagSummary(tags: string[], mode: TagMode, notTags: string[]): st
  * The tag filter: every tag can be required (+) or excluded (−); the required ones combine as «усі вибрані» (AND)
  * or «хоча б один» (OR), the excluded ones always leave a task out (NOT).
  */
-export function TagFilter({ tags, mode, notTags, active, onChange }: {
+export function TagFilter({ tags, mode, notTags, active, onChange, searchAutoFocus = true }: {
   tags: string[]
   mode: TagMode
   notTags: string[]
   /** The popover is open: the tags are asked only then. */
   active: boolean
+  /** The popover focuses its search; the phone sheet does not (it would scroll to the tags). */
+  searchAutoFocus?: boolean
   onChange: (patch: { tags?: string[]; notTags?: string[]; tagMode?: TagMode }) => void
 }) {
   const load = useCallback(async (query: string): Promise<ChoiceOption[]> =>
@@ -48,7 +50,7 @@ export function TagFilter({ tags, mode, notTags, active, onChange }: {
       <Segmented value={mode} ariaLabel={t("exercises.filter.tags.mode")} onChange={(value) => onChange({ tagMode: value as TagMode })}
         options={[{ value: "all", label: t("exercises.filter.tags.modeAll") }, { value: "any", label: t("exercises.filter.tags.modeAny") }]} />
     </div>
-    <OptionSearch value={query} onChange={setQuery} placeholder={t("admin.ex.filterTags.placeholder")} />
+    <OptionSearch value={query} onChange={setQuery} placeholder={t("admin.ex.filterTags.placeholder")} autoFocus={searchAutoFocus} />
     <OptionsBlock loaded={loaded} emptyMessage={t("admin.ex.filterTags.empty")} errorMessage={t("admin.ex.filterTags.loadError")} onRetry={retry}>
       {(items) => <ul className="flex flex-col">{withChosen(items).map((item) => {
         const plus = tags.includes(item.value)

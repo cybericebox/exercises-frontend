@@ -1933,5 +1933,12 @@
   "admin.exImport.chip.imagesNew.one": "{count} новий образ",
   "admin.exImport.chip.imagesNew.few": "{count} нові образи",
   "admin.exImport.chip.imagesNew.many": "{count} нових образів",
-  "admin.exImport.chip.imagesNew.other": "{count} нового образу"
+  "admin.exImport.chip.imagesNew.other": "{count} нового образу",
+  "exercises.filter.sheetTitle": "Фільтри й сортування",
+  "exercises.filter.resetShort": "Скинути",
+  "exercises.catalog.sortChip": "{field}, {direction}",
+  "exercises.filter.show.one": "Показати {count} завдання",
+  "exercises.filter.show.few": "Показати {count} завдання",
+  "exercises.filter.show.many": "Показати {count} завдань",
+  "exercises.filter.show.other": "Показати {count} завдання"
 }
