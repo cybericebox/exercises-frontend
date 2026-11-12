@@ -179,4 +179,12 @@ describe('PlaceholderDialog', () => {
       topology={{ ...unavailable, externalDevices: [{ name: 'web', access: ['http'] }] }} onSave={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
   })
+
+  it('lists only the access kinds switched on for the chosen device', () => {
+    render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
+      topology={{ ...unavailable, externalDevices: [{ name: 'db', access: ['terminal'] }] }} onSave={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Зовнішнє посилання/ }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Вид доступу' }), { key: 'ArrowDown' })
+    expect(screen.getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Консоль'])
+  })
 })

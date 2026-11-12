@@ -126,17 +126,20 @@ describe("hint rows", () => {
     useEffect(() => keep(methods), [methods])
     return <FormProvider {...methods}><HintsEditor variantIndex={0} taskIndex={0} disabled={disabled} /></FormProvider>
   }
+  const chevron = (row: HTMLElement) => within(row).getByRole("button", { name: /exercises.hints.rowLabel/ })
 
-  it("shows stored hints as collapsed rows with their text and level, and opens one to edit", () => {
+  it("shows stored hints as rows with their level and text, opens one by its chevron (one way to open), and writes nothing", () => {
     render(<Loaded />)
     expect(screen.queryByLabelText("exercises.hints.textAria")).not.toBeInTheDocument()
-    const toggles = screen.getAllByRole("button", { expanded: false })
-    expect(toggles).toHaveLength(2)
-    fireEvent.click(toggles[0])
-    expect(toggles[0]).toHaveAttribute("aria-expanded", "true")
+    const rows = screen.getAllByTestId("hint-row")
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent("1.")
+    expect(rows[0]).toHaveTextContent("exercises.hints.level.direction")
+    expect(rows[0]).toHaveTextContent("Почніть зі сканування портів.")
+    expect(chevron(rows[0])).toHaveAttribute("aria-expanded", "false")
+    fireEvent.click(chevron(rows[0]))
+    expect(chevron(rows[0])).toHaveAttribute("aria-expanded", "true")
     expect(screen.getAllByLabelText("exercises.hints.textAria")).toHaveLength(1)
-    expect(document.getElementById(toggles[0].getAttribute("aria-controls")!)).toContainElement(screen.getByLabelText("exercises.hints.textAria"))
-    // Viewing writes nothing back.
     expect(current!.getValues().Variants[0].Tasks[0].Hints[0].Text).toBe("Почніть зі сканування портів.")
     expect(current!.formState.isDirty).toBe(false)
   })
@@ -144,37 +147,28 @@ describe("hint rows", () => {
   it("every row shows its level, closed or open; open: the level select and the text, no preview", () => {
     render(<Loaded />)
     const [row] = screen.getAllByTestId("hint-row")
-    const toggle = within(row).getByRole("button", { name: "exercises.hints.rowLabel" })
-    expect(toggle.firstElementChild).toHaveClass("hint-row-chevron")
-    expect(toggle.children[1]).toHaveTextContent("1.")
-    expect(toggle.children[2]).toHaveTextContent("exercises.hints.level.direction")
-    expect(toggle).toHaveTextContent("Почніть зі сканування портів.")
     expect(within(row).queryByRole("button", { name: "exercises.hints.level" })).toBeNull()
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute("aria-expanded", "true")
-    expect(toggle).toHaveTextContent("exercises.hints.level.direction")
-    expect(toggle).not.toHaveTextContent("Почніть зі сканування портів.")
+    fireEvent.click(chevron(row))
+    expect(row).toHaveTextContent("exercises.hints.level.direction")
+    expect(row.querySelector(".hint-row-text")).toBeNull()
     expect(within(row).getByRole("button", { name: "exercises.hints.level" })).toBeInTheDocument()
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    fireEvent.click(chevron(row))
+    expect(chevron(row)).toHaveAttribute("aria-expanded", "false")
   })
 
-  it("a click anywhere on the header toggles; its controls keep their own clicks", () => {
+  it("a click on the closed row opens it; the actions only move or remove", () => {
     render(<Loaded />)
     const [row] = screen.getAllByTestId("hint-row")
-    const toggle = within(row).getByRole("button", { name: "exercises.hints.rowLabel" })
-    fireEvent.click(row.querySelector(".hint-row-head")!)
-    expect(toggle).toHaveAttribute("aria-expanded", "true")
-    fireEvent.click(within(row).getByRole("button", { name: "exercises.hints.level" }))
-    expect(toggle).toHaveAttribute("aria-expanded", "true")
-    fireEvent.click(within(row).getByRole("button", { name: "exercises.hints.down" }))
+    fireEvent.click(row.querySelector(".hint-row-text")!)
+    expect(chevron(row)).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(within(row).getAllByRole("button", { name: "exercises.hints.down" })[0])
     expect(current!.getValues().Variants[0].Tasks[0].Hints[1].ID).toBe("h1")
   })
 
-  it("reveals the row actions on hover or focus and keeps them on touch", () => {
+  it("keeps the row actions to the hover reveal of the shared row", () => {
     render(<Loaded />)
-    const actions = screen.getAllByRole("button", { name: "exercises.hints.remove" })[0].closest(".hint-row-actions")
-    expect(actions).toBeInTheDocument()
-    expect(screen.getAllByTestId("hint-row")[0]).toHaveClass("group")
+    const [row] = screen.getAllByTestId("hint-row")
+    expect(row).toHaveClass("group")
+    expect(within(row).getByRole("button", { name: "exercises.hints.remove" })).toBeInTheDocument()
   })
 })

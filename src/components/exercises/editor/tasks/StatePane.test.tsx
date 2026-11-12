@@ -56,6 +56,41 @@ describe("StatePane: mode, interval and manual run", () => {
   })
 })
 
+describe("StatePane: schedule and limits", () => {
+  it("says the check never starts when there is neither an interval nor a manual run", () => {
+    const { values } = renderState()
+    expect(screen.getByText("ed.b.state.neverRuns")).toBeInTheDocument()
+    fireEvent.change(label("ed.b.state.interval"), { target: { value: "30s" } })
+    expect(screen.queryByText("ed.b.state.neverRuns")).toBeNull()
+    fireEvent.change(label("ed.b.state.interval"), { target: { value: "0" } })
+    expect(screen.getByText("ed.b.state.neverRuns")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("switch", { name: "ed.b.state.manual" }))
+    expect(screen.queryByText("ed.b.state.neverRuns")).toBeNull()
+    expect(values().Variants[0].Tasks[0].Check.State.Manual).toBe(true)
+  })
+
+  it("every condition has its own time limit, checked beside the field", async () => {
+    const { values, handles } = renderState()
+    fireEvent.change(label("ed.b.cond.timeout"), { target: { value: "5m" } })
+    await act(async () => { await handles.form.trigger("Variants") })
+    expect(label("ed.b.cond.timeout")).toHaveAttribute("aria-invalid", "true")
+    fireEvent.change(label("ed.b.cond.timeout"), { target: { value: "10s" } })
+    expect(conditions(values)[0].Timeout).toBe("10s")
+  })
+
+  it("lays the fields of a condition on the three-column grid with fixed cells", () => {
+    const c = emptyCondition("file", "d1")
+    c.File = { ...c.File, Path: "/x", Exists: true, Type: "file", Contains: "a", Matches: "b", Checksum: "", Mode: "0600", Owner: "u", Group: "g" }
+    renderState([c])
+    const grid = screen.getByTestId("state-pane").querySelector(".cond-grid")!
+    expect(grid).toBeInTheDocument()
+    // every added expectation sits in a cell with its cross in the same place
+    const cells = grid.querySelectorAll(".cond-cell.relative")
+    expect(cells.length).toBeGreaterThanOrEqual(6)
+    for (const cell of cells) expect(cell.querySelector(".cond-drop")).not.toBeNull()
+  })
+})
+
 describe("StatePane: conditions", () => {
   it("numbers the conditions, collapses all but a single one to a line, and opens by the chevron without a pencil", () => {
     renderState([emptyCondition("file", "d1"), emptyCondition("port", "d2")])

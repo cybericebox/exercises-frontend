@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, TriangleAlert, X } from "lucide-react"
+import { Plus, Trash2, TriangleAlert } from "lucide-react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
@@ -53,10 +53,10 @@ function CondField({ base, variantIndex, stem, disabled, onSelect }: { base: str
   } else {
     control = <TextControl path={path} ariaLabel={label} disabled={disabled} placeholder={placeholder} mono={field.mono} inputMode={field.kind === "number" ? "numeric" : "text"} />
   }
-  return <Field path={path} label={label} required={field.required} help={helpOf(stem)}>{control}</Field>
+  return <Field className="cond-cell" path={path} label={label} required={field.required} help={helpOf(stem)}>{control}</Field>
 }
 
-const GRID = "grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr))]"
+const GRID = "cond-grid"
 
 /** Kinds with plain fields: directory, process, port, kernel parameter, request, permission. */
 function PlainFields({ spec, base, variantIndex, condition, disabled }: { spec: KindSpec; base: string; variantIndex: number; condition: ConditionFormValues; disabled: boolean }) {
@@ -75,11 +75,11 @@ function PlainFields({ spec, base, variantIndex, condition, disabled }: { spec: 
 
 /** The optional expectation of a file or a command: a labelled field with a cross. */
 function Optional({ label, onRemove, disabled, children }: { label: string; onRemove: () => void; disabled: boolean; children: React.ReactNode }) {
-  return <div className="flex min-w-0 items-start gap-1">
-    <div className="min-w-0 flex-1">{children}</div>
-    {!disabled && <HoverTooltip text={t("ed.b.cond.dropExpectation")}>
+  return <div className="cond-cell relative">
+    {children}
+    {!disabled && <HoverTooltip text={t("ed.b.cond.dropExpectation")} className="cond-drop">
       <button type="button" aria-label={`${t("ed.b.cond.dropExpectation")}: ${label}`} onClick={onRemove}
-        className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"><X aria-hidden="true" className="h-3.5 w-3.5" /></button>
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-primary"><Trash2 aria-hidden="true" className="h-3.5 w-3.5" /></button>
     </HoverTooltip>}
   </div>
 }

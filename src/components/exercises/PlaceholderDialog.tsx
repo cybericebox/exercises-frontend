@@ -169,7 +169,7 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
           <span className="mb-1 block text-sm font-medium">{t("ed.b.ph.access")}</span>
           <SelectMenu ariaLabel={t("ed.b.ph.access")} value={accessKind} className="w-full"
             onChange={(Access) => setDraft({ ...draft, Access: Access as PlaceholderAccess })}
-            options={ACCESS_KINDS.filter((kind) => externalDevice?.access.includes(kind) || kind === accessKind).map((kind) => ({
+            options={ACCESS_KINDS.filter((kind) => externalDevice?.access.includes(kind) || (value !== null && kind === value.Access)).map((kind) => ({
               value: kind, label: t(`ed.b.ph.access.${kind}`),
               disabled: !ACCESS_KINDS_SERVED.includes(kind),
               description: !ACCESS_KINDS_SERVED.includes(kind) ? t("ed.b.ph.accessSoon") : !externalDevice?.access.includes(kind) ? t("ed.b.ph.accessOff") : undefined,
