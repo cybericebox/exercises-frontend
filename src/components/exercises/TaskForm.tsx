@@ -180,7 +180,7 @@ export function TaskForm({
             disabled={disabled}
             errors={Array.isArray(fieldState.error) ? fieldState.error.map((item) => item?.message) : []}
             linkedDeviceID=""
-            hasLinkableDevice={false}
+            hasLinkableDevice={devices.some((device) => device.Type === "node")}
             policy={policy}
             policyError={policyError}
             onRetryPolicy={() => { setPolicyError(null); setPolicyRetry((attempt) => attempt + 1) }}

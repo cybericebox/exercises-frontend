@@ -12,10 +12,15 @@ function splitLast(text: string): [string, string] {
   return match ? [match[1], match[2]] : ["", text]
 }
 
+/** U+2060 WORD JOINER: no line break between the last word (with its asterisk) and the «?». */
+const GLUE = "⁠"
+
 /**
  * The one label rule of the editor (H1): the label text, the asterisk attached to the text when the field is required,
  * then «?» at one small fixed distance — one inline unit on one line box. The last word, the asterisk and the «?» never
- * break apart when the label wraps; the «?» is never a separate column and never alone on a line.
+ * break apart when the label wraps; the «?» is never a separate column and never alone on a line. The help button is a
+ * sibling of the label element, so it is not part of the control's accessible name and a click on it does not focus the
+ * control.
  */
 export function FieldLabel({ text, required = false, help, helpText, helpLines, htmlFor, id, className, labelClassName, as: Tag = "label", children }: {
   text: string
@@ -37,8 +42,8 @@ export function FieldLabel({ text, required = false, help, helpText, helpLines, 
   const [lead, last] = splitLast(text)
   const hasHelp = Boolean(help || helpText || helpLines)
   const textProps = Tag === "label" && htmlFor ? { htmlFor } : {}
-  return <div className={cn("flex min-h-6 items-center", className)}>
-    <Tag id={id} {...textProps} className={cn("text-sm font-medium leading-5 text-foreground", labelClassName)}>
+  return <div className={cn("min-h-6 text-sm leading-5", className)}>
+    <Tag id={id} {...textProps} className={cn("inline font-medium text-foreground", labelClassName)}>
       {lead}
       <span className="whitespace-nowrap">
         {last}
@@ -46,9 +51,9 @@ export function FieldLabel({ text, required = false, help, helpText, helpLines, 
           <span className="text-destructive" aria-hidden="true">*</span>
           <span className="sr-only">{t("admin.ex.field.required")}</span>
         </>}
-        {hasHelp && <span className="ml-1 inline-flex align-middle"><FieldHelp help={help} text={helpText} lines={helpLines} /></span>}
       </span>
     </Tag>
+    {hasHelp && <>{GLUE}<span className="ml-1 inline-flex align-middle"><FieldHelp help={help} text={helpText} lines={helpLines} /></span></>}
     {children}
   </div>
 }

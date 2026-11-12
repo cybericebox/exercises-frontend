@@ -1,7 +1,6 @@
 /**
  * DeviceCard.test.tsx — type is chosen at creation; configuration shows only applicable fields.
  */
-import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { helpButton } from '@/test/help'
@@ -10,12 +9,17 @@ import { useForm, useWatch, FormProvider, useFormContext } from 'react-hook-form
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 import { DeviceCard } from './DeviceCard'
-import { emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
-import { DEFAULT_EDITOR_POSITION, type EditorPosition } from '@/lib/editorPosition'
-import { EditorPositionProvider } from './EditorPosition'
+import { emptyBootstrap, emptyDraft, emptyDevice, type DraftFormValues, type DeviceFormValues } from '@/lib/exerciseSchemas'
 import { DevicePersistenceProvider } from './DevicePersistenceContext'
 import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from './ResourcesConfigContext'
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
+
+function EnvDeviceHarness() {
+  const device = emptyDevice()
+  device.Name = 'web'
+  device.Bootstrap.Env = [{ Name: 'PUBLIC_URL', Value: 'https://example.com', Secret: false, HasValue: false }]
+  return <Harness device={device} />
+}
 
 function DeviceValues() {
   const { control } = useFormContext<DraftFormValues>()
@@ -41,41 +45,7 @@ function Harness({ device, compact = false, networks = false, vpnDhcp = false, c
   )
 }
 
-function LinkedDeviceHarness() {
-  const draft = emptyDraft()
-  const device = emptyDevice()
-  device.Name = 'web'
-  device.EnvVars = [{ Name: 'PUBLIC_URL', Value: 'https://example.com', Secret: false, HasValue: false }]
-  draft.Variants[0].Topology.Devices = [device]
-  draft.Variants[0].Tasks[0].Name = 'Find the key'
-  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-  draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
-  const form = useForm<DraftFormValues>({ defaultValues: draft })
-  const [position, setPosition] = useState<EditorPosition>({ ...DEFAULT_EDITOR_POSITION, section: 'topology' })
-  function onChange<K extends keyof EditorPosition>(key: K, value: EditorPosition[K]) {
-    setPosition((current) => ({ ...current, [key]: value }))
-  }
-  return <EditorPositionProvider position={position} onChange={onChange}>
-    <FormProvider {...form}>
-      <DeviceCard variantIndex={0} deviceIndex={0} disabled={false} />
-      <output data-testid="editor-position">{JSON.stringify(position)}</output>
-      <DeviceValues />
-    </FormProvider>
-  </EditorPositionProvider>
-}
-
 describe('DeviceCard', () => {
-  it('shows a task-owned flag binding without a second editable variable and opens that task', () => {
-    render(<LinkedDeviceHarness />)
-    fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
-    expect(screen.getByDisplayValue('PUBLIC_URL')).toBeInTheDocument()
-    expect(screen.getByText('FLAG')).toBeInTheDocument()
-    expect(screen.getByText('Find the key')).toBeInTheDocument()
-    expect(document.querySelectorAll('input[name="Variants.0.Topology.Devices.0.EnvVars.0.Name"]')).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: /Find the key/ }))
-    expect(screen.getByTestId('editor-position')).toHaveTextContent('"section":"tasks"')
-    expect(screen.getByTestId('editor-position')).toHaveTextContent('"task":0')
-  })
   const values = () => JSON.parse(screen.getByTestId('device-values').textContent || '{}')
 
   const openResources = () => fireEvent.keyDown(screen.getByRole('button', { name: 'admin.exTopo.resources' }), { key: 'ArrowDown' })
@@ -129,13 +99,13 @@ describe('DeviceCard', () => {
   })
 
   it('stops adding environment variables at 64 and shows the limit beside the list when over it', () => {
-    const many = (count: number) => ({ ...emptyDevice(), Name: 'web', EnvVars: Array.from({ length: count }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false })) })
+    const many = (count: number) => ({ ...emptyDevice(), Name: 'web', Bootstrap: { ...emptyBootstrap(), Env: Array.from({ length: count }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false })) } })
     const { unmount } = render(<Harness device={many(64)} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
     const add = screen.getByRole('button', { name: 'admin.exEnv.add' })
     expect(add).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(add)
-    expect(JSON.parse(screen.getByTestId('device-values').textContent!).EnvVars).toHaveLength(64)
+    expect(JSON.parse(screen.getByTestId('device-values').textContent!).Bootstrap.Env).toHaveLength(64)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     unmount()
     render(<Harness device={many(65)} />)
@@ -357,7 +327,7 @@ describe('DeviceCard', () => {
   it('stored secret env var: secret icon toggle is locked until the value is replaced', () => {
     const device = emptyDevice()
     device.Name = 'web'
-    device.EnvVars = [{ Name: 'API_KEY', Value: '', Secret: true, HasValue: true }]
+    device.Bootstrap.Env = [{ Name: 'API_KEY', Value: '', Secret: true, HasValue: true }]
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
 
@@ -381,7 +351,7 @@ describe('DeviceCard', () => {
   it('non-stored secret env var (HasValue=false): secret icon toggles freely', () => {
     const device = emptyDevice()
     device.Name = 'web'
-    device.EnvVars = [{ Name: 'API_KEY', Value: '', Secret: true, HasValue: false }]
+    device.Bootstrap.Env = [{ Name: 'API_KEY', Value: '', Secret: true, HasValue: false }]
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
 
@@ -399,7 +369,7 @@ describe('DeviceCard', () => {
     const device = emptyDevice()
     device.Name = 'web'
     device.Interfaces.push({ ...device.Interfaces[0], Name: 'eth1' })
-    device.EnvVars = [
+    device.Bootstrap.Env = [
       { Name: 'FIRST', Value: '1', Secret: false, HasValue: false },
       { Name: 'SECOND', Value: '2', Secret: false, HasValue: false },
     ]
@@ -420,7 +390,7 @@ describe('DeviceCard', () => {
 
   it('keeps the one variable delete action next to its list entry, not below its fields', () => {
     const device = emptyDevice()
-    device.EnvVars = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
+    device.Bootstrap.Env = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
     render(<Harness device={device} />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
     expect(screen.getByRole('button', { name: 'admin.exEnv.remove' }).closest('[data-env-row]')).toBeInTheDocument()
@@ -428,7 +398,7 @@ describe('DeviceCard', () => {
 
   it('shows every environment variable as a name, value, secret and delete card', () => {
     const device = emptyDevice()
-    device.EnvVars = [
+    device.Bootstrap.Env = [
       { Name: 'FIRST', Value: 'one', Secret: false, HasValue: false },
       { Name: 'SECOND', Value: 'two', Secret: true, HasValue: false },
     ]
@@ -449,7 +419,7 @@ describe('DeviceCard', () => {
 
   it('groups each variable without a redundant heading or empty error gaps', () => {
     const device = emptyDevice()
-    device.EnvVars = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
+    device.Bootstrap.Env = [{ Name: 'DB_PASS', Value: '', Secret: false, HasValue: false }]
     render(<Harness device={device} compact />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
     const card = document.querySelector('[data-env-row]')!
@@ -502,14 +472,14 @@ describe('DeviceCard', () => {
     expect(screen.getAllByRole('tab', { name: /^eth/ })).toHaveLength(4)
   })
 
-  it('imports dotenv entries as secrets, skipping device duplicates and task flag names', async () => {
-    render(<LinkedDeviceHarness />)
+  it('imports dotenv entries as secrets, skipping device duplicates', async () => {
+    render(<EnvDeviceHarness />)
     fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
-    const file = new File(['PUBLIC_URL=wrong\nFLAG=wrong\nDB_PASS=correct'], 'device.env', { type: 'text/plain' })
-    Object.defineProperty(file, 'text', { value: async () => 'PUBLIC_URL=wrong\nFLAG=wrong\nDB_PASS=correct' })
+    const file = new File(['PUBLIC_URL=wrong\nDB_PASS=correct'], 'device.env', { type: 'text/plain' })
+    Object.defineProperty(file, 'text', { value: async () => 'PUBLIC_URL=wrong\nDB_PASS=correct' })
     fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [file] } })
     await waitFor(() => expect(screen.getByTestId('device-values')).toHaveTextContent('DB_PASS'))
-    const entries = JSON.parse(screen.getByTestId('device-values').textContent || '{}').EnvVars
+    const entries = JSON.parse(screen.getByTestId('device-values').textContent || '{}').Bootstrap.Env
     expect(entries).toHaveLength(2)
     expect(entries[0].Value).toBe('https://example.com')
     expect(entries[1]).toEqual({ Name: 'DB_PASS', Value: 'correct', Secret: true, HasValue: false })
@@ -519,7 +489,7 @@ describe('DeviceCard', () => {
   it('takes the import result off the screen by itself', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
-      render(<LinkedDeviceHarness />)
+      render(<EnvDeviceHarness />)
       fireEvent.click(screen.getByRole('button', { name: 'admin.exEnv.title' }))
       const file = new File(['DB_PASS=correct'], 'device.env', { type: 'text/plain' })
       Object.defineProperty(file, 'text', { value: async () => 'DB_PASS=correct' })

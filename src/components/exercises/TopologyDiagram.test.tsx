@@ -7,22 +7,23 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { TopologyDiagram } from './TopologyDiagram'
-import type { TopologyFormValues } from '@/lib/exerciseSchemas'
+import { emptyAccess, type TopologyFormValues } from '@/lib/exerciseSchemas'
 
 const topology: TopologyFormValues = {
+  Variables: [],
   VPN: { Enabled: true, DHCP: true },
   Internet: { Enabled: false, DHCP: false },
   Devices: [
     {
-      ID: 'd1', Name: 'web', Type: 'container', SecurityPreset: '', Image: 'nginx',
+      ID: 'd1', Name: 'web', Type: 'node', SecurityPreset: '', Image: 'nginx',
       ResourcePreset: "",
       Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] } }],
-      EnvVars: [], External: { Enabled: false, Port: 80, Protocol: 'http' },
+      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
     },
     {
       ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '',
       ResourcePreset: "",
-      Interfaces: [], EnvVars: [], External: { Enabled: false, Port: 80, Protocol: 'http' },
+      Interfaces: [], Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
     },
   ],
   Connections: [
@@ -34,7 +35,7 @@ const topology: TopologyFormValues = {
 
 describe('TopologyDiagram', () => {
   it('marks only devices with external web access with a badge', () => {
-    const exposed = { ...topology, Devices: [{ ...topology.Devices[0], External: { Enabled: true, Port: 80, Protocol: 'http' as const } }, topology.Devices[1]] }
+    const exposed = { ...topology, Devices: [{ ...topology.Devices[0], Access: [emptyAccess('http')] }, topology.Devices[1]] }
     const { container } = render(<TopologyDiagram topology={exposed} />)
     expect(container.querySelector('[data-testid="node-d1"] [data-external-badge]')).toHaveAttribute('aria-label', 'admin.exTopo.externalAccess')
     expect(container.querySelector('[data-testid="node-d2"] [data-external-badge]')).toBeNull()
@@ -438,6 +439,7 @@ describe('TopologyDiagram', () => {
 
   it('renders without crashing for an empty topology', () => {
     const empty: TopologyFormValues = {
+      Variables: [],
       VPN: { Enabled: false, DHCP: false },
       Internet: { Enabled: false, DHCP: false },
       Devices: [],
@@ -520,7 +522,7 @@ describe('TopologyDiagram', () => {
     fireEvent.contextMenu(svg, { clientX: 250, clientY: 220 })
     expect(screen.getByRole('menu', { name: 'admin.exTopo.diagram' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.type.container' }))
-    expect(onCanvasAddNode).toHaveBeenCalledWith('container', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
+    expect(onCanvasAddNode).toHaveBeenCalledWith('node', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
     fireEvent.contextMenu(screen.getByTestId('node-d1'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.addConnection' }))
     expect(onNodeLinkStart).toHaveBeenCalledWith('d1')
@@ -806,7 +808,7 @@ describe('TopologyDiagram', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.exTopo.zoomIn' }))
     fireEvent.contextMenu(svg, { clientX: 200, clientY: 200 })
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.type.container' }))
-    expect(onCanvasAddNode).toHaveBeenCalledWith('container', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
+    expect(onCanvasAddNode).toHaveBeenCalledWith('node', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
     expect(onCanvasAddNode.mock.calls[0][1].x).toBeCloseTo(256 / 960, 3)
   })
 

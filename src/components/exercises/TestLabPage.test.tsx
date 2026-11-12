@@ -43,7 +43,7 @@ const variable = (name: string) => ({ type: "variable", varName: name, formats: 
 const doc = (...children: unknown[]) => ({ root: { type: "root", version: 1, children: [{ type: "paragraph", version: 1, children }] } })
 
 const login = {
-  ID: "t1", Name: "Login", Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "",
+  ID: "t1", Name: "Login", Difficulty: "easy" as const, Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } },
   Description: doc(text("Scan "), variable("net"), text(" then open "), variable("site"), text(" or "), variable("panel")),
   Attachments: [{ FileID: "f1", Name: "notes.pdf" }],
   Placeholders: [
@@ -60,11 +60,12 @@ const second = { ...login, ID: "t2", Name: "Escalate", Description: doc(text("Se
 const version: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [
-    { ID: "v0", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [], Connections: [], VisualRender: null } },
-    { ID: "v1", Index: 2, Note: "", Weight: 1, LinkedTo: "", Tasks: [login, second], Topology: { VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Connections: [], VisualRender: null,
-      Devices: [{ ID: "dev-web", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1", ResourcePreset: "max",
+    { ID: "v0", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [], Topology: { Variables: [], VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [], Connections: [], VisualRender: null } },
+    { ID: "v1", Index: 2, Note: "", Weight: 1, LinkedTo: "", Tasks: [login, second], Topology: { Variables: [], VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Connections: [], VisualRender: null,
+      Devices: [{ ID: "dev-web", Name: "web", Type: "node", Profile: "container", SecurityPreset: "", Image: "secret/image:1", ResourcePreset: "max",
         Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
-        EnvVars: [{ Name: "K", Value: "topsecret", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" } }] } },
+        Access: [{ Kind: "http", Port: 443, Protocol: "https" }], Command: [], Args: [], System: "linux", Hardware: "fast",
+        Bootstrap: { Timeout: "", Env: [{ Name: "K", Value: "topsecret", Secret: false, HasValue: true }], Files: [], Script: "", Interpreter: "" } }] } },
   ],
 }
 const inHours = (h: number) => new Date(Date.now() + h * 3600_000 + 5000).toISOString()
@@ -817,7 +818,7 @@ describe("TestLabPage — static test", () => {
   })
 
   it("does not note a task that has an answer", async () => {
-    vi.mocked(getVersion).mockResolvedValue({ ...version, Variants: [version.Variants[0], { ...version.Variants[1], Tasks: [{ ...login, Flag: ["ICE{x}"] }, second] }] })
+    vi.mocked(getVersion).mockResolvedValue({ ...version, Variants: [version.Variants[0], { ...version.Variants[1], Tasks: [{ ...login, Check: { Answer: { Type: "flag" as const, Values: ["ICE{x}"] } } }, second] }] })
     render(<TestLabPage exerciseId="ex-1" initial={started} />)
     await screen.findByRole("heading", { name: "Login" })
     expect(screen.queryByRole("note")).not.toBeInTheDocument()

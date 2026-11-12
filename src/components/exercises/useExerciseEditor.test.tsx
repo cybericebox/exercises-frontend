@@ -20,7 +20,8 @@ import { createExercise, getExercise, updateExercise } from "@/api/exercises/cat
 import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
-import { emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyBootstrap, emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { normalizedDevice } from "@/test/editorFixtures"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
@@ -40,8 +41,8 @@ const created: Exercise = { ...exercise, ID: "new-exercise", Name: "Buffer overf
 const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
-    Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
-    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } }, Attachments: [], Placeholders: [], Hints: [] }],
+    Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 
 let latest: ExerciseEditor
@@ -325,10 +326,10 @@ describe("useExerciseEditor", () => {
 
   it("turns a typed secret into a stored one after the save: its group comes from the answer, nothing else changes, no second save", async () => {
     const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Image: "web:1",
-      EnvVars: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }
+      Bootstrap: { ...emptyBootstrap(), Env: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] } }
     const stored = structuredClone(serverVersion)
-    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null,
-      EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }]
+    stored.Variants[0].Topology.Devices = [normalizedDevice({ ID: "dev-1", Name: "web", Image: "web:1",
+      Bootstrap: { Timeout: "", Files: [], Script: "", Interpreter: "", Env: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] } })]
     mockSaveDraft.mockResolvedValue(stored)
     render(<Harness />)
     act(() => {
@@ -338,8 +339,8 @@ describe("useExerciseEditor", () => {
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].EnvVars?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
-    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars")).toEqual([
+    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].Bootstrap?.Env?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env")).toEqual([
       { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
       { Name: "MODE", Value: "ctf", Secret: false, HasValue: false },
     ])
@@ -352,17 +353,17 @@ describe("useExerciseEditor", () => {
   it("keeps a secret typed further while the save was in flight", async () => {
     let resolveSave: (value: Version) => void = () => undefined
     mockSaveDraft.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve }))
-    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", EnvVars: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] }
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] } }
     const stored = structuredClone(serverVersion)
-    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null, EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] }]
+    stored.Variants[0].Topology.Devices = [normalizedDevice({ ID: "dev-1", Name: "web", Bootstrap: { Timeout: "", Files: [], Script: "", Interpreter: "", Env: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] } })]
     render(<Harness />)
     act(() => latest.draftForm.setValue("Variants.0.Topology.Devices", [device]))
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.EnvVars.0.Value", "s3cret"))
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value", "s3cret"))
     await act(async () => { resolveSave(stored) })
-    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
   })
 
   it("adopts nothing when a task is added to the form while the save is still in flight", async () => {
@@ -395,7 +396,7 @@ describe("useExerciseEditor", () => {
     const onPendingRestored = vi.fn()
     render(<Harness exerciseId="ex-1" onPendingRestored={onPendingRestored} />)
     expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
-    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Flag")).toEqual(["ICE{server}"])
+    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Check.Answer.Values")).toEqual(["ICE{server}"])
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
     expect(onPendingRestored).toHaveBeenCalled()
     // The restore is queued by a passive effect that can run after the inputs commit;
@@ -404,7 +405,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { await latest.autosave.flush() })
     expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] })
     expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({
-      Variants: [expect.objectContaining({ Tasks: [expect.objectContaining({ Name: "Edited offline", Flag: ["ICE{server}"] })] })],
+      Variants: [expect.objectContaining({ Tasks: [expect.objectContaining({ Name: "Edited offline", Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } } })] })],
     }))
   })
 

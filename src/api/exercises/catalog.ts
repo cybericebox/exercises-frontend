@@ -43,6 +43,8 @@ export type ExerciseOwnership = {
   OriginEventID: string | null
   ForkedFrom: ForkedFrom | null
   Infrastructure: boolean
+  /** Some device of the published version has a browser console (access kind «terminal»): not meant for events. */
+  UsesConsole: boolean
   /** An approved resource elevation: the task is marked «ресурсоємне». */
   ResourceHeavy: boolean
   PendingProposalID: string | null
@@ -192,6 +194,7 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
     OriginEventID: raw.OriginEventID ?? null,
     ForkedFrom: raw.ForkedFrom ?? null,
     Infrastructure: raw.Infrastructure ?? false,
+    UsesConsole: raw.UsesConsole ?? false,
     ResourceHeavy: raw.ResourceHeavy ?? false,
     PendingProposalID: raw.PendingProposalID ?? null,
     Permissions: raw.Permissions ?? null,

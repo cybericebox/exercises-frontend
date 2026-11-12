@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { emptyVariant, emptyDevice, type VariantFormValues } from "./exerciseSchemas"
+import { emptyVariant, emptyDevice, emptyTask, emptyCheck, emptyCondition, type VariantFormValues } from "./exerciseSchemas"
 import { duplicateVariantGroups } from "./duplicateVariants"
 const variants = () => {
- const a = emptyVariant(1); a.ID = "v1"; a.Tasks[0].ID = "t1"; a.Tasks[0].Flag = ["ICE{a}"]
+ const a = emptyVariant(1); a.ID = "v1"; a.Tasks[0].ID = "t1"; a.Tasks[0].Check.Answer.Values = ["ICE{a}"]
  const device = emptyDevice(); device.ID = "d1"; device.Name = "web"; a.Topology.Devices = [device]
- a.Tasks[0].LinkedDeviceID = "d1"
- const b = structuredClone(a); b.ID = "v2"; b.Index = 2; b.Tasks[0].ID = "t2"; b.Tasks[0].Flag = ["ICE{b}"]
- b.Topology.Devices[0].ID = "d2"; b.Tasks[0].LinkedDeviceID = "d2"
+ // A state task points at the device by id: the signature maps ids to positions.
+ a.Tasks.push({ ...emptyTask(), Name: "Check", Check: { ...emptyCheck("state"), Kind: "state", State: { Mode: "once", Interval: "", Manual: false, Conditions: [emptyCondition("file", "d1")] } } })
+ const b = structuredClone(a); b.ID = "v2"; b.Index = 2; b.Tasks[0].ID = "t2"; b.Tasks[0].Check.Answer.Values = ["ICE{b}"]
+ b.Topology.Devices[0].ID = "d2"; b.Tasks[1].Check.State.Conditions[0].DeviceID = "d2"
  return [a, b]
 }
 describe("advisory duplicate variants", () => {
@@ -32,7 +33,7 @@ describe("advisory duplicate variants", () => {
   values[0].Tasks[0].Attachments = [{ FileID: "one", Name: "same.bin" }]
   values[1].Tasks[0].Attachments = [{ FileID: "two", Name: "same.bin" }]
   expect(duplicateVariantGroups(values)).toEqual([])
-  values.forEach(v => { v.Tasks[0].Attachments = []; v.Topology.Devices[0].EnvVars = [{ Name: "SECRET", Secret: true, Value: "", HasValue: true }] })
+  values.forEach(v => { v.Tasks[0].Attachments = []; v.Topology.Devices[0].Bootstrap.Env = [{ Name: "SECRET", Secret: true, Value: "", HasValue: true }] })
   expect(duplicateVariantGroups(values)).toEqual([])
  })
  it("compares files by their content hash when the server sends it, else by id", () => {
@@ -51,23 +52,23 @@ describe("advisory duplicate variants", () => {
  it("compares stored secrets by their value group", () => {
   const values = variants()
   const secret = (group?: number, value = "") => [{ Name: "SECRET", Secret: true, Value: value, HasValue: true, ...(group ? { ValueGroup: group } : {}) }]
-  values[0].Topology.Devices[0].EnvVars = secret(1); values[1].Topology.Devices[0].EnvVars = secret(1)
+  values[0].Topology.Devices[0].Bootstrap.Env = secret(1); values[1].Topology.Devices[0].Bootstrap.Env = secret(1)
   expect(duplicateVariantGroups(values)).toEqual([[0, 1]])
-  values[1].Topology.Devices[0].EnvVars = secret(2)
+  values[1].Topology.Devices[0].Bootstrap.Env = secret(2)
   expect(duplicateVariantGroups(values)).toEqual([])
   // An older server (or no stored value) sends no group: no match, as before.
-  values[1].Topology.Devices[0].EnvVars = secret()
+  values[1].Topology.Devices[0].Bootstrap.Env = secret()
   expect(duplicateVariantGroups(values)).toEqual([])
   // A secret typed here (not saved) is not comparable, even when its group matched.
-  values[1].Topology.Devices[0].EnvVars = secret(1, "typed")
+  values[1].Topology.Devices[0].Bootstrap.Env = secret(1, "typed")
   expect(duplicateVariantGroups(values)).toEqual([])
  })
  it("compares plain values by the value itself, local edits included", () => {
   const values = variants()
-  values[0].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
-  values[1].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
+  values[0].Topology.Devices[0].Bootstrap.Env = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
+  values[1].Topology.Devices[0].Bootstrap.Env = [{ Name: "MODE", Secret: false, Value: "ctf", HasValue: false }]
   expect(duplicateVariantGroups(values)).toEqual([[0, 1]])
-  values[1].Topology.Devices[0].EnvVars = [{ Name: "MODE", Secret: false, Value: "edited", HasValue: false }]
+  values[1].Topology.Devices[0].Bootstrap.Env = [{ Name: "MODE", Secret: false, Value: "edited", HasValue: false }]
   expect(duplicateVariantGroups(values)).toEqual([])
  })
  it("normalizes placeholder keys only where their schema references them", () => {
@@ -81,7 +82,7 @@ describe("advisory duplicate variants", () => {
   expect(duplicateVariantGroups(values)).toEqual([])
  })
  it("rejects dangling device references rather than treating them as equal", () => {
-  const values = variants(); values.forEach(v => { v.Tasks[0].LinkedDeviceID = "missing" })
+  const values = variants(); values.forEach(v => { v.Tasks[1].Check.State.Conditions[0].DeviceID = "missing" })
   expect(duplicateVariantGroups(values)).toEqual([])
  })
 })

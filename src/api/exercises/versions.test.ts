@@ -127,7 +127,7 @@ describe('normalizeVariant', () => {
       Topology: {
         VPN: { Enabled: true, DHCP: true },
         Internet: { Enabled: false, DHCP: false },
-        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'container' }],
+        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'node' }],
         Connections: [{ Endpoints: [{ Kind: 'vpn', Interface: 'eth0' }, { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' }] }],
       },
     }
@@ -138,9 +138,9 @@ describe('normalizeVariant', () => {
       Name: 'Find the flag',
       Description: null,
       Difficulty: 'easy',
-      Flag: [],
-      LinkedDeviceID: '',
-      DeviceFlagVar: '',
+      Key: '',
+      Requires: [],
+      Check: {},
       Attachments: [],
       Placeholders: [],
       Hints: [],
@@ -148,12 +148,11 @@ describe('normalizeVariant', () => {
     expect(v.Topology.Devices[0]).toEqual({
       ID: DEV_ID,
       Name: 'web',
-      Type: 'container',
+      Type: 'node',
       SecurityPreset: '',
       Image: '', ResourcePreset: '',
       Interfaces: [],
-      EnvVars: [],
-      External: null, Persistence: null, WaitReadyFile: false,
+      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false,
     })
     expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'vpn', DeviceID: '', Interface: 'eth0' })
     expect(v.Topology.Connections[0].Endpoints[1]).toEqual({ Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' })
@@ -167,14 +166,14 @@ describe('normalizeVariant', () => {
         VPN: { Enabled: false, DHCP: false },
         Internet: { Enabled: false, DHCP: false },
         Devices: [{
-          ID: DEV_ID, Name: 'db', Type: 'container',
-          EnvVars: [{ Name: 'DB_PASS', Secret: true, HasValue: true }],
+          ID: DEV_ID, Name: 'db', Type: 'node',
+          Bootstrap: { Env: [{ Name: 'DB_PASS', Secret: true, HasValue: true }] },
         }],
         Connections: [],
       },
     }
     const v = normalizeVariant(raw)
-    expect(v.Topology.Devices[0].EnvVars[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
+    expect(v.Topology.Devices[0].Bootstrap.Env[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
   })
 
   it('reads WaitReadyFile and defaults an old device to off', () => {
@@ -185,8 +184,8 @@ describe('normalizeVariant', () => {
         VPN: { Enabled: false, DHCP: false },
         Internet: { Enabled: false, DHCP: false },
         Devices: [
-          { ID: DEV_ID, Name: 'web', Type: 'container', WaitReadyFile: true },
-          { ID: DEV_ID, Name: 'old', Type: 'container' },
+          { ID: DEV_ID, Name: 'web', Type: 'node', WaitReadyFile: true },
+          { ID: DEV_ID, Name: 'old', Type: 'node' },
         ],
         Connections: [],
       },

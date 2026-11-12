@@ -35,6 +35,7 @@ import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { toDraftFormValues } from "@/lib/exerciseSchemas"
 import Page from "./page"
+import { normalizedDevice } from "@/test/editorFixtures"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const ALL = ["exercises.read", "exercises.write", "exercises.publish", "exercises.delete", "exercises.export"]
@@ -43,16 +44,13 @@ const exercise: Exercise = {
   ID: "ex-1", Name: "Web 101", Description: "", Tags: [], DraftVersionID: "draft-1", PublishedVersionID: "pub-1",
   ArchivedAt: null, HasChanges: true, CreatedAt: "2026-09-01T10:00:00Z", CreatedBy: null, UpdatedAt: "2026-09-20T10:00:00Z", UpdatedBy: null,
 }
-const task = { ID: "task-1", Name: "Find the flag", Description: { root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Find the flag in the lab." }] }] } }, Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }
-const device = {
-  ID: "dev-1", Name: "web", Type: "container" as const, SecurityPreset: "" as const, Image: "nginx",
-  ResourcePreset: "", Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }, Interfaces: [], EnvVars: [], External: null,
-}
+const task = { ID: "task-1", Name: "Find the flag", Description: { root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Find the flag in the lab." }] }] } }, Difficulty: "easy" as const, Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } }, Attachments: [], Placeholders: [], Hints: [] }
+const device = normalizedDevice({ ID: "dev-1", Name: "web", Image: "nginx" })
 
 const workingCopy: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "2026-09-20T10:00:00Z", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [task],
-    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 const withDevice: Version = {
   ...workingCopy,
@@ -121,7 +119,8 @@ describe("exercise page — modes", () => {
     }
     openMore()
     expect(await screen.findByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
-    expect(screen.getAllByRole("group")).toHaveLength(1)
+    // The versions group and the document of the current state.
+    expect(screen.getAllByRole("group")).toHaveLength(2)
   })
 
   it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
@@ -183,7 +182,7 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Description: null }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })).toBeInTheDocument()
     expect(publishDraft).not.toHaveBeenCalled()
   })
 
@@ -191,8 +190,11 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Name: "" }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
     expect(publishDraft).not.toHaveBeenCalled()
+    // «Перейти» opens the subtask and closes the list.
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
+    expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
   })
 
@@ -284,8 +286,8 @@ describe("exercise page — publishing and history", () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     const test = await screen.findByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
-    fireEvent.keyDown(test, { key: "ArrowDown" })
-    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).not.toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(test)
+    expect(await screen.findByRole("button", { name: "admin.exDraft.variantN" })).toBeEnabled()
   })
 
   it("disables a lab variant when the platform infrastructure is not connected", async () => {
@@ -297,8 +299,8 @@ describe("exercise page — publishing and history", () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     const test = screen.getByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
-    fireEvent.keyDown(test, { key: "ArrowDown" })
-    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(test)
+    expect(await screen.findByRole("button", { name: "admin.exDraft.variantN" })).toBeDisabled()
   })
 
   it("tests the authoritative draft produced by a metadata-only PATCH after flush", async () => {
@@ -307,8 +309,8 @@ describe("exercise page — publishing and history", () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name:"admin.exPage.action.edit" }))
     fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"Web 103" } })
-    fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.test" }), { key:"ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name:"admin.exDraft.variantN" }))
+    fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.test" }))
+    fireEvent.click(await screen.findByRole("button", { name:"admin.exDraft.variantN" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1"))
     expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] })
     expect(saveDraft).not.toHaveBeenCalled()
@@ -317,8 +319,8 @@ describe("exercise page — publishing and history", () => {
   it("opens the testing page for the chosen variant from the header", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
-    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exDraft.variantN" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
   })
 })
@@ -327,8 +329,8 @@ describe("exercise page — one test lab per user", () => {
   async function pickVariant() {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
-    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exDraft.variantN" }))
   }
 
   it("offers the user's running test of another exercise instead of starting a second", async () => {

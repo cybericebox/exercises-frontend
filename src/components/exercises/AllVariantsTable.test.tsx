@@ -7,10 +7,11 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 
 import { AllVariantsTable } from "./AllVariantsTable"
 import { emptyDraft, emptyTask, emptyVariant, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { formTask } from "@/test/editorFixtures"
 
 function draft(): DraftFormValues {
   const value = emptyDraft()
-  const tasks = (flags: string[][], files = 0) => flags.map((flag, index) => ({ ...emptyTask(), ID: `t${index}`, Name: `Task ${index + 1}`, Difficulty: "easy" as const, Flag: flag,
+  const tasks = (flags: string[][], files = 0) => flags.map((flag, index) => ({ ...emptyTask(), ID: `t${index}`, Name: `Task ${index + 1}`, Difficulty: "easy" as const, Check: formTask({ flag: flag }).Check,
     Attachments: index === 0 ? Array.from({ length: files }, (_, n) => ({ FileID: `f${n}`, Name: `file${n}.pcap` })) : [] }))
   value.Variants = [
     { ...emptyVariant(1), ID: "a", Note: "Base", Tasks: tasks([["ICE{a1}"], ["template:ICE{\\d}"]], 2) },
@@ -21,7 +22,7 @@ function draft(): DraftFormValues {
 
 function Harness({ onOpen = vi.fn() }: { onOpen?: (index: number) => void }) {
   const form = useForm<DraftFormValues>({ defaultValues: draft() })
-  const flags = useWatch({ control: form.control, name: "Variants.1.Tasks.0.Flag" })
+  const flags = useWatch({ control: form.control, name: "Variants.1.Tasks.0.Check.Answer.Values" })
   const weights = useWatch({ control: form.control, name: "Variants" }).map((variant) => variant.Weight)
   return <>
     <AllVariantsTable form={form} disabled={false} onOpen={onOpen} />
@@ -139,7 +140,7 @@ describe("AllVariantsTable", () => {
 function SimplifyHarness({ disabled = false, actions }: { disabled?: boolean; actions?: ReactNode }) {
   const [defaults] = useState(() => {
     const value = emptyDraft()
-    const make = (id: string, flag: string) => ({ ...emptyVariant(1), ID: id, Tasks: [{ ...emptyTask(), ID: "t1", Name: "Scan", Flag: [flag] }] })
+    const make = (id: string, flag: string) => ({ ...emptyVariant(1), ID: id, Tasks: [{ ...emptyTask(), ID: "t1", Name: "Scan", Check: formTask({ flag: [flag] }).Check }] })
     value.Variants = [make("a", "ICE{a}"), make("b", "ICE{a}"), make("c", "ICE{c}"), make("d", "ICE{a}")]
     return value
   })

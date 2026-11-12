@@ -8,11 +8,12 @@ import { emptyTask, emptyVariant, type DraftFormValues, type VariantFormValues }
 import type { LexicalDoc, Version } from '@/api/exercises/versions'
 import { capturedDraftIds, serverIdUpdates } from '@/lib/serverIdUpdates'
 import { useLinkedVariantSync } from './useLinkedVariantSync'
+import { formTask } from "@/test/editorFixtures"
 
 const doc = (text: string): LexicalDoc => ({ text })
 
 function task(id: string, name: string, flag: string[] = [], description: LexicalDoc | null = null) {
-  return { ...emptyTask(), ID: id, Name: name, Flag: flag, Description: description }
+  return { ...emptyTask(), ID: id, Name: name, Check: formTask({ flag: flag }).Check, Description: description }
 }
 
 function variant(id: string, index: number, tasks: ReturnType<typeof task>[], linkedTo = ''): VariantFormValues {
@@ -43,7 +44,7 @@ describe('useLinkedVariantSync', () => {
     const { result } = setup()
     act(() => result.current.setValue('Variants.0.Tasks.0.Description', doc('new base text'), { shouldDirty: true }))
     expect(result.current.getValues('Variants.1.Tasks.0.Description')).toEqual(doc('new base text'))
-    expect(result.current.getValues('Variants.1.Tasks.0.Flag')).toEqual(['ICE{own}'])
+    expect(result.current.getValues('Variants.1.Tasks.0.Check.Answer.Values')).toEqual(['ICE{own}'])
     expect(result.current.getValues('Variants.1.LinkedTo')).toBe('base')
   })
 
@@ -56,8 +57,8 @@ describe('useLinkedVariantSync', () => {
     const tasks = result.current.getValues('Variants.1.Tasks')
     expect(tasks).toHaveLength(2)
     expect(tasks[1].Name).toBe('Exploit')
-    expect(tasks[1].Flag).toEqual([])
-    expect(tasks[0].Flag).toEqual(['ICE{own}'])
+    expect(tasks[1].Check.Answer.Values).toEqual([])
+    expect(tasks[0].Check.Answer.Values).toEqual(['ICE{own}'])
   })
 
   it('does not touch independent variants', () => {
@@ -90,7 +91,7 @@ describe('useLinkedVariantSync', () => {
       ...result.current.form.getValues('Variants.0.Tasks'),
       task('', 'Exploit', ['ICE{base2}'], doc('second')),
     ], { shouldDirty: true }))
-    act(() => result.current.form.setValue('Variants.1.Tasks.1.Flag', ['ICE{own2}'], { shouldDirty: true }))
+    act(() => result.current.form.setValue('Variants.1.Tasks.1.Check.Answer.Values', ['ICE{own2}'], { shouldDirty: true }))
     const mountedIds = result.current.linkedTasks.fields.map((field) => field.id)
     const sent = capturedDraftIds(result.current.form.getValues())
     // The daemon deep-copies the base: the linked copy gets the same task id.
@@ -101,7 +102,7 @@ describe('useLinkedVariantSync', () => {
       for (const update of serverIdUpdates(sent, saved, result.current.form.getValues())) result.current.form.setValue(update.path, update.value)
     })
     expect(result.current.form.getValues('Variants.1.Tasks.1.ID')).toBe('t2')
-    expect(result.current.form.getValues('Variants.1.Tasks.1.Flag')).toEqual(['ICE{own2}'])
+    expect(result.current.form.getValues('Variants.1.Tasks.1.Check.Answer.Values')).toEqual(['ICE{own2}'])
     expect(result.current.linkedTasks.fields.map((field) => field.id)).toEqual(mountedIds)
   })
 })

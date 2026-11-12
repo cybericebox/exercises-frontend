@@ -61,7 +61,7 @@ export function useEditorValidationFocus() {
     const attempt = () => {
       const target = find() ?? (Date.now() - started > FOCUS_WAIT_MS ? (formRef.current ?? document).querySelector<HTMLElement>('[aria-invalid="true"]') : null)
       if (target) {
-        target.scrollIntoView({ block: "center" })
+        target.scrollIntoView?.({ block: "center" })
         target.focus({ preventScroll: true })
         setRequest(null)
         return

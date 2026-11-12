@@ -42,9 +42,9 @@ const created: Exercise = {
 }
 const savedVersion: Version = {
   ID: "draft-1", ExerciseID: "new-exercise", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
-  Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Flag: [],
-    LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
-    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+  Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "", Description: null, Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } },
+    Attachments: [], Placeholders: [], Hints: [] }],
+    Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 let storage: Map<string, string>
 
@@ -76,7 +76,7 @@ describe("new exercise page", () => {
     expect(screen.queryByRole("button", { name: "admin.exPage.action.more" })).not.toBeInTheDocument()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
     expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveFocus()
-    expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "ed.shell.tab.general", selected: true })).toBeInTheDocument()
   })
 
   it("creates the exercise from a valid name and swaps the address without reloading", async () => {
@@ -109,7 +109,7 @@ describe("new exercise page", () => {
     expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.invalidName")
     expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
     expect(publishDraft).not.toHaveBeenCalled()
-    expect(screen.getByRole("tab", { name: "admin.ex.create.tab.general", selected: true })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "ed.shell.tab.general", selected: true })).toBeInTheDocument()
     expect(document.activeElement).toBe(name)
   })
 
@@ -198,7 +198,7 @@ describe("new exercise page", () => {
     })
 
     it("asks to continue or start new when a draft exists; continue keeps it", async () => {
-      storage.set(KEY, JSON.stringify({ version: 1, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
       render(<NewExercisePage />)
       expect(await screen.findByText("admin.ex.localDraft.confirmTitle")).toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: "admin.ex.localDraft.resume" }))
@@ -207,7 +207,7 @@ describe("new exercise page", () => {
     })
 
     it("start new clears the buffer and opens an empty form", async () => {
-      storage.set(KEY, JSON.stringify({ version: 1, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [] } }] }, updatedAt: 1 }))
       render(<NewExercisePage />)
       fireEvent.click(await screen.findByRole("button", { name: "admin.ex.localDraft.startNew" }))
       expect(await screen.findByLabelText(/admin.ex.field.name/)).toHaveValue("")

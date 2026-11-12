@@ -5,7 +5,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { helpButton } from '@/test/help'
 import { useForm, useWatch, FormProvider } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 vi.mock("@/i18n/tRich", () => import("@/test/tRichMock"))
@@ -25,9 +24,9 @@ vi.mock('@/api/exercises/flagPolicy', () => ({
 
 import { TaskAccordion } from './TaskAccordion'
 import { useLinkedVariantSync } from './useLinkedVariantSync'
-import { draftSchema, emptyDevice, emptyDraft, emptyTask, emptyVariant, type DraftFormValues, type TaskFormValues } from '@/lib/exerciseSchemas'
+import { emptyDraft, emptyTask, emptyVariant, type DraftFormValues, type TaskFormValues } from '@/lib/exerciseSchemas'
 import { uploadExerciseAttachment } from '@/api/exercises/files'
-import { getFlagPolicy } from '@/api/exercises/flagPolicy'
+import { formTask } from "@/test/editorFixtures"
 
 function Harness({ tasks, otherTasks, disabled = false, linked = false }: { tasks: TaskFormValues[]; otherTasks?: TaskFormValues[]; disabled?: boolean; linked?: boolean }) {
   const draft = emptyDraft()
@@ -51,33 +50,6 @@ function Harness({ tasks, otherTasks, disabled = false, linked = false }: { task
 
 function task(name: string): TaskFormValues {
   return { ...emptyTask(), Name: name }
-}
-
-function InvalidFlagLinkHarness() {
-  const draft = emptyDraft()
-  draft.Variants[0].Tasks[0].Name = 'Find the flag'
-  const device = emptyDevice()
-  device.Name = 'web'
-  draft.Variants[0].Topology.Devices.push(device)
-  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-  const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
-  return <FormProvider {...form}>
-    <TaskAccordion variantIndex={0} disabled={false} linked={false} />
-    <button type="button" onClick={() => { void form.trigger() }}>Validate draft</button>
-  </FormProvider>
-}
-
-function NamedDeviceHarness() {
-  const draft = emptyDraft()
-  draft.Variants[0].Tasks[0].Name = 'Find the flag'
-  const device = emptyDevice()
-  device.ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-  device.Name = 'web-01'
-  draft.Variants[0].Topology.Devices.push(device)
-  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-  draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
-  const form = useForm<DraftFormValues>({ defaultValues: draft })
-  return <FormProvider {...form}><TaskAccordion variantIndex={0} disabled={false} linked={false} /></FormProvider>
 }
 
 describe('TaskAccordion', () => {
@@ -137,34 +109,7 @@ describe('TaskAccordion', () => {
     expect(screen.getByTestId('variant-tasks')).toHaveTextContent('[["first","second"],["alternate","alternate second"]]')
   })
 
-  it('shows a missing linked-device error without erasing entered flags', () => {
-    const linked = task('linked')
-    linked.LinkedDeviceID = 'removed-container-id'
-    linked.Flag = ['ICE{retained}']
-    render(<Harness tasks={[linked]} />)
-    expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable')).toBeInTheDocument()
-    const fields = screen.getByTestId('flag-delivery-fields')
-    expect(fields).toHaveClass('subtask-flag-delivery')
-    expect(screen.getByText('admin.ex.val.linkedDeviceUnavailable').closest('[data-testid="flag-device-field"]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { description: 'admin.exPh.missing' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /admin.exTask.deviceFlagVar/ })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('ICE{retained}')).toBeInTheDocument()
-  })
 
-  it('names a linked container by its name', () => {
-    render(<NamedDeviceHarness />)
-    expect(screen.getByRole('button', { description: 'web-01' })).toBeInTheDocument()
-  })
-
-  it('does not invent a generation policy while unavailable and allows retry', async () => {
-    vi.mocked(getFlagPolicy).mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce({ RandomHexLength: 12, RandomBits: 48, WarningBits: 18 })
-    render(<NamedDeviceHarness />)
-    expect(await screen.findByText('admin.exTask.flag.policyUnavailable')).toBeInTheDocument()
-    expect(screen.queryByText('admin.exTask.flag.randomExampleLine')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'error.load.retry' }))
-    expect(await screen.findByText(/ICE\{0{12}\}/)).toBeInTheDocument()
-  })
 
   it('drops a file onto the files block of the selected stage rather than its neighbor', async () => {
     vi.mocked(uploadExerciseAttachment).mockResolvedValueOnce({ FileID: 'file-2', Name: 'image.png', Size: 1 })
@@ -217,15 +162,10 @@ describe('TaskAccordion', () => {
     expect(screen.queryByDisplayValue('first')).not.toBeInTheDocument()
   })
 
-  it('shows the flag-variable validation error beside the linked device fields', async () => {
-    render(<InvalidFlagLinkHarness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Validate draft' }))
-    expect(await screen.findByText('admin.ex.val.deviceFlagVarRequired')).toBeInTheDocument()
-  })
 })
 
 function LinkedOrderHarness() {
-  const stage = (id: string, flag: string): TaskFormValues => ({ ...emptyTask(), ID: id, Name: id, Flag: [flag] })
+  const stage = (id: string, flag: string): TaskFormValues => (formTask({ ID: id, Name: id, flag: [flag] }))
   const form = useForm<DraftFormValues>({
     defaultValues: {
       AdminNote: '',
@@ -240,7 +180,7 @@ function LinkedOrderHarness() {
   const variants = useWatch({ control: form.control, name: 'Variants' })
   return <FormProvider {...form}>
     <TaskAccordion variantIndex={2} disabled={false} linked={false} />
-    <output data-testid="linked-order">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => `${item.ID}:${item.Flag.join(',')}`)))}</output>
+    <output data-testid="linked-order">{JSON.stringify(variants.map((variant) => variant.Tasks.map((item) => `${item.ID}:${item.Check.Answer.Values.join(',')}`)))}</output>
   </FormProvider>
 }
 

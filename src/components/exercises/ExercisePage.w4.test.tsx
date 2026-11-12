@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { ExerciseAccess } from "@/api/exercises/access"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
@@ -56,9 +56,9 @@ const base: Exercise = {
 }
 const version: Version = {
   ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z", Resources: null, Elevation: null,
-  Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Flag: [], LinkedDeviceID: "",
-    DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
-  Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+  Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } },
+    Attachments: [], Placeholders: [], Hints: [] }],
+  Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
 }
 const managerAccess: ExerciseAccess = {
   IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: true, CanImport: true,
@@ -160,18 +160,18 @@ describe("exercise editor — W4 rights", () => {
 
   it("disables a device-bearing variant in the test menu with the infrastructure reason when the owner event forbids it", async () => {
     const lab = { ...version.Variants[0], ID: "v2", Index: 2, Topology: { ...version.Variants[0].Topology,
-      Devices: [{ ID: "dev-1", Name: "web", Type: "container", SecurityPreset: "", Image: "i", ResourcePreset: "max", Interfaces: [], EnvVars: [], External: null }] } }
+      Devices: [{ ID: "dev-1", Name: "web", Type: "node", SecurityPreset: "", Image: "i", ResourcePreset: "max", Interfaces: [], Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" } }] } }
     vi.mocked(getDraft).mockResolvedValue({ ...version, ID: "draft-1", Status: "draft", Variants: [version.Variants[0], lab] } as Version)
     vi.mocked(getExercise).mockResolvedValue({ ...base, Scope: "event", OwnerEventID: "ev1", OwnerEventName: "Winter CTF", AccessLevel: "", Permissions: managerRights })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    const items = await screen.findAllByRole("menuitem")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.test" }))
+    const dialog = await screen.findByRole("dialog")
+    const items = within(dialog).getAllByRole("button").filter((button) => /admin\.exDraft\.variantN/.test(button.textContent ?? ""))
     expect(items).toHaveLength(2)
-    expect(items[0]).not.toHaveAttribute("aria-disabled", "true")
-    expect(items[1]).toHaveAttribute("aria-disabled", "true")
-    fireEvent.focus(items[1])
-    expect(items[1]).toHaveAccessibleDescription("exercises.infra.blocked")
+    expect(items[0]).toBeEnabled()
+    expect(items[1]).toBeDisabled()
+    expect(within(dialog).getByText("exercises.infra.blocked")).toBeInTheDocument()
   })
 
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
@@ -232,7 +232,7 @@ describe("new exercise — W4 owner", () => {
 const withPublishedProperties = (network: boolean, heavy: boolean): Version => {
   const totals = { Devices:network ? 1 : 0, Blocks:1, CPUMillicores:1000, MemoryBytes:1073741824 }
   return { ...version, Resources:{ Min:totals, Max:totals, Variants:[], SpreadPercent:0, VariantsDiffer:false, Outside:[], ResourceHeavy:heavy },
-    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], EnvVars:[], External:null }] : [] } }],
+    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"node", Profile:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], Access:[], Command:[], Args:[], System:"linux", Hardware:"fast", Bootstrap:{ Timeout:"", Env:[], Files:[], Script:"", Interpreter:"" } }] : [] } }],
   }
 }
 

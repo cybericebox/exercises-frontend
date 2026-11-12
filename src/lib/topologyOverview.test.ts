@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { emptyDevice, emptyVariant } from "./exerciseSchemas"
 import { FORWARDING_PORTS } from "./topologyPorts"
 import { topologyDeviceRows } from "./topologyOverview"
+import { emptyAccess } from "@/lib/editor/schemas/infra"
 
 function fixture() {
   const topology = emptyVariant(0).Topology
@@ -28,7 +29,7 @@ describe("topologyDeviceRows", () => {
   it("counts only declared container ports and marks network-node exposure inapplicable", () => {
     const topology = fixture()
     topology.Devices[0].Interfaces = []
-    topology.Devices[0].External.Enabled = true
+    topology.Devices[0].Access = [emptyAccess("http")]
     const rows = topologyDeviceRows(topology)
     expect(rows.map((row) => [row.key, row.capacity, row.used, row.free, row.linkCount])).toEqual([
       ["web-id", 0, 0, 0, 0],
