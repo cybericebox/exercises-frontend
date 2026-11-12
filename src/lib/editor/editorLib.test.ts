@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { deliveriesOfTask, deliveryDevices, findRefs, hasSubstitution, knownRefsOf, richTextPlain, unknownRefs } from "./refs"
-import { deviceFieldPath, pascal, taskFieldPath, variantFieldPath } from "./serverFieldPath"
+import { deviceErrorPath, deviceFieldPath, pascal, taskFieldPath, variantFieldPath } from "./serverFieldPath"
 import { draftIssues } from "./issues"
 import { emptyDraft } from "@/lib/exerciseSchemas"
 import { lexical } from "@/dev/fixtures/data"
@@ -94,5 +94,15 @@ describe("answers and variables never reach participants", () => {
     expect(paths).toContain("Variants.0.Tasks.0.Description")
     expect(paths).toContain("Variants.0.Tasks.0.Hints.0.Text")
     expect(paths).toContain("Variants.0.Weight")
+  })
+})
+
+describe("deviceErrorPath", () => {
+  it("puts 23105 (persistence on microvm/vm) at the launch profile field", () => {
+    expect(deviceErrorPath(23105, "persistence")).toEqual(["Profile"])
+  })
+  it("falls back to the field path for other codes", () => {
+    expect(deviceErrorPath(23506, "image")).toEqual(["Image"])
+    expect(deviceErrorPath(23506, "nonsense")).toBeNull()
   })
 })

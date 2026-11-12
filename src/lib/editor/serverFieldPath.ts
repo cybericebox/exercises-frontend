@@ -93,3 +93,15 @@ export function variantFieldPath(field: string): Segment[] | null {
   if (head === "topology" && rest[0] === "vpn" && rest[1] === "reverse_connections") return ["Topology", "VPN", "ReverseConnections"]
   return null
 }
+
+/** Daemon error 23105 (ErrNodeProfilePersistence): persistence asked on a microvm/vm profile. */
+export const ERR_NODE_PROFILE_PERSISTENCE = 23105
+
+/**
+ * Path below a device for an error with a code. Most codes use `field` as is (deviceFieldPath); 23105 names
+ * `persistence`, but that switch does not exist for the profile, so the error sits at the «Профіль запуску» field.
+ */
+export function deviceErrorPath(code: number, field: string): Segment[] | null {
+  if (code === ERR_NODE_PROFILE_PERSISTENCE) return ["Profile"]
+  return deviceFieldPath(field)
+}

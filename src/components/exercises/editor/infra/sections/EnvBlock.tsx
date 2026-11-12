@@ -143,12 +143,12 @@ function EnvRow({ base, variantIndex, index, disabled, onRemove, requestVariable
 
   return <div data-env-row role="group" aria-label={t("ed.c.env.rowN", { n })} className="group min-w-0">
     <div className="grid grid-cols-[minmax(0,1fr)_36px_36px] items-start gap-2 sm:grid-cols-[minmax(140px,240px)_minmax(0,1fr)_36px_36px]">
-      <div className="min-w-0 max-sm:col-span-3">
+      <div className="min-w-0">
         <Controller control={control} name={`${base}.${index}.Name`} render={({ field }) => <Input {...fieldProps(`${base}.${index}.Name`, nameError)} ref={field.ref} value={field.value} onChange={field.onChange} onBlur={field.onBlur}
           disabled={disabled} aria-label={t("ed.c.env.nameN", { n })} placeholder={t("ed.c.ph.envName")} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" />} />
         <FieldError path={`${base}.${index}.Name`} />
       </div>
-      <div className="min-w-0 max-sm:col-span-1">
+      <div className="min-w-0 max-sm:order-last max-sm:col-span-3">
         <Controller control={control} name={`${base}.${index}.Value`} render={({ field }) => secret
           ? <SecretInput {...valueProps} aria-label={t("ed.c.env.valueN", { n })} value={field.value} hasValue={row?.HasValue ?? false} onChange={field.onChange} disabled={disabled} />
           : <RefField {...valueProps} variantIndex={variantIndex} value={field.value} onValueChange={field.onChange} mask disabled={disabled}
