@@ -37,6 +37,21 @@ describe('RichTextEditor', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('keeps the link row open and says why when the address is not a web address', () => {
+    render(<RichTextEditor value={null} onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити посилання' }))
+    const input = screen.getByRole('textbox', { name: 'Вставити посилання' })
+    expect(input).toHaveAttribute('placeholder', 'https://')
+    fireEvent.change(input, { target: { value: 'abc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Додати' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Адреса має починатися з http://, https:// або mailto:.')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(input, { target: { value: 'https://example.com' } })
+    expect(screen.queryByRole('alert')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Додати' }))
+    expect(screen.queryByRole('textbox', { name: 'Вставити посилання' })).toBeNull()
+  })
+
   it('mounts without throwing given null state', () => {
     const onChange = vi.fn()
     expect(() => render(<RichTextEditor value={null} onChange={onChange} />)).not.toThrow()

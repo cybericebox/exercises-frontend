@@ -509,6 +509,7 @@ function ToolbarPlugin({
   const [alignment, setAlignment] = useState<string>("");
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [linkInvalid, setLinkInvalid] = useState(false);
   const [showVarsMenu, setShowVarsMenu] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const varsRef = useRef<HTMLDivElement>(null);
@@ -682,10 +683,16 @@ function ToolbarPlugin({
       return;
     }
     if (linkUrl) {
+      if (!isLinkAddress(linkUrl)) {
+        setLinkInvalid(true);
+        linkInputRef.current?.focus();
+        return;
+      }
       withSavedSelection(() => editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl));
     }
     setShowLinkInput(false);
     setLinkUrl("");
+    setLinkInvalid(false);
   };
 
   const rememberSelection = () => {
@@ -849,13 +856,16 @@ function ToolbarPlugin({
       </div>
 
       {showLinkInput && (
-        <div className="flex gap-2 px-3 py-2 border-t border-input">
+        <div className="border-t border-input px-3 py-2">
+        <div className="flex gap-2">
           <input
             ref={linkInputRef}
             type="url"
             aria-label={t("admin.notif.editor.insertLink")}
+            aria-invalid={linkInvalid}
+            aria-describedby={linkInvalid ? "editor-link-error" : undefined}
             value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
+            onChange={(e) => { setLinkUrl(e.target.value); setLinkInvalid(false); }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -864,6 +874,7 @@ function ToolbarPlugin({
               if (e.key === "Escape") {
                 setShowLinkInput(false);
                 setLinkUrl("");
+                setLinkInvalid(false);
               }
             }}
             placeholder={t("editor.linkPlaceholder")}
@@ -873,6 +884,8 @@ function ToolbarPlugin({
             className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50">
             {t("admin.notif.editor.addLink")}
           </button>
+        </div>
+        {linkInvalid && <p id="editor-link-error" role="alert" className="mt-1 text-xs text-destructive">{t("editor.linkInvalid")}</p>}
         </div>
       )}
     </div>
@@ -1192,6 +1205,15 @@ const editorTheme = {
 // ---------------------------------------------------------------------------
 // RichTextEditor — main exported component
 // ---------------------------------------------------------------------------
+
+/** A link address the editor accepts: a web address or a mail address with its scheme. */
+function isLinkAddress(value: string): boolean {
+  try {
+    return ["http:", "https:", "mailto:"].includes(new URL(value.trim()).protocol);
+  } catch {
+    return false;
+  }
+}
 
 export function RichTextEditor({
   value,

@@ -28,12 +28,11 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
       topology={{ ...unavailable, vpnEnabled: true }} onSave={save} />)
     fireEvent.click(screen.getByRole('button', { name: /^IP-адреса/ }))
-    expect(screen.getByText('Джерело IP')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Джерело IP' })).toHaveTextContent('Підмережа VPN')
-    expect(screen.getByText('Останній октет')).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: /^Останній октет/ })).toBeInTheDocument()
     expect(screen.queryByText('Октети 1–3')).not.toBeInTheDocument()
     expect(screen.queryByText('Пристрій')).not.toBeInTheDocument()
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '42' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^Останній октет/ }), { target: { value: '42' } })
     fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'ip', IPReference: 'vpn', LastOctet: 42, Key: expect.stringMatching(/^ph_/) }))
   })
@@ -85,9 +84,9 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
       topology={{ ...unavailable, vpnEnabled: true }} onSave={save} />)
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '6' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^Останній октет/ }), { target: { value: '6' } })
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeEnabled()
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^Останній октет/ }), { target: { value: '5' } })
     // The same kind selection can supply defaults for fields that are omitted in the request.
     fireEvent.click(screen.getByRole('button', { name: /^IP-адреса/ }))
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
@@ -126,7 +125,7 @@ describe('PlaceholderDialog', () => {
       expect(screen.getByRole('button', { name: 'Схема' })).toHaveTextContent('http')
       fireEvent.change(screen.getByRole('textbox', { name: /^Порт/ }), { target: { value: '8443' } })
       fireEvent.change(screen.getByRole('textbox', { name: /^Шлях/ }), { target: { value: '/admin' } })
-      fireEvent.change(screen.getByRole('spinbutton', { name: 'Останній октет' }), { target: { value: '5' } })
+      fireEvent.change(screen.getByRole('spinbutton', { name: /^Останній октет/ }), { target: { value: '5' } })
       const link = document.querySelector<HTMLAnchorElement>('a[data-placeholder-preview]')!
       expect(link.getAttribute('href')).toBe('http://10.0.0.5:8443/admin')
       expect(link).toHaveAttribute('target', '_blank')

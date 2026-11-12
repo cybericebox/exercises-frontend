@@ -21,6 +21,7 @@ import { answerValueError } from "@/lib/editor/schemas/task"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { cn } from "@/utils/cn"
 import { FieldError, fieldId, fieldProps, useFieldError } from "../fieldErrors"
+import { lowerFirst } from "./taskShared"
 
 /** Elements of a flag template the author can insert at the caret (the grammar of the platform, not regular expressions). */
 const FLAG_PARTS = [
@@ -102,7 +103,7 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
     <div className="flex min-h-6 flex-wrap items-center gap-x-2">
       <FieldLabel as="span" id={`${path}-label`} text={t("ed.b.answer.values")} help={{
         intro: t(type === "flag" ? "ed.b.answer.values.helpFlag" : "ed.b.answer.values.helpText"),
-        items: [{ term: t("ed.b.answer.fixed"), text: t("ed.b.answer.fixedHint") }, { term: t("ed.b.answer.byPattern"), text: t("ed.b.answer.byPatternHint") }],
+        items: [{ term: t("ed.b.answer.fixed"), text: lowerFirst(t("ed.b.answer.fixedHint")) }, { term: t("ed.b.answer.byPattern"), text: lowerFirst(t("ed.b.answer.byPatternHint")) }],
         default: type === "flag" ? t("ed.b.answer.values.defaultFlag") : t("ed.b.answer.values.defaultText"),
       }} />
       {linked && !inherited && <Badge tone="info">{t("ed.b.answer.own")}</Badge>}

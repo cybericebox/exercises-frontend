@@ -21,7 +21,7 @@ import { ConditionFields, withKind } from "./ConditionForm"
 import { conditionSummary } from "./conditionSummary"
 import { KIND_SPEC } from "./conditionSpec"
 import { useLabSupport } from "../labCapabilities"
-import { firstNodeDeviceId } from "./taskShared"
+import { firstNodeDeviceId, lowerFirst } from "./taskShared"
 
 /**
  * «Стан» — the lab checks the devices itself, the participant types nothing. Mode, «Інтервал перевірки» and the manual run
@@ -65,7 +65,7 @@ export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex:
   const listError = get(formState.errors, conditionsPath) as { message?: unknown } | undefined
   return <div className="space-y-4" data-testid="state-pane">
     <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-      <Field className="min-w-48 flex-1" path={modePath} label={t("ed.b.state.mode")} help={{ intro: t("ed.b.state.mode.help"), items: [{ term: t("ed.b.state.once"), text: t("ed.b.state.onceHint") }, { term: t("ed.b.state.continuous"), text: t("ed.b.state.continuousHint") }], default: t("ed.b.state.mode.default") }}>
+      <Field className="min-w-48 flex-1" path={modePath} label={t("ed.b.state.mode")} help={{ intro: t("ed.b.state.mode.help"), items: [{ term: t("ed.b.state.once"), text: lowerFirst(t("ed.b.state.onceHint")) }, { term: t("ed.b.state.continuous"), text: lowerFirst(t("ed.b.state.continuousHint")) }], default: t("ed.b.state.mode.default") }}>
         <ChoiceControl path={modePath} ariaLabel={t("ed.b.state.mode.aria")} disabled={disabled} value={mode ?? "once"}
           options={[{ value: "once", label: t("ed.b.state.once"), description: t("ed.b.state.onceHint") }, { value: "continuous", label: t("ed.b.state.continuous"), description: t("ed.b.state.continuousHint") }]} />
       </Field>
@@ -141,16 +141,16 @@ function ConditionRow({ variantIndex, taskIndex, index, count, condition, open, 
       actions={disabled ? undefined : actions}
       summary={isOpen
         ? <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm" onClick={(event) => event.stopPropagation()}>
-          <span className="subtasks-num shrink-0" aria-hidden="true">{n}</span>
-          <span className="min-w-40 flex-1 sm:max-w-56"><ChoiceControl path={`${base}.DeviceID`} ariaLabel={t("ed.b.cond.deviceN", { n })} disabled={disabled} options={deviceOptions} /></span>
-          <span className="min-w-40 flex-1 sm:max-w-64"><ChoiceControl path={`${base}.Kind`} ariaLabel={t("ed.b.cond.kindN", { n })} disabled={disabled} options={kindOptions} value={condition.Kind}
+          <span className="subtasks-num order-1 shrink-0" aria-hidden="true">{n}</span>
+          <span className="order-2 min-w-32 flex-1 sm:min-w-40 sm:max-w-56"><ChoiceControl path={`${base}.DeviceID`} ariaLabel={t("ed.b.cond.deviceN", { n })} disabled={disabled} options={deviceOptions} /></span>
+          <span className="order-4 min-w-40 flex-[1_1_calc(100%-2.5rem)] sm:order-3 sm:flex-1 sm:max-w-64"><ChoiceControl path={`${base}.Kind`} ariaLabel={t("ed.b.cond.kindN", { n })} disabled={disabled} options={kindOptions} menuClassName="w-80" value={condition.Kind}
             onChoose={(kind) => setValue(base as never, withKind(getValues(base as never) as unknown as ConditionFormValues, kind as ConditionFormValues["Kind"]) as never, { shouldDirty: true })} /></span>
-          <FieldHelp help={{
+          <span className="order-5 sm:order-4"><FieldHelp help={{
             intro: [t("ed.b.cond.kind.help"), t("ed.b.cond.device.help"), t("ed.b.cond.kind.readOnly")],
             items: OBSERVATION_KINDS.filter((kind) => KIND_SPEC[kind].runsCode).map((kind) => ({ term: t(`ed.b.cond.kind.${KIND_SPEC[kind].stem}`), text: t("ed.b.cond.kind.runs") })),
             default: t("ed.b.cond.kind.default"),
-          }} />
-          {!disabled && <RowActions actions={actions} className="ml-auto opacity-100" />}
+          }} /></span>
+          {!disabled && <RowActions actions={actions} className="order-3 ml-auto opacity-100 sm:order-5" />}
         </span>
         : <span className="flex min-w-0 items-start gap-2 text-sm"><span className="subtasks-num shrink-0" aria-hidden="true">{n}</span>
           <span className="min-w-0 break-words [overflow-wrap:anywhere]"><b className="font-medium">{deviceName || t("ed.b.cond.noDevice")}</b> · {conditionSummary(condition)}</span></span>}>

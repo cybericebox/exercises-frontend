@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import { emptyPlaceholder, placeholderToDTO } from "@/lib/exerciseSchemas"
 import { FieldHelp } from "@/components/ui/field-help"
+import { FieldLabel } from "@/components/ui/field-label"
 import { LINK_SCHEMES, MAX_LINK_PATH, ipExample, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
 import type { PlaceholderAccess, PlaceholderKind } from "@/api/exercises/versions"
 import { ACCESS_KINDS, ACCESS_KINDS_SERVED, type AccessKind } from "@/api/exercises/model"
@@ -86,6 +87,8 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
         <DialogTitle>{value ? t("admin.exPh.edit") : t("admin.exPh.insert")}</DialogTitle>
         <DialogDescription>{t("admin.exPh.titleHelp")}</DialogDescription>
       </DialogHeader>
+      <div role="group" aria-labelledby="placeholder-kind-label" className="space-y-1.5">
+      <FieldLabel as="span" id="placeholder-kind-label" text={t("admin.exPh.kind")} required helpText={t("admin.exPh.kindHelp")} />
       <div className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => <button key={option.kind} type="button" disabled={!option.enabled}
           aria-pressed={kind === option.kind} onClick={() => choose(option.kind)}
@@ -94,10 +97,11 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
           {!option.enabled && <span className="mt-1 block text-xs leading-snug text-muted-foreground">{option.reason}</span>}
         </button>)}
       </div>
+      </div>
       {draft && (kind === "vpn.subnet" || kind === "internet.subnet" || kind === "ip") && <div className="space-y-3 border-t border-border pt-4">
         {kind === "ip" && <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <span className="mb-1 block text-sm font-medium">{t("admin.exPh.ipref")}</span>
+            <FieldLabel as="span" id="placeholder-ipref-label" className="mb-1" text={t("admin.exPh.ipref")} required helpText={t("admin.exPh.iprefHelp")} />
             <SelectMenu ariaLabel={t("admin.exPh.ipref")} value={draft.IPReference}
               onChange={(IPReference) => setDraft({ ...draft, IPReference })}
               options={[
@@ -107,12 +111,12 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
               ]} className="w-full" />
           </div>
           <div>
-            <label htmlFor="placeholder-last-octet" className="mb-1 block text-sm font-medium">{t("admin.exPh.lastOctet")}</label>
+            <FieldLabel htmlFor="placeholder-last-octet" className="mb-1" text={t("admin.exPh.lastOctet")} required helpText={t("admin.exPh.lastOctetHelp")} />
             <Input id="placeholder-last-octet" type="number" min={0} max={255} value={draft.LastOctet}
               onChange={(event) => setDraft({ ...draft, LastOctet: Number(event.target.value) })} />
           </div>
           {draft.IPReference === "static" && value && <div>
-            <label htmlFor="placeholder-static-octets" className="mb-1 block text-sm font-medium">{t("admin.exPh.octets")}</label>
+            <FieldLabel htmlFor="placeholder-static-octets" className="mb-1" text={t("admin.exPh.octets")} required helpText={t("admin.exPh.octetsHelp")} />
             <Input id="placeholder-static-octets" value={draft.Octets1to3} onChange={(event) => setDraft({ ...draft, Octets1to3: event.target.value })} />
           </div>}
         </div>}
@@ -124,20 +128,20 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
         </div>}
         {asLink && <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <span className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.scheme")}<FieldHelp text={t("admin.exPh.schemeHelp")} /></span>
+            <FieldLabel as="span" className="mb-1" text={t("admin.exPh.scheme")} helpText={t("admin.exPh.schemeHelp")} />
             <SelectMenu ariaLabel={t("admin.exPh.scheme")} value={draft.Scheme || "http"}
               onChange={(Scheme) => setDraft({ ...draft, Scheme })}
               options={LINK_SCHEMES.map((scheme) => ({ value: scheme, label: scheme }))} className="w-full" />
           </div>
           <div>
-            <label htmlFor="placeholder-port" className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.port")}<FieldHelp text={t("admin.exPh.portHelp")} /></label>
+            <FieldLabel htmlFor="placeholder-port" className="mb-1" text={t("admin.exPh.port")} helpText={t("admin.exPh.portHelp")} />
             <Input id="placeholder-port" inputMode="numeric" maxLength={5} value={draft.PortText ?? ""} placeholder={t("admin.exPh.port.placeholder")}
               aria-invalid={Boolean(portError)} aria-describedby={portError ? "placeholder-port-error" : undefined}
               onChange={(event) => setDraft({ ...draft, PortText: event.target.value.trim() })} />
             {portError && <p id="placeholder-port-error" className="mt-1 text-xs text-destructive">{portError}</p>}
           </div>
           <div className="sm:col-span-2">
-            <label htmlFor="placeholder-path" className="mb-1 flex items-center gap-1.5 text-sm font-medium">{t("admin.exPh.path")}<FieldHelp text={t("admin.exPh.pathHelp")} /></label>
+            <FieldLabel htmlFor="placeholder-path" className="mb-1" text={t("admin.exPh.path")} helpText={t("admin.exPh.pathHelp")} />
             <Input id="placeholder-path" maxLength={MAX_LINK_PATH + 1} value={draft.Path ?? ""} placeholder={t("admin.exPh.path.placeholder")}
               aria-invalid={Boolean(pathError)} aria-describedby={pathError ? "placeholder-path-error" : undefined}
               onChange={(event) => setDraft({ ...draft, Path: event.target.value })} />
@@ -156,7 +160,7 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
       </div>}
       {draft?.Kind === "external.link" && <div className="space-y-3 border-t border-border pt-4">
         <div>
-          <span className="mb-1 block text-sm font-medium">{t("admin.exPh.device")}</span>
+          <FieldLabel as="span" id="placeholder-device-label" className="mb-1" text={t("admin.exPh.device")} required helpText={t("admin.exPh.deviceHelp")} />
           <SelectMenu ariaLabel={t("admin.exPh.device")} value={draft.DeviceName}
             onChange={(DeviceName) => setDraft({ ...draft, DeviceName, Access: defaultAccess(topology.externalDevices.find((device) => device.name === DeviceName)) })}
             options={[
@@ -166,7 +170,7 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
             ]} className="w-full" />
         </div>
         <div>
-          <span className="mb-1 block text-sm font-medium">{t("ed.b.ph.access")}</span>
+          <FieldLabel as="span" id="placeholder-access-label" className="mb-1" text={t("ed.b.ph.access")} required helpText={t("ed.b.ph.accessHelp")} />
           <SelectMenu ariaLabel={t("ed.b.ph.access")} value={accessKind} className="w-full"
             onChange={(Access) => setDraft({ ...draft, Access: Access as PlaceholderAccess })}
             options={ACCESS_KINDS.filter((kind) => externalDevice?.access.includes(kind) || (value !== null && kind === value.Access)).map((kind) => ({
