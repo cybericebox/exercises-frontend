@@ -4,19 +4,24 @@ import { useEffect, useState } from "react"
 import { useFormState, useWatch, type UseFormReturn } from "react-hook-form"
 import { listExerciseTags, type ExerciseTagSuggestion } from "@/api/exercises/catalog"
 import { t } from "@/i18n/t"
-import { FieldHelp } from "@/components/ui/field-help"
-import { ExerciseFieldLabel } from "@/components/exercises/ExerciseFieldLabel"
+import { FieldLabel } from "@/components/ui/field-label"
+import type { HelpContent } from "@/components/ui/help-content"
+import { FieldError } from "@/components/exercises/editor/fieldErrors"
 import { TagInput } from "@/components/exercises/TagInput"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { DraftFormValues, IdentityFormValues } from "@/lib/exerciseSchemas"
 
-/** Read sections participate in heading navigation; edit fields keep the existing labels. */
-function GeneralSectionHeading({ labelKey, helpKey }: { labelKey:string; helpKey?:string }) {
-  return <div className="flex items-center gap-1.5">
-    <h2 className="text-sm font-medium leading-5 text-foreground">{t(labelKey)}</h2>
-    {helpKey && <FieldHelp text={t(helpKey)} />}
-  </div>
+type FieldKey = "name" | "description" | "tags" | "note"
+
+/** The «?» of a field (A5): what the field is, the limit, the default. */
+function helpOf(key: FieldKey): HelpContent {
+  return { intro: t(`ed.a.general.${key}.helpIntro`), ...(key === "note" ? {} : { items: [{ term: t("ed.a.general.limit"), text: t(`ed.a.general.${key}.helpLimit`) }] }), default: t(`ed.a.general.${key}.helpDefault`) }
+}
+
+/** Read sections participate in heading navigation; edit fields use the one label rule. */
+function GeneralSectionHeading({ field }: { field: FieldKey }) {
+  return <FieldLabel as="h3" text={t(`ed.a.general.${field}.label`)} help={helpOf(field)} />
 }
 
 /**
@@ -61,28 +66,28 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
 
   return <div className="exercise-general-fields">
     {!readOnly && <div className="general-field">
-      <ExerciseFieldLabel labelKey="admin.ex.field.name" htmlFor="exercise-name" required />
-      <Input disabled={disabled} id="exercise-name" autoFocus={autoFocusName} aria-invalid={Boolean(errors.Name)} aria-describedby={errors.Name ? "exercise-name-error" : undefined} {...identityForm.register("Name", { onChange: () => { if (errors.Name?.type === "server") identityForm.clearErrors("Name") } })} />
-      {errors.Name && <p id="exercise-name-error" role="alert" className="text-xs text-destructive">{errors.Name.message}</p>}
+      <FieldLabel text={t("ed.a.general.name.label")} htmlFor="exercise-name" required help={helpOf("name")} />
+      <Input disabled={disabled} id="exercise-name" autoFocus={autoFocusName} aria-invalid={Boolean(errors.Name)} aria-describedby={errors.Name ? "fe-Name-error" : undefined} {...identityForm.register("Name", { onChange: () => { if (errors.Name?.type === "server") identityForm.clearErrors("Name") } })} />
+      <FieldError path="Name" message={errors.Name?.message} />
     </div>}
     <div className="general-field">
-      {readOnly ? <GeneralSectionHeading labelKey="admin.ex.field.description" helpKey="admin.ex.field.descriptionHelp" /> : <ExerciseFieldLabel labelKey="admin.ex.field.description" helpKey="admin.ex.field.descriptionHelp" htmlFor="exercise-description" />}
-      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{description || <span className="text-muted-foreground">{t("admin.exGeneral.noDescription")}</span>}</p> : <>
-        <Textarea disabled={disabled} id="exercise-description" rows={4} className="general-editor" aria-invalid={Boolean(errors.Description)} aria-describedby={errors.Description ? "exercise-description-error" : undefined} {...identityForm.register("Description", { onChange: () => { if (errors.Description?.type === "server") identityForm.clearErrors("Description") } })} />
-        {errors.Description && <p id="exercise-description-error" role="alert" className="text-xs text-destructive">{errors.Description.message}</p>}
+      {readOnly ? <GeneralSectionHeading field="description" /> : <FieldLabel text={t("ed.a.general.description.label")} htmlFor="exercise-description" help={helpOf("description")} />}
+      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{description || <span className="text-muted-foreground">{t("ed.a.general.description.empty")}</span>}</p> : <>
+        <Textarea disabled={disabled} id="exercise-description" rows={4} className="general-editor" aria-invalid={Boolean(errors.Description)} aria-describedby={errors.Description ? "fe-Description-error" : undefined} {...identityForm.register("Description", { onChange: () => { if (errors.Description?.type === "server") identityForm.clearErrors("Description") } })} />
+        <FieldError path="Description" message={errors.Description?.message} />
       </>}
     </div>
     <div className="general-field">
-      {readOnly ? <GeneralSectionHeading labelKey="admin.ex.field.tags" /> : <ExerciseFieldLabel labelKey="admin.ex.field.tags" htmlFor="exercise-tags" />}
-      {readOnly ? <div className="general-read-box general-read-tags" data-read-field>{tags.length ? tags.map((tag) => <span key={tag} className="general-tag">{tag}</span>) : <span className="text-sm text-muted-foreground">{t("admin.exGeneral.noTags")}</span>}</div> : <>
-        <TagInput disabled={disabled} id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} aria-invalid={Boolean(tagErrorMessage)} aria-describedby={tagErrorMessage ? "exercise-tags-error" : undefined}
+      {readOnly ? <GeneralSectionHeading field="tags" /> : <FieldLabel text={t("ed.a.general.tags.label")} htmlFor="exercise-tags" help={helpOf("tags")} />}
+      {readOnly ? <div className="general-read-box general-read-tags" data-read-field>{tags.length ? tags.map((tag) => <span key={tag} className="general-tag">{tag}</span>) : <span className="text-sm text-muted-foreground">{t("ed.a.general.tags.empty")}</span>}</div> : <>
+        <TagInput disabled={disabled} id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} aria-invalid={Boolean(tagErrorMessage)} aria-describedby={tagErrorMessage ? "fe-Tags-error" : undefined}
           draftValue={pendingTag} suggestions={tagSuggestions} onDraftValueChange={setPendingTag} />
-        {tagErrorMessage && <p id="exercise-tags-error" role="alert" className="text-xs text-destructive">{tagErrorMessage}</p>}
+        <FieldError path="Tags" message={tagErrorMessage} />
       </>}
     </div>
     {showNotes && <div className="general-field">
-      {readOnly ? <GeneralSectionHeading labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" /> : <ExerciseFieldLabel labelKey="admin.ex.create.notes" helpKey="admin.exDraft.adminNoteHelp" htmlFor="draft-admin-note" />}
-      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{adminNote || <span className="text-muted-foreground">{t("admin.exGeneral.noNotes")}</span>}</p> : <Textarea disabled={disabled} id="draft-admin-note" rows={3} className="general-editor general-editor-notes" {...draftForm.register("AdminNote")} />}
+      {readOnly ? <GeneralSectionHeading field="note" /> : <FieldLabel text={t("ed.a.general.note.label")} htmlFor="draft-admin-note" help={helpOf("note")} />}
+      {readOnly ? <p className="general-read-value general-read-box" data-read-field>{adminNote || <span className="text-muted-foreground">{t("ed.a.general.note.empty")}</span>}</p> : <Textarea disabled={disabled} id="draft-admin-note" rows={3} className="general-editor general-editor-notes" {...draftForm.register("AdminNote")} />}
     </div>}
   </div>
 }

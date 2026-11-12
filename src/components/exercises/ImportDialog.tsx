@@ -30,6 +30,7 @@ import { importStagePercent, importStageText } from "@/lib/importStage"
 import type { OwnerOption } from "@/lib/exerciseRights"
 import { useRole } from "@/lib/useRole"
 import { ImportTargetPicker, importTargetContext } from "./ImportTargetPicker"
+import { ImportReportView, ReportVerdict } from "./editor/general/ImportReportView"
 import { pluralKey } from "@/lib/presetLabels"
 import { IMPORT_CONFIRMATION_STALE, importFieldFailure, isUnknownImportOutcome, useArchiveImport } from "./useArchiveImport"
 import "@/styles/exercise-import.css"
@@ -252,7 +253,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
           <section className="exercise-import-content" data-testid="import-content">
           {reconcileError ? <div className="exercise-import-state"><p role="alert">{reconcileError}</p><Button type="button" onClick={() => { setDispatching(true); void onReconcile?.().then(onClose).catch(() => setReconcileError(t("admin.exImport.update.reconcileError"))).finally(() => setDispatching(false)) }} busy={dispatching} busyLabel={t("admin.exImport.update.reconciling")}>{t("error.load.retry")}</Button></div>
           : result ? <div className="exercise-import-results"><h2>{t("admin.exImport.resultTitle")}</h2><p className="text-sm text-muted-foreground">{result.created !== undefined && result.updated !== undefined ? result.unchanged ? t("admin.exImport.update.doneCountsUnchanged", { created: result.created, updated: result.updated, unchanged: result.unchanged }) : t("admin.exImport.update.doneCounts", { created: result.created, updated: result.updated }) : t("admin.exImport.done", { count: result.exercises.length })}</p>
-            {(result.results ?? result.exercises.map(exercise => ({ ItemKey: exercise.ID, ExerciseID: exercise.ID, Mode: "new" as const }))).map(destination => <div className="exercise-import-result" key={destination.ItemKey}><strong>{result.exercises.find(exercise => exercise.ID === destination.ExerciseID)?.Name ?? destination.ExerciseID}</strong><span>{t(destination.Mode === "update" ? "admin.exImport.update.updated" : destination.Mode === "unchanged" ? "admin.exImport.update.unchangedResult" : "admin.exImport.update.created")}</span><Link href={exerciseHref(destination.ExerciseID)} onClick={onClose}>{t("admin.exImport.update.open")}</Link></div>)}</div>
+            {(result.results ?? result.exercises.map(exercise => ({ ItemKey: exercise.ID, ExerciseID: exercise.ID, Mode: "new" as const }))).map(destination => <div key={destination.ItemKey}><div className="exercise-import-result"><strong>{result.exercises.find(exercise => exercise.ID === destination.ExerciseID)?.Name ?? destination.ExerciseID}</strong><span>{t(destination.Mode === "update" ? "admin.exImport.update.updated" : destination.Mode === "unchanged" ? "admin.exImport.update.unchangedResult" : "admin.exImport.update.created")}</span><Link href={exerciseHref(destination.ExerciseID)} onClick={onClose}>{t("admin.exImport.update.open")}</Link></div>{"Report" in destination && destination.Report && <details className="exercise-import-result-report"><summary>{t("ed.a.import.reportOpen")}</summary><ImportReportView report={destination.Report} /></details>}</div>)}</div>
           : running || flow.busy ? <div className="exercise-import-state"><LoadingArea message={job ? importStageText(job) : busyLabel} />{progressBar(job ? importStageText(job) : busyLabel)}<p>{t(running ? "admin.exImport.update.runningHelp" : "admin.exImport.update.checkHelp")}</p></div>
           : uncertain ? <LoadError className="exercise-import-empty" message={flow.error ?? t("admin.exImport.update.unknown")} help={t("admin.exImport.update.unknownHelp")}
             actions={<Button type="button" variant="outline" onClick={() => void recover()}>{t("admin.exImport.update.recover")}</Button>} />
@@ -329,11 +330,12 @@ function ImportRow({ item, fixedExercise, error, onTarget }: { item: ArchivePrev
           : changeChips(item.Summary).map(chip => <span key={chip.key} className="exercise-import-chip">{chip.text}</span>)}
         {/* «Стане чернеткою» is said once for all rows, in the footer. */}
         {update && item.ReplacesDraft && <span className="exercise-import-chip exercise-import-chip-warn"><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.replacesDraft")}</span>}
+        {item.Report && <ReportVerdict report={item.Report} />}
         {item.SourceIDMismatch && <HoverTooltip text={t("admin.exImport.update.mismatch")} describe><span className="exercise-import-chip exercise-import-chip-warn" tabIndex={0}><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.otherId")}</span></HoverTooltip>}
       </div>
-      <div role="cell">{update && !same && <HoverTooltip text={detailsLabel}><button type="button" className="exercise-import-toggle" aria-expanded={open} aria-label={detailsLabel} onClick={() => setOpen(value => !value)}><ChevronDown aria-hidden="true" className={open ? "h-4 w-4 rotate-180" : "h-4 w-4"} /></button></HoverTooltip>}</div>
+      <div role="cell">{(item.Report || (update && !same)) && <HoverTooltip text={detailsLabel}><button type="button" className="exercise-import-toggle" aria-expanded={open} aria-label={detailsLabel} onClick={() => setOpen(value => !value)}><ChevronDown aria-hidden="true" className={open ? "h-4 w-4 rotate-180" : "h-4 w-4"} /></button></HoverTooltip>}</div>
     </div>
-    {open && <div className="exercise-import-details" role="row"><div role="cell"><ImportSummary summary={item.Summary} /></div></div>}
+    {open && <div className="exercise-import-details" role="row"><div role="cell">{item.Report ? <ImportReportView report={item.Report} showVerdict={false} /> : <ImportSummary summary={item.Summary} />}</div></div>}
   </div>
 }
 

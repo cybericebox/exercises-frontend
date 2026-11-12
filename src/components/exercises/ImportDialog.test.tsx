@@ -301,11 +301,11 @@ it("lays the archive tasks out as rows: how each was matched, its target, change
  expect(screen.queryByText("admin.exImport.chip.draft")).not.toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.replacesDraft")).toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.same")).toBeInTheDocument()
- // Details only for a real change.
+ // Every row opens into the report of the item.
  const toggles = screen.getAllByRole("button", { name: /admin\.exImport\.row\.showDetails/ })
- expect(toggles).toHaveLength(1)
+ expect(toggles).toHaveLength(2)
  fireEvent.click(toggles[0])
- expect(screen.getByText("admin.exImport.update.flags")).toBeInTheDocument()
+ expect(document.querySelector("[data-import-report]")).not.toBeNull()
  expect(screen.getByRole("button", { name: /admin\.exImport\.row\.hideDetails/ })).toHaveAttribute("aria-expanded", "true")
  expect(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ })).toHaveTextContent('admin.exImport.update.applyUpdates {"updates":2}')
 })
