@@ -73,7 +73,7 @@ function topology() {
       { Endpoints: [{ Kind: "device", DeviceID: D.hub1, Interface: "GigabitEthernet0/2" }, { Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/1" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/2" }, { Kind: "internet", Interface: "eth0" }] },
     ],
-    VisualRender: { positions: { vpn: { x: 80, y: 90 }, [D.r1]: { x: 230, y: 90 }, [D.r2]: { x: 380, y: 90 }, [D.srv]: { x: 530, y: 90 }, [D.hub1]: { x: 380, y: 230 }, [D.sw1]: { x: 530, y: 230 }, internet: { x: 530, y: 370 } } },
+    VisualRender: { positions: { vpn: { x: 0.08, y: 0.2 }, [D.r1]: { x: 0.26, y: 0.2 }, [D.r2]: { x: 0.44, y: 0.2 }, [D.srv]: { x: 0.62, y: 0.2 }, [D.hub1]: { x: 0.44, y: 0.55 }, [D.sw1]: { x: 0.62, y: 0.55 }, internet: { x: 0.62, y: 0.85 } } },
   }
 }
 
@@ -244,7 +244,7 @@ export function buildDeployStatus(startedAt: number, now: number, fail: boolean)
   if (s < 11) return { ...base, Phase: "Provisioning", Ready: false, Devices: [device("r1", true), device("r2", true), device("srv", false, { Bootstrap: { Phase: "pending", Attempts: 1, Reason: "" } })] }
   const passedAt = s > 20 ? new Date(startedAt + 20_000).toISOString() : null
   const check = (ID: string, passed: boolean) => ({ ID, Known: true, Passed: passed, FirstPassedAt: passed ? passedAt : null, ChangedAt: passedAt, Value: passed ? "ok" : "", Detail: passed ? "" : "not yet" })
-  const checks = [check("c0", s > 14), check("c1", s > 17), check("c2", s > 20), check("c3", true), check("c4", true)]
+  const checks = [check("ospf:1", s > 14), check("ospf:2", s > 17), check("ospf:3", s > 20), check("ospf:4", true), check("ospf:5", true)]
   const solved = checks.every((item) => item.Passed)
   return {
     ...base, Phase: "Ready", Ready: true,

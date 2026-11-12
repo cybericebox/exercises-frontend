@@ -268,7 +268,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
 
 
   // The test lab: the draft is saved and checked first, then the page starts the lab for the chosen variant.
-  const startTest = (index: number) => {
+  const startTest = (index: number, leaseMinutes?: number) => {
     setDialog(null)
     void actions.test(index).then(async (target) => {
       if (!target) return
@@ -279,7 +279,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       if (here) { openTest(here.DeployID); return }
       if (running.filter((item) => !item.Expired).length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
       leave.allowNavigation()
-      router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
+      router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId, leaseMinutes))
     })
   }
 
