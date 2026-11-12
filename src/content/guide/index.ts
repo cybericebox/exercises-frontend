@@ -1,3 +1,60 @@
-// Long-form guide content (uk only). Generated from the mockup; edit as documentation text.
-export const html = "\n<h2>Як усе повʼязано</h2>\n<p><strong>Завдання</strong> — це картка в каталозі: назва, опис і теги. Кожне завдання має один або декілька <strong>варіантів</strong>. Варіант містить те саме завдання з різними даними, що унеможливлює використання чужих відповідей.</p>\n<p>У кожному варіанті є <strong>підзавдання</strong>, тобто кроки, які необхідно виконати; за кожен крок подається окрема відповідь. Поруч може бути <strong>інфраструктура</strong> — лабораторія, у якій виконується завдання, тобто окремі компʼютери й мережа.</p>\n<div class=\"g-flow\" role=\"img\" aria-label=\"Завдання містить Варіант, а Варіант складається з Підзавдань та Інфраструктури\">\n<div class=\"g-flow__box\"><b>Завдання</b><span>картка в каталозі</span></div>\n<div class=\"g-flow__line\"></div>\n<div class=\"g-flow__box\"><b>Варіант</b><span>один повний набір умов</span></div>\n<div class=\"g-flow__line\"></div>\n<div class=\"g-flow__pair\">\n<div class=\"g-flow__box\"><b>Підзавдання</b><span>кроки, які треба пройти</span></div>\n<div class=\"g-flow__tie\"><span>працюють разом</span><i></i></div>\n<div class=\"g-flow__box\"><b>Інфраструктура</b><span>лабораторія, у якій виконується завдання</span></div>\n</div></div>\n<h2>Два види завдань</h2>\n<p>Завдання бувають без лабораторії і з лабораторією. Від цього залежить, чи потрібна інфраструктура.</p>\n<div class=\"g-cards\">\n<div class=\"g-card\"><h3>Без лабораторії</h3><p>Усе необхідне міститься в умові та прикріплених файлах, і відповідь визначається за ними.</p><p class=\"g-example\">Наприклад: журнал подій, у якому необхідно виявити ознаки втручання.</p><p><a href=\"/guide/arkhiv/#examples\">Повний приклад</a></p></div>\n<div class=\"g-card\"><h3>З лабораторією</h3><p>Для розвʼязання видається окреме середовище з компʼютерами й мережею, і відповідь може знаходитися в ньому.</p><p class=\"g-example\">Наприклад: вебсайт із вразливістю, на сервері якого розміщено прапор.</p><p><a href=\"/guide/infrastruktura/\">Про лабораторію</a>, <a href=\"/guide/arkhiv/#examples\">повний приклад</a></p></div>\n</div>\n<h2>Два способи створення</h2>\n<ul><li><strong>У редакторі.</strong> Заповнюється форма нового завдання в каталозі.</li>\n<li><strong>Імпортом архіву.</strong> Готується файл опису, а архів завантажується кнопкою «Імпорт». Архів і приклад описано на сторінці <a href=\"/guide/arkhiv/\">Архів і приклади</a>.</li></ul>\n<p>Обидва способи заповнюють ті самі поля. На кожній сторінці посібника в таблиці подано підпис поля в редакторі та відповідний ключ у файлі.</p>\n<h2>Кроки в порядку редактора</h2>\n<ol class=\"g-steps\"><li><a class=\"g-step\" href=\"/guide/zavdannia/\"><span class=\"g-step__n\">1</span><span><b>Завдання</b><span class=\"d\">Назва, опис і теги картки завдання в каталозі.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/variant/\"><span class=\"g-step__n\">2</span><span><b>Варіант</b><span class=\"d\">Повний набір умов. Декілька варіантів унеможливлюють передавання відповідей.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/pidzavdannia/\"><span class=\"g-step__n\">3</span><span><b>Підзавдання</b><span class=\"d\">Кроки варіанта з текстом, складністю, файлами й підстановками.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/prapory/\"><span class=\"g-step__n\">4</span><span><b>Прапори</b><span class=\"d\">Відповідь кожного підзавдання: заданий, шаблон, декілька значень або згенерований.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/pidkazky/\"><span class=\"g-step__n\">5</span><span><b>Підказки</b><span class=\"d\">Рівні допомоги, вартість яких визначається там, де використовується завдання.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/notatky/\"><span class=\"g-step__n\">6</span><span><b>Нотатки</b><span class=\"d\">Внутрішні записи для адміністраторів, які не показуються під час розвʼязання.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/infrastruktura/\"><span class=\"g-step__n\">7</span><span><b>Інфраструктура</b><span class=\"d\">Лабораторія варіанта: мережі, пристрої, вебпроксі, адреси, готовність.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/obrazy/\"><span class=\"g-step__n\">8</span><span><b>Образи</b><span class=\"d\">Образи, з яких запускаються пристрої, та способи їх додавання.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li><li><a class=\"g-step\" href=\"/guide/arkhiv/\"><span class=\"g-step__n\">9</span><span><b>Архів і повні приклади</b><span class=\"d\">Формування архіву для «Імпорту» та повний приклад у форматах YAML і JSON.</span></span><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></a></li></ol>\n<h2>Окремо від кроків</h2>\n<ul><li><a href=\"/guide/pomylky/\">Типові помилки імпорту</a> — причини та способи виправлення.</li>\n<li><a href=\"/guide/rekomendatsii/\">Рекомендації</a> — поради щодо якості завдань.</li></ul>\n"
-export const lead = "Завдання — це умова з одним або кількома кроками, які необхідно виконати. Нижче наведено склад завдання та звʼязки між його частинами."
+// Long-form guide content (uk only): the overview.
+import { BRAND, step, ul } from "./_h"
+
+const steps = [
+  step(1, "/guide/zavdannia/", "Завдання", "Назва, опис і теги картки в каталозі."),
+  step(2, "/guide/variant/", "Варіант", "Повний набір умов. Кілька варіантів не дають передавати відповіді."),
+  step(3, "/guide/pidzavdannia/", "Підзавдання", "Кроки варіанта: текст, складність, файли, порядок відкриття."),
+  step(4, "/guide/prapory/", "Прапори і текстові відповіді", "Відповідь, яку вводить учасник: прапор або текст."),
+  step(5, "/guide/stan/", "Перевірка стану", "Лабораторія сама перевіряє пристрої. Лише для Академії."),
+  step(6, "/guide/pidkazky/", "Підказки", "Допомога за рівнями від натяку до майже розвʼязку."),
+  step(7, "/guide/notatky/", "Нотатки", "Службові записи, яких учасник не бачить."),
+  step(8, "/guide/infrastruktura/", "Інфраструктура", "Схема лабораторії: пристрої, зʼєднання, змінні, шлюзи."),
+  step(9, "/guide/prystroi/", "Налаштування пристрою", "Основне, Мережа, Ініціалізація, Сервіс, Доступ."),
+  step(10, "/guide/obrazy/", "Образи", "З чого запускаються пристрої і як додати образ."),
+  step(11, "/guide/testuvannia/", "Тестування", "Кнопка «Тестувати»: запустити завдання як учасник."),
+  step(12, "/guide/publikatsiia/", "Публікація і версії", "Що перевіряється, що отримує захід."),
+  step(13, "/guide/arkhiv/", "Архів і приклади", "Експорт, імпорт, звіт перевірки та повний приклад."),
+]
+
+export const html = `
+<h2>Як усе повʼязано</h2>
+<p><strong>Завдання</strong> — це картка в каталозі: назва, опис і теги. Кожне завдання має один або кілька <strong>варіантів</strong>. Варіант — це те саме завдання з іншими даними, щоб чужі відповіді не підходили.</p>
+<p>У кожному варіанті є <strong>підзавдання</strong>: кроки, які треба виконати. За кожен крок учасник дає окрему відповідь або лабораторія сама перевіряє результат. Поруч може бути <strong>інфраструктура</strong>: лабораторія з окремими компʼютерами і мережею.</p>
+<div class="g-flow" role="img" aria-label="Завдання містить Варіант, а Варіант складається з Підзавдань та Інфраструктури">
+<div class="g-flow__box"><b>Завдання</b><span>картка в каталозі</span></div>
+<div class="g-flow__line"></div>
+<div class="g-flow__box"><b>Варіант</b><span>один повний набір умов</span></div>
+<div class="g-flow__line"></div>
+<div class="g-flow__pair">
+<div class="g-flow__box"><b>Підзавдання</b><span>кроки, які треба пройти</span></div>
+<div class="g-flow__tie"><span>працюють разом</span><i></i></div>
+<div class="g-flow__box"><b>Інфраструктура</b><span>лабораторія, у якій виконується завдання</span></div>
+</div></div>
+<h2>Два види завдань</h2>
+<div class="g-cards">
+<div class="g-card"><h3>Без лабораторії</h3><p>Усе потрібне лежить в умові та прикріплених файлах. Відповідь учасник знаходить у них.</p><p class="g-example">Наприклад: журнал подій, у якому треба знайти ознаки втручання.</p><p><a href="/guide/arkhiv/#examples">Повний приклад</a></p></div>
+<div class="g-card"><h3>З лабораторією</h3><p>Для розвʼязання видається окреме середовище з компʼютерами й мережею. Відповідь або потрібний стан — у ньому.</p><p class="g-example">Наприклад: вебсайт із вразливістю, на сервері якого лежить прапор.</p><p><a href="/guide/infrastruktura/">Про лабораторію</a>, <a href="/guide/arkhiv/#examples">повний приклад</a></p></div>
+</div>
+<h2>Два види перевірки</h2>
+${ul([
+  "<strong>Відповідь.</strong> Учасник вводить значення: прапор <code>ICE{...}</code> або текст. Працює всюди: у каталозі, в Академії і на заходах. Див. <a href=\"/guide/prapory/\">Прапори і текстові відповіді</a>.",
+  "<strong>Стан.</strong> Вводити нічого не треба: лабораторія дивиться на пристрої (файл, процес, порт, команда та інше) і сама зараховує підзавдання. Лише для Академії, на заходах заборонено. Див. <a href=\"/guide/stan/\">Перевірка стану</a>.",
+])}
+<h2>Два способи створення</h2>
+${ul([
+  "<strong>У редакторі.</strong> Відкрийте нове завдання в каталозі і заповнюйте вкладки.",
+  `<strong>Імпортом архіву.</strong> Готуєте файл опису, пакуєте в архів і завантажуєте кнопкою «Імпорт». Експорт дає архів, який можна імпортувати в будь-яку інсталяцію ${BRAND}. Див. <a href="/guide/arkhiv/">Архів і приклади</a>.`,
+])}
+<p>Обидва способи заповнюють ті самі поля. На сторінках посібника в таблицях подано підпис поля в редакторі та відповідний ключ у файлі.</p>
+<h2>Вкладки редактора</h2>
+<p>У редакторі один ряд вкладок: <strong>Загальне</strong> · <strong>Варіант N</strong> (випадний список) · <strong>Підзавдання</strong> · <strong>Інфраструктура</strong>. Загальне стосується всього завдання. Підзавдання та Інфраструктура належать варіанту, який вибрано у списку. Перелік усіх варіантів відкривається з того самого списку пунктом «Усі варіанти».</p>
+<h2>Сторінки посібника</h2>
+<ol class="g-steps">${steps.join("")}</ol>
+<h2>Окремо від кроків</h2>
+${ul([
+  "<a href=\"/guide/pomylky/\">Типові помилки</a> — повідомлення імпорту і публікації, причини та виправлення.",
+  "<a href=\"/guide/rekomendatsii/\">Рекомендації</a> — як зробити завдання цікавим, чесним і стійким.",
+])}
+`
+export const lead = "Завдання — це умова з одним або кількома кроками. Нижче показано, з чого воно складається і де про що читати."
