@@ -132,4 +132,12 @@ describe("publish errors with task, variant and field (daemon counts from 1)", (
     expect(serverFieldTargets(publish("hints[0].text", 1), two)).toBeNull()
     expect(serverFieldTargets(publish("name", 3), two)).toBeNull()
   })
+
+  it("finds the task by its name when the error sends the name (empty description or hint, a substitution in a text)", () => {
+    const named = draft([{ keys: ["scan", "exploit"] }])
+    named.Variants[0].Tasks[1].Name = "Exploit the host"
+    expect(serverFieldTargets(fail(23519, { task: "Exploit the host", field: "hints[1].text" }), named)).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
+    named.Variants[0].Tasks[0].Name = "Exploit the host"
+    expect(serverFieldTargets(fail(23519, { task: "Exploit the host", field: "description" }), named)).toBeNull()
+  })
 })

@@ -47,7 +47,10 @@ export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, 
     const isAnswer = rest[0] === "Check" && rest[1] === "Answer" && rest[2] === "Values"
     draft.Variants.forEach((variant, vi) => {
       if (named >= 0 ? vi !== named : !isAnswer && !own(vi)) return
-      const ti = variant.Tasks.findIndex((candidate) => candidate.Key === task)
+      // `task` is the key; a few publish errors (an empty name, description or hint, a substitution in a text) send the task's name instead.
+      const byKey = variant.Tasks.findIndex((candidate) => candidate.Key === task)
+      const byName = variant.Tasks.filter((candidate) => candidate.Name === task)
+      const ti = byKey >= 0 ? byKey : byName.length === 1 ? variant.Tasks.indexOf(byName[0]) : -1
       if (ti >= 0) out.push(["Variants", vi, "Tasks", ti, ...rest])
     })
   } else if (device) {
