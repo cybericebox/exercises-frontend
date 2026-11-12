@@ -21,18 +21,18 @@ export function SidePanel({ title, subtitle, onClose, footer, children, classNam
   children: ReactNode
   className?: string
 }) {
-  return <aside data-side-panel aria-label={title} className={cn("flex h-full min-h-0 min-w-0 flex-col rounded-md border border-border bg-card", className)}>
+  return <aside data-side-panel aria-label={title} className={cn("flex h-full min-h-0 min-w-0 flex-col rounded-md border border-border bg-background", className)}>
     <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
       <div className="min-w-0">
-        <h3 className="break-words text-sm font-semibold leading-5 text-foreground">{title}</h3>
+        <h3 className="break-words text-base font-semibold leading-6 text-foreground">{title}</h3>
         {subtitle && <p className="mt-0.5 break-words text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       <HoverTooltip text={t("ed.ui.close")}>
         <Button type="button" variant="ghost" size="icon" className="-mr-2 -mt-1 h-8 w-8 shrink-0" aria-label={t("ed.ui.close")} onClick={onClose}><X aria-hidden="true" className="h-4 w-4" /></Button>
       </HoverTooltip>
     </header>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">{children}</div>
-    {footer && <footer className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">{footer}</footer>}
+    <div className="min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
+    {footer && <footer className="flex items-center justify-between gap-2 border-t border-border px-3 py-2.5">{footer}</footer>}
   </aside>
 }
 
@@ -53,10 +53,10 @@ export function SummaryList({ rows, className }: { rows: SummaryRow[]; className
   return <dl className={cn("m-0 min-w-0", className)}>
     {rows.map((row) => {
       const body = <>
-        <dt className="text-sm text-muted-foreground">{row.label}</dt>
-        <dd className="m-0 min-w-0 break-words text-sm text-foreground">{row.value}</dd>
+        <dt className="text-[13px] text-muted-foreground">{row.label}</dt>
+        <dd className="m-0 min-w-0 break-words text-[13.5px] text-foreground">{row.value}</dd>
       </>
-      const grid = "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-3 border-b border-border py-2 last:border-b-0"
+      const grid = "grid grid-cols-[104px_minmax(0,1fr)] items-baseline gap-3 border-b border-border py-[9px] pl-2.5 pr-7 last:border-b-0"
       return row.onSelect
         ? <button key={row.key} type="button" onClick={row.onSelect} className={cn(grid, "w-full text-left hover:bg-[var(--ib-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary")}>{body}</button>
         : <div key={row.key} className={grid}>{body}</div>

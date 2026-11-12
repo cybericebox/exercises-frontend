@@ -10,6 +10,10 @@ export default defineConfig({
       NEXT_PUBLIC_DOMAIN: "localhost",
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.test",
     },
+    // A ceiling, not a speed: the slowest healthy tests take 1-3 s on an idle machine (jsdom, many interactions), so the 5 s
+    // default fails them on a loaded runner or when several suites run at once. A real hang still fails after 20 s.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     passWithNoTests: true,
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**", "**/.worktrees/**", "**/.superpowers/**"],
   },

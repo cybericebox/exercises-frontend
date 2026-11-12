@@ -72,7 +72,11 @@ describe("archive jobs", () => {
   it("an export that outlasts the wait raises the export-stopped code 70998", async () => {
     mockGet.mockResolvedValue({ State: "running" })
     const caught = waitForExportJob("j1").catch((e) => e)
-    await vi.advanceTimersByTimeAsync(JOB_MAX_WAIT_MS + JOB_POLL_MS * 2)
+    await vi.advanceTimersByTimeAsync(JOB_POLL_MS)
+    // The clock jumps over the whole wait in one step: advancing timer by timer would be ~12 600 polls of CPU work that
+    // a loaded machine cannot finish inside the test timeout.
+    vi.setSystemTime(Date.now() + JOB_MAX_WAIT_MS)
+    await vi.advanceTimersByTimeAsync(JOB_POLL_MS * 2)
     expect((await caught).code).toBe(70998)
   })
 

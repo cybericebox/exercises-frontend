@@ -16,13 +16,21 @@ export function consoleFrameOrigin(domain: string | undefined = process.env.NEXT
 }
 
 /**
+ * The dev-server `frame-src`: the console origin, plus (only in the editor fixture mode) the dev page itself and blob: for
+ * the canned console page. Never part of a production policy (deploy/csp.sh builds its own and has no blob:).
+ */
+export function devFrameSrc(domain: string, fixtureMode: boolean): string {
+  return `${consoleFrameOrigin(domain)}${fixtureMode ? " 'self' blob:" : ""}`
+}
+
+/**
  * Whether a console link may be put into an iframe: https and exactly the console origin (no port, no userinfo). Anything
  * else must be offered as «open in a new tab». In the dev fixture mode the canned console page of the dev server is allowed too.
  */
 export function isConsoleFrameUrl(link: string, domain: string | undefined = process.env.NEXT_PUBLIC_DOMAIN): boolean {
   let url: URL
   try { url = new URL(link) } catch { return false }
-  if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_EDITOR_FIXTURES === "1" && typeof window !== "undefined" && url.origin === window.location.origin) return true
+  if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_EDITOR_FIXTURES === "1" && (url.protocol === "blob:" || (typeof window !== "undefined" && url.origin === window.location.origin))) return true
   if (!domain) return false
   return url.protocol === "https:" && url.username === "" && url.password === "" && url.origin === consoleFrameOrigin(domain)
 }

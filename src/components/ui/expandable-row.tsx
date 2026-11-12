@@ -26,8 +26,8 @@ export function ExpandableRow({ open, onOpenChange, summary, actions, children, 
     <div className="flex min-w-0 items-center">
       <button type="button" aria-expanded={open} aria-label={`${open ? t("ed.ui.collapse") : t("ed.ui.expand")}: ${ariaLabel}`} disabled={disabled}
         onClick={() => onOpenChange(!open)}
-        className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
-        <ChevronRight aria-hidden="true" className={cn("h-4 w-4 transition-transform motion-reduce:transition-none", open && "rotate-90")} />
+        className="flex h-10 w-8 shrink-0 items-center justify-center text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+        <ChevronRight aria-hidden="true" strokeWidth={2.5} className={cn("h-4 w-4 transition-transform motion-reduce:transition-none", open && "rotate-90")} />
       </button>
       {/* A click on the closed row opens it, like the chevron; text inside stays selectable. */}
       <div className="min-w-0 flex-1 cursor-default py-2" onClick={(event) => {

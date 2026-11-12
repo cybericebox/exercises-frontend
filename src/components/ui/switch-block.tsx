@@ -29,17 +29,17 @@ export function SwitchBlock({ label, checked, onCheckedChange, help, helpText, d
   const generated = useId()
   const switchId = id ?? generated
   return <div data-switch-block className={cn("min-w-0", className)}>
-    <div className="flex min-h-6 items-center gap-2">
+    <div className="flex min-h-9 items-center gap-2.5">
       <Switch id={switchId} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled || Boolean(unavailable)} aria-label={label} />
       <FieldLabel text={label} htmlFor={switchId} help={help} helpText={helpText} labelClassName="font-normal" />
       {unavailable && <span className="text-xs text-muted-foreground">{unavailable}</span>}
     </div>
-    {/* The fields start under the label text: switch 32 px + gap 8 px. */}
-    {checked && children && <div data-switch-fields className="mt-2 min-w-0 pl-10">{children}</div>}
+    {/* The fields start under the label text: switch 36 px + gap 10 px = 46 px. */}
+    {checked && children && <div data-switch-fields className="mt-2 min-w-0 pl-[46px]">{children}</div>}
   </div>
 }
 
 /** Blocks of one section: one gap between them (larger than the gap between a switch and its fields). */
 export function SwitchList({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex min-w-0 flex-col gap-4", className)}>{children}</div>
+  return <div className={cn("flex min-w-0 flex-col gap-5", className)}>{children}</div>
 }
