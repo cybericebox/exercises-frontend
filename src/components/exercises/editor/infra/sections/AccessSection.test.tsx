@@ -59,7 +59,9 @@ describe("device access", () => {
     expect(screen.getByRole("switch", { name: "ed.c.access.terminal" })).toBeDisabled()
     expect(screen.getByText("ed.ui.lab.none")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("switch", { name: "ed.c.access.web" }))
-    expect(screen.getByText("ed.ui.lab.some")).toBeInTheDocument()
+    // The warning is part of the «?» of the option, never a sentence under the fields.
+    expect(document.querySelector("[data-lab-warning]")).toBeNull()
+    expect(screen.getByText(/ed\.ui\.lab\.some/)).toBeInTheDocument()
   })
 
   it("lets an unsupported entry that is already there be switched off", () => {

@@ -53,7 +53,7 @@ export function DeviceDialog({ variantIndex, deviceIndex, section, onSection, on
       className="grid h-[min(48.75rem,calc(100dvh-2rem))] max-w-[70rem] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-6 [scrollbar-gutter:stable] sm:p-6">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <DialogTitle className="truncate text-lg">{t("ed.c.dev.title", { name: name || t("admin.exTopo.unnamedDevice") })}</DialogTitle>
+          <DialogTitle className="break-words text-lg max-sm:text-base">{t("ed.c.dev.title", { name: name || t("admin.exTopo.unnamedDevice") })}</DialogTitle>
           <DialogDescription id="device-dialog-description" className={cn("mt-0.5 text-sm", !(linkedBaseIndex !== undefined) && "sr-only")}>
             {linkedBaseIndex !== undefined ? t("ed.c.dev.linkedNote", { n: linkedBaseIndex + 1 }) : t("ed.c.dev.description")}
           </DialogDescription>

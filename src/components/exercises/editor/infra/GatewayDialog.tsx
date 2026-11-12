@@ -13,7 +13,6 @@ import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { RemoveAction, REVEAL_ON_HOVER } from "../../RemoveAction"
 import { AddButton, FieldError, SwitchBlock, SwitchList, fieldProps, useFieldError } from "../kit"
 import { useLabSupport } from "../labCapabilities"
-import { LabWarn } from "./sections/AccessSection"
 import { InputField, topologyPath } from "./fields"
 
 function nextFreeRange(ranges: DHCPRangeDTO[]): DHCPRangeDTO | null {
@@ -69,8 +68,7 @@ export function GatewayDialog({ variantIndex, kind, disabled, onClose }: {
         {kind === "vpn" && <SwitchBlock label={t("ed.c.gw.reverse")} checked={network?.ReverseConnections ?? false} disabled={disabled}
           unavailable={!(network?.ReverseConnections) && reverse.state === "disabled" ? reverse.reason : undefined}
           onCheckedChange={(on) => setValue(`${base}.ReverseConnections`, on, { shouldDirty: true, shouldValidate: true })}
-          help={{ intro: t("ed.c.gw.reverseHelp"), items: [{ term: t("ed.c.gw.reverseOff"), text: t("ed.c.gw.reverseOffText") }, { term: t("ed.c.gw.reverseOn"), text: t("ed.c.gw.reverseOnText") }], default: t("ed.c.access.off") }}>
-          {reverse.state !== "ok" && (network?.ReverseConnections ?? false) && <LabWarn text={reverse.reason} />}
+          help={{ intro: t("ed.c.gw.reverseHelp"), items: [{ term: t("ed.c.gw.reverseOff"), text: t("ed.c.gw.reverseOffText") }, { term: t("ed.c.gw.reverseOn"), text: t("ed.c.gw.reverseOnText") }], default: [t("ed.c.access.off"), reverse.state === "warn" ? reverse.reason : ""].filter(Boolean).join(" ") }}>
           <FieldError path={`${path}.ReverseConnections`} />
         </SwitchBlock>}
         <SwitchBlock label={t(kind === "vpn" ? "ed.c.gw.dhcpVpn" : "ed.c.gw.dhcpInternet")} checked={network?.DHCP ?? false} disabled={disabled} onCheckedChange={setDhcp}

@@ -176,11 +176,11 @@ export const RefField = forwardRef<HTMLInputElement & HTMLTextAreaElement, RefFi
   return <div className={frame}>
     {/* The mirror shows the text with its tokens highlighted; the real field above it is transparent but for the caret. */}
     <div aria-hidden="true" className={cn("pointer-events-none absolute inset-0 overflow-hidden pl-3", tools >= 3 ? "pr-24" : tools === 2 ? "pr-16" : tools === 1 ? "pr-10" : "pr-3")}>
-      <div className={cn("whitespace-pre leading-5 text-foreground", mono ? "font-mono text-[13px]" : "text-sm", multiline ? "py-2" : "py-[7px]")} style={{ transform: `translate(${-scroll.left}px, ${-scroll.top}px)` }}>{mirror}{"\n"}</div>
+      <div className={cn("whitespace-pre leading-5 text-foreground", multiline && "max-sm:whitespace-pre-wrap max-sm:[overflow-wrap:anywhere]", mono ? "font-mono text-[13px]" : "text-sm", multiline ? "py-2" : "py-[7px]")} style={{ transform: `translate(${-scroll.left}px, ${-scroll.top}px)` }}>{mirror}{"\n"}</div>
     </div>
     {multiline
       ? <textarea {...(rest as object)} {...(handlers as object)} ref={setRef as Ref<HTMLTextAreaElement>} rows={rows} wrap="off" value={shown} disabled={disabled} spellCheck={false} autoComplete="off"
-        className={cn(font, "resize-y overflow-auto py-2 text-transparent [-webkit-text-fill-color:transparent] placeholder:[-webkit-text-fill-color:currentcolor] caret-foreground placeholder:text-placeholder", padRight)} style={{ minHeight: `calc(${rows}lh + 1rem)` }} />
+        className={cn(font, "resize-y overflow-auto py-2 max-sm:[overflow-wrap:anywhere] max-sm:whitespace-pre-wrap text-transparent [-webkit-text-fill-color:transparent] placeholder:[-webkit-text-fill-color:currentcolor] caret-foreground placeholder:text-placeholder", padRight)} style={{ minHeight: `calc(${rows}lh + 1rem)` }} />
       : <input {...rest} {...handlers} ref={setRef as Ref<HTMLInputElement>} type="text" value={shown} disabled={disabled} spellCheck={false} autoComplete="off"
         className={cn(font, "h-[34px] py-[7px] placeholder:text-placeholder", hasTokens || shown !== "" ? "text-transparent [-webkit-text-fill-color:transparent] placeholder:[-webkit-text-fill-color:currentcolor] caret-foreground" : "", padRight)} />}
     {toolbar}

@@ -75,7 +75,7 @@ function topology() {
       { Endpoints: [{ Kind: "device", DeviceID: D.hub1, Interface: "GigabitEthernet0/2" }, { Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/1" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/2" }, { Kind: "internet", Interface: "eth0" }] },
     ],
-    VisualRender: { positions: { vpn: { x: 0.08, y: 0.2 }, [D.r1]: { x: 0.26, y: 0.2 }, [D.r2]: { x: 0.44, y: 0.2 }, [D.srv]: { x: 0.62, y: 0.2 }, [D.hub1]: { x: 0.44, y: 0.55 }, [D.sw1]: { x: 0.62, y: 0.55 }, internet: { x: 0.62, y: 0.85 } } },
+    VisualRender: { icons: { [D.r1]: "router", [D.r2]: "router" }, positions: { vpn: { x: 0.08, y: 0.2 }, [D.r1]: { x: 0.26, y: 0.2 }, [D.r2]: { x: 0.44, y: 0.2 }, [D.srv]: { x: 0.62, y: 0.2 }, [D.hub1]: { x: 0.44, y: 0.55 }, [D.sw1]: { x: 0.62, y: 0.55 }, internet: { x: 0.62, y: 0.85 } } },
   }
 }
 

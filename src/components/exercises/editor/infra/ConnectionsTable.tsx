@@ -107,7 +107,7 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
       : <Table label={t("admin.exTopo.connections")} className="min-w-[36rem] table-fixed" regionClassName="rounded-md border border-border">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
-            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-16 px-0")}><span className="pl-10"><TableHeadHelp text="#" help={{ intro: t("ed.c.th.index") }} /></span></th>
+            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-0")}><div className="pl-10"><TableHeadHelp text="#" help={{ intro: t("ed.c.th.index") }} /></div></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[39%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.first")} help={{ intro: t("ed.c.th.first") }} /></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[39%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.second")} help={{ intro: t("ed.c.th.second") }} /></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
