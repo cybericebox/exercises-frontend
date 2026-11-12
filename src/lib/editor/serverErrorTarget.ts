@@ -2,7 +2,7 @@
  * serverErrorTarget.ts — where a daemon error about the document sits in the editor form.
  *
  * A save or publish error names its place in the public context: `task` = the task key, `device` = the device name,
- * `field` = the path inside it (see serverFieldPath.ts), and, when the daemon says it, `variant` (a 1-based position or an id).
+ * `field` = the path inside it (see serverFieldPath.ts), and, when the daemon says it, `variant` (an int: the 1-based position of the variant in the version).
  * Resolution never guesses a field (AGENTS.md: an ambiguous server error is never assigned to a field):
  *   - exactly one candidate → its field; none or several → no target, the error stays form-level (a toast);
  *   - `variant` present → the candidates are that variant's only;
@@ -19,10 +19,11 @@ type Path = (string | number)[]
 
 const ERR = { taskKey: 23501, requires: 23502, checkMissing: 23503, stateNotForEvents: 23513 } as const
 
-/** The index of the variant the context names: a 1-based position (digits) or an id; -1 when it is not in the form. */
+/** The index of the variant the context names: `variant` is the 1-based position in the version's Variants (an int on the wire); -1 when it is not in the form. */
 function variantIndexOf(ref: string, draft: Pick<DraftFormValues, "Variants">): number {
-  if (/^\d+$/.test(ref)) { const index = Number(ref) - 1; return index >= 0 && index < draft.Variants.length ? index : -1 }
-  return draft.Variants.findIndex((variant) => variant.ID !== "" && variant.ID === ref)
+  if (!/^\d+$/.test(ref)) return -1
+  const index = Number(ref) - 1
+  return index >= 0 && index < draft.Variants.length ? index : -1
 }
 
 /** The form paths a document error belongs to (exactly one), or null when it cannot be placed reliably. */

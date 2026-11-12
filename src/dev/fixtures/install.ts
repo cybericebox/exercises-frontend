@@ -38,7 +38,7 @@ const SERVER_ERRORS = {
   unplaced: { code: 73509, context: { features: "guest_agent" } },
   // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
   ambiguous: { code: 23504, context: { task: "secret", field: "check.answer.values" } },
-  variant: { code: 23504, context: { task: "secret", field: "check.answer.values", variant: "2" } },
+  variant: { code: 23504, context: { task: "secret", field: "check.answer.values", variant: 2 } },
 } as const
 type ServerErrorKind = keyof typeof SERVER_ERRORS
 
@@ -69,7 +69,7 @@ function switches(): Switches {
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify({ Status: { Code: 0, Message: "OK" }, Data: data }), { status, headers: { "Content-Type": "application/json" } })
-const fail = (status: number, code: number, message: string, context?: Record<string, string>) => new Response(JSON.stringify({ Status: { Code: code, Message: message, ...(context ? { Context: context } : {}) } }), { status, headers: { "Content-Type": "application/json" } })
+const fail = (status: number, code: number, message: string, context?: Record<string, string | number>) => new Response(JSON.stringify({ Status: { Code: code, Message: message, ...(context ? { Context: context } : {}) } }), { status, headers: { "Content-Type": "application/json" } })
 const empty = () => new Response(null, { status: 200 })
 
 type Deploy = { id: string; versionId: string; variantId: string; startedAt: number }
