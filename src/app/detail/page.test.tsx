@@ -119,8 +119,8 @@ describe("exercise page — modes", () => {
     }
     openMore()
     expect(await screen.findByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
-    // The versions group and the document of the current state.
-    expect(screen.getAllByRole("group")).toHaveLength(2)
+    // The guide, the versions group and the document of the current state.
+    expect(screen.getAllByRole("group")).toHaveLength(3)
   })
 
   it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
