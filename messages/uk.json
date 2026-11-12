@@ -90,7 +90,7 @@
   "admin.ex.err.noWebDevice": "Пристрій не має веб-адреси",
   "admin.ex.err.infrastructureUnavailable": "Лабораторію не підключено, тестове розгортання недоступне",
   "admin.exPage.date.today": "сьогодні о {time}",
-  "admin.exPage.badge.none": "Не опубліковано",
+  "admin.exPage.badge.none": "Чернетка",
   "admin.exPage.badge.published": "Опубліковано",
   "admin.exPage.badge.changes": "Є неопубліковані зміни",
   "admin.exPage.badge.archived": "В архіві",

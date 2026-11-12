@@ -99,7 +99,6 @@ function StatusBadge({ badge }: { badge: HeaderBadge }) {
 }
 
 function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: () => void }) {
-  if (status === "idle") return null
   if (status === "error") {
     return (
       <span role="status" className="inline-flex items-baseline gap-1.5 text-[13px] leading-[18px] text-destructive">
@@ -112,7 +111,8 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
       </span>
     )
   }
-  const saved = status === "saved"
+  // Nothing waiting counts as saved: the indicator is always there beside the status.
+  const saved = status === "saved" || status === "idle"
   return (
     <span role="status" className="inline-flex items-baseline gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
       {saved ? (
@@ -142,6 +142,10 @@ function MoreMenu(props: ExerciseHeaderProps) {
       </DropdownMenuTrigger>
     </HoverTooltip>
     <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuGroup aria-label={t("admin.exGuide.zavdannia")}>
+        <DropdownMenuItem asChild className="gap-2"><Link href={guideHref("zavdannia")}><BookOpen aria-hidden="true" className={ICON} />{t("admin.exGuide.zavdannia")}</Link></DropdownMenuItem>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
       {props.onDocument && <>
         <DropdownMenuGroup aria-label={t("ed.shell.menu.documentTitle")}>
           <DropdownMenuItem className="gap-2" onSelect={props.onDocument}><FileCode aria-hidden="true" className={ICON} />{t("ed.shell.menu.document")}</DropdownMenuItem>
@@ -203,7 +207,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
       </div>
     </div>
     <div className="general-utilities">
-      <HoverTooltip text={t("admin.exGuide.zavdannia")} describe><Button asChild variant="outline" size="icon" className="general-utility"><Link href={guideHref("zavdannia")} aria-label={t("admin.exGuide.zavdannia")}><BookOpen aria-hidden="true" className={ICON} /></Link></Button></HoverTooltip>
+      {!(created && mode !== "readonly" && mode !== "version") && <HoverTooltip text={t("admin.exGuide.zavdannia")} describe><Button asChild variant="outline" size="icon" className="general-utility"><Link href={guideHref("zavdannia")} aria-label={t("admin.exGuide.zavdannia")}><BookOpen aria-hidden="true" className={ICON} /></Link></Button></HoverTooltip>}
       {mode === "version" && <HoverTooltip text={t("admin.exPage.action.history")} describe>
         <Button type="button" variant="outline" size="icon" className="general-utility" aria-label={t("admin.exPage.action.history")} onClick={props.onHistory}><History aria-hidden="true" className={ICON} /></Button>
       </HoverTooltip>}
