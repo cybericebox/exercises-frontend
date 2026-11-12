@@ -9,7 +9,7 @@ import { cn } from "@/utils/cn"
 export type CheckMenuOption = { value: string; label: string; description?: string; disabled?: boolean }
 
 /**
- * A menu of several independent items: each switched-on item has a check mark in the reserved left column (one of many
+ * A menu of several independent items: every item shows a checkbox (a check inside when on, empty when off) in the reserved left column (one of many
  * is a SelectMenu with a dot). The menu stays open while items are toggled; Esc, a click outside close it.
  */
 export function CheckMenu({ label, values, options, onToggle, disabled, className, menuClassName, triggerContent }: {

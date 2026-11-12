@@ -1,4 +1,5 @@
 {
+  "ed.b.help.stateAcademy": "Subtasks with a state check are meant for the Academy. Such a task cannot be added to an event.",
   "ed.b.refAnswer": "Answer to «{name}»",
   "ed.b.val.answerControl": "The answer must not contain control characters",
   "ed.b.val.answerMax": "At most {max} values",
@@ -37,6 +38,7 @@
   "ed.b.val.requiresRepeat": "This subtask is already chosen",
   "ed.b.val.requiresSelf": "A subtask cannot open after itself",
   "ed.b.val.requiresUnknown": "There is no such subtask in the variant",
+  "ed.b.val.stateNotForEvents": "Subtasks with a state check are meant for the Academy. Such a task cannot be added to an event.",
   "ed.b.val.textTemplateEmpty": "A pattern cannot be empty",
   "ed.b.val.userRequired": "Enter a user"
 }
