@@ -56,6 +56,9 @@ const GLYPH_BOUNDS: Record<TopologyGlyphKind, { halfX: number; halfY: number; ra
   vpn: { halfX: 8.75 * GLYPH_UNIT, halfY: 10.75 * GLYPH_UNIT },
   internet: { halfX: 9.75 * GLYPH_UNIT, halfY: 9.75 * GLYPH_UNIT, radius: 9.75 * GLYPH_UNIT },
 }
+/** The shield of the VPN pictogram on its 24-unit grid (half width 8, half height 10 around 12,12). */
+const SHIELD_PATH = "M12 2 20 5v6c0 5-3.1 8.3-8 11-4.9-2.7-8-6-8-11V5z"
+const OUTLINE_GAP = 4
 const LABEL_GAP = 17
 const PORT_LABEL_DISTANCE = 32
 const PORT_LABEL_SIDE_GAP = -9
@@ -772,7 +775,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             </g>}
             <rect data-icon-hitbox x={p.x - ICON_SIZE / 2} y={p.y - ICON_SIZE / 2} width={ICON_SIZE} height={ICON_SIZE}
               fill="transparent" className="stroke-transparent" />
-            {glyphBounds.radius
+            {glyph === "vpn"
+              // The shield is not a rectangle: its outline is the same shield, stood off the pictogram by a few pixels.
+              ? <path data-selection-outline d={SHIELD_PATH} fill="none" strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" className={outlineClass(node.key)}
+                  transform={`translate(${p.x} ${p.y}) scale(${(8 * GLYPH_UNIT + OUTLINE_GAP) / 8} ${(10 * GLYPH_UNIT + OUTLINE_GAP) / 10}) translate(-12 -12)`} />
+              : glyphBounds.radius
               ? <circle data-selection-outline cx={p.x} cy={p.y} r={glyphBounds.radius + 2} fill="none" strokeWidth={1.5}
                   pointerEvents="none" className={outlineClass(node.key)} />
               : <rect data-selection-outline x={p.x - glyphBounds.halfX - 2} y={p.y - glyphBounds.halfY - 2}

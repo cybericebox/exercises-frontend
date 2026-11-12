@@ -316,7 +316,7 @@ export function InfraWorkspace() {
                 </Button></HoverTooltip> : undefined} />}
           </div>
         </div>
-        {panelOpen && <div className={cn("absolute inset-y-0 right-0 z-10 flex w-full max-w-[23.75rem] min-h-0 min-w-0 flex-col xl:relative xl:max-w-none xl:flex-none", PANEL_WIDTH)}>
+        {panelOpen && <div className={cn("absolute inset-x-0 bottom-0 z-10 flex max-h-[70%] min-h-0 min-w-0 flex-col xl:relative xl:inset-auto xl:max-h-none xl:flex-none", PANEL_WIDTH)}>
           {selected !== null
             ? <NodePanel key={selected} variantIndex={variantIndex} nodeKey={selected} readOnly={readOnly} readOnlyReason={readOnlyReason} onClose={() => setSelected(null)}
               onConfigure={(nextSection) => openEditor(selected, nextSection ?? "main")} onDelete={() => setPendingRemoval(selected)} />
