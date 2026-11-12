@@ -11,7 +11,6 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { isConsoleFrameUrl } from "@/lib/consoleFrame"
-import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 
 /** The console page of a lab device did not show within this long: the frame is treated as blocked. */
 export const CONSOLE_FRAME_TIMEOUT_MS = 15000
@@ -119,7 +118,7 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   if (link.kind === "loading") body = <LoadingArea className="h-full" label={t("ed.d.console.loading")} message={t("ed.d.console.loading")} />
   else if (link.kind === "none") body = <LoadError className="h-full" message={t("ed.d.console.none", { device })} help={reason || t("ed.d.console.noneHelp")} />
   else if (link.kind === "refused") body = <LoadError className="h-full" message={t("ed.d.console.refused", { device })} help={t("ed.d.console.refusedHelp")} actions={newTab} />
-  else if (link.kind === "failed") body = <LoadError className="h-full" message={t("ed.d.console.failed", { device })} help={exerciseErrorMessage(link.cause)} error={link.cause} onRetry={retry} actions={newTab} />
+  else if (link.kind === "failed") body = <LoadError className="h-full" message={t("ed.d.console.failed", { device })} help={t("ed.d.console.failedHelp")} error={link.cause} onRetry={retry} actions={newTab} />
   else body = <>
     {/* sandbox: scripts and the lab's own origin (its cookies) are needed by the console page; forms carry the file upload,
         downloads the file download. No top navigation, no popups, no modals. clipboard-*: copy and paste in the terminal.
@@ -152,7 +151,7 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
       <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={tab.busy || !allowed} onClick={() => tab.open(device)}>{t("ed.d.console.newTab")}</Button>
     </p>}
     {tab.error !== null && <p role="alert" className="border-t border-border px-3 py-2 text-xs text-destructive">
-      {tab.error instanceof Error && tab.error.message === "popup" ? t("ed.d.console.popup") : tab.error instanceof Error && tab.error.message === "link" ? t("ed.d.console.refusedHelp") : exerciseErrorMessage(tab.error)}
+      {tab.error instanceof Error && tab.error.message === "popup" ? t("ed.d.console.popup") : tab.error instanceof Error && tab.error.message === "link" ? t("ed.d.console.refusedHelp") : t("ed.d.console.failedHelp")}
     </p>}
   </section>
 }

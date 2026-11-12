@@ -75,6 +75,8 @@ describe("ConsolePanel", () => {
     vi.mocked(openDeployLink).mockRejectedValueOnce(new ApiError(500, null, "boom")).mockResolvedValue(link)
     render(<ConsolePanel {...props} />)
     expect(await screen.findByText(t("ed.d.console.failed", { device: "r1" }))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.console.failedHelp"))).toBeTruthy()
+    expect(screen.queryByText(/boom/)).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: t("error.load.retry") }))
     expect(await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))).toBeTruthy()
   })

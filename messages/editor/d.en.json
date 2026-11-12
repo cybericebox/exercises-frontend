@@ -60,6 +60,7 @@
   "ed.d.console.blockedHelp": "The laboratory may not allow embedding the console here. Open it in a new tab.",
   "ed.d.console.close": "Close the console",
   "ed.d.console.failed": "Could not get access to the console of {device}",
+  "ed.d.console.failedHelp": "Try again or open the console in a new tab.",
   "ed.d.console.frame": "Console of the device {device}",
   "ed.d.console.linkText": "Console of {device}",
   "ed.d.console.loading": "Opening the console…",

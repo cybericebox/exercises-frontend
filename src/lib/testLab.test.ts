@@ -50,6 +50,12 @@ describe("deviceStage", () => {
 describe("labChip", () => {
   const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, ...extra })
 
+  it("counts every device of the schema when the topology is given, hub and switch included", () => {
+    const topology: Pick<NormalizedDevice, "Name" | "Type">[] = [{ Name: "a", Type: "node" }, { Name: "b", Type: "node" }, { Name: "sw", Type: "unmanaged-switch" }]
+    const chip = labChip(status({ Devices: [{ Name: "a", Ready: false }, { Name: "b", Ready: false }] }), false, topology)
+    expect(chip).toMatchObject({ ready: 0, total: 3, kind: "starting" })
+  })
+
   it("creating until the first answer, then the queue", () => {
     expect(labChip(null).kind).toBe("creating")
     const queued = labChip(status({ Phase: "Queued", Queue: { Position: 2, Length: 3, Reason: "WaitingForTurn", Message: "", Pods: 3, Pending: 3 }, Devices: [] }))
