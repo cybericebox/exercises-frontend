@@ -37,6 +37,7 @@ export function InitSection({ variantIndex, deviceIndex, disabled, requestVariab
   const { fields, append, remove } = useFieldArray({ control, name: `${base}.Files` })
   const files = useWatch({ control, name: `${base}.Files` }) ?? []
   const script = useWatch({ control, name: `${base}.Script` }) ?? ""
+  const scriptError = useFieldError(`${base}.Script`)
   const exerciseId = useExerciseId()
   const [expanded, setExpanded] = useState<Expanded>(null)
   // The sizes of the uploaded files of this editing session (the form keeps only the file's id and name).
@@ -96,7 +97,7 @@ export function InitSection({ variantIndex, deviceIndex, disabled, requestVariab
     <div className="border-t border-border pt-5"><Block title={t("ed.c.init.script")} id="init-script" count={lineCount > 0 ? t(pluralKey("ed.c.init.lines", lineCount), { count: lineCount }) : undefined}
       help={{ intro: t("ed.c.h.script"), items: [{ term: t("ed.c.h.scriptOnly"), text: t("ed.c.h.scriptOnlyText") }] }}>
       <Controller control={control} name={`${base}.Script`} render={({ field }) => {
-        const props = fieldProps(`${base}.Script`, undefined)
+        const props = fieldProps(`${base}.Script`, scriptError)
         return <RefField {...props} variantIndex={variantIndex} value={field.value} onValueChange={field.onChange} multiline rows={6} disabled={disabled} aria-label={t("ed.c.init.script")}
           placeholder={t("ed.c.init.scriptPlaceholder")} onNewVariable={requestVariable}
           expandTool={<ExpandButton expanded={false} onClick={() => setExpanded({ kind: "script" })} />} />
