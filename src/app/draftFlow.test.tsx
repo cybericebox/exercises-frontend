@@ -57,8 +57,8 @@ describe("unsaved draft flow", () => {
   it.each(["description", "name too short"])("shows the draft in the catalog after leaving the new task page (%s)", async (what) => {
     const first = render(<NewExercisePage />)
     vi.useFakeTimers()
-    if (what === "description") fireEvent.change(screen.getByLabelText(/admin.ex.field.description/), { target: { value: "Some text" } })
-    else fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Qz" } })
+    if (what === "description") fireEvent.change(screen.getByLabelText(/ed.a.general.description.label/), { target: { value: "Some text" } })
+    else fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target: { value: "Qz" } })
     // Leave right away, before any debounce fired.
     first.unmount()
     await act(async () => { await vi.advanceTimersByTimeAsync(2000) })

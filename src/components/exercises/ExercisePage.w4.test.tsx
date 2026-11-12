@@ -87,12 +87,12 @@ describe("exercise editor — W4 rights", () => {
     expect(await screen.findByRole("heading", { name:"Selected authored name", level:1 })).toBeInTheDocument()
     expect(screen.queryByText("Public description")).not.toBeInTheDocument()
     expect(screen.queryByText("public")).not.toBeInTheDocument()
-    expect(screen.getByText("admin.exGeneral.noDescription")).toBeInTheDocument()
-    expect(screen.getByText("admin.exGeneral.noTags")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.description.empty")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.tags.empty")).toBeInTheDocument()
     if (!versionId) {
       fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.edit" }))
-      expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveValue("Selected authored name")
-      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"New local name" } })
+      expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Selected authored name")
+      fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target:{ value:"New local name" } })
       expect(screen.getByRole("heading", { level:1 })).toHaveTextContent("New local name")
     }
   })
@@ -104,7 +104,7 @@ describe("exercise editor — W4 rights", () => {
     expect(await screen.findByRole("heading", { name:"Published authored name" })).toBeInTheDocument()
     expect(screen.getByText("Published text")).toBeInTheDocument()
     expect(screen.queryByText("PRIVATE")).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByText("ed.a.general.note.label")).not.toBeInTheDocument()
     expect(screen.queryByText("admin.exPage.badge.changes")).not.toBeInTheDocument()
   })
 
@@ -215,7 +215,7 @@ describe("new exercise — W4 owner", () => {
     vi.mocked(saveDraft).mockResolvedValue({ ...version, ID: "draft-1", Status: "draft" })
     render(<ExercisePage exerciseId={null} versionId={null} eventId="ev2" />)
     vi.useFakeTimers()
-    fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Buffer overflow" } })
+    fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(createExercise).toHaveBeenCalledWith({ Name: "Buffer overflow", Description: "", Tags: [], OwnerEventID: "ev2" })
     expect(screen.getByText("exercises.return.created")).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe("new exercise — W4 owner", () => {
   it("makes a manager with several events pick one before editing", () => {
     render(<ExercisePage exerciseId={null} versionId={null} />)
     expect(screen.getByText("exercises.owner.required")).toBeInTheDocument()
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeDisabled()
   })
 })
 

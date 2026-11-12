@@ -40,7 +40,7 @@ describe("ExportDialog", () => {
 
   it("one reveal toggle shows and hides both the password and its confirmation", () => {
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.secrets" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.secrets" }))
     const password = screen.getByLabelText(/^admin\.exExport\.password/)
     const confirm = screen.getByLabelText(/^admin\.exExport\.confirm/)
     fireEvent.click(screen.getAllByRole("button", { name: "admin.password.show" })[0])
@@ -55,8 +55,8 @@ describe("ExportDialog", () => {
   it("requires a confirmed password when secrets are included", async () => {
     mockDownload.mockResolvedValue({ blob: new Blob(["zip"]), filename: "x.zip" })
     render(<ExportDialog exerciseIds={["e1", "e2"]} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.secrets" }))
-    expect(screen.getByText("admin.exExport.warning")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.secrets" }))
+    expect(screen.getByText("ed.a.export.warnOn")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("admin.exExport.passwordRequired")
     fireEvent.change(screen.getByLabelText(/^admin\.exExport\.password/), { target: { value: "s3cret" } })
@@ -112,7 +112,7 @@ describe("ExportDialog", () => {
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     await screen.findByRole("alert")
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.secrets" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.secrets" }))
     fireEvent.change(screen.getByLabelText(/^admin\.exExport\.password/), { target: { value: "pw" } })
     fireEvent.change(screen.getByLabelText(/^admin\.exExport\.confirm/), { target: { value: "pw" } })
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
@@ -146,8 +146,10 @@ describe("ExportDialog", () => {
 
   it("has the images switch off by default and says the archive becomes large", () => {
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
-    expect(screen.getByRole("switch", { name: "admin.exExport.images" })).not.toBeChecked()
-    expect(screen.getByText("admin.exExport.imagesHint")).toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "ed.a.export.images" })).not.toBeChecked()
+    // The explanation sits in the «?» of the switch, not under it (A3).
+    expect(screen.getAllByRole("button", { name: "ui.help" })).toHaveLength(2)
+    expect(screen.getByText("ed.a.export.warnOff")).toBeInTheDocument()
   })
 
   it("asks for the images and shows the crest loader while the server prepares the archive", async () => {
@@ -158,7 +160,7 @@ describe("ExportDialog", () => {
     })
     mockDownload.mockResolvedValue({ blob: new Blob(["zip"]), filename: "img.zip" })
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.images" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     expect((await screen.findAllByText("admin.exExport.working")).length).toBeGreaterThan(0)
     expect(screen.getAllByRole("status").length).toBeGreaterThan(0)
@@ -176,7 +178,7 @@ describe("ExportDialog", () => {
     })
     const onClose = vi.fn()
     render(<ExportDialog exerciseIds={["e1"]} onClose={onClose} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.images" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     await screen.findAllByText("admin.exExport.working")
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.dialog.cancel" }))
@@ -187,7 +189,7 @@ describe("ExportDialog", () => {
   it("explains an export that cannot read an image from the registry", async () => {
     mockCreate.mockRejectedValue(new ApiError(409, { Status: { Code: 72830, Context: { device: "web", reason: "unreachable" } } }, undefined, undefined, 72830))
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.images" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     const alert = await screen.findByRole("alert")
     // The message carries the device and the translated reason (the test translator prints keys only).
@@ -201,7 +203,7 @@ describe("ExportDialog", () => {
     })
     mockDownload.mockReturnValue(new Promise(() => undefined))
     render(<ExportDialog exerciseIds={["e1"]} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole("switch", { name: "admin.exExport.images" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.a.export.images" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exExport.submit" }))
     await waitFor(() => expect(mockDownload).toHaveBeenCalled())
     expect(screen.queryAllByText("admin.exExport.working")).toHaveLength(0)

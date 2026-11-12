@@ -90,7 +90,7 @@ describe("exercise page — modes", () => {
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.badge.changes")).toHaveAttribute("data-badge", "changes")
     expect(screen.queryByText("admin.exPage.badge.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
@@ -99,7 +99,7 @@ describe("exercise page — modes", () => {
   it("edits with autosave and returns to viewing on Done", async () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
-    const name = screen.getByLabelText(/admin.ex.field.name/)
+    const name = screen.getByLabelText(/ed.a.general.name.label/)
     expect(name).toBeEnabled()
     fireEvent.change(name, { target: { value: "Web 102" } })
     await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }), { timeout: 2000 })
@@ -107,7 +107,7 @@ describe("exercise page — modes", () => {
     expect(saveDraft).not.toHaveBeenCalled() // A name-only edit does not rewrite the unchanged working copy.
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
   })
 
   it("hides every action the user has no permission for", async () => {
@@ -126,12 +126,12 @@ describe("exercise page — modes", () => {
   it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
     const { unmount } = render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.getByText("admin.ex.create.notes")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.note.label")).toBeInTheDocument()
     unmount()
     h.perms = new Set(["exercises.read"])
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByText("ed.a.general.note.label")).not.toBeInTheDocument()
   })
 
   it("omits Publish when the working copy matches the publication", async () => {
@@ -219,7 +219,7 @@ describe("exercise page — publishing and history", () => {
     render(<Page />)
     expect(await screen.findByText("admin.exPage.version.banner")).toBeInTheDocument()
     expect(getDraft).not.toHaveBeenCalled()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.version.restore" }))
@@ -261,12 +261,12 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(publishDraft).mockReturnValue(new Promise((resolve) => { resolvePublish = resolve }))
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeDisabled()
     resolvePublish({ ...workingCopy, Status: "published" })
-    await waitFor(() => expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled())
+    await waitFor(() => expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled())
   })
 
   it("discards changes by restoring the published version after confirmation", async () => {
@@ -308,7 +308,7 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(updateExercise).mockResolvedValue({ ...exercise, DraftVersionID:"metadata-draft-2" })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name:"admin.exPage.action.edit" }))
-    fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"Web 103" } })
+    fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target:{ value:"Web 103" } })
     fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.test" }))
     fireEvent.click(await screen.findByRole("button", { name:"admin.exDraft.variantN" }))
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1"))

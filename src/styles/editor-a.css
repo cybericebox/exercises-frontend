@@ -1,0 +1,43 @@
+/* Package A (general, all variants, add-variant wizard). Layout only; colours come from the design tokens. */
+
+/* «Усі варіанти»: the header and every row share one grid, so the columns line up. The chevron column (2rem) is the row's own. */
+.ea-vhead,.ea-vgrid { display:grid; grid-template-columns:minmax(9rem,13rem) 10rem minmax(0,1fr) 2.25rem; column-gap:1rem; align-items:center; }
+.ea-vhead { min-height:32px; padding:0 0 0 2rem; }
+.ea-vgrid { padding:2px 0; }
+.ea-linked { padding-left:1.25rem; }
+.ea-detail-row { display:grid; grid-template-columns:minmax(8rem,14rem) minmax(0,1fr) auto; align-items:center; gap:0.5rem 1rem; min-height:40px; padding:4px 0; border-top:1px solid var(--ib-line); font-size:14px; }
+.ea-detail-row:first-child { border-top:0; }
+.ea-detail-row-form { grid-template-columns:minmax(8rem,14rem) minmax(0,1fr); align-items:start; }
+@media (max-width:639px) {
+  .ea-vhead { display:none; }
+  .ea-vgrid { grid-template-columns:9.5rem minmax(0,1fr) auto; row-gap:0.25rem; padding:4px 0; }
+  .ea-vgrid>:nth-child(1) { grid-column:1; grid-row:1; }
+  .ea-vgrid>:nth-child(2) { grid-column:2; grid-row:1; }
+  .ea-vgrid>:nth-child(3) { grid-column:1 / -1; grid-row:2; }
+  .ea-vgrid>:nth-child(4) { grid-column:3; grid-row:1; }
+  .ea-linked { padding-left:0.75rem; }
+  .ea-detail-row,.ea-detail-row-form { grid-template-columns:minmax(0,1fr); }
+}
+
+/* The wizard: the fields of a chosen preset sit directly under it, aligned with its text (H14). */
+.ed-wz-dep { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px 16px; margin-top:8px; padding:0 0 4px 2.5rem; }
+.ed-wz-row { display:grid; grid-template-columns:minmax(10rem,16rem) minmax(0,1fr) minmax(0,1.4fr); align-items:start; gap:8px 16px; padding:10px 12px; }
+.ed-wz-head { align-items:center; padding-top:4px; padding-bottom:4px; }
+@media (max-width:639px) {
+  .ed-wz-dep { padding-left:0; }
+  .ed-wz-row { grid-template-columns:minmax(0,1fr); }
+  .ed-wz-head { display:none; }
+}
+
+/* The report of an import result, under its row. */
+.exercise-import-result-report { padding:4px 0 12px; font-size:13.5px; }
+.exercise-import-result-report>summary { cursor:pointer; min-height:32px; display:flex; align-items:center; color:var(--ib-action); }
+.exercise-import-result-report[open]>summary { margin-bottom:8px; }
+
+/* «Загальне»: the facts panel sits beside the fields from a narrower screen than the old rule (C1: same line as the fields). */
+@container task-screen (min-width:900px) {
+  .editor-panel .editor-general { grid-template-columns:minmax(0,1fr) 280px; justify-content:normal; column-gap:24px; }
+}
+
+/* The details chevron of an import row is the only way to the report: always visible (H13), not only on hover. */
+.exercise-import-row .exercise-import-toggle { visibility:visible; }
