@@ -1,0 +1,3 @@
+/* The test lab's read-only schema: port labels step aside when the view is too small to read them. */
+[data-lab-schema][data-low-scale] [data-port-label] { display: none; }
+[data-lab-schema] [data-selection-outline] { stroke-width: 2; }
