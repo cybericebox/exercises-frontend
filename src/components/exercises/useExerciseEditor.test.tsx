@@ -31,6 +31,7 @@ const mockUpdate = vi.mocked(updateExercise)
 const mockGetDraft = vi.mocked(getDraft)
 const mockGetVersion = vi.mocked(getVersion)
 const mockSaveDraft = vi.mocked(saveDraft)
+const normalizedDeviceStub = normalizedDevice()
 
 const exercise: Exercise = {
   ...OWNERSHIP,
@@ -484,6 +485,32 @@ describe("useExerciseEditor", () => {
     expect(onCreated).not.toHaveBeenCalled()
     expect(storage.get(pendingBufferKey("editor-1", "new-exercise"))).toContain("Buffer overflow")
     expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
+  })
+
+  it("puts a document error that names its field beside that field, not in a toast, and clears it when a save goes through", async () => {
+    const withDevice = structuredClone(serverVersion)
+    withDevice.Variants[0].Topology.Devices = [{ ...normalizedDeviceStub, ID: "dev-1", Name: "web" }]
+    mockGetDraft.mockResolvedValue(withDevice)
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 23506, Message: "m", Context: { device: "web", field: "bootstrap.script" } } }, "m", undefined, 23506))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft"))
+    await act(async () => { await expect(latest.autosave.flush()).resolves.toBe(false) })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Bootstrap.Script").error?.type).toBe("server")
+    expect(toast.error).not.toHaveBeenCalled()
+    mockSaveDraft.mockResolvedValue(withDevice)
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft again"))
+    await act(async () => { await latest.autosave.flush() })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Bootstrap.Script").error).toBeUndefined()
+  })
+
+  it("keeps an error without a place as a toast", async () => {
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 73509, Message: "m", Context: { features: "guest_agent" } } }, "m", undefined, 73509))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft"))
+    await act(async () => { await expect(latest.autosave.flush()).resolves.toBe(false) })
+    expect(toast.error).toHaveBeenCalledTimes(1)
   })
 
   it("shows one error toast for repeated identical save failures, not one per retry", async () => {

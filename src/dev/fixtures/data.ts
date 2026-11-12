@@ -85,7 +85,7 @@ function tasks(second: boolean) {
     {
       ID: T(1), Key: "theory", Name: "Протокол маршрутизації", Difficulty: "elementary", Requires: [],
       Description: lexical("Який протокол стану каналу використовує алгоритм Дейкстри?"),
-      Check: { Answer: { Type: "text", Values: ["OSPF"], IgnoreCase: true, InputHint: "Назва протоколу" } },
+      Check: { Answer: { Type: "text", Values: [second ? "OSPFv2" : "OSPF"], IgnoreCase: true, InputHint: "Назва протоколу" } },
       Attachments: [], Placeholders: [],
       Hints: [{ ID: "h1", Text: "Назва протоколу починається на O і розшифровується як Open Shortest Path First.", Level: "direction" }],
     },

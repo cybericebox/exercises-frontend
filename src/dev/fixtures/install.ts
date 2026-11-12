@@ -11,6 +11,7 @@
  *   ?vpnReverse=blocked|allowed|not_enforced  what is in force for connections the lab starts to the VPN clients
  *   ?age=N                             a test lab starts N seconds old
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
+ *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
  *   ?fx=reset                           forget the switches
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
@@ -23,8 +24,26 @@ import {
 const MARK = "[editor fixtures]"
 const KEY = "cib-editor-fixtures"
 
+/** A document error with its public context, as the daemon answers a save or a publish (`?serverError=…`, `&serverErrorAt=save`). */
+const SERVER_ERRORS = {
+  device: { code: 23506, context: { device: "srv", field: "bootstrap.script" } },
+  variables: { code: 23506, context: { device: "srv", field: "bootstrap.env[0].name" } },
+  access: { code: 23506, context: { device: "r1", field: "access[0].command" } },
+  profile: { code: 23105, context: { device: "r2", field: "persistence" } },
+  description: { code: 23519, context: { task: "secret", field: "description" } },
+  hint: { code: 23519, context: { task: "ospf", field: "hints[1].text" } },
+  answer: { code: 23504, context: { task: "theory", field: "check.answer.values" } },
+  state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[1].file.path" } },
+  variable: { code: 23507, context: { field: "variables[0].name" } },
+  unplaced: { code: 73509, context: { features: "guest_agent" } },
+  // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
+  ambiguous: { code: 23504, context: { task: "secret", field: "check.answer.values" } },
+  variant: { code: 23504, context: { task: "secret", field: "check.answer.values", variant: "2" } },
+} as const
+type ServerErrorKind = keyof typeof SERVER_ERRORS
+
 type DeployMode = "ok" | "fail" | "retry" | "expired" | "ending" | "devfail"
-type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; shape: DraftShape }
+type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
 
 function switches(): Switches {
   let saved: Partial<Switches> = {}
@@ -41,12 +60,16 @@ function switches(): Switches {
   if (consoleMode === "ok" || consoleMode === "none" || consoleMode === "fail") saved.console = consoleMode
   const reverse = query.get("vpnReverse")
   if (reverse === "blocked" || reverse === "allowed" || reverse === "not_enforced") saved.vpnReverse = reverse
+  const serverError = query.get("serverError")
+  if (serverError !== null) saved.serverError = serverError in SERVER_ERRORS ? serverError as ServerErrorKind : ""
+  const serverErrorAt = query.get("serverErrorAt")
+  if (serverErrorAt === "save" || serverErrorAt === "publish") saved.serverErrorAt = serverErrorAt
   try { sessionStorage.setItem(KEY, JSON.stringify(saved)) } catch { /* private window */ }
-  return { labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", shape: saved.shape ?? "rich" }
+  return { labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", shape: saved.shape ?? "rich", serverError: saved.serverError ?? "", serverErrorAt: saved.serverErrorAt ?? "publish" }
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify({ Status: { Code: 0, Message: "OK" }, Data: data }), { status, headers: { "Content-Type": "application/json" } })
-const fail = (status: number, code: number, message: string) => new Response(JSON.stringify({ Status: { Code: code, Message: message } }), { status, headers: { "Content-Type": "application/json" } })
+const fail = (status: number, code: number, message: string, context?: Record<string, string>) => new Response(JSON.stringify({ Status: { Code: code, Message: message, ...(context ? { Context: context } : {}) } }), { status, headers: { "Content-Type": "application/json" } })
 const empty = () => new Response(null, { status: 200 })
 
 type Deploy = { id: string; versionId: string; variantId: string; startedAt: number }
@@ -109,6 +132,10 @@ export function installFixtures(): void {
     if (path === "/api/events") return json({ Items: [], Total: 0, Page: 1, PageSize: 20 })
     if (path.startsWith("/api/notifications/")) return json(path.endsWith("/inbox") ? { Items: [], Unread: 0 } : path.endsWith("/pulse") ? { Unread: 0 } : [])
 
+    if (sw.serverError && ((path === `${ex}/publish` && method === "POST" && sw.serverErrorAt === "publish") || (path === `${ex}/draft` && method === "PUT" && sw.serverErrorAt === "save"))) {
+      const e = SERVER_ERRORS[sw.serverError]
+      return fail(400, e.code, "fixture document error", e.context)
+    }
     if (path === ex) {
       if (method === "PATCH") { Object.assign(exercise, b); draft.Name = exercise.Name; return json(exercise) }
       return json(exercise)
