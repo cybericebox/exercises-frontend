@@ -128,7 +128,7 @@ export function installFixtures(): void {
     if (path === `${ex}/images/blobs/missing` && method === "POST") return json({ Missing: (b.Digests as string[]) ?? [] })
     if (path === `${ex}/images/blobs` && method === "POST") return json({ State: "present" })
     if (path === `${ex}/images` && method === "POST") return json({ Reference: `platform/${String(b.Name ?? "image").replace(/[^a-z0-9._-]/gi, "-").toLowerCase()}:latest` })
-    if (path === `${ex}/publish` && method === "POST") return json({ ...draft, Status: "published", PublishedAt: new Date().toISOString() })
+    if (path === `${ex}/publish` && method === "POST") { await new Promise((resolve) => setTimeout(resolve, 900)); return json({ ...draft, Status: "published", PublishedAt: new Date().toISOString() }) }
     if (path === `${ex}/checkpoints` && method === "POST") return json({ ...draft, Status: "checkpoint" })
     if (path === "/api/exercises/import/preview") return json(buildImportPreview(importKind(String((b as { UploadID?: string; FileID?: string }).UploadID ?? (b as { FileID?: string }).FileID ?? ""))))
     if (path === "/api/exercises/uploads" && method === "POST") { const id = `up-${++counter}`; uploadNames.set(id, String(b.Name ?? "")); return json(uploadStatus(id, 0)) }

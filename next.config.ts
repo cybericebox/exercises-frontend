@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import type { NextConfig } from "next"
+import { consoleFrameOrigin } from "./src/lib/consoleFrame.ts"
 
 // Static export for the exercise catalog.
 // One base domain: NEXT_PUBLIC_DOMAIN is the only host input and every host derives from it (src/**/hosts.ts, deploy/base-domain.sh; the daemon and
@@ -51,7 +52,8 @@ function devContentSecurityPolicy(): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connect.join(" ")}`,
-    "frame-src 'none'",
+    // Only the lab console frame (terminal.labs.<domain>); the dev fixture mode also frames its own canned console page.
+    `frame-src ${consoleFrameOrigin(DOMAIN)}${process.env.NEXT_PUBLIC_EDITOR_FIXTURES ? " 'self'" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -108,7 +108,8 @@ echo '}' >> "$tmp/map"
 
 script_src="'self'$common \$csp_page_hashes"
 connect_src="'self' https://$host"
-frame_src="'none'"
+# The only frame the catalog allows: the lab console, terminal.labs.<domain> (src/lib/consoleFrame.ts is the same rule). No wildcard, no http.
+frame_src="https://$(base_domain_host terminal.labs)"
 
 if [ -n "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}" ]; then
   script_src="$script_src https://www.googletagmanager.com"
