@@ -47,6 +47,8 @@ export type DeployListItem = {
   ExpiresAt: string
   /** The lease is over but the lab is not removed yet: it can only be ended. */
   Expired?: boolean
+  /** The lab is being removed; it stays in the list until it is gone. */
+  Removing?: boolean
   Tasks: DeployTask[]
   /** Tasks already checked correctly; kept with the deploy, so a reload keeps the progress. */
   SolvedTaskIDs?: string[]
@@ -82,10 +84,16 @@ export type DeviceScheduling = {
 /** Writable-layer snapshot of a device with state persistence. */
 export type DeviceSnapshot = { LastSnapshotAt: string | null; RestoredAt: string | null; SizeBytes: number; Warning: string; Rescue: boolean }
 
+/** Where the bootstrap of a device is (author and organizers only); absent for a device without one. */
+export type DeviceBootstrapStatus = { Phase: "pending" | "done" | "failed" | string; Attempts: number; /** The short text of the last failure; holds no secret. */ Reason: string }
+
 export type DeployDeviceStatus = {
   Name: string
   Ready: boolean
   Reason?: string
+  /** The code of a resource limit the device hits ("device_cpu_limit"); absent when none. */
+  Limit?: string
+  Bootstrap?: DeviceBootstrapStatus | null
   Scheduling?: DeviceScheduling | null
   /** null for a device without state persistence. */
   Snapshot?: DeviceSnapshot | null
@@ -97,6 +105,35 @@ export type DeployAccess = {
   Protocol: string
   URL: string
 }
+
+/** One laboratory check of a state task with its last result. Detail and Value are for the author only. */
+export type DeployCheckStatus = {
+  ID: string
+  Known: boolean
+  Passed: boolean
+  FirstPassedAt: string | null
+  ChangedAt: string | null
+  Value: string
+  Detail: string
+}
+
+/** A task checked by the state of the lab, as the author of the test sees it. */
+export type DeployStateTask = {
+  TaskID: string
+  Key: string
+  Mode: "once" | "continuous"
+  /** The author may press «check now». */
+  Manual: boolean
+  Solved: boolean
+  SolvedAt: string | null
+  FirstSolvedAt: string | null
+  /** Every check has a result. */
+  Known: boolean
+  Checks: DeployCheckStatus[]
+}
+
+/** What is in force for connections the lab starts to the VPN clients; `not_enforced` is a warning, never «blocked». */
+export type VPNReverseState = "blocked" | "allowed" | "not_enforced"
 
 export type DeployStatus = {
   Phase: DeployPhase | string
@@ -113,6 +150,14 @@ export type DeployStatus = {
   /** Tester page served inside the tunnel by the lab group's VPN pod; absent until known. */
   VPNProbeURL?: string
   SolvedTaskIDs?: string[]
+  /** Tasks checked by the state of the lab (author only); absent for a variant without such tasks. */
+  StateTasks?: DeployStateTask[]
+  /** The exercise lets devices start connections to the VPN clients (false: forbidden). */
+  ReverseConnections?: boolean
+  /** What is in force; absent for a lab without a VPN. */
+  VPNReverse?: VPNReverseState | string
+  /** The lab is being removed (Phase is "Removing"). */
+  Removing?: boolean
   /** Set while the lab waits in the launch queue. */
   Queue?: DeployQueue | null
   /** Lab images pulled by tag, not pinned to a digest; empty when fine. */
@@ -152,9 +197,17 @@ export function deployStatus(group: string): Promise<DeployStatus> {
 
 export type DeployLink = { URL: string; ExpiresAt: string }
 
-/** Get the one-click link that opens a web device of a ready test deploy. */
-export function openDeployLink(group: string, device: string, port: number): Promise<DeployLink> {
-  return apiPost<DeployLink>(`${BASE}/deploys/${encodeURIComponent(group)}/link`, { Device: device, Port: port })
+/** Which way into the device a link opens: its web port or its browser console. */
+export type DeployLinkAccess = "http" | "terminal"
+
+/** Get the one-click link that opens a web device (or the console of a device) of a ready test deploy. */
+export function openDeployLink(group: string, device: string, port: number, access: DeployLinkAccess = "http"): Promise<DeployLink> {
+  return apiPost<DeployLink>(`${BASE}/deploys/${encodeURIComponent(group)}/link`, access === "terminal" ? { Device: device, Access: "terminal" } : { Device: device, Port: port })
+}
+
+/** Ask the laboratory to run the checks of one state task of the author's own test lab now (at most 3 a minute: 429). */
+export function runDeployChecks(group: string, taskId: string): Promise<{ Asked: boolean }> {
+  return apiPost<{ Asked: boolean }>(`${BASE}/deploys/${encodeURIComponent(group)}/tasks/${encodeURIComponent(taskId)}/run-checks`, {})
 }
 
 /** Tear a test deploy down. */

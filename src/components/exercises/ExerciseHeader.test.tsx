@@ -17,7 +17,6 @@ function makeProps(overrides: Partial<ExerciseHeaderProps> = {}): ExerciseHeader
     mode: "view", title: "Web 101", badge: { kind: "changes" }, saveStatus: "saved",
     permissions: { write: true, publish: true, delete: true, export: true },
     archived: false, publishable: true, revertable: true, busy: false, testAvailable: true,
-    getTestVariants: () => [{ index: 0, label: "Variant 1", disabled: false }, { index: 1, label: "Variant 2", disabled: true }],
     usageEvents: [],
     onRetrySave: vi.fn(), onCancelNew: vi.fn(), onTest: vi.fn(), onHistory: vi.fn(), onEdit: vi.fn(), onDone: vi.fn(),
     onPublish: vi.fn(), onSnapshot: vi.fn(), onRevert: vi.fn(), onExport: vi.fn(), onArchive: vi.fn(),
@@ -85,19 +84,6 @@ describe("ExerciseHeader", () => {
     expect(screen.getByRole("button", { name: /admin.exPage.action.test/ })).toBeDisabled()
   })
 
-  it("keeps static variants selectable while a lab variant is disabled with its reason", () => {
-    const props = makeProps({
-      getTestVariants: () => [
-        { index: 0, label: "V1", disabled: false },
-        { index: 1, label: "V2", disabled: true, reason: "admin.exPage.action.testNoPlatform" },
-      ],
-    })
-    render(<ExerciseHeader {...props} />)
-    openMenu("admin.exPage.action.test")
-    expect(screen.getByRole("menuitem", { name: "V2" })).toHaveAttribute("aria-disabled", "true")
-    fireEvent.click(screen.getByRole("menuitem", { name: "V1" }))
-    expect(props.onTest).toHaveBeenCalledWith(0)
-  })
 
   it("keeps historical History reachable as an icon utility without a primary action row", () => {
     const props = makeProps({ mode:"version", badge:{ kind:"version", label:"Version of 12.09.2026" } })
@@ -175,13 +161,19 @@ describe("ExerciseHeader", () => {
     expect(props.onUnarchive).toHaveBeenCalled()
   })
 
-  it("starts a test deploy for the chosen variant", async () => {
+  it("opens the start of a test lab; the page asks which variant", () => {
     const props = makeProps()
     render(<ExerciseHeader {...props} />)
-    openMenu("admin.exPage.action.test")
-    expect(await screen.findByRole("menuitem", { name: "Variant 2" })).toHaveAttribute("aria-disabled", "true")
-    fireEvent.click(screen.getByRole("menuitem", { name: "Variant 1" }))
-    expect(props.onTest).toHaveBeenCalledWith(0)
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.test" }))
+    expect(props.onTest).toHaveBeenCalledTimes(1)
+  })
+
+  it("offers the document of the current state in the more menu", async () => {
+    const props = makeProps({ onDocument: vi.fn() })
+    render(<ExerciseHeader {...props} />)
+    openMenu("admin.exPage.action.more")
+    fireEvent.click(await screen.findByRole("menuitem", { name: "ed.shell.menu.document" }))
+    expect(props.onDocument).toHaveBeenCalled()
   })
 
   it("names the publication on the busy Publish button", () => {

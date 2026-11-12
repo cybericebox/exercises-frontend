@@ -8,7 +8,7 @@ import { useForm, FormProvider } from 'react-hook-form'
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { PlaceholderList } from './PlaceholderList'
-import { emptyDraft, type DraftFormValues, type PlaceholderFormValues } from '@/lib/exerciseSchemas'
+import { emptyAccess, emptyDraft, type DraftFormValues, type PlaceholderFormValues } from '@/lib/exerciseSchemas'
 
 function Harness({ placeholders, devices }: {
   placeholders: PlaceholderFormValues[]
@@ -18,9 +18,9 @@ function Harness({ placeholders, devices }: {
   draft.Variants[0].Tasks[0].Placeholders = placeholders
   if (devices) {
     draft.Variants[0].Topology.Devices = [{
-      ID: 'd1', Name: 'web', Type: 'container', SecurityPreset: '', Image: '', Interfaces: [], EnvVars: [],
+      ID: 'd1', Name: 'web', Type: 'node', SecurityPreset: '', Image: '', Interfaces: [], Profile: "container", Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
       ResourcePreset: "",
-      External: { Enabled: devices.withExternal, Port: 80, Protocol: 'http' },
+      Access: devices.withExternal ? [emptyAccess('http')] : [],
     }]
   }
   const form = useForm<DraftFormValues>({ defaultValues: draft })

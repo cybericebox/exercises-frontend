@@ -11,9 +11,10 @@ vi.mock('@/api/exercises/files', () => ({
 import { LinkedVariantsDialog } from './LinkedVariantsDialog'
 import { ExerciseIdContext } from './ExerciseIdContext'
 import { emptyTask, emptyVariant, type VariantFormValues } from '@/lib/exerciseSchemas'
+import { formTask } from "@/test/editorFixtures"
 
 function task(id: string, name: string, flag: string[]) {
-  return { ...emptyTask(), ID: id, Name: name, Description: { text: `${name} text` }, Flag: flag }
+  return { ...emptyTask(), ID: id, Name: name, Description: { text: `${name} text` }, Check: formTask({ flag: flag }).Check }
 }
 
 function base(): VariantFormValues {
@@ -82,7 +83,7 @@ describe('LinkedVariantsDialog', () => {
       { ID: '', Index: 4, LinkedTo: 'b', Note: '' },
     ])
     expect(created.map((variant) => variant.Tasks.map((t) => t.Name))).toEqual([['Scan', 'Exploit'], ['Scan', 'Exploit'], ['Scan', 'Exploit']])
-    expect(created.map((variant) => variant.Tasks.map((t) => t.Flag))).toEqual([
+    expect(created.map((variant) => variant.Tasks.map((t) => t.Check.Answer.Values))).toEqual([
       [['ICE{a1}'], ['ICE{a2}']],
       [['ICE{b1}'], []],
       [[], ['ICE{c2}']],
@@ -120,7 +121,7 @@ describe('LinkedVariantsDialog', () => {
     const created = onCreate.mock.calls[0][0] as VariantFormValues[]
     expect(created).toHaveLength(1)
     expect(created[0].LinkedTo).toBe('c')
-    expect(created[0].Tasks.map((t) => ({ Name: t.Name, Flag: t.Flag }))).toEqual([{ Name: 'Other', Flag: ['ICE{kept}'] }])
+    expect(created[0].Tasks.map((t) => ({ Name: t.Name, Flag: t.Check.Answer.Values }))).toEqual([{ Name: 'Other', Flag: ['ICE{kept}'] }])
   })
 
   it('rejects a duplicate flag within a subtask', () => {
@@ -210,7 +211,7 @@ describe('LinkedVariantsDialog', () => {
     const created = onCreate.mock.calls[0][0] as VariantFormValues[]
     expect(created[0].Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.bin' }])
     expect(created[1].Tasks[0].Attachments).toEqual([])
-    expect(created[1].Tasks[1].Flag).toEqual(['ICE{during}'])
+    expect(created[1].Tasks[1].Check.Answer.Values).toEqual(['ICE{during}'])
   })
 
   it('keeps entered cells when the count is lowered and raised again within the remaining rows', () => {

@@ -5,6 +5,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 import { emptyDevice, emptyVariant } from "@/lib/exerciseSchemas"
 import { TopologyDeviceOverview } from "./TopologyDeviceOverview"
+import { emptyAccess } from "@/lib/editor/schemas/infra"
 
 describe("TopologyDeviceOverview", () => {
   it("shows a compact device table and keeps open and remove actions separate", () => {
@@ -12,7 +13,7 @@ describe("TopologyDeviceOverview", () => {
     const device = emptyDevice()
     device.ID = "host-id"
     device.Name = "a-very-long-host-name-that-should-not-expand-the-page"
-    device.External.Enabled = true
+    device.Access = [emptyAccess("http")]
     topology.Devices = [device]
     topology.VPN.Enabled = true
     const onOpen = vi.fn()

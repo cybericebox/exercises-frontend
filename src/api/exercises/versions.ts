@@ -102,7 +102,8 @@ export type PersistenceDTO = { Enabled: boolean; Debounce?: string }
 export type DeviceDTO = {
   ID?: string
   Name: string // DNS label for nodes; display name for switches/hubs
-  Type: DeviceType
+  /** The former value «container» is still read as a node with the container profile. */
+  Type: DeviceType | "container"
   /** Nodes only; absent = container. */
   Profile?: DeviceProfile
   SecurityPreset?: Exclude<SecurityPreset, "">
@@ -385,11 +386,10 @@ function normalizeEnvVar(ev: EnvVarDTO): NormalizedEnvVar {
 
 function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
   // The former value «container» is read as a node with the container profile.
-  const legacy = (raw.Type as string) === "container"
   return {
     ID: raw.ID ?? "",
     Name: raw.Name,
-    Type: legacy ? "node" : raw.Type,
+    Type: raw.Type === "container" ? "node" : raw.Type,
     Profile: raw.Profile ?? "container",
     SecurityPreset: raw.SecurityPreset ?? "",
     Image: raw.Image ?? "",

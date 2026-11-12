@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createEditor, $createParagraphNode, $getRoot } from 'lexical'
 import { $createVariableNode, VariableNode } from '@/components/editor/RichTextEditor'
 import { TaskForm } from './TaskForm'
-import { draftSchema, emptyDevice, emptyDraft, type DraftFormValues } from '@/lib/exerciseSchemas'
+import { draftSchema, emptyAccess, emptyDevice, emptyDraft, type DraftFormValues } from '@/lib/exerciseSchemas'
 
 vi.mock('@/api/exercises/flagPolicy', () => ({ getFlagPolicy: vi.fn().mockResolvedValue({ RandomHexLength: 40, RandomBits: 160, WarningBits: 20 }) }))
 
@@ -27,34 +27,18 @@ function Harness({ initial, error = false, linked = false }: { initial?: DraftFo
   </FormProvider>
 }
 
-function ConflictHarness() {
-  const draft = emptyDraft()
-  const device = emptyDevice()
-  device.EnvVars = [{ Name: 'FLAG', Value: 'manual', Secret: false, HasValue: false }]
-  draft.Variants[0].Topology.Devices = [device]
-  draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-  draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
-  const form = useForm<DraftFormValues>({ defaultValues: draft, resolver: zodResolver(draftSchema) })
-  return <FormProvider {...form}>
-    <form noValidate onSubmit={form.handleSubmit(() => {})}>
-      <TaskForm variantIndex={0} taskIndex={0} disabled={false} linked={false} />
-      <button type="submit">Validate</button>
-    </form>
-  </FormProvider>
-}
-
 function LinkedFlagHarness() {
   const [draft] = useState(() => {
     const value = emptyDraft()
     value.Variants[0].ID = 'base'
     value.Variants[0].Tasks[0].ID = 't1'
-    value.Variants[0].Tasks[0].Flag = ['ICE{base}']
+    value.Variants[0].Tasks[0].Check.Answer.Values = ['ICE{base}']
     const linked = (id: string, index: number) => {
       const variant = structuredClone(value.Variants[0])
       variant.ID = id
       variant.Index = index
       variant.LinkedTo = 'base'
-      variant.Tasks[0].Flag = ['ICE{same}']
+      variant.Tasks[0].Check.Answer.Values = ['ICE{same}']
       return variant
     }
     value.Variants.push(linked('l1', 2), linked('l2', 3))
@@ -86,37 +70,21 @@ describe('TaskForm inline placeholders', () => {
     expect(editor).toHaveAttribute('aria-describedby', message.id)
     expect(message.previousElementSibling).toContainElement(editor)
   })
-  it('shows the flag target collision beside the environment variable field', async () => {
-    render(<ConflictHarness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
-    expect(await screen.findByText('Ця змінна вже зайнята звичайною змінною оточення або прапором іншого підзавдання.')).toBeInTheDocument()
-  })
-  it('marks an unavailable linked device in red inside and outside its dropdown', () => {
-    const initial = emptyDraft()
-    initial.Variants[0].Tasks[0].LinkedDeviceID = 'removed-device'
-    render(<Harness initial={initial} />)
-    const trigger = screen.getByRole('button', { description: 'джерело недоступне' })
-    expect(trigger.querySelector('span')).toHaveClass('text-destructive')
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-    expect(screen.getByRole('menuitemradio', { name: 'джерело недоступне' })).toHaveClass('text-destructive')
-  })
   it('marks the participant description as required and keeps the editor near the title fields', () => {
     render(<Harness />)
     expect(screen.getByText('Опис').parentElement).toHaveTextContent('*')
     expect(screen.getByText('Опис').parentElement).toHaveTextContent('Обовʼязкове поле')
     expect(screen.getByTestId('task-drop-zone')).toHaveClass('subtask-form')
   })
-  it('places the files right after the description, then the flag with its delivery inside one box', () => {
+  it('places the files right after the description, then the flag inside one box', () => {
     const initial = emptyDraft()
     initial.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web' }]
-    initial.Variants[0].Tasks[0].Flag = ['ICE{one}']
+    initial.Variants[0].Tasks[0].Check.Answer.Values = ['ICE{one}']
     render(<Harness initial={initial} />)
     const files = screen.getByText('Файли')
     const flag = screen.getByRole('heading', { name: 'Прапор' })
-    const delivery = screen.getByTestId('flag-delivery-fields')
     expect(files.compareDocumentPosition(flag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(flag.closest('section')).toContainElement(delivery)
-    expect(delivery.closest('.subtask-flag-box')).toContainElement(screen.getByRole('textbox', { name: 'Прапор 1' }))
+    expect(flag.closest('section')?.querySelector('.subtask-flag-box')).toContainElement(screen.getByRole('textbox', { name: 'Прапор 1' }))
   })
 
   it('creates the definition and inline token in one insert action without a bottom configuration list', async () => {
@@ -162,7 +130,7 @@ describe('TaskForm inline placeholders', () => {
 
   it('shows a universal device label and name for a disabled external-link source, without a technical key', async () => {
     const initial = emptyDraft()
-    const device = { ...emptyDevice(), Name: 'web-01', Type: 'container' as const }
+    const device = { ...emptyDevice(), Name: 'web-01', Type: 'node' as const }
     initial.Variants[0].Topology.Devices = [device]
     initial.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_external', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web-01' }]
     const editor = createEditor({ nodes: [VariableNode] })
@@ -179,7 +147,7 @@ describe('TaskForm inline placeholders', () => {
 
   it('uses a realistic example domain for an available external link', async () => {
     const initial = emptyDraft()
-    const device = { ...emptyDevice(), Name: 'web-01', External: { Enabled: true, Port: 80, Protocol: 'http' as const } }
+    const device = { ...emptyDevice(), Name: 'web-01', Access: [emptyAccess('http')] }
     initial.Variants[0].Topology.Devices = [device]
     initial.Variants[0].Tasks[0].Placeholders = [{ Key: 'ph_external', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web-01' }]
     const editor = createEditor({ nodes: [VariableNode] })
@@ -198,16 +166,12 @@ describe('TaskForm inline placeholders', () => {
     const device = { ...emptyDevice(), Name: 'web' }
     initial.Variants[0].Topology.Devices = [device]
     initial.Variants[0].Tasks[0].Name = 'Scan'
-    initial.Variants[0].Tasks[0].Flag = ['ICE{own}']
-    initial.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-    initial.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
+    initial.Variants[0].Tasks[0].Check.Answer.Values = ['ICE{own}']
     initial.Variants[0].Tasks[0].Hints = [{ ID: 'h1', Text: 'Look closer', Level: 'nudge' }]
     render(<Harness initial={initial} linked />)
     expect(screen.getByDisplayValue('Scan')).toBeDisabled()
-    expect(screen.getByDisplayValue('FLAG')).toBeDisabled()
     const zone = screen.getByTestId('task-drop-zone')
     expect(within(zone).getByRole('button', { name: /^Складність/ })).toBeDisabled()
-    expect(within(zone).getByRole('button', { name: /^Передається в/ })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Опис' })).toHaveAttribute('contenteditable', 'false')
     expect(screen.queryByRole('button', { name: 'Вставити підстановку' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Додати підказку' })).not.toBeInTheDocument()

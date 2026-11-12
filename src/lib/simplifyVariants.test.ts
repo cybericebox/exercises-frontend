@@ -5,14 +5,14 @@ vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 import { emptyDevice, emptyTask, emptyVariant, toSaveDraftInput, type VariantFormValues } from "./exerciseSchemas"
 import { planSimplify } from "./simplifyVariants"
 import { issueOrder } from "./variantWeights"
+import { formTask } from "@/test/editorFixtures"
 
 function variant(id: string, flag: string, extra: Partial<VariantFormValues> = {}): VariantFormValues {
   const value = emptyVariant(1)
   value.ID = id
-  value.Tasks = [{ ...emptyTask(), ID: `task-${id}`, Name: "Scan", Flag: [flag], Attachments: [{ FileID: "f1", Name: "capture.pcap" }] }]
+  value.Tasks = [{ ...formTask({ ID: `task-${id}`, Name: "Scan", flag: [flag] }), Attachments: [{ FileID: "f1", Name: "capture.pcap" }] }]
   // Device ids differ per variant (as after an import); the signature compares them by position.
   value.Topology.Devices = [{ ...emptyDevice(), ID: `dev-${id}`, Name: "web", Image: "web:1" }]
-  value.Tasks[0].LinkedDeviceID = ""
   return { ...value, ...extra }
 }
 
@@ -65,7 +65,7 @@ describe("planSimplify", () => {
     expect(plan.links).toEqual([1, 2])
     expect(plan.count).toBe(1)
     expect(plan.variants.map((value) => [value.ID, value.LinkedTo, value.Weight, value.Note])).toEqual([["a", "", 1, ""], ["b", "a", 1, ""], ["c", "a", 3, "kept note"]])
-    expect(plan.variants[2].Tasks[0].Flag).toEqual(["ICE{c}"])
+    expect(plan.variants[2].Tasks[0].Check.Answer.Values).toEqual(["ICE{c}"])
     expect(plan.variants[2].Tasks[0].ID).toBe("task-a")
   })
 
@@ -102,7 +102,7 @@ describe("planSimplify", () => {
   it("keeps a variant whose stored secret cannot be compared", () => {
     const secret = (id: string) => {
       const value = variant(id, "ICE{a}")
-      value.Topology.Devices[0].EnvVars = [{ Name: "FLAG", Value: "", Secret: true, HasValue: true }]
+      value.Topology.Devices[0].Bootstrap.Env = [{ Name: "FLAG", Value: "", Secret: true, HasValue: true }]
       return value
     }
     expect(planSimplify(numbered([secret("a"), secret("b")]))).toBeNull()
@@ -111,7 +111,7 @@ describe("planSimplify", () => {
   it("merges imported copies whose secrets share a value group and whose files match by hash", () => {
     const imported = (id: string, flagGroup: number, fileHash: string) => {
       const value = variant(id, "ICE{a}")
-      value.Topology.Devices[0].EnvVars = [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: flagGroup }]
+      value.Topology.Devices[0].Bootstrap.Env = [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: flagGroup }]
       value.Tasks[0].Attachments = [{ FileID: `file-${id}`, Name: "capture.pcap", ContentHash: fileHash }]
       return value
     }

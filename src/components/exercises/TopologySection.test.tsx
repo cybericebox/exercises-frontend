@@ -19,7 +19,7 @@ function Harness({ disabled = false, draft }: { disabled?: boolean; draft?: Draf
 }
 
 function connectHostAndSwitch() {
-  addNode("container")
+  addNode("node")
   addNode("switch")
   fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
   fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -31,9 +31,9 @@ function topology() {
   return JSON.parse(screen.getByTestId("topology-snapshot").textContent ?? "{}") as DraftFormValues["Variants"][number]["Topology"]
 }
 
-function addNode(name: "container" | "switch" | "hub" | "vpn" | "internet") {
+function addNode(name: "node" | "switch" | "hub" | "vpn" | "internet") {
   fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
-  fireEvent.click(screen.getByRole("menuitem", { name: name === "vpn" || name === "internet" ? `admin.exTopo.${name}` : `admin.exTopo.type.${name}` }))
+  fireEvent.click(screen.getByRole("menuitem", { name: name === "vpn" || name === "internet" ? `admin.exTopo.${name}` : `admin.exTopo.type.${name === "node" ? "container" : name}` }))
 }
 
 function diagram() {
@@ -57,7 +57,7 @@ describe("topology workspace", () => {
 
   it("saves a dragged node label separately from its icon position", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     const nodeId = topology().Devices[0].ID
     const svg = diagram()
     vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 960, height: 560 } as DOMRect)
@@ -102,9 +102,9 @@ describe("topology workspace", () => {
 
   it("creates a typed device immediately, then opens the one canvas inspector from the list", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     expect(topology().Devices[0].Name).toBe("host-1")
-    expect(topology().Devices[0].Type).toBe("container")
+    expect(topology().Devices[0].Type).toBe("node")
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     expect(screen.getByRole("table", { name: "admin.exTopo.devices" })).toBeInTheDocument()
@@ -136,7 +136,7 @@ describe("topology workspace", () => {
 
   it("keeps toolbar-created devices in distinct positions after the first three rows", () => {
     render(<Harness />)
-    for (let index = 0; index < 13; index++) addNode("container")
+    for (let index = 0; index < 13; index++) addNode("node")
     const points = Array.from(diagram().querySelectorAll('[data-icon-hitbox]')).map((rect) =>
       `${rect.getAttribute("x")},${rect.getAttribute("y")}`)
     expect(points).toHaveLength(13)
@@ -162,8 +162,8 @@ describe("topology workspace", () => {
 
   it("connects two containers from the canvas using each device's eth0", () => {
     render(<Harness />)
-    addNode("container")
-    addNode("container")
+    addNode("node")
+    addNode("node")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-2" }))
@@ -181,7 +181,7 @@ describe("topology workspace", () => {
 
   it("keeps the 48-port switch picker inside a compact scrollable menu", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.addConnection" }))
@@ -197,7 +197,7 @@ describe("topology workspace", () => {
 
   it("keeps the connection dialog open while a port is chosen from its dropdown", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -219,7 +219,7 @@ describe("topology workspace", () => {
 
   it("closes only the port dropdown when its trigger is clicked again", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -240,7 +240,7 @@ describe("topology workspace", () => {
 
   it("closes the connection dialog on an outside pointer press", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -258,8 +258,8 @@ describe("topology workspace", () => {
 
   it("opens configuration from the menu, then swaps the open inspector on a normal device click", () => {
     render(<Harness />)
-    addNode("container")
-    addNode("container")
+    addNode("node")
+    addNode("node")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.devices" }))
     expect(screen.getByRole("row", { name: /host-2/ })).toHaveAttribute("data-selected", "true")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.diagram" }))
@@ -290,7 +290,7 @@ describe("topology workspace", () => {
 
   it("renames a device from the inspector heading while a single diagram click stays out of edit mode", async () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
     const rename = screen.getByRole("button", { name: "admin.exTopo.renameDeviceOf host-1" })
@@ -310,7 +310,7 @@ describe("topology workspace", () => {
 
   it("limits a container name to 35 characters with an inline error and a help hint", async () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.renameDeviceOf host-1" }))
@@ -328,7 +328,7 @@ describe("topology workspace", () => {
 
   it("renames a label in place without opening the inspector, while a glyph double click still opens it", async () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     const label = within(diagram()).getByText("host-1", { selector: "text" })
     fireEvent.doubleClick(label)
     const input = screen.getByRole("textbox", { name: "admin.exTopo.deviceName" }) as HTMLInputElement
@@ -346,8 +346,8 @@ describe("topology workspace", () => {
 
   it("keeps the current inspector while a different node label enters inline rename", () => {
     render(<Harness />)
-    addNode("container")
-    addNode("container")
+    addNode("node")
+    addNode("node")
     const svg = diagram()
     const first = within(svg).getByTestId(`node-${topology().Devices[0].ID}`)
     fireEvent.doubleClick(first.querySelector("[data-icon-hitbox]")!)
@@ -361,7 +361,7 @@ describe("topology workspace", () => {
 
   it("keeps container DNS validation and accepts free gateway and forwarding names", async () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     fireEvent.doubleClick(within(diagram()).getByText("host-1", { selector: "text" }))
     const containerName = screen.getByRole("textbox", { name: "admin.exTopo.deviceName" })
     fireEvent.change(containerName, { target: { value: "My Host" } })
@@ -388,7 +388,7 @@ describe("topology workspace", () => {
 
   it("opens configuration on a select (as in the prototype) and keeps it on another click or a double click", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     // Adding a node only selects it.
     expect(screen.queryByRole("complementary", { name: "admin.exTopo.deviceSettings" })).not.toBeInTheDocument()
     const host = within(diagram()).getByRole("button", { name: "host-1" })
@@ -402,7 +402,7 @@ describe("topology workspace", () => {
 
   it("bounds the mobile inspector to its editor panel instead of the viewport", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
     const panel = screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })
@@ -424,7 +424,7 @@ describe("topology workspace", () => {
     })
     try {
       render(<Harness />)
-      addNode("container")
+      addNode("node")
       fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-1" }))
       fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.configure" }))
       const panel = screen.getByRole("complementary", { name: "admin.exTopo.deviceSettings" })
@@ -532,7 +532,7 @@ describe("topology workspace", () => {
 
   it("connects two nodes only after confirmation and selects the edge on both screens", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -551,7 +551,7 @@ describe("topology workspace", () => {
 
   it("persists a dragged port caption through the topology form", () => {
     render(<Harness />)
-    addNode("container")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -575,8 +575,8 @@ describe("topology workspace", () => {
   it("marks occupied nodes unavailable before choosing a connection pair", () => {
     render(<Harness />)
     addNode("vpn")
-    addNode("container")
-    addNode("container")
+    addNode("node")
+    addNode("node")
     addNode("switch")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "admin.exTopo.vpn" }))
@@ -597,7 +597,7 @@ describe("topology workspace", () => {
   it("cascades linked VPN connections only after confirmed removal", async () => {
     render(<Harness />)
     addNode("vpn")
-    addNode("container")
+    addNode("node")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "admin.exTopo.vpn" }))
     fireEvent.click(within(diagram()).getByRole("button", { name: "host-1" }))
@@ -622,7 +622,7 @@ describe("topology workspace", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("admin.exTopo.needTwoDevices")
     fireEvent.click(add())
     expect(screen.queryByText("admin.exTopo.canvasSelectFirst")).not.toBeInTheDocument()
-    addNode("container")
+    addNode("node")
     expect(add()).toHaveAttribute("aria-disabled", "true")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.connections" }))
     expect(screen.getByRole("button", { name: "admin.exTopo.addConnection" })).toBeDisabled()
@@ -661,7 +661,7 @@ describe("topology workspace", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeDevice" }))
     expect(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).toHaveTextContent("admin.exTopo.removeDeviceConfirmLinks")
     fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.canvasCancel" }))
-    addNode("container")
+    addNode("node")
     fireEvent.contextMenu(within(diagram()).getByRole("button", { name: "host-2" }))
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeDevice" }))
     expect(screen.getByRole("dialog", { name: "admin.exTopo.removeDeviceTitle" })).toHaveTextContent("admin.exTopo.removeDeviceConfirm")

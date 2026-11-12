@@ -18,6 +18,8 @@ import {
   emptyVariant,
   emptyTask,
   emptyDevice,
+  emptyAccess,
+  emptyBootstrap,
   toDraftFormValues,
   toSaveDraftInput,
   type DraftFormValues,
@@ -251,38 +253,7 @@ describe('topology operator parity', () => {
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
-  it('rejects vm and prevents task flag targets from overwriting env variables', () => {
-    const draft = validDraft()
-    const device = emptyDevice()
-    device.Name = 'web'
-    device.Type = 'vm' as typeof device.Type
-    draft.Variants[0].Topology.Devices.push(device)
-    expect(draftSchema.safeParse(draft).success).toBe(false)
-    device.Type = 'container'
-    device.EnvVars.push({ Name: 'FLAG', Value: 'static', Secret: false, HasValue: true })
-    draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-    draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
-    const result = draftSchema.safeParse(draft)
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Tasks.0.DeviceFlagVar')
-  })
 
-  it('rejects two task flag targets on one device but allows the same name on different devices', () => {
-    const draft = validDraft()
-    const first = emptyDevice()
-    first.Name = 'first'
-    const second = emptyDevice()
-    second.Name = 'second'
-    draft.Variants[0].Topology.Devices.push(first, second)
-    const task = draft.Variants[0].Tasks[0]
-    task.LinkedDeviceID = first.ID
-    task.DeviceFlagVar = 'FLAG'
-    const other = { ...emptyTask(), Name: 'Another task', Description: { root: {} }, LinkedDeviceID: first.ID, DeviceFlagVar: 'FLAG' }
-    draft.Variants[0].Tasks.push(other)
-    expect(draftSchema.safeParse(draft).success).toBe(false)
-    other.LinkedDeviceID = second.ID
-    expect(draftSchema.safeParse(draft).success).toBe(true)
-  })
 })
 
 describe('isValidIPv4', () => {
@@ -332,13 +303,13 @@ describe('draftSchema', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.EnvVars = [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: false }]
+    device.Bootstrap.Env = [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: false }]
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
-    device.EnvVars[0].Value = 'new-secret'
+    device.Bootstrap.Env[0].Value = 'new-secret'
     expect(draftSchema.safeParse(draft).success).toBe(true)
-    device.EnvVars[0].Value = ''
-    device.EnvVars[0].HasValue = true
+    device.Bootstrap.Env[0].Value = ''
+    device.Bootstrap.Env[0].HasValue = true
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
   it('accepts a minimal valid draft (1 variant, 1 named task)', () => {
@@ -406,7 +377,7 @@ describe('draftSchema', () => {
 
   it('rejects a blank flag value', () => {
     const draft = validDraft()
-    draft.Variants[0].Tasks[0].Flag = ['  ']
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ['  ']
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
@@ -423,32 +394,38 @@ describe('draftSchema', () => {
     [' ICE{one}', false],
   ])('validates flag format %s', (flag, valid) => {
     const draft = validDraft()
-    draft.Variants[0].Tasks[0].Flag = [flag]
+    draft.Variants[0].Tasks[0].Check.Answer.Values = [flag]
     expect(draftSchema.safeParse(draft).success).toBe(valid)
   })
 
   it('accepts an empty flag list (random flag semantics)', () => {
     const draft = validDraft()
-    draft.Variants[0].Tasks[0].Flag = []
+    draft.Variants[0].Tasks[0].Check.Answer.Values = []
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
   it('accepts a template candidate in a draft and rejects identical candidates', () => {
     const draft = validDraft()
-    draft.Variants[0].Tasks[0].Flag = [String.raw`template:ICE{\d}`]
+    // A generated value must reach the lab: the answer is delivered through a device's variable.
+    draft.Variants[0].Tasks[0].Key = 'scan'
+    const device = emptyDevice()
+    device.Name = 'web'
+    device.Bootstrap.Env = [{ Name: 'FLAG', Value: '{{task.scan}}', Secret: false, HasValue: false }]
+    draft.Variants[0].Topology.Devices.push(device)
+    draft.Variants[0].Tasks[0].Check.Answer.Values = [String.raw`template:ICE{\d}`]
     expect(draftSchema.safeParse(draft).success).toBe(true)
-    draft.Variants[0].Tasks[0].Flag.push(String.raw`template:ICE{\d}`)
+    draft.Variants[0].Tasks[0].Check.Answer.Values.push(String.raw`template:ICE{\d}`)
     expect(draftSchema.safeParse(draft).success).toBe(false)
   })
 
   it('explains a literal-only template separately from malformed flag syntax', () => {
     const draft = validDraft()
-    draft.Variants[0].Tasks[0].Flag = ['template:ICE{fixed}']
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ['template:ICE{fixed}']
     const noRandom = draftSchema.safeParse(draft)
     expect(noRandom.success).toBe(false)
     if (!noRandom.success) expect(noRandom.error.issues.some((issue) => issue.message === 'admin.ex.val.flagTemplateNeedsRandom')).toBe(true)
 
-    draft.Variants[0].Tasks[0].Flag = ['template:ICE{has space}']
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ['template:ICE{has space}']
     const malformed = draftSchema.safeParse(draft)
     expect(malformed.success).toBe(false)
     if (!malformed.success) expect(malformed.error.issues.some((issue) => issue.message === 'admin.ex.val.flagFormat')).toBe(true)
@@ -479,51 +456,16 @@ describe('draftSchema', () => {
     device.Name = 'sw1'
     device.Type = 'unmanaged-switch'
     device.Interfaces = []
-    device.EnvVars = []
+    device.Bootstrap.Env = []
     device.Image = ''
-    device.External = { Enabled: false, Port: 80, Protocol: 'http' }
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
-  it('rejects a flag link without the environment variable name before saving', () => {
-    const draft = validDraft()
-    const device = emptyDevice()
-    device.Name = 'web'
-    draft.Variants[0].Topology.Devices.push(device)
-    draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-    draft.Variants[0].Tasks[0].DeviceFlagVar = ''
 
-    const result = draftSchema.safeParse(draft)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.map((issue) => issue.path.join('.')))
-        .toContain('Variants.0.Tasks.0.DeviceFlagVar')
-    }
-  })
-
-  it.each(['missing', 'forwarding'] as const)('rejects a flag link to a %s device', (kind) => {
-    const draft = validDraft()
-    const device = emptyDevice()
-    device.Name = 'sw1'
-    if (kind === 'forwarding') {
-      device.Type = 'unmanaged-switch'
-      device.Interfaces = []
-      draft.Variants[0].Topology.Devices.push(device)
-    }
-    draft.Variants[0].Tasks[0].LinkedDeviceID = device.ID
-    draft.Variants[0].Tasks[0].DeviceFlagVar = 'FLAG'
-
-    const result = draftSchema.safeParse(draft)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.map((issue) => issue.path.join('.')))
-        .toContain('Variants.0.Tasks.0.LinkedDeviceID')
-    }
-  })
 
   it('requires an interface on a container, including before external exposure', () => {
-    for (const type of ['container'] as const) {
+    for (const type of ['node'] as const) {
       const draft = validDraft()
       const device = emptyDevice()
       device.Name = 'web'
@@ -531,7 +473,7 @@ describe('draftSchema', () => {
       device.Interfaces = []
       draft.Variants[0].Topology.Devices.push(device)
       expect(draftSchema.safeParse(draft).success).toBe(false)
-      device.External.Enabled = true
+      device.Access = [emptyAccess('http')]
       expect(draftSchema.safeParse(draft).success).toBe(false)
       device.Interfaces = [emptyDevice().Interfaces[0]]
       expect(draftSchema.safeParse(draft).success).toBe(true)
@@ -592,18 +534,18 @@ describe('draftSchema', () => {
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
-  it('enabled external access requires port 1–65535', () => {
+  it('web access requires port 1–65535', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.External = { Enabled: true, Port: 0, Protocol: 'http' }
+    device.Access = [{ ...emptyAccess('http'), Port: '0' }]
     draft.Variants[0].Topology.Devices.push(device)
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    device.External.Port = 70000
+    device.Access[0].Port = '70000'
     expect(draftSchema.safeParse(draft).success).toBe(false)
 
-    device.External.Port = 8080
+    device.Access[0].Port = '8080'
     expect(draftSchema.safeParse(draft).success).toBe(true)
   })
 
@@ -853,26 +795,29 @@ function loadedVersion(): Version {
         Name: 'Find the flag',
         Description: { root: {} },
         Difficulty: 'medium',
-        Flag: ['ICE{x}'],
-        LinkedDeviceID: DEV_ID,
-        DeviceFlagVar: 'FLAG',
+        Key: 'scan',
+        Requires: [],
+        Check: { Answer: { Type: 'flag', Values: ['ICE{x}'] } },
         Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
         Placeholders: [{ Kind: 'vpn.subnet' }],
         Hints: [],
       }],
       Topology: {
+        Variables: [],
         VPN: { Enabled: true, DHCP: true },
         Internet: { Enabled: false, DHCP: false },
         Devices: [{
           ID: DEV_ID,
           Name: 'web',
-          Type: 'container',
+          Type: 'node',
           SecurityPreset: '',
           Image: 'nginx:1.27',
+          Profile: 'container',
           ResourcePreset: "",
           Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1', Routes: [] } }],
-          EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }],
-          External: { Port: 8080, Protocol: 'https' },
+          Access: [{ Kind: 'http', Port: 8080, Protocol: 'https' }],
+          Command: [], Args: [], System: 'linux', Hardware: 'fast',
+          Bootstrap: { Timeout: '', Env: [{ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true }], Files: [], Script: '', Interpreter: '' },
         }],
         Connections: [{
           Endpoints: [
@@ -907,15 +852,16 @@ describe('toDraftFormValues', () => {
     expect(saved.Variants[0].Topology.Devices?.[0].SecurityPreset).toBe('extended')
     expect(saved.Variants[0].Topology.Devices?.[0].Interfaces?.[0].IP.Type).toBe('dhcp-preset')
   })
-  it('maps a loaded version into form values (External → Enabled form)', () => {
+  it('maps a loaded version into form values (access list, check)', () => {
     const values = toDraftFormValues(loadedVersion())
     expect(values.AdminNote).toBe('wip')
     expect(values).not.toHaveProperty('RegenerateFlagsOnPublish')
     expect(values.Variants[0].ID).toBe('var1')
     expect(values.Variants[0].Tasks[0].ID).toBe('task1')
     expect(values.Variants[0].Tasks[0].Placeholders[0].Key).toBe('ph_legacy_0_0_0')
-    expect(values.Variants[0].Topology.Devices[0].External)
-      .toEqual({ Enabled: true, Port: 8080, Protocol: 'https' })
+    expect(values.Variants[0].Topology.Devices[0].Access)
+      .toEqual([{ Kind: 'http', Port: '8080', Protocol: 'https', Command: '', User: '' }])
+    expect(values.Variants[0].Tasks[0].Check).toMatchObject({ Kind: 'answer', Answer: { Type: 'flag', Values: ['ICE{x}'] } })
   })
 
   it('null version → empty draft (1 variant, 1 task)', () => {
@@ -929,15 +875,15 @@ describe('content hashes', () => {
   it('reads ValueGroup (secrets only) and ContentHash, and never sends them back', () => {
     const variant = normalizeVariant({ Index: 1, Tasks: [{ Name: 'Scan', Difficulty: 'easy', Attachments: [{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }] }],
       Topology: { VPN: { Enabled: false, DHCP: false }, Internet: { Enabled: false, DHCP: false },
-        Devices: [{ ID: 'd1', Name: 'web', Type: 'container', Interfaces: [], EnvVars: [{ Name: 'FLAG', Secret: true, HasValue: true, ValueGroup: 2 }, { Name: 'MODE', Value: 'ctf', Secret: false, ValueGroup: 5 }] }] } })
-    expect(variant.Topology.Devices[0].EnvVars.map((env) => env.ValueGroup)).toEqual([2, undefined])
+        Devices: [{ ID: 'd1', Name: 'web', Type: 'node', Interfaces: [], Bootstrap: { Env: [{ Name: 'FLAG', Secret: true, HasValue: true, ValueGroup: 2 }, { Name: 'MODE', Value: 'ctf', Secret: false, ValueGroup: 5 }] } }] } })
+    expect(variant.Topology.Devices[0].Bootstrap.Env.map((env) => env.ValueGroup)).toEqual([2, undefined])
     expect(variant.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap', ContentHash: 'c1' }])
     const draft = emptyDraft()
     draft.Variants[0].Tasks[0].Attachments = variant.Tasks[0].Attachments
-    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web', EnvVars: variant.Topology.Devices[0].EnvVars }]
+    draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), Name: 'web', Bootstrap: { ...emptyBootstrap(), Env: variant.Topology.Devices[0].Bootstrap.Env } }]
     const sent = toSaveDraftInput(draft).Variants[0]
     expect(sent.Tasks[0].Attachments).toEqual([{ FileID: 'f1', Name: 'a.pcap' }])
-    expect(sent.Topology.Devices?.[0].EnvVars?.every((env) => !('ValueGroup' in env))).toBe(true)
+    expect(sent.Topology.Devices?.[0].Bootstrap?.Env?.every((env) => !('ValueGroup' in env))).toBe(true)
   })
 })
 
@@ -946,13 +892,13 @@ describe('environment variable limit', () => {
     const draft = validDraft()
     const device = emptyDevice()
     device.Name = 'web'
-    device.EnvVars = Array.from({ length: 64 }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false }))
+    device.Bootstrap.Env = Array.from({ length: 64 }, (_, index) => ({ Name: `V${index}`, Value: 'x', Secret: false, HasValue: false }))
     draft.Variants[0].Topology.Devices = [device]
     expect(draftSchema.safeParse(draft).success).toBe(true)
-    device.EnvVars.push({ Name: 'V64', Value: 'x', Secret: false, HasValue: false })
+    device.Bootstrap.Env.push({ Name: 'V64', Value: 'x', Secret: false, HasValue: false })
     const result = draftSchema.safeParse(draft)
     expect(result.success).toBe(false)
-    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Topology.Devices.0.EnvVars')
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('Variants.0.Topology.Devices.0.Bootstrap.Env')
   })
 })
 
@@ -1037,9 +983,8 @@ describe('toSaveDraftInput', () => {
           Name: 'Find the flag',
           Description: { root: {} },
           Difficulty: 'medium',
-          Flag: ['ICE{x}'],
-          LinkedDeviceID: DEV_ID,
-          DeviceFlagVar: 'FLAG',
+          Key: 'scan',
+          Check: { Answer: { Type: 'flag', Values: ['ICE{x}'] } },
           Attachments: [{ FileID: 'f1', Name: 'notes.pdf' }],
           Placeholders: [{ Key: 'ph_legacy_0_0_0', Kind: 'vpn.subnet' }],
           Hints: [],
@@ -1050,11 +995,11 @@ describe('toSaveDraftInput', () => {
           Devices: [{
             ID: DEV_ID,
             Name: 'web',
-            Type: 'container',
+            Type: 'node',
             Image: 'nginx:1.27',
             Interfaces: [{ Name: 'eth0', IP: { Type: 'static', Addresses: ['10.0.0.2/24'], Gateway: '10.0.0.1' } }],
-            EnvVars: [{ Name: 'DB_PASS', Value: '', Secret: true }],
-            External: { Port: 8080, Protocol: 'https' },
+            Access: [{ Kind: 'http', Port: 8080, Protocol: 'https' }],
+            Bootstrap: { Env: [{ Name: 'DB_PASS', Value: '', Secret: true }] },
           }],
           Connections: [{
             Endpoints: [
@@ -1136,11 +1081,11 @@ describe('toSaveDraftInput', () => {
     const input = toSaveDraftInput(draft)
     const [swDTO, webDTO] = input.Variants[0].Topology.Devices!
     expect(swDTO).toEqual({ ID: sw.ID, Name: 'sw1', Type: 'unmanaged-switch' })
-    expect(webDTO.External).toBeUndefined()
+    expect(webDTO.Access).toBeUndefined()
     expect(webDTO.Interfaces![0].MAC).toBeUndefined()
     expect(webDTO.Interfaces![0].IP).toEqual({ Type: 'dhcp' })
     expect(input.Variants[0].Tasks[0].Description).toBeUndefined()
-    expect(input.Variants[0].Tasks[0].LinkedDeviceID).toBeUndefined()
+    expect(input.Variants[0].Tasks[0].Check).toEqual({ Answer: { Type: 'flag' } })
   })
 
   it('has no flag-regeneration switch in drafts or save requests', () => {
@@ -1174,16 +1119,16 @@ describe('linked variants in the form model', () => {
   it('draftSchema flags a duplicate flag in a linked variant at the repeated flag', () => {
     const draft = validDraft()
     draft.Variants[0].ID = 'b'
-    draft.Variants[0].Tasks[0].Flag = ['ICE{same}']
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ['ICE{same}']
     const linked = emptyVariant(2)
     linked.ID = 'l'
     linked.LinkedTo = 'b'
     linked.Tasks[0].Name = 'Find the flag'
-    linked.Tasks[0].Flag = ['ICE{own}', 'ICE{same}']
+    linked.Tasks[0].Check.Answer.Values = ['ICE{own}', 'ICE{same}']
     draft.Variants.push(linked)
     const result = draftSchema.safeParse(draft)
     expect(result.success).toBe(false)
     const issue = !result.success && result.error.issues.find((i) => i.message === 'admin.ex.val.linkedFlagDuplicate')
-    expect(issue && issue.path).toEqual(['Variants', 1, 'Tasks', 0, 'Flag', 1])
+    expect(issue && issue.path).toEqual(['Variants', 1, 'Tasks', 0, 'Check', 'Answer', 'Values', 1])
   })
 })

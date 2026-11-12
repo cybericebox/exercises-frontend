@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest"
 import type { NormalizedDevice, NormalizedTopology } from "@/api/exercises/versions"
 import { labNodeInfo, labTopology } from "./labTopology"
+import { normalizedDevice, normalizedTopology } from "@/test/editorFixtures"
 
-const device = (over: Partial<NormalizedDevice>): NormalizedDevice => ({
-  ID: "d1", Name: "web", Type: "container", SecurityPreset: "", Image: "secret/image:1",
+const device = (over: Partial<NormalizedDevice>): NormalizedDevice => normalizedDevice({
+  ID: "d1", Name: "web", Image: "secret/image:1",
   ResourcePreset: "max",
   Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Network: "vpn", Host: 5 }, Gateway: "", Routes: [] } }],
-  EnvVars: [{ Name: "FLAG", Value: "ICE{x}", Secret: false, HasValue: true }], External: { Port: 443, Protocol: "https" }, ...over,
+  Bootstrap: { Timeout: "", Env: [{ Name: "FLAG", Value: "ICE{x}", Secret: false, HasValue: true }], Files: [], Script: "", Interpreter: "" },
+  Access: [{ Kind: "http", Port: 443, Protocol: "https" }], ...over,
 })
-const topology: NormalizedTopology = {
-  VPN: { Enabled: true, DHCP: true }, Internet: { Enabled: false, DHCP: false }, Connections: [], VisualRender: null,
-  Devices: [device({}), device({ ID: "d2", Name: "db", External: null, Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], Gateway: "", Routes: [] } }] })],
-}
+const topology: NormalizedTopology = normalizedTopology({
+  VPN: { Enabled: true, DHCP: true }, Internet: { Enabled: false, DHCP: false },
+  Devices: [device({}), device({ ID: "d2", Name: "db", Access: [], Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], Gateway: "", Routes: [] } }] })],
+})
 const status = { Phase: "Ready", Ready: true, VPNCIDR: "10.128.1.0/24", Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1" }] }
 
 describe("labTopology", () => {
@@ -19,16 +21,16 @@ describe("labTopology", () => {
     const shown = labTopology(topology)
     for (const d of shown.Devices) {
       expect(d.Image).toBe("")
-      expect(d.EnvVars).toEqual([])
+      expect(d.Bootstrap.Env).toEqual([])
       expect(d.ResourcePreset).toBe("")
     }
     expect(JSON.stringify(shown)).not.toMatch(/secret\/image|ICE\{x\}|max/)
   })
 
-  it("reads the external port into the form shape", () => {
+  it("reads the web access into the form shape", () => {
     const [web, db] = labTopology(topology).Devices
-    expect(web.External).toEqual({ Enabled: true, Port: 443, Protocol: "https" })
-    expect(db.External.Enabled).toBe(false)
+    expect(web.Access).toEqual([{ Kind: "http", Port: "443", Protocol: "https", Command: "", User: "" }])
+    expect(db.Access).toEqual([])
   })
 })
 
