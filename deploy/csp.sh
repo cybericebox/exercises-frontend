@@ -108,8 +108,9 @@ echo '}' >> "$tmp/map"
 
 script_src="'self'$common \$csp_page_hashes"
 connect_src="'self' https://$host"
-# The only frame the catalog allows: the lab console, terminal.labs.<domain> (src/lib/consoleFrame.ts is the same rule). No wildcard, no http.
-frame_src="https://$(base_domain_host terminal.labs)"
+# The only frames the catalog allows: the lab consoles, <device>-<code>--term.labs.<domain>. A CSP cannot say «one label ending in --term»,
+# so this is the whole labs domain; src/lib/consoleFrame.ts (isConsoleFrameUrl) is the guard that decides what is framed. No http.
+frame_src="https://*.$(base_domain_host labs)"
 
 if [ -n "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}" ]; then
   script_src="$script_src https://www.googletagmanager.com"
