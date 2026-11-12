@@ -13,7 +13,6 @@
 .general-utilities { display:flex; align-items:center; gap:8px; order:4; }
 .general-utility { width:var(--ctl); height:var(--ctl); min-height:var(--ctl); }
 .general-direct-test { display:inline-flex; }
-.general-phone-test { display:none; }
 .general-running-test { flex-basis:100%; order:5; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ib-dim); }
 .editor-form { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
 /* The tab strip: one control height (36px, 44px on touch). Its bottom divider is a line drawn under the tabs; the
@@ -54,8 +53,11 @@
   .exercise-general-screen:has(.general-primary-actions) { padding-bottom:72px; }
   .general-primary-actions { position:fixed; left:0; right:0; bottom:0; z-index:30; padding:10px 12px max(10px, env(safe-area-inset-bottom)); border-top:1px solid var(--ib-line); background:var(--ib-surface); }
   .general-primary-actions>* { flex:1; }
-  .general-direct-test { display:none; }
-  .general-phone-test { display:block; }
+  /* The test button is an icon beside the main actions on a phone (the label stays for screen readers). */
+  .general-direct-test { flex:none; }
+  .general-direct-test .general-test-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .general-direct-test .general-test-icon { margin-right:0; }
+  .general-direct-test button { width:var(--ctl); padding:0; }
 }
 .general-section-nav { display:flex; align-items:center; min-height:53px; padding-bottom:8px; border-bottom:1px solid var(--ib-line); margin-top:12px; }
 .general-metadata { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; padding:12px 0; border-bottom:1px solid var(--ib-line); margin-bottom:20px; }

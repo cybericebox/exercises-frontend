@@ -37,7 +37,7 @@ const TEXT_ATTRS = new Set(["aria-label", "title", "placeholder", "alt", "label"
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = path.join(dir, name)
-    if (statSync(full).isDirectory()) return name === "test" ? [] : sourceFiles(full)
+    if (statSync(full).isDirectory()) return name === "test" || name === "dev" ? [] : sourceFiles(full)
     return /\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) && !name.endsWith(".d.ts") ? [full] : []
   })
 }
