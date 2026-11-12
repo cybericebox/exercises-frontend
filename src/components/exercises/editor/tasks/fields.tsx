@@ -70,12 +70,14 @@ export function RefControl({ path, variantIndex, disabled, placeholder, ariaLabe
 }
 
 /** A one-of-many choice bound to a form path (the dot mark of the menu is the foundation's). */
-export function ChoiceControl({ path, options, disabled, ariaLabel, className, value, onChoose }: {
+export function ChoiceControl({ path, options, disabled, ariaLabel, className, menuClassName = "min-w-56", value, onChoose }: {
   path: string
   options: SelectMenuOption[]
   disabled?: boolean
   ariaLabel: string
   className?: string
+  /** A fixed menu width for options with long descriptions, so they wrap instead of stretching the list. */
+  menuClassName?: string
   /** Overrides the form value (a Tri field shows "yes" / "no" / ""). */
   value?: string
   /** Overrides the write (a Tri field stores true / false / null). */
@@ -85,7 +87,7 @@ export function ChoiceControl({ path, options, disabled, ariaLabel, className, v
   const error = useFieldError(path)
   return <Controller control={control} name={path} render={({ field }) => (
     <SelectMenu {...fieldProps(path, error)} value={value ?? String(field.value ?? "")} onChange={(next) => (onChoose ? onChoose(next) : field.onChange(next))}
-      options={options} disabled={disabled} ariaLabel={ariaLabel} className={cn("w-full", className)} menuClassName="min-w-56" />
+      options={options} disabled={disabled} ariaLabel={ariaLabel} className={cn("w-full", className)} menuClassName={menuClassName} />
   )} />
 }
 

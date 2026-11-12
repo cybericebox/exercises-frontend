@@ -62,3 +62,6 @@ export function eligibleRequires(tasks: Pick<TaskFormValues, "Key" | "Requires">
   }
   return tasks.flatMap((task, position) => (position === index || task.Key === "" || (self && waitsFor(task.Key, self)) ? [] : [position]))
 }
+
+/** A help line goes after «term — », so its first letter is lower case. */
+export const lowerFirst = (text: string): string => text.charAt(0).toLowerCase() + text.slice(1)
