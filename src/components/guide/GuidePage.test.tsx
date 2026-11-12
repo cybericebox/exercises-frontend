@@ -31,7 +31,7 @@ describe("guide pages", () => {
 
     const nav = screen.getByRole("navigation", { name: t("exercises.guide.navLabel") })
     const links = within(nav).getAllByRole("link")
-    expect(links).toHaveLength(12)
+    expect(links).toHaveLength(GUIDE_ORDER.length)
     const current = links.filter((link) => link.getAttribute("aria-current") === "page")
     expect(current).toHaveLength(1)
     expect(current[0].getAttribute("href")?.replace(/(.)\/$/, "$1")).toBe(guideHref(slug).replace(/(.)\/$/, "$1"))
