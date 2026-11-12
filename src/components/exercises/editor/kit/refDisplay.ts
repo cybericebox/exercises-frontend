@@ -12,8 +12,8 @@ const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 export function toDisplay(raw: string, tasks: RefTask[]): string {
   if (!raw.includes("{{")) return raw
-  const answer = t("ed.b.ref.tagAnswer")
-  const variable = t("ed.b.ref.tagVar")
+  const answer = t("ed.ui.ref.tagAnswer")
+  const variable = t("ed.ui.ref.tagVar")
   let out = raw
   for (const ref of findRefs(raw)) {
     if (ref.kind === "task") {
@@ -26,8 +26,8 @@ export function toDisplay(raw: string, tasks: RefTask[]): string {
 
 export function fromDisplay(text: string, tasks: RefTask[]): string {
   if (!text.includes("{{")) return text
-  const answer = escapeRe(t("ed.b.ref.tagAnswer"))
-  const variable = escapeRe(t("ed.b.ref.tagVar"))
+  const answer = escapeRe(t("ed.ui.ref.tagAnswer"))
+  const variable = escapeRe(t("ed.ui.ref.tagVar"))
   return text
     .replace(new RegExp(`\\{\\{\\s*${answer}:\\s*(.+?)\\s*\\}\\}`, "g"), (match, name: string) => {
       const task = tasks.find((candidate) => candidate.Key !== "" && candidate.Name.trim() === name)

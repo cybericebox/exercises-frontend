@@ -5,5 +5,16 @@
   "ed.ui.hideValue": "Сховати значення",
   "ed.ui.lab.none": "Лабораторії платформи цього не підтримують.",
   "ed.ui.lab.some": "Не кожна лабораторія це підтримує: тест або запуск може не стартувати.",
+  "ed.ui.ref.answerOf": "Відповідь на «{name}»",
+  "ed.ui.ref.answers": "Відповіді підзавдань",
+  "ed.ui.ref.insert": "Вставити значення",
+  "ed.ui.ref.newVariable": "Нова змінна схеми",
+  "ed.ui.ref.noAnswers": "Немає підзавдань із відповіддю",
+  "ed.ui.ref.noVariables": "Немає змінних схеми",
+  "ed.ui.ref.tagAnswer": "відповідь",
+  "ed.ui.ref.tagVar": "змінна",
+  "ed.ui.ref.unnamed": "Без назви",
+  "ed.ui.ref.variable": "Змінна {name}",
+  "ed.ui.ref.variables": "Змінні схеми",
   "ed.ui.showValue": "Показати значення"
 }

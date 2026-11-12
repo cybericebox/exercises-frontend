@@ -1,6 +1,5 @@
 {
   "ed.b.help.stateAcademy": "Subtasks with a state check are meant for the Academy. Such a task cannot be added to an event.",
-  "ed.b.refAnswer": "Answer to «{name}»",
   "ed.b.val.answerControl": "The answer must not contain control characters",
   "ed.b.val.answerMax": "At most {max} values",
   "ed.b.val.answerRequired": "Enter an answer",

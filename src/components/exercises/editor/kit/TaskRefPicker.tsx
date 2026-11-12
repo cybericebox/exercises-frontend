@@ -31,7 +31,7 @@ export function TaskRefPicker({ variantIndex, onPick, disabled = false, classNam
   const variables = useWatch({ control, name: `Variants.${variantIndex}.Topology.Variables` }) ?? []
   const answers = taskRefOptions(tasks.filter((task) => task.Check.Kind === "answer" && task.Key !== excludeTaskKey))
   const vars = variables.filter((variable) => variable.Name.trim() !== "")
-  const label = t("ed.b.ref.insert")
+  const label = t("ed.ui.ref.insert")
   return <DropdownMenu>
     <HoverTooltip text={label}>
       <DropdownMenuTrigger asChild>
@@ -42,20 +42,20 @@ export function TaskRefPicker({ variantIndex, onPick, disabled = false, classNam
       </DropdownMenuTrigger>
     </HoverTooltip>
     <DropdownMenuContent align="end" className="max-h-72 w-72 overflow-y-auto" onCloseAutoFocus={(event) => event.preventDefault()}>
-      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">{t("ed.b.ref.answers")}</DropdownMenuLabel>
-      {answers.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("ed.b.ref.noAnswers")}</p>}
+      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">{t("ed.ui.ref.answers")}</DropdownMenuLabel>
+      {answers.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("ed.ui.ref.noAnswers")}</p>}
       {answers.map((option) => <DropdownMenuItem key={option.key} onSelect={() => onPick(option.ref)}>
         <span className="min-w-0 truncate">{option.label}</span>
       </DropdownMenuItem>)}
       <DropdownMenuSeparator />
-      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">{t("ed.b.ref.variables")}</DropdownMenuLabel>
-      {vars.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("ed.b.ref.noVariables")}</p>}
+      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">{t("ed.ui.ref.variables")}</DropdownMenuLabel>
+      {vars.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("ed.ui.ref.noVariables")}</p>}
       {vars.map((variable) => <DropdownMenuItem key={variable.Name} onSelect={() => onPick(`{{var.${variable.Name}}}`)}>
-        <span className="min-w-0 truncate">{t("ed.b.ref.variable", { name: variable.Name })}</span>
+        <span className="min-w-0 truncate">{t("ed.ui.ref.variable", { name: variable.Name })}</span>
       </DropdownMenuItem>)}
       {onNewVariable && <>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onNewVariable}><Plus aria-hidden="true" className="mr-2 h-4 w-4" />{t("ed.c.ref.newVariable")}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onNewVariable}><Plus aria-hidden="true" className="mr-2 h-4 w-4" />{t("ed.ui.ref.newVariable")}</DropdownMenuItem>
       </>}
     </DropdownMenuContent>
   </DropdownMenu>
