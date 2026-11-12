@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { deliveriesOfTask, deliveryDevices, findRefs, knownRefsOf, unknownRefs } from "./refs"
+import { deliveriesOfTask, deliveryDevices, findRefs, hasSubstitution, knownRefsOf, richTextPlain, unknownRefs } from "./refs"
 import { deviceFieldPath, pascal, taskFieldPath, variantFieldPath } from "./serverFieldPath"
 import { draftIssues } from "./issues"
 import { emptyDraft } from "@/lib/exerciseSchemas"
+import { lexical } from "@/dev/fixtures/data"
 import { formDevice, formTask } from "@/test/editorFixtures"
 import { emptyBootstrapFile } from "./schemas/infra"
 
@@ -38,6 +39,8 @@ describe("server field paths", () => {
     expect(taskFieldPath("check.state.conditions[0].observation")).toEqual(["Check", "State", "Conditions", 0, "Kind"])
     expect(taskFieldPath("check.state.interval")).toEqual(["Check", "State", "Interval"])
     expect(taskFieldPath("requires[1]")).toEqual(["Requires", 1])
+    expect(taskFieldPath("description")).toEqual(["Description"])
+    expect(taskFieldPath("hints[2].text")).toEqual(["Hints", 2, "Text"])
     expect(taskFieldPath("nonsense")).toBeNull()
     expect(taskFieldPath("check.state.conditions[0].bogus")).toBeNull()
   })
@@ -69,5 +72,27 @@ describe("draftIssues", () => {
       expect(issue.variant).toBe(0)
     }
     expect(issues.some((issue) => issue.path.includes("Description"))).toBe(true)
+  })
+})
+
+describe("answers and variables never reach participants", () => {
+  it("reads the text of a rich document and of a plain hint", () => {
+    expect(richTextPlain(lexical("a {{task.x}}\nb"))).toBe("a {{task.x}} b")
+    expect(hasSubstitution(lexical("see {{task.secret}}"))).toBe(true)
+    expect(hasSubstitution(lexical("the address is {{ph_srv}}"))).toBe(false)
+    expect(hasSubstitution("{{var.admin_password}}")).toBe(true)
+  })
+
+  it("lists a description, a hint and a weight of zero as problems of their fields", () => {
+    const draft = emptyDraft()
+    const task = draft.Variants[0].Tasks[0]
+    task.Name = "Scan"
+    task.Description = lexical("The flag is {{task.scan}}") as never
+    task.Hints = [{ ID: "", Level: "nudge", Text: JSON.stringify(lexical("use {{var.x}}")) }]
+    draft.Variants[0].Weight = 0
+    const paths = draftIssues(draft).map((issue) => issue.path.join("."))
+    expect(paths).toContain("Variants.0.Tasks.0.Description")
+    expect(paths).toContain("Variants.0.Tasks.0.Hints.0.Text")
+    expect(paths).toContain("Variants.0.Weight")
   })
 })
