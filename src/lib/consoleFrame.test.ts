@@ -21,26 +21,27 @@ describe("console frame", () => {
     expect((line.match(/\*/g) ?? []).length).toBe(1)
   })
 
-  it("lets only a device console host into a frame", () => {
+  it("lets only one label under the labs domain into a frame", () => {
     const ok = (link: string) => isConsoleFrameUrl(link, "example.test")
-    expect(ok("https://web-1-ab12cd--term.labs.example.test/session?t=1")).toBe(true)
-    expect(ok("https://a--term.labs.example.test/")).toBe(true)
-    // the device web host (no suffix), other protocols of the same device, deeper or other hosts
-    expect(ok("https://web-1-ab12cd.labs.example.test/")).toBe(false)
-    expect(ok("https://web-1-ab12cd--vnc.labs.example.test/")).toBe(false)
-    expect(ok("https://web-1-ab12cd--rdp.labs.example.test/")).toBe(false)
-    expect(ok("https://x.web-1--term.labs.example.test/")).toBe(false)
-    expect(ok("https://web-1--term.example.test/")).toBe(false)
-    expect(ok("https://x--term.labs.example.test.evil.tld/")).toBe(false)
-    expect(ok("https://x--term.labs.example.testevil.tld/")).toBe(false)
-    expect(ok("https://--term.labs.example.test/")).toBe(false)
-    expect(ok("https://-x--term.labs.example.test/")).toBe(false)
+    expect(ok("https://r1-ab1t.labs.example.test/session?t=1")).toBe(true)
+    expect(ok("https://a.labs.example.test/")).toBe(true)
+    expect(ok("https://r1-ab12.labs.example.test/_auth?t=x")).toBe(true)
+    // deeper subdomain, other hosts, lookalikes
+    expect(ok("https://x.r1-ab1t.labs.example.test/")).toBe(false)
+    expect(ok("https://labs.example.test/")).toBe(false)
+    expect(ok("https://r1-ab1t.example.test/")).toBe(false)
+    expect(ok("https://r1-ab1t.labs.example.test.evil.tld/")).toBe(false)
+    expect(ok("https://r1-ab1t.labs.example.testevil.tld/")).toBe(false)
+    expect(ok("https://R1.labs.example.test/")).toBe(true) // the URL parser lowercases the host
+    expect(ok("https://-r1.labs.example.test/")).toBe(false)
+    expect(ok("https://r1-.labs.example.test/")).toBe(false)
+    expect(ok("https://r_1.labs.example.test/")).toBe(false)
     // scheme, port, userinfo, garbage
-    expect(ok("http://web-1--term.labs.example.test/")).toBe(false)
-    expect(ok("https://web-1--term.labs.example.test:8443/")).toBe(false)
-    expect(ok("https://user:pw@web-1--term.labs.example.test/")).toBe(false)
+    expect(ok("http://r1-ab1t.labs.example.test/")).toBe(false)
+    expect(ok("https://r1-ab1t.labs.example.test:8443/")).toBe(false)
+    expect(ok("https://user:pw@r1-ab1t.labs.example.test/")).toBe(false)
     expect(ok("not a url")).toBe(false)
-    expect(isConsoleFrameUrl("https://web-1--term.labs.example.test/", undefined)).toBe(false)
+    expect(isConsoleFrameUrl("https://r1-ab1t.labs.example.test/", undefined)).toBe(false)
   })
 })
 
