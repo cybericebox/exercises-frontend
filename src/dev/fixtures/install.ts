@@ -27,14 +27,14 @@ const KEY = "cib-editor-fixtures"
 /** A document error with its public context, as the daemon answers a save or a publish (`?serverError=…`, `&serverErrorAt=save`). */
 const SERVER_ERRORS = {
   device: { code: 23506, context: { device: "srv", field: "bootstrap.script" } },
-  variables: { code: 23506, context: { device: "srv", field: "bootstrap.env[0].name" } },
-  access: { code: 23506, context: { device: "r1", field: "access[0].command" } },
+  variables: { code: 23506, context: { device: "srv", field: "bootstrap.env[1].name" } },
+  access: { code: 23506, context: { device: "r1", field: "access[1].command" } },
   profile: { code: 23105, context: { device: "r2", field: "persistence" } },
   description: { code: 23519, context: { task: "secret", field: "description" } },
-  hint: { code: 23519, context: { task: "ospf", field: "hints[1].text" } },
+  hint: { code: 23519, context: { task: "ospf", field: "hints[2].text" } },
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
-  state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[1].file.path" } },
-  variable: { code: 23507, context: { field: "variables[0].name" } },
+  state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
+  variable: { code: 23507, context: { field: "variables[1].name" } },
   unplaced: { code: 73509, context: { features: "guest_agent" } },
   // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
   ambiguous: { code: 23504, context: { task: "secret", field: "check.answer.values" } },
