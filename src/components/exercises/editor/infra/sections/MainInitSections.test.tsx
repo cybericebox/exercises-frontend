@@ -116,6 +116,11 @@ describe("«Ініціалізація»", () => {
     await waitFor(() => expect(readValues()).toMatchObject({ Files: [{ From: "file", Source: { Name: "seed.sql" } }] }))
   })
 
+  it("counts the lines of the script without the closing line break", () => {
+    renderInit({ Bootstrap: { Timeout: "", Env: [], Files: [], Script: "echo a\n", Interpreter: "" } })
+    expect(screen.getByText(/ed.c.init.lines.one 1/)).toBeInTheDocument()
+  })
+
   it("writes the script, the interpreter and the time limit", () => {
     renderInit()
     fireEvent.change(screen.getByRole("textbox", { name: "ed.c.init.script" }), { target: { value: "echo hi" } })

@@ -45,7 +45,7 @@ export function InitSection({ variantIndex, deviceIndex, disabled, requestVariab
   const [dropError, setDropError] = useState("")
   const pendingDrops = useRef<File[]>([])
   const full = files.length >= MAX_BOOTSTRAP_FILES
-  const lineCount = script === "" ? 0 : script.split("\n").length
+  const lineCount = script.replace(/\n$/, "") === "" ? 0 : script.replace(/\n$/, "").split("\n").length
   const total = textBytes(script) + files.reduce((sum, file) => sum + (file.From === "file" ? sizes[file.Source?.FileID ?? ""] ?? 0 : textBytes(file.Content)), 0)
 
   function addText() {
