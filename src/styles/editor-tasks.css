@@ -1,0 +1,24 @@
+/* Subtasks (package B): the rail meta line, the add button of the rail, the compact drop zone. The rail, the form frame
+   and the hint rows live in exercise-general.css. */
+.subtasks-text { display:flex; min-width:0; flex:1; flex-direction:column; gap:1px; padding:5px 0; }
+.subtasks-meta { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--ib-dim); }
+.subtasks-item>span.subtasks-tip:first-child { position:static; display:flex; flex:1; min-width:0; }
+.subtasks-btn { display:flex; flex:1; min-width:0; align-items:center; gap:8px; padding:0 36px 0 8px; border-radius:6px; text-align:left; font-size:13.5px; color:var(--ib-body); }
+.subtasks-btn:hover { background:var(--ib-paper); }
+.subtasks-btn[aria-current=page] { background:var(--ib-soft); color:var(--ib-ink); font-weight:500; }
+.subtasks-btn:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.subtasks-btn[aria-current=page] .subtasks-num { background:var(--ib-action); color:var(--ib-on-action); }
+.subtasks-btn[aria-current=page] .subtasks-meta { color:var(--ib-body); }
+.subtasks-item>span.subtasks-remove:last-child { position:absolute; right:0; }
+.rail-add { display:flex; width:100%; align-items:center; gap:6px; min-height:var(--ctl); margin-top:4px; padding:0 8px; border-top:1px solid var(--ib-line); border-radius:0 0 6px 6px; font-size:13.5px; color:var(--ib-dim); }
+.rail-add:hover { color:var(--ib-ink); background:var(--ib-paper); }
+.rail-add:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+/* The form scrolls on its own beside the rail on wide screens. */
+@container task-screen (min-width:900px) { .subtasks-rail { max-height:calc(100dvh - 9rem); overflow-y:auto; } }
+.subtask-form>.subtask-fields { gap:16px; }
+.subtask-form .subtask-head { grid-template-columns:minmax(0,1fr) 220px; }
+@container task-screen (max-width:640px) { .subtask-form .subtask-head { grid-template-columns:minmax(0,1fr); } .subtask-form .subtask-head>:nth-child(2) { grid-column:1; grid-row:2; } }
+.subtask-form .subtask-section-title { min-height:var(--ctl); }
+.link-btn { background:none; border:0; padding:0; font:inherit; cursor:pointer; }
+.subtask-add-left .subtask-section-action { margin-left:0; }
+@container task-screen (min-width:900px) { section.subtasks { grid-template-columns:250px minmax(0,1fr); } }

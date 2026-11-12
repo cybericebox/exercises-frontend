@@ -11,12 +11,22 @@ import type { PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import { emptyPlaceholder, placeholderToDTO } from "@/lib/exerciseSchemas"
 import { FieldHelp } from "@/components/ui/field-help"
 import { LINK_SCHEMES, MAX_LINK_PATH, ipExample, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
-import type { PlaceholderKind } from "@/api/exercises/versions"
+import type { PlaceholderAccess, PlaceholderKind } from "@/api/exercises/versions"
+import { ACCESS_KINDS, ACCESS_KINDS_SERVED, type AccessKind } from "@/api/exercises/model"
+
+/** A device that can be linked to: its name and the access kinds it has switched on. */
+export type ExternalDevice = { name: string; access: AccessKind[] }
 
 export type PlaceholderTopology = {
   vpnEnabled: boolean
   internetEnabled: boolean
-  externalDeviceNames: string[]
+  externalDevices: ExternalDevice[]
+}
+
+/** The access kind a new link to a device starts with: the web page when it has one, else the first served kind. */
+function defaultAccess(device: ExternalDevice | undefined): PlaceholderAccess {
+  if (!device) return "http"
+  return device.access.includes("http") ? "http" : (device.access.find((kind) => ACCESS_KINDS_SERVED.includes(kind)) ?? device.access[0] ?? "http")
 }
 
 type PlaceholderDialogProps = {
@@ -40,7 +50,11 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
   const canVPN = topology.vpnEnabled
   const canInternet = topology.internetEnabled
   const canIP = canVPN || canInternet
-  const canExternal = topology.externalDeviceNames.length > 0
+  const externalNames = topology.externalDevices.map((device) => device.name)
+  const canExternal = externalNames.length > 0
+  const externalDevice = topology.externalDevices.find((device) => device.name === draft?.DeviceName)
+  const accessKind: AccessKind = draft?.Access ?? "http"
+  const accessOk = Boolean(externalDevice?.access.includes(accessKind) && ACCESS_KINDS_SERVED.includes(accessKind))
   const options: { kind: PlaceholderKind; enabled: boolean; reason: string; label: string }[] = [
     { kind: "vpn.subnet", enabled: canVPN, reason: t("admin.exPh.unavailable.vpn"), label: t("admin.exPh.kind.vpnSubnet") },
     { kind: "internet.subnet", enabled: canInternet, reason: t("admin.exPh.unavailable.internet"), label: t("admin.exPh.kind.internetSubnet") },
@@ -54,15 +68,16 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
   const pathError = asLink && !isValidLinkPath(draft?.Path ?? "") ? t("admin.ex.val.placeholderPath") : ""
   const valid = Boolean(draft && !portError && !pathError && (selectedAvailable || (Boolean(value) && draft.IPReference === "static")) &&
     (kind !== "ip" || (ipSourceAvailable && Number.isInteger(draft.LastOctet) && draft.LastOctet >= 0 && draft.LastOctet <= 255)) &&
-    (kind !== "external.link" || topology.externalDeviceNames.includes(draft.DeviceName)))
+    (kind !== "external.link" || (externalNames.includes(draft.DeviceName) && accessOk)))
 
   function choose(nextKind: PlaceholderKind) {
     const next = draft ?? emptyPlaceholder()
     setDraft({ ...next, Kind: nextKind,
       IPReference: nextKind === "ip" && !["vpn", "internet"].includes(next.IPReference)
         ? (canVPN ? "vpn" : "internet") : next.IPReference,
-      DeviceName: nextKind === "external.link" && !topology.externalDeviceNames.includes(next.DeviceName)
-        ? topology.externalDeviceNames[0] ?? "" : next.DeviceName,
+      DeviceName: nextKind === "external.link" && !externalNames.includes(next.DeviceName)
+        ? externalNames[0] ?? "" : next.DeviceName,
+      Access: nextKind === "external.link" ? defaultAccess(topology.externalDevices.find((device) => device.name === (externalNames.includes(next.DeviceName) ? next.DeviceName : externalNames[0]))) : next.Access,
     })
   }
 
@@ -139,15 +154,27 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
           <label htmlFor="placeholder-show-mask" className="text-sm leading-snug cursor-pointer select-none">{t("admin.exPh.showMask")}</label>
         </div>}
       </div>}
-      {draft?.Kind === "external.link" && <div className="border-t border-border pt-4">
-        <span className="mb-1 block text-sm font-medium">{t("admin.exPh.device")}</span>
-        <SelectMenu ariaLabel={t("admin.exPh.device")} value={draft.DeviceName}
-          onChange={(DeviceName) => setDraft({ ...draft, DeviceName })}
-          options={[
-            ...(draft.DeviceName && !topology.externalDeviceNames.includes(draft.DeviceName)
-              ? [{ value: draft.DeviceName, label: t("admin.exPh.itemMissing", { name: draft.DeviceName }), unavailable: true }] : []),
-            ...topology.externalDeviceNames.map((device) => ({ value: device, label: device })),
-          ]} className="w-full" />
+      {draft?.Kind === "external.link" && <div className="space-y-3 border-t border-border pt-4">
+        <div>
+          <span className="mb-1 block text-sm font-medium">{t("admin.exPh.device")}</span>
+          <SelectMenu ariaLabel={t("admin.exPh.device")} value={draft.DeviceName}
+            onChange={(DeviceName) => setDraft({ ...draft, DeviceName, Access: defaultAccess(topology.externalDevices.find((device) => device.name === DeviceName)) })}
+            options={[
+              ...(draft.DeviceName && !externalNames.includes(draft.DeviceName)
+                ? [{ value: draft.DeviceName, label: t("admin.exPh.itemMissing", { name: draft.DeviceName }), unavailable: true }] : []),
+              ...externalNames.map((device) => ({ value: device, label: device })),
+            ]} className="w-full" />
+        </div>
+        <div>
+          <span className="mb-1 block text-sm font-medium">{t("ed.b.ph.access")}</span>
+          <SelectMenu ariaLabel={t("ed.b.ph.access")} value={accessKind} className="w-full"
+            onChange={(Access) => setDraft({ ...draft, Access: Access as PlaceholderAccess })}
+            options={ACCESS_KINDS.filter((kind) => externalDevice?.access.includes(kind) || kind === accessKind).map((kind) => ({
+              value: kind, label: t(`ed.b.ph.access.${kind}`),
+              disabled: !ACCESS_KINDS_SERVED.includes(kind),
+              description: !ACCESS_KINDS_SERVED.includes(kind) ? t("ed.b.ph.accessSoon") : !externalDevice?.access.includes(kind) ? t("ed.b.ph.accessOff") : undefined,
+            }))} />
+        </div>
       </div>}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("admin.exPh.cancel")}</Button>
