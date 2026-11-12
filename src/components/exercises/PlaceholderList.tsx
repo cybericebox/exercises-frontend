@@ -47,7 +47,7 @@ export function PlaceholderList({
   const internet = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
   const externalDeviceNames = devices
-    .filter((d) => d.External?.Enabled && d.Name)
+    .filter((d) => d.Access.some((entry) => entry.Kind === "http") && d.Name)
     .map((d) => d.Name)
 
   return (

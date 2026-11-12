@@ -6,20 +6,22 @@
  */
 import type { DeployAccess, DeployStatus } from "@/api/exercises/deploy"
 import type { NormalizedDevice, NormalizedTopology } from "@/api/exercises/versions"
-import type { TopologyFormValues } from "@/lib/exerciseSchemas"
+import { emptyBootstrap, topologyToForm, type TopologyFormValues } from "@/lib/editor/schemas/infra"
 
 /** The diagram's model of the variant's topology, without anything private. */
 export function labTopology(topology: NormalizedTopology): TopologyFormValues {
+  const form = topologyToForm(topology)
   return {
-    ...topology,
-    Devices: topology.Devices.map((device) => ({
+    ...form,
+    Devices: form.Devices.map((device) => ({
       ...device,
       Image: "",
-      EnvVars: [],
+      Command: [],
+      Args: [],
+      Bootstrap: emptyBootstrap(),
       ResourcePreset: "",
       Persistence: undefined,
       WaitReadyFile: false,
-      External: device.External ? { Enabled: true, ...device.External } : { Enabled: false, Port: 80, Protocol: "http" as const },
     })),
   }
 }
@@ -56,7 +58,7 @@ export function labNodeInfo(topology: NormalizedTopology, key: string, status: D
   }).filter((entry) => entry.dhcp || entry.address)
   return {
     kind: "device", name: device.Name, type: device.Type, interfaces,
-    services: device.External ? [`${device.External.Port}/${device.External.Protocol}`] : [],
+    services: device.Access.filter((entry) => entry.Kind === "http" && entry.Port).map((entry) => `${entry.Port}/${entry.Protocol ?? "http"}`),
     web: (status?.Access ?? []).filter((access) => access.Device === device.Name),
   }
 }

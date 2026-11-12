@@ -43,7 +43,7 @@ function initialInspectorWidth() {
   return INSPECTOR_DEFAULT_WIDTH
 }
 const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
-  { type: "container", label: "admin.exTopo.type.container", prefix: "host" },
+  { type: "node", label: "admin.exTopo.type.container", prefix: "host" },
   { type: "unmanaged-switch", label: "admin.exTopo.type.switch", prefix: "sw" },
   { type: "hub", label: "admin.exTopo.type.hub", prefix: "hub" },
 ]
@@ -94,7 +94,7 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
     : settingsDeviceIndex >= 0 ? devices[settingsDeviceIndex].Name : null
   const settingsDescriptionKind = settingsGateway
     ? settingsGateway
-    : settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type !== "container"
+    : settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type !== "node"
       ? devices[settingsDeviceIndex].Type === "hub" ? "hub" : "switch"
       : null
   const availableNodes = new Set([
@@ -227,7 +227,7 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
     const device = emptyDevice()
     device.Name = `${option.prefix}-${number}`
     device.Type = type
-    if (type !== "container") device.Interfaces = []
+    if (type !== "node") device.Interfaces = []
     append(device)
     if (position) moveNode(device.ID, position)
     setSelectedKey(device.ID)
@@ -262,7 +262,7 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
   function renameNode(key: string, draft: string): string | null {
     const name = draft.trim()
     const device = devices.find((candidate) => candidate.ID === key)
-    const nameError = device?.Type === "container" ? containerNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
+    const nameError = device?.Type === "node" ? containerNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) return nameError
     if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)
       || (["vpn", "internet"] as const).some((kind) => kind !== key
@@ -368,7 +368,7 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
       <DropdownMenuTrigger asChild><Button type="button" variant="outline" aria-label={t("admin.exTopo.addDevice")}><Plus className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {DEVICE_OPTIONS.map((option) => <DropdownMenuItem key={option.type} className="gap-2" onSelect={() => { setActiveSection("diagram"); addDevice(option.type) }}>
-          <TopologyGlyph kind={option.type === "container" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
+          <TopologyGlyph kind={option.type === "node" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
         </DropdownMenuItem>)}
         <DropdownMenuItem disabled={topology?.VPN.Enabled} className="gap-2" onSelect={() => { setActiveSection("diagram"); addGateway("vpn") }}><TopologyGlyph kind="vpn" className="h-5 w-5 shrink-0" />{t("admin.exTopo.vpn")}</DropdownMenuItem>
         <DropdownMenuItem disabled={topology?.Internet.Enabled} className="gap-2" onSelect={() => { setActiveSection("diagram"); addGateway("internet") }}><TopologyGlyph kind="internet" className="h-5 w-5 shrink-0" />{t("admin.exTopo.internet")}</DropdownMenuItem>
@@ -465,13 +465,13 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
           {settingsName !== null && (renamingKey === settingsTarget ? <div className="mt-1 min-w-0">
             <div className="flex items-center gap-1.5">
             <Input ref={nameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!nameError} aria-describedby={nameError ? `topology-name-${variantIndex}-error` : undefined}
-              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" ? MAX_DEVICE_NAME_LEN : undefined}
+              value={nameDraft} maxLength={settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "node" ? MAX_DEVICE_NAME_LEN : undefined}
               onChange={(event) => { setNameDraft(event.target.value); setNameError("") }}
               onBlur={commitRename} onKeyDown={(event) => {
                 if (event.key === "Enter") { event.preventDefault(); commitRename() }
                 if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setRenamingKey(null); setNameError("") }
               }} />
-            {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container"
+            {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "node"
               && <span onMouseDown={(event) => event.preventDefault()}><FieldHelp text={t("admin.exTopo.deviceNameHelp", { max: MAX_DEVICE_NAME_LEN })} /></span>}
             </div>
             {nameError && <p id={`topology-name-${variantIndex}-error`} role="alert" className="mt-1 text-xs text-destructive">{nameError}</p>}
@@ -485,7 +485,7 @@ export function TopologySection({ variantIndex, disabled, toolbar, linkedBaseInd
           </HoverTooltip>)}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "container" && <DropdownMenu>
+          {settingsDeviceIndex >= 0 && devices[settingsDeviceIndex].Type === "node" && <DropdownMenu>
             <HoverTooltip text={t("admin.exTopo.icon.change")}><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="sm" disabled={disabled}
               aria-label={t("admin.exTopo.icon.change")} className="h-8 w-8 p-0"><Images className="h-4 w-4" /></Button></DropdownMenuTrigger></HoverTooltip>
             <DropdownMenuContent align="end" className="max-h-72 min-w-48 overflow-y-auto">

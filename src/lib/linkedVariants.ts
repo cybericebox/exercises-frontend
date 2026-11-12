@@ -6,7 +6,7 @@
 import type { VariantFormValues } from "@/lib/exerciseSchemas"
 import { TEMPLATE_PREFIX } from "@/lib/flagPattern"
 
-type OwnTask = { Flag: string[]; Attachments: { FileID: string; Name: string }[] }
+type OwnTask = { Check: { Answer: { Values: string[] } }; Attachments: { FileID: string; Name: string }[] }
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -28,7 +28,7 @@ function matchOwnTask(tasks: VariantFormValues["Tasks"], baseId: string, positio
  */
 export function ownImages(variant: Pick<VariantFormValues, "ImageOverrides">, base: Pick<VariantFormValues, "Topology">): { DeviceID: string; Image: string; Name: string }[] {
   return base.Topology.Devices.flatMap((device) => {
-    if (device.Type !== "container") return []
+    if (device.Type !== "node") return []
     const image = variant.ImageOverrides?.find((override) => override.DeviceID === device.ID)?.Image.trim() ?? ""
     return image && image !== device.Image ? [{ DeviceID: device.ID, Image: image, Name: device.Name }] : []
   })
@@ -48,7 +48,7 @@ function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; 
   rebuilt.Topology.Devices.forEach((device) => { const image = images.get(device.ID); if (image) device.Image = image })
   rebuilt.Tasks.forEach((task, position) => {
     const mine = matchOwnTask(own.Tasks, task.ID, position)
-    task.Flag = mine ? clone(mine.Flag) : []
+    task.Check.Answer.Values = mine ? clone(mine.Check.Answer.Values) : []
     task.Attachments = mine ? clone(mine.Attachments) : []
   })
   rebuilt.ID = own.ID
@@ -103,7 +103,7 @@ export function newLinkedVariant(base: VariantFormValues, index: number, own: { 
   created.LinkedTo = base.ID
   delete created.CopyOf
   created.Tasks.forEach((task, position) => {
-    task.Flag = clone(own.Tasks[position]?.Flag ?? [])
+    task.Check.Answer.Values = clone(own.Tasks[position]?.Check.Answer.Values ?? [])
     task.Attachments = clone(own.Tasks[position]?.Attachments ?? [])
   })
   return created
@@ -135,7 +135,7 @@ export function linkedFlagConflicts(variants: VariantFormValues[]): { variantInd
       const owner = new Map<string, number>()
       const reported = new Set<number>()
       for (const variantIndex of group) {
-        const flags = variants[variantIndex].Tasks[taskIndex]?.Flag ?? []
+        const flags = variants[variantIndex].Tasks[taskIndex]?.Check.Answer.Values ?? []
         flags.forEach((value, flagIndex) => {
           if (!value || value.startsWith(TEMPLATE_PREFIX)) return
           const previous = owner.get(value)

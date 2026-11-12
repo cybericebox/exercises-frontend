@@ -171,7 +171,8 @@ function LinkedVariantsForm({ variants, onClose, onCreate }: {
         if (flag) {
           try { parseFlagCandidate(flag) } catch (error) { errors[`${row.key}:${column}`] = t(flagCandidateErrorKey(error)) }
         }
-        return { Flag: flag ? [flag] : [], Attachments: cell.files }
+        // TODO(package A): the wizard replaces this dialog.
+        return { Check: { Answer: { Values: flag ? [flag] : [] } }, Attachments: cell.files }
       }),
     }))
     // Within one subtask a flag may not repeat among the base, its linked variants and the new rows.

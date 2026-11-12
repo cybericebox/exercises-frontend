@@ -14,6 +14,7 @@ import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
+import { draftIssues, type EditorIssue } from "@/lib/editor/issues"
 import type { ExerciseEditor } from "./useExerciseEditor"
 
 export type DeployTarget = {
@@ -31,10 +32,12 @@ export type UseExerciseActionsOptions = {
   focusField: (path: PropertyKey[]) => void
   /** Lets the next programmatic navigation past the leave guard. */
   allowNavigation: () => void
+  /** The publish check found invalid fields: the page shows the list «Перед публікацією виправте». */
+  onIssues?: (issues: EditorIssue[]) => void
 }
 
 export function useExerciseActions({
-  editor, canWrite, canDelete, setMode, setPosition, focusField, allowNavigation,
+  editor, canWrite, canDelete, setMode, setPosition, focusField, allowNavigation, onIssues,
 }: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -103,9 +106,15 @@ export function useExerciseActions({
         richTextHasContent(task.Description) ? [] : [`Variants.${vi}.Tasks.${ti}.Description` as const]))
       for (const path of missingDescriptions) editor.draftForm.setError(path, { type: "required", message: t("admin.ex.err.taskDescriptionRequired") })
       if (!valid || missingDescriptions.length > 0) {
+        if (canWrite) setMode("edit")
+        const issues = draftIssues(values)
+        if (onIssues && issues.length > 0) {
+          // The list only navigates; every message also sits beside its own field.
+          onIssues(issues)
+          return false
+        }
         const parsed = draftSchema.safeParse(values)
         const issue = parsed.success ? missingDescriptions[0] ? { path: missingDescriptions[0].split(".").map((part) => /^\d+$/.test(part) ? Number(part) : part) } : null : parsed.error.issues[0]
-        if (canWrite) setMode("edit")
         setPosition((current) => issue ? positionForDraftIssue(current, values, issue.path) : { ...current, tab: "variants" })
         if (issue) focusField(issue.path)
         toast.error(t("admin.exPage.toast.invalid"))
@@ -133,7 +142,7 @@ export function useExerciseActions({
     const devices = editor.draftForm.getValues(`Variants.${variantIndex}.Topology.Devices`)
     editor.draftForm.setError(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Image`, { type: "server", message: exerciseErrorMessage(cause) })
     if (canWrite) setMode("edit")
-    setPosition((current) => ({ ...current, tab: "variants", variant: variantIndex, section: "topology", topologySection: `device:${devices[deviceIndex].ID}`, devicePanel: "basic" }))
+    setPosition((current) => ({ ...current, tab: "infrastructure", variant: variantIndex, infraView: "diagram", openNode: devices[deviceIndex].ID, deviceSection: "main", topologySection: `device:${devices[deviceIndex].ID}`, devicePanel: "basic" }))
     toast.error(exerciseErrorMessage(cause))
     return true
   }

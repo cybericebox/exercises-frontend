@@ -16,7 +16,7 @@ import { cn } from "@/utils/cn"
 const TEMPLATE_PREFIX = "template:"
 
 /** Errors of a variant's weight and subtask flags (the form's own validation), by position. */
-type FlagErrors = { Variants?: { Weight?: { message?: string }; Tasks?: { Flag?: unknown }[] }[] }
+type FlagErrors = { Variants?: { Weight?: { message?: string }; Tasks?: { Check?: { Answer?: { Values?: unknown } } }[] }[] }
 
 /** How many issues the order line shows. */
 const ORDER_PREVIEW = 14
@@ -112,10 +112,10 @@ export function AllVariantsTable({ form, disabled, onOpen, actions }: { form: Us
             {subtasks.map((_, si) => {
               const task = variant.Tasks[si]
               if (!task) return <td key={si}>—</td>
-              const flags = task.Flag ?? []
+              const flags = task.Check.Answer.Values
               const first = flags[0] ?? ""
               const template = first.startsWith(TEMPLATE_PREFIX)
-              const invalid = Boolean((errors as FlagErrors).Variants?.[vi]?.Tasks?.[si]?.Flag)
+              const invalid = Boolean((errors as FlagErrors).Variants?.[vi]?.Tasks?.[si]?.Check?.Answer?.Values)
               const label = t("admin.exDraft.flagCell", { n: vi + 1, task: si + 1 })
               return <td key={si}><div className="all-variants-cell">
                 {template
@@ -124,7 +124,7 @@ export function AllVariantsTable({ form, disabled, onOpen, actions }: { form: Us
                     value={first} onChange={(event) => {
                       const next = [event.target.value, ...flags.slice(1)]
                       // An empty only flag means «random on deployment», like in the subtask form.
-                      form.setValue(`Variants.${vi}.Tasks.${si}.Flag`, next.length === 1 && next[0] === "" ? [] : next, { shouldDirty: true, shouldValidate: invalid })
+                      form.setValue(`Variants.${vi}.Tasks.${si}.Check.Answer.Values`, next.length === 1 && next[0] === "" ? [] : next, { shouldDirty: true, shouldValidate: invalid })
                     }} />}
                 {flags.length > 1 && <HoverTooltip text={flags.map((flag) => flag.replace(TEMPLATE_PREFIX, "")).join("\n")}><span className="all-variants-more" tabIndex={0}>+{flags.length - 1}</span></HoverTooltip>}
                 {task.Attachments.length > 0 && <HoverTooltip text={task.Attachments.map((file) => file.Name).join(", ")}><span className="all-variants-files" tabIndex={0} aria-label={t("admin.exDraft.filesCount", { count: task.Attachments.length })}><Paperclip aria-hidden="true" className="h-3.5 w-3.5" />{task.Attachments.length}</span></HoverTooltip>}
