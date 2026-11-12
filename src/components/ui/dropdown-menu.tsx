@@ -60,7 +60,7 @@ DropdownMenuSubContent.displayName =
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & { portalled?: boolean }
->(({ className, sideOffset = 4, collisionPadding = 8, portalled = true, onWheel, onTouchMove, ...props }, ref) => {
+>(({ className, sideOffset = 2, collisionPadding = 8, portalled = true, onWheel, onTouchMove, ...props }, ref) => {
   // collisionPadding: a menu never sticks to the edge of a phone screen.
   const content = (
     <DropdownMenuPrimitive.Content

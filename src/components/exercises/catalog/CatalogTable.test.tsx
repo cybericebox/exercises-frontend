@@ -25,7 +25,7 @@ describe("CatalogTable", () => {
   it("gives every column, the name too, its own width; an empty filler at the end takes the rest", () => {
     const { container } = table()
     const cols = [...container.querySelectorAll("col")]
-    expect(cols.slice(0, -1).map((col) => col.style.width)).toEqual(["44px", "268px", "190px", "128px", "134px", "112px", "150px", "124px"])
+    expect(cols.slice(0, -1).map((col) => col.style.width)).toEqual(["44px", "268px", "190px", "128px", "160px", "112px", "150px", "124px"])
     expect(cols.at(-1)).toHaveAttribute("data-catalog-filler")
     expect(cols.at(-1)!.style.width).toBe("")
     expect(container.querySelector("thead .catalog-filler")).toHaveAttribute("aria-hidden", "true")
@@ -33,7 +33,7 @@ describe("CatalogTable", () => {
     const data = container.querySelector("table")!
     expect(data).toHaveClass("catalog-data")
     // The sum of the columns (filling a 1440px screen's table block); the table scrolls sideways only below that.
-    expect(data.style.minWidth).toBe(`${44 + 268 + 190 + 128 + 134 + 112 + 150 + 124}px`)
+    expect(data.style.minWidth).toBe(`${44 + 268 + 190 + 128 + 160 + 112 + 150 + 124}px`)
     // Every column, the name included, has a resize handle.
     expect(screen.getAllByRole("separator")).toHaveLength(7)
     expect(screen.getByRole("link", { name: LONG })).toHaveClass("catalog-task-link")

@@ -21,7 +21,7 @@ export const NAME_COLUMN = "name"
  * leave goes to an empty filler at the end, never to a column, so a narrower column always stays narrower. The
  * defaults of the shown-by-default columns (with the selection box) fill the table block of a 1440px screen.
  */
-export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 128, subtasks: 134, variants: 112, author: 150, updated: 124, difficulty: 160, tags: 200, owner: 190 }
+export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 128, subtasks: 160, variants: 112, author: 150, updated: 124, difficulty: 160, tags: 200, owner: 190 }
 export const NAME_WIDTH = 268
 export const NAME_MIN_WIDTH = 200
 export const NAME_MAX_WIDTH = 900

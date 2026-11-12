@@ -141,6 +141,14 @@ describe("TasksView: form order and sections", () => {
   })
 })
 
+describe("TasksView: nothing to require", () => {
+  it("disables the add menu and says nothing under the field (the reason is in the «?»)", () => {
+    renderInEditor(<TasksView />, { variants: [{ tasks: [flagTask("task_1", "First")] }] })
+    expect(screen.getByRole("button", { name: "ed.b.requires.add" })).toBeDisabled()
+    expect(screen.queryByText(/noneEligible/)).toBeNull()
+  })
+})
+
 describe("TasksView: files", () => {
   it("shows no text when there are no files and nothing in read-only", () => {
     renderInEditor(<TasksView />, { disabled: true, variants: [{ tasks: [flagTask("task_1", "First")] }] })
