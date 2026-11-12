@@ -189,13 +189,13 @@ describe("ExerciseHeader", () => {
     openMenu("admin.exPage.action.more")
     const groups = await screen.findAllByRole("group")
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
-      "admin.exGeneral.versions", "admin.exGeneral.access", "admin.exGeneral.transfer", "admin.exGeneral.lifecycle",
+      "admin.exGuide.zavdannia", "admin.exGeneral.versions", "admin.exGeneral.access", "admin.exGeneral.transfer", "admin.exGeneral.lifecycle",
     ])
-    expect(Array.from(groups[0].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toEqual([
+    expect(Array.from(groups[1].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toEqual([
       "admin.exPage.action.history", "admin.exPage.action.snapshot",
     ])
     // Discarding the changes is destructive: it sits with archive and delete at the bottom.
-    expect(Array.from(groups[3].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toContain("admin.exPage.action.revert")
+    expect(Array.from(groups[4].querySelectorAll('[role="menuitem"]')).map((item) => item.textContent)).toContain("admin.exPage.action.revert")
     expect(screen.getByRole("menuitem", { name: "exercises.access.button" })).toBeInTheDocument()
     expect(screen.queryByText("admin.exGeneral.importUpdate")).not.toBeInTheDocument()
   })
@@ -204,7 +204,7 @@ describe("ExerciseHeader", () => {
     render(<ExerciseHeader {...makeProps({ permissions: { write: false, publish: false, delete: false, export: false }, testAvailable: false })} />)
     openMenu("admin.exPage.action.more")
     expect(await screen.findByRole("menuitem", { name: "admin.exPage.action.history" })).toBeInTheDocument()
-    expect(screen.getAllByRole("group")).toHaveLength(1)
+    expect(screen.getAllByRole("group")).toHaveLength(2)
   })
 
   it("keeps busy publication visible after publishable becomes false", () => {

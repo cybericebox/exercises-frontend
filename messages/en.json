@@ -90,7 +90,7 @@
   "admin.ex.err.noWebDevice": "The device has no web address",
   "admin.ex.err.infrastructureUnavailable": "The laboratory is not connected, so a test deploy is unavailable",
   "admin.exPage.date.today": "today at {time}",
-  "admin.exPage.badge.none": "Not published",
+  "admin.exPage.badge.none": "Draft",
   "admin.exPage.badge.published": "Published",
   "admin.exPage.badge.changes": "Unpublished changes",
   "admin.exPage.badge.archived": "Archived",
