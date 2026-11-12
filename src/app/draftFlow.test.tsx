@@ -13,7 +13,6 @@ vi.mock("next/link", () => ({
 }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
-vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
 vi.mock("@/api/exercises/catalog", () => ({
   createExercise: vi.fn(), getExercise: vi.fn(), listExercisesPage: vi.fn().mockResolvedValue({ Items: [], Total: 0, Page: 1, PageSize: 50 }), updateExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),

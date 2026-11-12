@@ -11,7 +11,6 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "editor-1" }, isLo
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams(h.search) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
-vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }) }))
 import { listDeploys } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
