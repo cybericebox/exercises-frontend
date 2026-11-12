@@ -6,7 +6,7 @@ import { ApiError } from "@/api/client"
 import { emptyDevice, emptyDraft, emptyTask, emptyVariant } from "@/lib/exerciseSchemas"
 import { placeServerFieldError, serverFieldTargets } from "./serverErrorTarget"
 
-const fail = (code: number, context: Record<string, string>) => new ApiError(400, { Status: { Code: code, Message: "m", Context: context } }, "m", undefined, code)
+const fail = (code: number, context: Record<string, string | number>) => new ApiError(400, { Status: { Code: code, Message: "m", Context: context } }, "m", undefined, code)
 
 function draft(variants: { linked?: boolean; keys?: string[]; devices?: string[] }[]) {
   const value = emptyDraft()
@@ -58,20 +58,25 @@ describe("serverFieldTargets", () => {
     expect(serverFieldTargets(fail(23506, { device: "web", field: "command" }), draft([{}, {}]))).toBeNull()
   })
 
-  it("takes the variant from the context when the daemon names it (a 1-based position or an id)", () => {
+  it("takes the variant from the context when the daemon names it (an int: the 1-based position)", () => {
     const two = draft([{}, {}])
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: 2 }), two)).toEqual([["Variants", 1, "Tasks", 0, "Description"]])
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: 1 }), two)).toEqual([["Variants", 0, "Tasks", 0, "Description"]])
     expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "2" }), two)).toEqual([["Variants", 1, "Tasks", 0, "Description"]])
-    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "v0" }), two)).toEqual([["Variants", 0, "Tasks", 0, "Description"]])
     const linked = draft([{}, { linked: true }])
-    expect(serverFieldTargets(fail(23504, { task: "scan", field: "check.answer.values", variant: "2" }), linked)).toEqual([["Variants", 1, "Tasks", 0, "Check", "Answer", "Values"]])
-    expect(serverFieldTargets(fail(23506, { device: "web", field: "command", variant: "2" }), two)).toEqual([["Variants", 1, "Topology", "Devices", 0, "Command"]])
+    expect(serverFieldTargets(fail(23504, { task: "scan", field: "check.answer.values", variant: 2 }), linked)).toEqual([["Variants", 1, "Tasks", 0, "Check", "Answer", "Values"]])
+    expect(serverFieldTargets(fail(23506, { device: "web", field: "command", variant: 2 }), two)).toEqual([["Variants", 1, "Topology", "Devices", 0, "Command"]])
   })
 
   it("a named variant that is not in the form, or that lacks the task or device, is form-level", () => {
     const two = draft([{}, {}])
-    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "9" }), two)).toBeNull()
-    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "nope" }), two)).toBeNull()
-    expect(serverFieldTargets(fail(23519, { task: "ghost", field: "description", variant: "1" }), two)).toBeNull()
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: 9 }), two)).toBeNull()
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: 0 }), two)).toBeNull()
+    // an id or any other text is not the position
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "v0" }), two)).toBeNull()
+    expect(serverFieldTargets(fail(23519, { task: "ghost", field: "description", variant: 1 }), two)).toBeNull()
+    // a publish error with task and field resolves in the one variant that has them
+    expect(serverFieldTargets(fail(23519, { task: "exploit", field: "hints[0].text" }), draft([{ keys: ["scan", "exploit"] }]))).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
   })
 
   it("stays form-level when it cannot be placed reliably", () => {
