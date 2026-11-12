@@ -33,6 +33,7 @@ export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex:
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}.Check.State`
   const state = useWatch({ control, name: `${base}.Conditions` as `Variants.${number}.Tasks.${number}.Check.State.Conditions` }) ?? []
   const manual = useWatch({ control, name: `${base}.Manual` as `Variants.${number}.Tasks.${number}.Check.State.Manual` })
+  const interval = useWatch({ control, name: `${base}.Interval` as `Variants.${number}.Tasks.${number}.Check.State.Interval` })
   const mode = useWatch({ control, name: `${base}.Mode` as `Variants.${number}.Tasks.${number}.Check.State.Mode` })
   // «Перейти» to a field of a condition lands with that condition expanded (the position holds its index).
   const [positionCondition, setPositionCondition] = useEditorPosition("condition")
@@ -80,6 +81,7 @@ export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex:
         </div>
       </div>
     </div>
+    {!String(interval ?? "").trim().replace(/^0$/, "") && !manual && <p role="status" className="text-xs text-muted-foreground">{t("ed.b.state.neverRuns")}</p>}
     <div className="space-y-2">
       <FieldLabel as="span" id={`${base}-conditions-label`} text={t("ed.b.state.conditions")} help={{ intro: [t("ed.b.state.conditions.help1"), t("ed.b.state.conditions.help2")] }} />
       {state.length === 0
@@ -156,6 +158,11 @@ function ConditionRow({ variantIndex, taskIndex, index, count, condition, open, 
         <FieldError path={`${base}.DeviceID`} />
         <FieldError path={`${base}.Kind`} />
         <ConditionFields base={base} variantIndex={variantIndex} condition={condition} disabled={disabled} />
+        <div className="cond-grid">
+          <Field className="cond-cell" path={`${base}.Timeout`} label={t("ed.b.cond.timeout")} help={{ intro: t("ed.b.cond.timeout.help"), default: t("ed.b.cond.timeout.def") }}>
+            <TextControl path={`${base}.Timeout`} ariaLabel={t("ed.b.cond.timeout")} disabled={disabled} mono placeholder={t("ed.b.cond.timeout.ph")} />
+          </Field>
+        </div>
       </div>
     </ExpandableRow>
   </div>

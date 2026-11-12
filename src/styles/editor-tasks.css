@@ -22,3 +22,12 @@
 .link-btn { background:none; border:0; padding:0; font:inherit; cursor:pointer; }
 .subtask-add-left .subtask-section-action { margin-left:0; }
 @container task-screen (min-width:900px) { section.subtasks { grid-template-columns:250px minmax(0,1fr); } }
+/* Condition fields: at most three in a row (two at medium widths, one on a phone); a label stays on one line; a «remove
+   expectation» cross sits in one fixed place (the top right of its cell), so the inputs share one baseline. */
+.cond-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start; }
+@container task-screen (max-width:1100px) { .cond-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@container task-screen (max-width:560px) { .cond-grid { grid-template-columns:minmax(0,1fr); } }
+.cond-cell { min-width:0; }
+.cond-cell>.min-h-6 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cond-cell.relative>.cond-drop { position:absolute; top:0; right:0; }
+.cond-cell.relative>.cond-cell>.min-h-6 { padding-right:28px; }
