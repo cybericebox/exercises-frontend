@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { emptyDevice, emptyDraft } from "@/lib/exerciseSchemas"
 import { DEFAULT_EDITOR_POSITION } from "@/lib/editorPosition"
-import { positionForDraftIssue } from "./exerciseErrorNavigation"
+import { BOOTSTRAP_FIELD_SECTION, DEVICE_FIELD_SECTION, deviceSectionOf, positionForDraftIssue } from "./exerciseErrorNavigation"
 
 describe("positionForDraftIssue", () => {
   const draft = emptyDraft()
@@ -41,5 +41,24 @@ describe("positionForDraftIssue", () => {
   ] as const)("opens the owning part of the infrastructure for %j", (path, expected) => {
     const position = positionForDraftIssue(DEFAULT_EDITOR_POSITION, draft, [...path])
     expect(position).toMatchObject({ tab: "infrastructure", variant: 0, ...expected })
+  })
+})
+
+describe("device field to section table", () => {
+  it("places every field of the device form model and of its bootstrap in a real section", () => {
+    const sections = ["main", "network", "init", "service", "access"]
+    const device = emptyDevice()
+    for (const key of Object.keys(device)) expect(sections, key).toContain(DEVICE_FIELD_SECTION[key as keyof typeof device])
+    for (const key of Object.keys(device.Bootstrap)) expect(sections, key).toContain(BOOTSTRAP_FIELD_SECTION[key as keyof typeof device.Bootstrap])
+  })
+
+  it("lands every device field in the section its dialog shows it in", () => {
+    const expected: [string, string][] = [
+      ["Name", "main"], ["Image", "main"], ["Profile", "main"], ["ResourcePreset", "main"], ["SecurityPreset", "main"], ["Type", "main"],
+      ["Interfaces", "network"], ["Access", "access"], ["Command", "service"], ["Args", "service"], ["Persistence", "service"], ["WaitReadyFile", "service"],
+    ]
+    for (const [field, section] of expected) expect(deviceSectionOf(field), field).toBe(section)
+    for (const [field, section] of [["Env", "service"], ["Files", "init"], ["Script", "init"], ["Interpreter", "init"], ["Timeout", "init"]] as const) expect(deviceSectionOf("Bootstrap", field), field).toBe(section)
+    expect(deviceSectionOf("Unknown")).toBe("main")
   })
 })
