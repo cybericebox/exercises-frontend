@@ -14,7 +14,7 @@ import { OBSERVATION_KINDS, MAX_CONDITIONS } from "@/api/exercises/model"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { emptyCondition, type ConditionFormValues } from "@/lib/editor/schemas/task"
 import { useEditorPosition } from "../../EditorPosition"
-import { FieldError } from "../fieldErrors"
+import { FieldError, useErrorsAt } from "../fieldErrors"
 import { FieldHelp } from "@/components/ui/field-help"
 import { ChoiceControl, Field, TextControl } from "./fields"
 import { ConditionFields, withKind } from "./ConditionForm"
@@ -29,7 +29,7 @@ import { firstNodeDeviceId, lowerFirst } from "./taskShared"
  */
 export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex: number; taskIndex: number; disabled: boolean }) {
   const form = useFormContext<DraftFormValues>()
-  const { control, getValues, setValue, formState } = form
+  const { control, getValues, setValue } = form
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}.Check.State`
   const state = useWatch({ control, name: `${base}.Conditions` as `Variants.${number}.Tasks.${number}.Check.State.Conditions` }) ?? []
   const manual = useWatch({ control, name: `${base}.Manual` as `Variants.${number}.Tasks.${number}.Check.State.Manual` })
@@ -62,7 +62,7 @@ export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex:
 
   const modePath = `${base}.Mode`
   const intervalPath = `${base}.Interval`
-  const listError = get(formState.errors, conditionsPath) as { message?: unknown } | undefined
+  const listError = get(useErrorsAt(conditionsPath), conditionsPath) as { message?: unknown } | undefined
   return <div className="space-y-4" data-testid="state-pane">
     <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
       <Field className="min-w-48 flex-1" path={modePath} label={t("ed.b.state.mode")} help={{ intro: t("ed.b.state.mode.help"), items: [{ term: t("ed.b.state.once"), text: lowerFirst(t("ed.b.state.onceHint")) }, { term: t("ed.b.state.continuous"), text: lowerFirst(t("ed.b.state.continuousHint")) }], default: t("ed.b.state.mode.default") }}>
@@ -113,10 +113,10 @@ function ConditionRow({ variantIndex, taskIndex, index, count, condition, open, 
   onMove: (from: number, to: number) => void
   onRemove: (index: number) => void
 }) {
-  const { control, getValues, setValue, formState } = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}.Check.State.Conditions.${index}`
   const devices = (useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []).filter((device) => device.Type === "node")
-  const hasError = Boolean(get(formState.errors, base))
+  const hasError = Boolean(get(useErrorsAt(base), base))
   const isOpen = open || hasError
   const deviceName = devices.find((device) => device.ID === condition.DeviceID)?.Name
   const n = index + 1

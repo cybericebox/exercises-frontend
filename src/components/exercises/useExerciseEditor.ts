@@ -1,8 +1,8 @@
 "use client"
 
-import { placeServerFieldError } from "@/lib/editor/serverErrorTarget"
+import { forgetServerErrors, placeServerFieldError, registerServerErrorMemory, withServerErrors, type ServerErrorMemory } from "@/lib/editor/serverErrorTarget"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { useForm, type UseFormReturn } from "react-hook-form"
+import { useForm, type Resolver, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ApiError } from "@/api/client"
 import { createExercise, getExercise, updateExercise, updateExerciseKeepalive, type Exercise } from "@/api/exercises/catalog"
@@ -165,7 +165,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     defaultValues: { Name: "", Description: "", Tags: [] },
     mode: "onTouched",
   })
-  const draftForm = useForm<DraftFormValues>({ resolver: zodResolver(draftSchema), defaultValues: emptyDraft(), mode: "onBlur" })
+  const serverErrors = useRef<ServerErrorMemory>(new Map())
+  const draftResolver = useMemo(() => withServerErrors(zodResolver(draftSchema) as Resolver<DraftFormValues>, serverErrors.current), [])
+  const draftForm = useForm<DraftFormValues>({ resolver: draftResolver, defaultValues: emptyDraft(), mode: "onBlur" })
+  // The form's control finds its memory of server field errors (placeServerFieldError).
+  registerServerErrorMemory(draftForm.control, serverErrors.current)
 
   const signature = useCallback(() => JSON.stringify([identityForm.getValues(), draftForm.getValues()]), [identityForm, draftForm])
 
@@ -257,7 +261,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       }
       lastSaveErrorRef.current = null
       // A save that went through settles the field errors the server put on the document earlier.
-      if (placedErrorsRef.current.length > 0) { draftForm.clearErrors(placedErrorsRef.current as never[]); placedErrorsRef.current = [] }
+      if (placedErrorsRef.current.length > 0) { draftForm.clearErrors(placedErrorsRef.current as never[]); placedErrorsRef.current = []; forgetServerErrors(draftForm) }
       if (identityRejected) throw new IdentityRejectedError()
       return true
     } catch (error) {

@@ -100,3 +100,18 @@ describe("placeServerFieldError", () => {
     expect(form.setError).toHaveBeenCalledTimes(1)
   })
 })
+
+describe("withServerErrors", () => {
+  it("keeps a server error through a validation pass while the value is unchanged and drops it after an edit", async () => {
+    const { withServerErrors } = await import("./serverErrorTarget")
+    const memory = new Map([["Name", { message: "server", value: JSON.stringify("a") }]])
+    const base = vi.fn(async () => ({ values: {}, errors: {} }))
+    const resolver = withServerErrors(base as never, memory)
+    const options = { names: ["Name"] } as never
+    const kept = await resolver({ Name: "a" } as never, undefined, options)
+    expect((kept.errors as Record<string, { message: string }>).Name.message).toBe("server")
+    const dropped = await resolver({ Name: "b" } as never, undefined, options)
+    expect(dropped.errors).toEqual({})
+    expect(memory.size).toBe(0)
+  })
+})

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Controller, useFieldArray, useFormContext, useWatch, type Control } from "react-hook-form"
+import { Controller, get, useFieldArray, useFormContext, useWatch, type Control } from "react-hook-form"
 import { Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ import { cn } from "@/utils/cn"
 import { addressReferenceOverlapsDHCP, StaticAddressReference } from "../../../StaticAddressReference"
 import { useResourcesConfig } from "../../../ResourcesConfigContext"
 import { AddButton, ExpandableRow, FieldHelp } from "../../kit"
-import { FieldError, fieldProps, useFieldError } from "../../fieldErrors"
+import { FieldError, fieldProps, useErrorsAt, useFieldError } from "../../fieldErrors"
 import { InputField, SelectField } from "../fields"
 import type { SectionProps } from "./MainSection"
 
@@ -59,7 +59,7 @@ const GRID = "grid min-w-0 text-sm grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] ite
 
 /** «Мережа»: interfaces as rows. A closed row is a plain text summary, an open row is the form; one is open at a time. */
 export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionProps) {
-  const { control, getValues, formState } = useFormContext<DraftFormValues>()
+  const { control, getValues } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const { fields, append, remove } = useFieldArray({ control, name: `${base}.Interfaces` })
   const rows = useWatch({ control, name: `${base}.Interfaces` }) ?? []
@@ -70,7 +70,7 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
   const vpn = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN` }) ?? { Enabled: false, DHCP: false }
   const internet = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet` }) ?? { Enabled: false, DHCP: false }
   const config = useResourcesConfig()
-  const errorRows = (formState.errors.Variants?.[variantIndex]?.Topology?.Devices?.[deviceIndex]?.Interfaces ?? []) as unknown[]
+  const errorRows = (get(useErrorsAt(`${base}.Interfaces`), `${base}.Interfaces`) ?? []) as unknown[]
   const firstBad = Array.isArray(errorRows) ? errorRows.findIndex(Boolean) : -1
   const [open, setOpen] = useState(firstBad)
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)

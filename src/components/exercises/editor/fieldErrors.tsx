@@ -1,7 +1,7 @@
 "use client"
 
 import { CircleAlert } from "lucide-react"
-import { get, useFormContext, type FieldErrors } from "react-hook-form"
+import { get, useFormContext, useFormState, type FieldErrors } from "react-hook-form"
 import { cn } from "@/utils/cn"
 
 /** The DOM id of the control of a form path: `Variants.0.Tasks.1.Name` -> `fe-Variants-0-Tasks-1-Name`. */
@@ -12,9 +12,22 @@ export function fieldId(path: string | PropertyKey[]): string {
 
 const errorId = (path: string | PropertyKey[]) => `${fieldId(path)}-error`
 
+/**
+ * The live errors under a form path. Components that decide from errors at mount (a row opens when it holds one) read
+ * this, not `formState.errors` of the context: that is the snapshot of the last render of the form's host and misses an
+ * error placed while the component was not on screen.
+ */
+export function useErrorsAt(path: string): FieldErrors {
+  const { control } = useFormContext()
+  return useFormState({ control, name: path }).errors
+}
+
 /** The message of the error at a form path, or undefined. Re-renders only the field that reads it. */
 export function useFieldError(path: string): string | undefined {
-  const { formState: { errors } } = useFormContext()
+  // useFormState reads the live form state at mount: a field that mounts after the server's error was placed (a task or
+  // variant that was not on screen) still sees it, which the context's snapshot of the last host render would not.
+  const { control } = useFormContext()
+  const { errors } = useFormState({ control, name: path })
   const error = get(errors, path) as { message?: unknown } | undefined
   return typeof error?.message === "string" && error.message !== "" ? error.message : undefined
 }

@@ -32,7 +32,7 @@ const SERVER_ERRORS = {
   profile: { code: 23105, context: { device: "r2", field: "persistence" } },
   description: { code: 23519, context: { task: "secret", field: "description" } },
   hint: { code: 23519, context: { task: "ospf", field: "hints[1].text" } },
-  answer: { code: 23504, context: { task: "theory", field: "check.answer.values" } },
+  answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[1].file.path" } },
   variable: { code: 23507, context: { field: "variables[0].name" } },
   unplaced: { code: 73509, context: { features: "guest_agent" } },
