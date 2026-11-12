@@ -12,6 +12,8 @@
 .editor-vsel:hover { background:var(--ib-hover); }
 .editor-vsel:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
 .editor-vsel-cap { color:var(--ib-dim); }
+.editor-vsel-kind { color:var(--ib-body); font-weight:400; }
+@media (max-width:640px) { .editor-vsel-kind { display:none; } }
 .editor-vsel b { font-weight:700; font-variant-numeric:tabular-nums; }
 /* The all-variants view marks the dropdown with the tab underline, on the divider of the strip. */
 .editor-vsel-on { border-radius:0; font-weight:600; }

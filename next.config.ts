@@ -9,6 +9,10 @@ if (!DOMAIN) throw new Error("NEXT_PUBLIC_DOMAIN is required")
 if (DOMAIN !== "__NEXT_PUBLIC_DOMAIN__" && (DOMAIN.length > 253 || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(DOMAIN))) {
   throw new Error(`NEXT_PUBLIC_DOMAIN must be a bare lowercase host name (no scheme, port or path), got: ${DOMAIN}`)
 }
+// The editor fixture mode (canned API, no backend) is for `next dev` only: a production build must not carry it.
+if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_EDITOR_FIXTURES) {
+  throw new Error("NEXT_PUBLIC_EDITOR_FIXTURES is a dev-only switch and must not be set for a production build")
+}
 // Build version for error reports (package.json).
 const APP_VERSION = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version
 const PLATFORM_HOSTS = [DOMAIN, `api.${DOMAIN}`, `id.${DOMAIN}`, `admin.${DOMAIN}`, `exercises.${DOMAIN}`]

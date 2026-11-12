@@ -48,6 +48,7 @@ export function VariantMenu() {
         aria-label={t("ed.shell.variant.trigger", { n: variantIndex + 1, kind })}
         className={cn("editor-vsel", on && "editor-vsel-on")}>
         <span className="editor-vsel-cap">{t("ed.shell.variant.caption")}</span><b>{variantIndex + 1}</b>
+        {kind && <span className="editor-vsel-kind">· {kind}</span>}
         <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
     </DropdownMenuTrigger>
