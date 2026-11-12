@@ -13,7 +13,7 @@ export type TaskRefOption = { key: string; label: string; /** The text inserted 
  * Package B owns this file's behaviour (seeded by the foundation); the signatures stay.
  */
 export function taskRefOptions(tasks: { Key: string; Name: string }[]): TaskRefOption[] {
-  return tasks.filter((task) => task.Key !== "").map((task) => ({ key: task.Key, label: t("ed.b.refAnswer", { name: task.Name || task.Key }), ref: taskRef(task.Key) }))
+  return tasks.filter((task) => task.Key !== "").map((task) => ({ key: task.Key, label: t("ed.b.refAnswer", { name: task.Name.trim() || t("ed.b.unnamed") }), ref: taskRef(task.Key) }))
 }
 
 /** The places of the variant where the answer of a task reaches a device (empty when it is not delivered). */
