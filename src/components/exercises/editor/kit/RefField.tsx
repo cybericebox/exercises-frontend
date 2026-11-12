@@ -175,7 +175,7 @@ export const RefField = forwardRef<HTMLInputElement & HTMLTextAreaElement, RefFi
   const hasTokens = ranges.length > 0
   return <div className={frame}>
     {/* The mirror shows the text with its tokens highlighted; the real field above it is transparent but for the caret. */}
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden px-3">
+    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-0 overflow-hidden pl-3", tools >= 3 ? "pr-24" : tools === 2 ? "pr-16" : tools === 1 ? "pr-10" : "pr-3")}>
       <div className={cn("whitespace-pre leading-5 text-foreground", mono ? "font-mono text-[13px]" : "text-sm", multiline ? "py-2" : "py-[7px]")} style={{ transform: `translate(${-scroll.left}px, ${-scroll.top}px)` }}>{mirror}{"\n"}</div>
     </div>
     {multiline
