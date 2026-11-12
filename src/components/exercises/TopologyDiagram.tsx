@@ -30,7 +30,7 @@ type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: Topology
 type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string }
 type Point = { x: number; y: number }
 type DiagramHint = { text: string; left: number; top: number; below: boolean }
-type AddNodeKind = "container" | "unmanaged-switch" | "hub" | "vpn" | "internet"
+type AddNodeKind = "node" | "unmanaged-switch" | "hub" | "vpn" | "internet"
 type Context = ({ kind: "node"; key: string } | { kind: "edge"; index: number } | { kind: "canvas"; position: Point })
   & { x: number; y: number; trigger: HTMLElement | SVGElement | null }
 
@@ -309,7 +309,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       label: d.Name || t("admin.exTopo.unnamedDeviceN", { n: index + 1 }),
       kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
-      external: Boolean(d.External?.Enabled),
+      external: d.Access.some((entry) => entry.Kind === "http"),
     }))
     if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: gatewayLabelFor(topology.VisualRender, "vpn", t("admin.exTopo.vpn")), kind: "vpn" })
     if (topology.Internet.Enabled) nodes.push({ key: "internet", label: gatewayLabelFor(topology.VisualRender, "internet", t("admin.exTopo.internet")), kind: "internet" })
@@ -471,7 +471,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       ...(addNode ? [
         { kind: "label", key: "add-label", label: t("admin.exTopo.addDevice") } as const,
         ...(([
-          ["container", "admin.exTopo.type.container", "host"], ["unmanaged-switch", "admin.exTopo.type.switch", "switch"],
+          ["node", "admin.exTopo.type.container", "host"], ["unmanaged-switch", "admin.exTopo.type.switch", "switch"],
           ["hub", "admin.exTopo.type.hub", "hub"], ["vpn", "admin.exTopo.vpn", "vpn"], ["internet", "admin.exTopo.internet", "internet"],
         ] as const).map(([kind, label, glyph]) => ({ kind: "item", key: kind, label: t(label),
           icon: <TopologyGlyph kind={glyph} className="h-5 w-5 shrink-0" />,

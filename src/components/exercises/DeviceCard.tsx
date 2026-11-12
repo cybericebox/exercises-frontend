@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { emptyAccess } from "@/lib/editor/schemas/infra"
 import { LockKeyhole, LockKeyholeOpen, Plus, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Input } from "@/components/ui/input"
@@ -22,14 +23,15 @@ import { useDevicePersistenceAvailable } from "./DevicePersistenceContext"
 import { EmptyState } from "@/components/ui/empty-state"
 import { MAX_ENV_VARS, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { parseEnvImport, type EnvImportResult } from "@/lib/envImport"
-import type { Protocol, SecurityPreset } from "@/api/exercises/versions"
+import type { SecurityPreset } from "@/api/exercises/versions"
+import type { AccessProtocol } from "@/api/exercises/model"
 import { selectedPreset } from "@/lib/deviceResources"
 import { unitHelp } from "@/lib/presetLabels"
 import { useResourcesConfig, useResourcesConfigLoading } from "./ResourcesConfigContext"
 import { ResourceSelect } from "./ResourceSelect"
 import { LoadingArea } from "@/components/ui/spinner"
 
-const PROTOCOLS: Protocol[] = ["http", "https"]
+const PROTOCOLS: AccessProtocol[] = ["http", "https"]
 /** How long the result of an .env import stays on screen. */
 const IMPORT_RESULT_MS = 8000
 const SECURITY_PRESETS: SecurityPreset[] = ["standard", "extended"]
@@ -50,10 +52,18 @@ export function DeviceCard({
   imageBaseIndex?: number
   imageDisabled?: boolean
 }) {
-  const { control } = useFormContext<DraftFormValues>()
+  const { control, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const
   const type = useWatch({ control, name: `${base}.Type` })
-  const externalEnabled = useWatch({ control, name: `${base}.External.Enabled` })
+  // TODO(package C): the device dialog replaces this card; the web access is the `http` entry of the access list.
+  const access = useWatch({ control, name: `${base}.Access` }) ?? []
+  const httpIndex = access.findIndex((entry) => entry.Kind === "http")
+  const http = httpIndex >= 0 ? access[httpIndex] : null
+  const externalEnabled = http !== null
+  const setHttp = (patch: Partial<NonNullable<typeof http>> | null) => {
+    const rest = access.filter((entry) => entry.Kind !== "http")
+    setValue(`${base}.Access`, patch === null ? rest : [{ ...(http ?? emptyAccess("http")), ...patch }, ...rest], { shouldDirty: true, shouldValidate: true })
+  }
   const persistenceEnabled = useWatch({ control, name: `${base}.Persistence.Enabled` })
   const persistenceAvailable = useDevicePersistenceAvailable()
   const forwarding = type === "unmanaged-switch" || type === "hub"
@@ -104,12 +114,11 @@ export function DeviceCard({
         {visiblePanel === "basic" && !forwarding && <hr className="border-t border-border" />}
         {visiblePanel === "basic" && !forwarding && <div className="space-y-2">
           <SwitchRow id={externalId} label={t("admin.exTopo.external")} help={t("admin.exTopo.externalHelp")}>
-            <Controller control={control} name={`${base}.External.Enabled`}
-              render={({ field }) => <Switch id={externalId} checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />} />
+            <Switch id={externalId} checked={externalEnabled} onCheckedChange={(on) => setHttp(on ? {} : null)} disabled={disabled} />
           </SwitchRow>
           {externalEnabled && (
             <div className="grid grid-cols-1 gap-2 @min-[26rem]:grid-cols-2">
-              <FormField control={control} name={`${base}.External.Port`} render={({ field, fieldState }) => (
+              <FormField control={control} name={`${base}.Access.${httpIndex}.Port`} render={({ field, fieldState }) => (
                 <FormItem className="space-y-1">
                   <ExerciseFieldLabel labelKey="admin.exTopo.port" helpKey="admin.exTopo.portHelp" required form />
                   <FormControl>
@@ -120,7 +129,7 @@ export function DeviceCard({
                       required
                       value={field.value}
                       disabled={disabled}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.onChange(e.target.value)}
                     />
                   </FormControl>
                   {fieldState.error && <FormMessage className="leading-5" />}
@@ -130,7 +139,7 @@ export function DeviceCard({
                 <ExerciseFieldLabel labelKey="admin.exTopo.protocol" required />
                 <Controller
                   control={control}
-                  name={`${base}.External.Protocol`}
+                  name={`${base}.Access.${httpIndex}.Protocol`}
                   render={({ field }) => (
                     <SelectMenu
                       value={field.value}
@@ -146,12 +155,12 @@ export function DeviceCard({
             </div>
           )}
         </div>}
-        {visiblePanel === "basic" && type === "container" &&
+        {visiblePanel === "basic" && type === "node" &&
           <SwitchRow id={readyFileId} label={t("admin.exTopo.waitReadyFile")} help={t("admin.exTopo.waitReadyFileHelp")}>
             <Controller control={control} name={`${base}.WaitReadyFile`}
               render={({ field }) => <Switch id={readyFileId} checked={field.value ?? false} onCheckedChange={field.onChange} disabled={disabled} />} />
           </SwitchRow>}
-        {visiblePanel === "basic" && type === "container" && (persistenceAvailable || persistenceEnabled) &&
+        {visiblePanel === "basic" && type === "node" && (persistenceAvailable || persistenceEnabled) &&
           <SwitchRow id={persistenceId} label={t("admin.exTopo.persistence")} help={t("admin.exTopo.persistenceHelp")}>
             <Controller control={control} name={`${base}.Persistence.Enabled`}
               render={({ field }) => <Switch id={persistenceId} checked={field.value ?? false} onCheckedChange={field.onChange} disabled={disabled} />} />
@@ -211,18 +220,17 @@ function EnvVarsList({
   compact: boolean
 }) {
   const { control, trigger } = useFormContext<DraftFormValues>()
-  const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.EnvVars` as const
+  const name = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Bootstrap.Env` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const rows = useWatch({ control, name }) ?? []
   const full = rows.length >= MAX_ENV_VARS
   const tooMany = rows.length > MAX_ENV_VARS
   const limitErrorId = `${name}-limit-error`
-  const deviceID = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
-  const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
-  const flagBindings = tasks.flatMap((task, taskIndex) => task.LinkedDeviceID === deviceID && task.DeviceFlagVar.trim()
-    ? [{ taskIndex, taskName: task.Name, variable: task.DeviceFlagVar }] : [])
+  // TODO(package C): the places where an answer reaches this device (`{{task.<key>}}` in values, files, script) come from
+  // lib/editor/refs.ts `deliveriesOfTask`; the dialog lists them.
+  const flagBindings: { taskIndex: number; taskName: string; variable: string }[] = []
   const [, setTask] = useEditorPosition("task")
-  const [, setSection] = useEditorPosition("section")
+  const [, setTab] = useEditorPosition("tab")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importResult, setImportResult] = useState<EnvImportResult | "read-error" | null>(null)
   // The import line is a passing report: it goes away by itself.
@@ -340,7 +348,7 @@ function EnvVarsList({
         <ul className="divide-y divide-border">
           {flagBindings.map((binding) => <li key={binding.taskIndex} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
             <button type="button" className="min-w-0 truncate text-left text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-              onClick={() => { setTask(binding.taskIndex); setSection("tasks") }}>
+              onClick={() => { setTask(binding.taskIndex); setTab("tasks") }}>
               {binding.taskName || t("admin.exTask.numbered", { n: binding.taskIndex + 1 })}
             </button>
             <code className="min-w-0 break-all rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">{binding.variable}</code>

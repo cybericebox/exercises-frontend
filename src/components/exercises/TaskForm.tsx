@@ -53,7 +53,7 @@ export function TaskForm({
     if (placeholder.Kind === "internet.subnet") return internetEnabled
     if (placeholder.Kind === "ip") return (placeholder.IPReference === "static" && isValidIPv4(`${placeholder.Octets1to3}.${placeholder.LastOctet}`)) ||
       (placeholder.IPReference === "vpn" && vpnEnabled) || (placeholder.IPReference === "internet" && internetEnabled)
-    if (placeholder.Kind === "external.link") return devices.some((device) => device.Name === placeholder.DeviceName && device.External?.Enabled)
+    if (placeholder.Kind === "external.link") return devices.some((device) => device.Name === placeholder.DeviceName && device.Access.some((entry) => entry.Kind === "http"))
     return false
   }).map((placeholder) => {
     const labelKey = placeholder.Kind === "vpn.subnet" ? "admin.exPh.kind.vpnSubnet" :
@@ -70,9 +70,8 @@ export function TaskForm({
     if (!device) return []
     return [[placeholder.Key, t("admin.exPh.deviceMissing", { name: device.Name })]]
   }))
-  const linkable = devices.filter((d) => d.Type === "container")
-  const linkedDeviceID = useWatch({ control, name: `${base}.LinkedDeviceID` })
-  const missingLinkedDevice = Boolean(linkedDeviceID) && !linkable.some((device) => device.ID === linkedDeviceID)
+  // TODO(package B): the form is rebuilt (answer / text / state checks, «Куди передається відповідь»); until then it edits
+  // the flag answer of the task (Check.Answer.Values) and no longer links a device.
   const attachmentRef = useRef<AttachmentListHandle>(null)
   const pendingInsert = useRef<((key: string, formats?: TextFormatType[]) => void) | null>(null)
   const pendingInsertFormats = useRef<TextFormatType[]>([])
@@ -170,52 +169,18 @@ export function TaskForm({
         <span ref={setFlagHeaderSlot} className="subtask-section-action empty:hidden" />
       </div>
       <div className="subtask-flag-box">
-      <div data-testid="flag-delivery-fields" className="subtask-flag-delivery">
-        {linkable.length > 0 || linkedDeviceID ? <>
-        <FormField control={control} name={`${base}.LinkedDeviceID`} render={({ field }) => (
-          <FormItem data-testid="flag-device-field" className="flex flex-wrap items-center gap-2 space-y-0">
-            <ExerciseFieldLabel labelKey="admin.exTask.linkedDevice" helpKey="admin.exTask.linkedDeviceHelp" form />
-            <FormControl>
-              <SelectMenu
-                value={field.value}
-                onChange={(value) => {
-                  field.onChange(value)
-                  if (!value) setValue(`${base}.DeviceFlagVar`, "", { shouldDirty: true })
-                }}
-                disabled={inheritedDisabled}
-                options={[
-                  { value: "", label: t("admin.exTask.linkedDevice.none") },
-                  ...(missingLinkedDevice ? [{ value: linkedDeviceID, label: t("admin.exPh.missing"), unavailable: true }] : []),
-                  ...linkable.map((d) => ({ value: d.ID, label: d.Name || d.ID })),
-                ]}
-                className="w-52"
-              />
-            </FormControl>
-            {missingLinkedDevice && <p role="alert" className="basis-full text-xs text-destructive">{t("admin.ex.val.linkedDeviceUnavailable")}</p>}
-            <FormMessage className="basis-full leading-5" />
-          </FormItem>
-        )} />
-        {linkedDeviceID && <FormField control={control} name={`${base}.DeviceFlagVar`} render={({ field }) => (
-          <FormItem className="flex flex-wrap items-center gap-2 space-y-0">
-            <ExerciseFieldLabel labelKey="admin.exTask.deviceFlagVar" helpKey="admin.exTask.deviceFlagVarHelp" required form />
-            <FormControl><Input {...field} disabled={inheritedDisabled} className="w-40 font-mono" placeholder={t("admin.exTask.deviceFlagVarPlaceholder")} /></FormControl>
-            <FormMessage className="basis-full leading-5" />
-          </FormItem>
-        )} />}
-        </> : <p className="text-xs text-muted-foreground">{t("admin.exTask.flag.noDeviceHint")}</p>}
-      </div>
       <Controller
         control={control}
-        name={`${base}.Flag`}
+        name={`${base}.Check.Answer.Values`}
         render={({ field, fieldState }) => (
           <FlagInput
             value={field.value}
             onChange={field.onChange}
-            namePrefix={`${base}.Flag`}
+            namePrefix={`${base}.Check.Answer.Values`}
             disabled={disabled}
             errors={Array.isArray(fieldState.error) ? fieldState.error.map((item) => item?.message) : []}
-            linkedDeviceID={linkedDeviceID}
-            hasLinkableDevice={linkable.length > 0}
+            linkedDeviceID=""
+            hasLinkableDevice={false}
             policy={policy}
             policyError={policyError}
             onRetryPolicy={() => { setPolicyError(null); setPolicyRetry((attempt) => attempt + 1) }}
@@ -231,7 +196,7 @@ export function TaskForm({
       <PlaceholderDialog open={placeholderOpen} onOpenChange={(open) => { setPlaceholderOpen(open); if (!open) pendingInsert.current = null }}
         value={editingPlaceholder}
         topology={{ vpnEnabled: Boolean(vpnEnabled), internetEnabled: Boolean(internetEnabled),
-          externalDeviceNames: devices.filter((device) => device.External?.Enabled && device.Name).map((device) => device.Name) }}
+          externalDeviceNames: devices.filter((device) => device.Access.some((entry) => entry.Kind === "http") && device.Name).map((device) => device.Name) }}
         onSave={(next: PlaceholderFormValues) => {
           const key = editingPlaceholderKey ?? next.Key
           const index = placeholders.findIndex((placeholder) => placeholder.Key === key)

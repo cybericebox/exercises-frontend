@@ -22,16 +22,16 @@ export function capturedDraftIds(form: DraftFormValues): CapturedDraftIds {
     variantIds: form.Variants.map((variant) => variant.ID),
     taskIds: form.Variants.map((variant) => variant.Tasks.map((task) => task.ID)),
     hintIds: form.Variants.map((variant) => variant.Tasks.map((task) => (task.Hints ?? []).map((hint) => hint.ID))),
-    secrets: form.Variants.flatMap((variant, vi) => variant.Topology.Devices.flatMap((device) => device.EnvVars
-      .filter((env) => env.Secret && env.Value !== "")
-      .map((env) => ({ variant: vi, deviceId: device.ID, name: env.Name, value: env.Value })))),
+    secrets: form.Variants.flatMap((variant, vi) => variant.Topology.Devices.flatMap((device) => device.Bootstrap.Env
+      .filter((entry) => entry.Secret && entry.Value !== "")
+      .map((entry) => ({ variant: vi, deviceId: device.ID, name: entry.Name, value: entry.Value })))),
   }
 }
 
 export type SecretUpdate =
-  | { path: `Variants.${number}.Topology.Devices.${number}.EnvVars.${number}.Value`; value: string }
-  | { path: `Variants.${number}.Topology.Devices.${number}.EnvVars.${number}.HasValue`; value: boolean }
-  | { path: `Variants.${number}.Topology.Devices.${number}.EnvVars.${number}.ValueGroup`; value: number | undefined }
+  | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.Value`; value: string }
+  | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.HasValue`; value: boolean }
+  | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.ValueGroup`; value: number | undefined }
 
 /**
  * After an acknowledged save the secrets take their state from the server's answer:
@@ -47,10 +47,10 @@ export function savedSecretUpdates(sent: CapturedDraftIds, saved: Version, form:
   if (form.Variants.length !== sent.variantIds.length || form.Variants.length !== saved.Variants.length) return []
   if (form.Variants.some((variant, vi) => variant.ID !== sent.variantIds[vi])) return []
   const updates: SecretUpdate[] = []
-  form.Variants.forEach((variant, vi) => variant.Topology.Devices.forEach((device, di) => device.EnvVars.forEach((live, ei) => {
+  form.Variants.forEach((variant, vi) => variant.Topology.Devices.forEach((device, di) => device.Bootstrap.Env.forEach((live, ei) => {
     if (!live.Secret) return
-    const base = `Variants.${vi}.Topology.Devices.${di}.EnvVars.${ei}` as const
-    const stored = saved.Variants[vi].Topology.Devices.find((candidate) => candidate.ID === device.ID)?.EnvVars.find((env) => env.Name === live.Name)
+    const base = `Variants.${vi}.Topology.Devices.${di}.Bootstrap.Env.${ei}` as const
+    const stored = saved.Variants[vi].Topology.Devices.find((candidate) => candidate.ID === device.ID)?.Bootstrap.Env.find((entry) => entry.Name === live.Name)
     const sentValue = sent.secrets.find((secret) => secret.variant === vi && secret.deviceId === device.ID && secret.name === live.Name)?.value
     let group = stored?.Secret && stored.HasValue ? stored.ValueGroup : undefined
     if (live.Value !== "") {

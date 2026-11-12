@@ -28,7 +28,7 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
     if (!device.ID || ids.has(device.ID)) return null
     // A stored secret compares by its ValueGroup (all groups in the form come from one server response); without one
     // (an older server, no stored value) it cannot be compared. A secret typed here and not saved yet is not comparable.
-    if (device.EnvVars.some((env) => env.Secret && (env.Value !== "" || !env.ValueGroup))) return null
+    if (device.Bootstrap.Env.some((env) => env.Secret && (env.Value !== "" || !env.ValueGroup))) return null
     ids.set(device.ID, `device:${index}`)
   }
   let valid = true
@@ -60,9 +60,14 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
     if (parts.files && task.Attachments.some((file) => !file.FileID)) valid = false
     // Files compare by content when the server sent its hash, else (an older server, a file just uploaded) by id.
     const files = task.Attachments.map((file) => (file.ContentHash ? { Name: file.Name, ContentHash: file.ContentHash } : { Name: file.Name, FileID: file.FileID }))
+    // The answer values compare only when asked to; a state check names devices by position.
+    const check = task.Check.Kind === "answer"
+      ? { ...task.Check, State: undefined, Answer: parts.flags ? task.Check.Answer : { ...task.Check.Answer, Values: undefined } }
+      : task.Check.Kind === "state"
+        ? { ...task.Check, Answer: undefined, State: { ...task.Check.State, Conditions: task.Check.State.Conditions.map((condition) => ({ ...condition, DeviceID: deviceRef(condition.DeviceID) })) } }
+        : { Kind: task.Check.Kind }
     return {
-      ...task, ID: undefined, Flag: parts.flags ? task.Flag : undefined, Attachments: parts.files ? files : undefined,
-      LinkedDeviceID: deviceRef(task.LinkedDeviceID),
+      ...task, ID: undefined, Check: check, Attachments: parts.files ? files : undefined,
       Description: document(task.Description),
       Placeholders: task.Placeholders.map((p) => ({ ...p, Key: keys.get(p.Key) })),
       Hints: task.Hints.map((hint) => {
@@ -98,10 +103,14 @@ export function variantSignature(variant: VariantFormValues, parts: SignaturePar
     // Own images are already in the topology (and the list names devices by id).
     ...variant, ID: undefined, Index: undefined, CopyOf: undefined, Weight: undefined, ImageOverrides: undefined, Note: parts.note ? variant.Note : undefined, Tasks: tasks,
     Topology: { ...variant.Topology, VisualRender: visual,
-      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), Image: parts.images === false && device.Type === "container" ? undefined : device.Image, EnvVars: device.EnvVars.map((env) => env.Secret
-        ? { Name: env.Name, Secret: true, ValueGroup: env.ValueGroup }
-        // A plain value is known here (the server returns it), so it compares itself, edits included.
-        : { Name: env.Name, Secret: false, Value: env.Value }) })),
+      Devices: variant.Topology.Devices.map((device) => ({ ...device, ID: ids.get(device.ID), Image: parts.images === false && device.Type === "node" ? undefined : device.Image,
+        Bootstrap: { ...device.Bootstrap,
+          Env: device.Bootstrap.Env.map((entry) => entry.Secret
+            ? { Name: entry.Name, Secret: true, ValueGroup: entry.ValueGroup }
+            // A plain value is known here (the server returns it), so it compares itself, edits included.
+            : { Name: entry.Name, Secret: false, Value: entry.Value }),
+          // An uploaded file compares by its content hash when the server sent one, else by id.
+          Files: device.Bootstrap.Files.map((file) => ({ ...file, Source: file.Source ? (file.Source.ContentHash ? { Name: file.Source.Name, ContentHash: file.Source.ContentHash } : { Name: file.Source.Name, FileID: file.Source.FileID }) : null })) } })),
       Connections: variant.Topology.Connections.map((connection) => ({ ...connection, Endpoints: connection.Endpoints.map((endpoint) => ({ ...endpoint, DeviceID: endpoint.Kind === "device" ? deviceRef(endpoint.DeviceID) : endpoint.DeviceID })) })),
     },
   }

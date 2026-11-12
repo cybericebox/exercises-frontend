@@ -80,9 +80,9 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
           {options.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value} disabled={o.disabled} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>
               {o.content ?? (o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                <span className="font-medium">{o.label}</span>
+                <span className="whitespace-nowrap font-medium">{o.label}</span>
                 <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>
-              </span> : o.label)}
+              </span> : <span className="whitespace-nowrap">{o.label}</span>)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

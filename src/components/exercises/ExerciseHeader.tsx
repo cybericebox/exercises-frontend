@@ -1,15 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 import {
-  Archive, ArchiveRestore, ArrowLeft, BookOpen, Camera, Check, ChevronDown, CircleAlert, Download, Ellipsis, History, Pencil, Play,
+  Archive, ArchiveRestore, ArrowLeft, BookOpen, Camera, Check, CircleAlert, Download, Ellipsis, FileCode, History, Pencil, Play,
   RotateCcw, Send, ShieldCheck, Trash2, Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { t } from "@/i18n/t"
 import { Spinner } from "@/components/ui/spinner"
@@ -45,11 +43,11 @@ export type ExerciseHeaderProps = {
   /** The test action is shown but disabled; the reason (when known) appears in a tooltip. */
   testBlocked?: boolean
   testBlockedReason?: string
-  getTestVariants: () => TestVariantOption[]
   usageEvents: string[]
   onRetrySave: () => void
   onCancelNew: (event: React.MouseEvent) => void
-  onTest: (variantIndex: number) => void
+  /** Opens the start of a test lab (the page asks which variant). */
+  onTest: () => void
   /** The caller already has a test lab running for this exercise: its lease end (ISO). */
   activeTestUntil?: string | null
   onOpenTest?: () => void
@@ -63,6 +61,8 @@ export type ExerciseHeaderProps = {
   onArchive: () => void
   onUnarchive: () => void
   onDelete: () => void
+  /** «Документ»: the document the editor builds from the current state. */
+  onDocument?: () => void
   /** Admins, catalog exercises: open the access level dialog. */
   onAccess?: () => void
   /** Managers, published event exercises: propose to the catalog. */
@@ -89,7 +89,7 @@ function StatusBadge({ badge }: { badge: HeaderBadge }) {
     <span
       data-badge={badge.kind}
       className={cn(
-        "general-status inline-flex items-center gap-1.5 text-xs",
+        "general-status inline-flex items-baseline gap-1.5 text-[13px] leading-[18px]",
         BADGE_CLASS[badge.kind]
       )}
     >
@@ -102,8 +102,8 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
   if (status === "idle") return null
   if (status === "error") {
     return (
-      <span role="status" className="inline-flex items-center gap-1.5 text-xs text-destructive">
-        <CircleAlert aria-hidden="true" className="h-3.5 w-3.5" />
+      <span role="status" className="inline-flex items-baseline gap-1.5 text-[13px] leading-[18px] text-destructive">
+        <CircleAlert aria-hidden="true" className="h-3.5 w-3.5 self-center" />
         {t("admin.exPage.save.error")}
         <span aria-hidden="true">·</span>
         <button type="button" className="underline underline-offset-2" onClick={onRetry}>
@@ -114,74 +114,26 @@ function SaveIndicator({ status, onRetry }: { status: AutosaveStatus; onRetry: (
   }
   const saved = status === "saved"
   return (
-    <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span role="status" className="inline-flex items-baseline gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
       {saved ? (
-        <Check aria-hidden="true" className="h-3.5 w-3.5" />
+        <Check aria-hidden="true" className="h-3.5 w-3.5 self-center" />
       ) : (
-        <span aria-hidden="true" className="inline-flex"><Spinner size="sm" /></span>
+        <span aria-hidden="true" className="inline-flex self-center"><Spinner size="sm" /></span>
       )}
       {t(saved ? "admin.exPage.save.saved" : "admin.exPage.save.saving")}
     </span>
   )
 }
 
-function TestMenu({
-  disabled,
-  blockedReason,
-  getVariants,
-  onTest,
-}: {
-  disabled: boolean
-  blockedReason?: string
-  getVariants: () => TestVariantOption[]
-  onTest: (index: number) => void
-}) {
-  const [variants, setVariants] = useState<TestVariantOption[]>([])
-  const trigger = (
-    <DropdownMenuTrigger asChild>
-      <Button type="button" variant="outline" disabled={disabled}>
-        <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />
-        {t("admin.exPage.action.test")}
-        <ChevronDown aria-hidden="true" className={cn(ICON, "ml-1")} />
-      </Button>
-    </DropdownMenuTrigger>
-  )
-  return (
-    <DropdownMenu
-      onOpenChange={(open) => {
-        if (open) setVariants(getVariants())
-      }}
-    >
-      {blockedReason ? <HoverTooltip text={blockedReason} describe>{trigger}</HoverTooltip> : trigger}
-      <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {t("admin.exPage.action.testMenu")}
-        </DropdownMenuLabel>
-        {variants.map((variant) => {
-          const item = (
-            <DropdownMenuItem disabled={variant.disabled} onSelect={() => onTest(variant.index)}>
-              {variant.label}
-            </DropdownMenuItem>
-          )
-          return variant.disabled && variant.reason
-            ? <HoverTooltip key={variant.index} text={variant.reason} describe>{item}</HoverTooltip>
-            : <span key={variant.index} className="contents">{item}</span>
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function MoreMenu(props: ExerciseHeaderProps) {
   const { permissions, archived, revertable, usageEvents, busy } = props
-  const [variants, setVariants] = useState<TestVariantOption[]>([])
   const snapshot = permissions.write && !archived
   const revert = permissions.write && revertable && !archived
   const access = Boolean(props.onAccess || props.onPropose)
   const transfer = permissions.export || (permissions.write && !archived && props.onImportUpdate)
   const lifecycle = permissions.write || permissions.delete
   const inUse = usageEvents.length > 0
-  return <DropdownMenu onOpenChange={(open) => { if (open) setVariants(props.getTestVariants()) }}>
+  return <DropdownMenu>
     <HoverTooltip text={t("admin.exPage.action.more")}>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="icon" aria-label={t("admin.exPage.action.more")} disabled={busy} className="general-utility">
@@ -192,19 +144,16 @@ function MoreMenu(props: ExerciseHeaderProps) {
     <DropdownMenuContent align="end" className="w-72">
       {props.testAvailable && <>
         <DropdownMenuGroup aria-label={t("admin.exPage.action.test")} className="general-phone-test">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger disabled={busy || Boolean(props.testBlocked)} className="gap-2">
-              <Play aria-hidden="true" className={ICON} />{t("admin.exPage.action.test")}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="min-w-56">
-              {variants.map((variant) => <DropdownMenuItem key={variant.index} disabled={variant.disabled} onSelect={() => props.onTest(variant.index)}>
-                <span>{variant.label}{variant.disabled && variant.reason && <span className="block text-xs text-muted-foreground">{variant.reason}</span>}</span>
-              </DropdownMenuItem>)}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          <DropdownMenuItem className="gap-2" disabled={busy || Boolean(props.testBlocked)} onSelect={props.onTest}><Play aria-hidden="true" className={ICON} />{t("admin.exPage.action.test")}</DropdownMenuItem>
           {props.testBlockedReason && <p className="px-2 text-xs text-muted-foreground">{props.testBlockedReason}</p>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator className="general-phone-test" />
+      </>}
+      {props.onDocument && <>
+        <DropdownMenuGroup aria-label={t("ed.shell.menu.documentTitle")}>
+          <DropdownMenuItem className="gap-2" onSelect={props.onDocument}><FileCode aria-hidden="true" className={ICON} />{t("ed.shell.menu.document")}</DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
       </>}
       <DropdownMenuGroup aria-label={t("admin.exGeneral.versions")}>
         <DropdownMenuItem className="gap-2" onSelect={props.onHistory}><History aria-hidden="true" className={ICON} />{t("admin.exPage.action.history")}</DropdownMenuItem>
@@ -268,7 +217,12 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
       {created && mode !== "readonly" && mode !== "version" && <MoreMenu {...props} />}
     </div>
     {mode !== "readonly" && mode !== "version" && <div className="general-primary-actions">
-      {created && testAvailable && <span className="general-direct-test"><TestMenu disabled={busy || Boolean(props.testBlocked)} blockedReason={props.testBlockedReason} getVariants={props.getTestVariants} onTest={props.onTest} /></span>}
+      {created && testAvailable && <span className="general-direct-test">{(() => {
+        const button = <Button type="button" variant="outline" disabled={busy || Boolean(props.testBlocked)} onClick={props.onTest}>
+          <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.test")}
+        </Button>
+        return props.testBlockedReason ? <HoverTooltip text={props.testBlockedReason} describe>{button}</HoverTooltip> : button
+      })()}</span>}
       {mode === "new" && <Button asChild variant="outline"><Link href="/" data-allow-leave onClick={props.onCancelNew}>{t("admin.ex.create.cancel")}</Link></Button>}
       {mode === "view" && permissions.write && !archived && <Button type="button" variant="outline" disabled={busy} onClick={props.onEdit}><Pencil aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.edit")}</Button>}
       {mode === "edit" && <Button type="button" variant="outline" disabled={busy} onClick={props.onDone}><Check aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.done")}</Button>}

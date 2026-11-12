@@ -10,7 +10,7 @@ import { exercisePendingKey } from "@/lib/storageKeys"
 import { normalizeWeight } from "@/lib/variantWeights"
 
 export type PendingChanges = {
-  version: 1
+  version: 2
   identity: IdentityFormValues
   draft: DraftFormValues
   updatedAt: number
@@ -25,17 +25,21 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
     ...draft,
     Variants: draft.Variants.map((variant) => ({
       ...variant,
-      Tasks: variant.Tasks.map((task) => ({ ...task, Flag: [] })),
+      // The expected answers are never buffered in the browser.
+      Tasks: variant.Tasks.map((task) => ({ ...task, Check: { ...task.Check, Answer: { ...task.Check.Answer, Values: [] } } })),
       Topology: {
         ...variant.Topology,
         Devices: variant.Topology.Devices.map((device) => ({
           ...device,
           // A ValueGroup is meaningful only within the server answer it came from: never persisted.
-          EnvVars: device.EnvVars.map((env) => {
-            const { ValueGroup, ...rest } = env
-            void ValueGroup
-            return { ...rest, Value: "" }
-          }),
+          Bootstrap: {
+            ...device.Bootstrap,
+            Env: device.Bootstrap.Env.map((entry) => {
+              const { ValueGroup, ...rest } = entry
+              void ValueGroup
+              return { ...rest, Value: "" }
+            }),
+          },
         })),
       },
     })),
@@ -57,7 +61,7 @@ export function hasDraftContent(identity: IdentityFormValues, draft: DraftFormVa
 
 export function writePendingChanges(key: string, identity: IdentityFormValues, draft: DraftFormValues): boolean {
   const entry: PendingChanges = {
-    version: 1,
+    version: 2,
     identity: { Name: identity.Name, Description: identity.Description, Tags: [...identity.Tags] },
     draft: sanitizePendingDraft(draft),
     updatedAt: Date.now(),
@@ -83,9 +87,9 @@ function isDraft(value: unknown): value is DraftFormValues {
   if (!isRecord(value) || typeof value.AdminNote !== "string" || !Array.isArray(value.Variants) || value.Variants.length === 0) return false
   return value.Variants.every((variant: unknown) =>
     isRecord(variant) && typeof variant.ID === "string" && Array.isArray(variant.Tasks) &&
-    variant.Tasks.every((task: unknown) => isRecord(task) && typeof task.ID === "string" && Array.isArray(task.Flag)) &&
+    variant.Tasks.every((task: unknown) => isRecord(task) && typeof task.ID === "string" && isRecord(task.Check)) &&
     isRecord(variant.Topology) && Array.isArray(variant.Topology.Devices) && Array.isArray(variant.Topology.Connections) &&
-    variant.Topology.Devices.every((device: unknown) => isRecord(device) && Array.isArray(device.Interfaces) && Array.isArray(device.EnvVars)))
+    variant.Topology.Devices.every((device: unknown) => isRecord(device) && Array.isArray(device.Interfaces) && isRecord(device.Bootstrap)))
 }
 
 export function readPendingChanges(key: string): PendingChanges | null {
@@ -94,14 +98,14 @@ export function readPendingChanges(key: string): PendingChanges | null {
   if (!raw) return null
   try {
     const value: unknown = JSON.parse(raw)
-    if (!isRecord(value) || value.version !== 1 || !isIdentity(value.identity) || !isDraft(value.draft) ||
+    if (!isRecord(value) || value.version !== 2 || !isIdentity(value.identity) || !isDraft(value.draft) ||
       typeof value.updatedAt !== "number") return null
     // Buffers written before linked variants carry no LinkedTo, before weights no Weight.
     const draft: DraftFormValues = {
       ...value.draft,
       Variants: value.draft.Variants.map((variant) => ({ ...variant, LinkedTo: variant.LinkedTo ?? "", Weight: normalizeWeight(variant.Weight) })),
     }
-    return { version: 1, identity: value.identity, draft, updatedAt: value.updatedAt }
+    return { version: 2, identity: value.identity, draft, updatedAt: value.updatedAt }
   } catch {
     return null
   }
@@ -113,13 +117,13 @@ export function clearPendingChanges(key: string): void {
 
 type ServerVariantInfo = {
   taskIds: Set<string>
-  flags: Map<string, string[]>
+  answers: Map<string, string[]>
   devicesById: Map<string, DeviceFormValues>
 }
 
 /**
  * Buffered edits on top of the server copy.
- *  - Flag values of known tasks come from the server (the buffer never stores flags).
+ *  - Answer values of known tasks come from the server (the buffer never stores them).
  *  - A pending variant/task with a non-empty ID that no longer exists on the server was
  *    deleted there while the buffer was stale — it is dropped, not resurrected. ID-less
  *    (brand new, never saved) variants/tasks are always kept.
@@ -133,12 +137,12 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
   for (const variant of server.Variants) {
     if (!variant.ID) continue
     const taskIds = new Set<string>()
-    const flags = new Map<string, string[]>()
+    const answers = new Map<string, string[]>()
     for (const task of variant.Tasks) {
-      if (task.ID) { taskIds.add(task.ID); flags.set(task.ID, task.Flag) }
+      if (task.ID) { taskIds.add(task.ID); answers.set(task.ID, task.Check.Answer.Values) }
     }
     const devicesById = new Map(variant.Topology.Devices.map((device) => [device.ID, device] as const))
-    serverInfoByVariant.set(variant.ID, { taskIds, flags, devicesById })
+    serverInfoByVariant.set(variant.ID, { taskIds, answers, devicesById })
   }
 
   const variants = pending.Variants
@@ -151,17 +155,20 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
           .filter((task) => !task.ID || info?.taskIds.has(task.ID))
           // Buffers written before hints existed carry no Hints array; before
           // levels, hints carried a cost and no level.
-          .map((task) => ({ ...task, Hints: (task.Hints ?? []).map((hint) => ({ ID: hint.ID, Text: hint.Text, Level: hint.Level ?? "nudge" })), Flag: task.ID && info?.flags.has(task.ID) ? [...info.flags.get(task.ID)!] : [] })),
+          .map((task) => ({ ...task, Hints: (task.Hints ?? []).map((hint) => ({ ID: hint.ID, Text: hint.Text, Level: hint.Level ?? "nudge" })), Check: { ...task.Check, Answer: { ...task.Check.Answer, Values: task.ID && info?.answers.has(task.ID) ? [...info.answers.get(task.ID)!] : [] } } })),
         Topology: {
           ...variant.Topology,
           Devices: variant.Topology.Devices.map((device) => {
             const serverDevice = info?.devicesById.get(device.ID)
             return {
               ...device,
-              EnvVars: device.EnvVars.map((env) => ({
-                ...env,
-                HasValue: serverDevice?.EnvVars.find((serverEnv) => serverEnv.Name === env.Name)?.HasValue ?? false,
-              })),
+              Bootstrap: {
+                ...device.Bootstrap,
+                Env: device.Bootstrap.Env.map((entry) => ({
+                  ...entry,
+                  HasValue: serverDevice?.Bootstrap.Env.find((serverEntry) => serverEntry.Name === entry.Name)?.HasValue ?? false,
+                })),
+              },
             }
           }),
         },

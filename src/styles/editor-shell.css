@@ -1,0 +1,20 @@
+/* The editor shell (foundation): the variant group of the tab row and the linked-variant bar.
+   The tab strip itself (.editor-tabs / .editor-tab) lives in exercise-general.css. */
+
+/* A tab reserves the width of its bold face, so selecting it does not move the neighbours. */
+.editor-tab::before { content:attr(data-t); display:block; height:0; overflow:hidden; visibility:hidden; font-weight:600; pointer-events:none; }
+.editor-tab { flex-direction:column; }
+
+/* «Варіант N ▾» and its two tabs: one group, no backing; the grouping is shown only by the divider before it. */
+.editor-tab-group { display:flex; align-items:stretch; flex:none; }
+.editor-tab-group .editor-tab { --tab-pad:10px; }
+.editor-vsel { position:relative; display:inline-flex; align-items:center; gap:6px; height:100%; padding:0 8px; border:0; border-radius:6px; background:transparent; color:var(--ib-ink); font-size:14px; line-height:20px; white-space:nowrap; flex:none; }
+.editor-vsel:hover { background:var(--ib-hover); }
+.editor-vsel:focus-visible { outline:2px solid var(--ib-action); outline-offset:-2px; }
+.editor-vsel-cap { color:var(--ib-dim); }
+.editor-vsel b { font-weight:700; font-variant-numeric:tabular-nums; }
+/* The all-variants view marks the dropdown with the tab underline, on the divider of the strip. */
+.editor-vsel-on { border-radius:0; font-weight:600; }
+.editor-vsel-on::after { content:""; position:absolute; left:8px; right:8px; bottom:0; height:2px; border-radius:1px 1px 0 0; background:var(--ib-ink); }
+
+.editor-linked-bar { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:12px; padding:8px 12px; border:1px solid var(--ib-line); border-radius:8px; background:var(--ib-paper); font-size:13px; line-height:1.45; color:var(--ib-dim); }

@@ -327,7 +327,7 @@ export function TestLabPage({ exerciseId, initial: opened }: { exerciseId: strin
         <div ref={split} className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none lg:flex-row">
           <div className="min-w-0 p-4 lg:flex-[var(--lab-task-flex)] lg:overflow-y-auto lg:p-6" style={{ "--lab-task-flex": showTopology ? `${ratio} 1 0` : "1 1 0" } as CSSProperties}>
             {task && values && <TaskView key={task.ID} task={task} values={values} deployId={deploy.deployId ?? ""}
-              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} randomFlag={isStatic && task.Flag.length === 0} solved={solvedIds.has(task.ID)} openingKey={openingKey}
+              flagLinked={deploy.tasks.some((entry) => entry.TaskID === task.ID)} randomFlag={isStatic && (task.Check.Answer?.Values ?? []).length === 0} solved={solvedIds.has(task.ID)} openingKey={openingKey}
               onOpenExternal={(target, destination) => deploy.openLink(target.device, target.port, destination)}
               onSolved={(id) => setSolved((current) => new Set(current).add(id))}
               revealedHints={revealed} onRevealHint={(key) => setRevealed((current) => new Set(current).add(key))}

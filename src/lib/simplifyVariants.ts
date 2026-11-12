@@ -111,7 +111,7 @@ export function planSimplify(variants: VariantFormValues[]): SimplifyPlan | null
       Topology: { ...variant.Topology, Devices: variant.Topology.Devices.map((device, position) => ({ ...device, ID: first.Topology.Devices[position]?.ID ?? device.ID })) },
       ImageOverrides: first.Topology.Devices.flatMap((device, position) => {
         const image = variant.Topology.Devices[position]?.Image ?? ""
-        return device.Type === "container" && image && image !== device.Image ? [{ DeviceID: device.ID, Image: image }] : []
+        return device.Type === "node" && image && image !== device.Image ? [{ DeviceID: device.ID, Image: image }] : []
       }) }
     : variant))
   const next = syncLinkedVariants(linked.filter((_, index) => !removed.has(index)).map((variant, index) => ({ ...variant, Index: index + 1 })))

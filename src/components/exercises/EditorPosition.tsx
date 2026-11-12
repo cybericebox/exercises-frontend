@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { DEFAULT_EDITOR_POSITION, type EditorPosition } from "@/lib/editorPosition"
+import { fieldId } from "./editor/fieldErrors"
 
 type PositionContextValue = {
   position: EditorPosition
@@ -32,7 +33,14 @@ export function useEditorPosition<K extends keyof EditorPosition>(key: K): [Edit
   }]
 }
 
-/** Focus after the editor has revealed the tab/panel containing a validation error. */
+/** How long a field is waited for after the editor switched to the view that holds it (a lazily mounted view, a dialog). */
+const FOCUS_WAIT_MS = 1500
+
+/**
+ * Focus after the editor has revealed the tab/panel containing a validation error: the control whose id is the field's
+ * (`fieldId(path)`), else the control with that `name`, else the first invalid one. The view may mount a moment later (a
+ * tab, a collapsed condition, a dialog), so the lookup repeats for a short time, then the field is scrolled to the middle.
+ */
 export function useEditorValidationFocus() {
   const formRef = useRef<HTMLFormElement>(null)
   const [request, setRequest] = useState<{ path: string; id: number } | null>(null)
@@ -40,14 +48,28 @@ export function useEditorValidationFocus() {
 
   useEffect(() => {
     if (!request) return
-    const timer = window.setTimeout(() => {
-      const fields = Array.from(formRef.current?.querySelectorAll<HTMLElement>("[name], [data-field-name]") ?? [])
-      const visible = (field: HTMLElement) => !field.closest('[data-state="inactive"], [hidden]')
-      const target = fields.find((field) => (field.getAttribute("name") ?? field.getAttribute("data-field-name")) === request.path && visible(field))
-        ?? fields.find((field) => field.getAttribute("aria-invalid") === "true" && visible(field))
-      target?.focus()
-      setRequest(null)
-    }, 0)
+    const started = Date.now()
+    let timer = 0
+    const visible = (field: HTMLElement) => !field.closest('[data-state="inactive"], [hidden]')
+    const find = (): HTMLElement | null => {
+      const byId = document.getElementById(fieldId(request.path))
+      if (byId && visible(byId)) return byId
+      const root: ParentNode = formRef.current ?? document
+      const fields = Array.from(root.querySelectorAll<HTMLElement>("[name], [data-field-name]"))
+      return fields.find((field) => (field.getAttribute("name") ?? field.getAttribute("data-field-name")) === request.path && visible(field)) ?? null
+    }
+    const attempt = () => {
+      const target = find() ?? (Date.now() - started > FOCUS_WAIT_MS ? (formRef.current ?? document).querySelector<HTMLElement>('[aria-invalid="true"]') : null)
+      if (target) {
+        target.scrollIntoView({ block: "center" })
+        target.focus({ preventScroll: true })
+        setRequest(null)
+        return
+      }
+      if (Date.now() - started > FOCUS_WAIT_MS) { setRequest(null); return }
+      timer = window.setTimeout(attempt, 50)
+    }
+    timer = window.setTimeout(attempt, 0)
     return () => window.clearTimeout(timer)
   }, [request])
 
