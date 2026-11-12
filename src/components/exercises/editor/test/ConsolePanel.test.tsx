@@ -9,7 +9,7 @@ import { t } from "@/i18n/t"
 import { CONSOLE_FRAME_TIMEOUT_MS, ConsolePanel } from "./ConsolePanel"
 
 const props = { deployId: "d1", device: "r1", allowed: true, reason: "", onClose: vi.fn() }
-const link = { URL: "https://terminal.labs.localhost/_auth?t=x", ExpiresAt: "2026-11-12T10:00:00Z" }
+const link = { URL: "https://r1-ab12--term.labs.localhost/_auth?t=x", ExpiresAt: "2026-11-12T10:00:00Z" }
 
 describe("ConsolePanel", () => {
   beforeEach(() => { vi.mocked(openDeployLink).mockReset(); props.onClose.mockReset() })
@@ -111,11 +111,13 @@ describe("ConsolePanel", () => {
   describe("only the console origin is ever framed", () => {
     const refused = [
       ["another host", "https://evil.example.test/_auth?t=x"],
-      ["plain http", "http://terminal.labs.localhost/_auth?t=x"],
-      ["a lookalike with a suffix", "https://terminal.labs.localhost.evil.tld/_auth?t=x"],
-      ["a lookalike subdomain", "https://x.terminal.labs.localhost/_auth?t=x"],
-      ["a port", "https://terminal.labs.localhost:8443/_auth?t=x"],
-      ["user info", "https://terminal.labs.localhost@evil.tld/_auth?t=x"],
+      ["plain http", "http://r1-ab12--term.labs.localhost/_auth?t=x"],
+      ["a lookalike with a suffix", "https://r1-ab12--term.labs.localhost.evil.tld/_auth?t=x"],
+      ["a lookalike subdomain", "https://x.r1-ab12--term.labs.localhost/_auth?t=x"],
+      ["a port", "https://r1-ab12--term.labs.localhost:8443/_auth?t=x"],
+      ["user info", "https://r1-ab12--term.labs.localhost@evil.tld/_auth?t=x"],
+      ["the device web host", "https://r1-ab12.labs.localhost/_auth?t=x"],
+      ["another access kind of the device", "https://r1-ab12--vnc.labs.localhost/_auth?t=x"],
       ["a javascript link", "javascript:alert(1)"],
       ["a data link", "data:text/html,<p>x</p>"],
     ] as const
