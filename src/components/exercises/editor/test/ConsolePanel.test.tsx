@@ -9,7 +9,7 @@ import { t } from "@/i18n/t"
 import { CONSOLE_FRAME_TIMEOUT_MS, ConsolePanel } from "./ConsolePanel"
 
 const props = { deployId: "d1", device: "r1", allowed: true, reason: "", onClose: vi.fn() }
-const link = { URL: "https://terminal.labs.example.test/_auth?t=x", ExpiresAt: "2026-11-12T10:00:00Z" }
+const link = { URL: `https://terminal.labs.${process.env.NEXT_PUBLIC_DOMAIN}/_auth?t=x`, ExpiresAt: "2026-11-12T10:00:00Z" }
 
 describe("ConsolePanel", () => {
   beforeEach(() => { vi.mocked(openDeployLink).mockReset(); props.onClose.mockReset() })
@@ -30,6 +30,14 @@ describe("ConsolePanel", () => {
     expect(screen.getByRole("heading", { name: "r1" })).toBeTruthy()
     fireEvent.load(frame)
     expect(screen.queryByText(t("ed.d.console.blocked", { device: "r1" }))).toBeNull()
+  })
+
+  it("never frames an address outside the console origin; it offers the new tab instead", async () => {
+    vi.mocked(openDeployLink).mockResolvedValue({ ...link, URL: "https://evil.example.test/_auth?t=x" })
+    render(<ConsolePanel {...props} />)
+    expect(await screen.findByText(t("ed.d.console.blocked", { device: "r1" }))).toBeTruthy()
+    expect(screen.queryByTitle(t("ed.d.console.frame", { device: "r1" }))).toBeNull()
+    expect(screen.getAllByRole("button", { name: t("ed.d.console.newTab") }).length).toBeGreaterThan(0)
   })
 
   it("closes from its header", async () => {
