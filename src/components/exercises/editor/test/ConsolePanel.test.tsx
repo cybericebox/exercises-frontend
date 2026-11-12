@@ -9,7 +9,7 @@ import { t } from "@/i18n/t"
 import { CONSOLE_FRAME_TIMEOUT_MS, ConsolePanel } from "./ConsolePanel"
 
 const props = { deployId: "d1", device: "r1", allowed: true, reason: "", onClose: vi.fn() }
-const link = { URL: `https://terminal.labs.${process.env.NEXT_PUBLIC_DOMAIN}/_auth?t=x`, ExpiresAt: "2026-11-12T10:00:00Z" }
+const link = { URL: "https://terminal.labs.localhost/_auth?t=x", ExpiresAt: "2026-11-12T10:00:00Z" }
 
 describe("ConsolePanel", () => {
   beforeEach(() => { vi.mocked(openDeployLink).mockReset(); props.onClose.mockReset() })
@@ -30,14 +30,6 @@ describe("ConsolePanel", () => {
     expect(screen.getByRole("heading", { name: "r1" })).toBeTruthy()
     fireEvent.load(frame)
     expect(screen.queryByText(t("ed.d.console.blocked", { device: "r1" }))).toBeNull()
-  })
-
-  it("never frames an address outside the console origin; it offers the new tab instead", async () => {
-    vi.mocked(openDeployLink).mockResolvedValue({ ...link, URL: "https://evil.example.test/_auth?t=x" })
-    render(<ConsolePanel {...props} />)
-    expect(await screen.findByText(t("ed.d.console.blocked", { device: "r1" }))).toBeTruthy()
-    expect(screen.queryByTitle(t("ed.d.console.frame", { device: "r1" }))).toBeNull()
-    expect(screen.getAllByRole("button", { name: t("ed.d.console.newTab") }).length).toBeGreaterThan(0)
   })
 
   it("closes from its header", async () => {
@@ -114,5 +106,47 @@ describe("ConsolePanel", () => {
     await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
     fireEvent.click(screen.getAllByRole("button", { name: t("ed.d.console.newTab") })[0])
     expect((await screen.findByRole("alert")).textContent).toBe(t("ed.d.console.popup"))
+  })
+
+  describe("only the console origin is ever framed", () => {
+    const refused = [
+      ["another host", "https://evil.example.test/_auth?t=x"],
+      ["plain http", "http://terminal.labs.localhost/_auth?t=x"],
+      ["a lookalike with a suffix", "https://terminal.labs.localhost.evil.tld/_auth?t=x"],
+      ["a lookalike subdomain", "https://x.terminal.labs.localhost/_auth?t=x"],
+      ["a port", "https://terminal.labs.localhost:8443/_auth?t=x"],
+      ["user info", "https://terminal.labs.localhost@evil.tld/_auth?t=x"],
+      ["a javascript link", "javascript:alert(1)"],
+      ["a data link", "data:text/html,<p>x</p>"],
+    ] as const
+    for (const [name, url] of refused) {
+      it(`${name} is not framed: the error state with a way to the new tab`, async () => {
+        vi.mocked(openDeployLink).mockResolvedValue({ ...link, URL: url })
+        render(<ConsolePanel {...props} />)
+        expect(await screen.findByText(t("ed.d.console.refused", { device: "r1" }))).toBeTruthy()
+        expect(screen.queryByTitle(t("ed.d.console.frame", { device: "r1" }))).toBeNull()
+        expect(document.querySelector("iframe")).toBeNull()
+        expect(screen.getAllByRole("button", { name: t("ed.d.console.newTab") }).length).toBeGreaterThan(0)
+      })
+    }
+
+    it("the accepted origin is framed", async () => {
+      vi.mocked(openDeployLink).mockResolvedValue(link)
+      render(<ConsolePanel {...props} />)
+      expect((await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))).getAttribute("src")).toBe(link.URL)
+    })
+
+    it("the new tab opens an https link only", async () => {
+      vi.mocked(openDeployLink).mockResolvedValue(link)
+      const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() }
+      vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window)
+      render(<ConsolePanel {...props} />)
+      await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
+      vi.mocked(openDeployLink).mockResolvedValue({ ...link, URL: "javascript:alert(1)" })
+      fireEvent.click(screen.getAllByRole("button", { name: t("ed.d.console.newTab") })[0])
+      await waitFor(() => expect(tab.close).toHaveBeenCalled())
+      expect(tab.location.href).toBe("")
+      expect((await screen.findByRole("alert")).textContent).toBe(t("ed.d.console.refusedHelp"))
+    })
   })
 })

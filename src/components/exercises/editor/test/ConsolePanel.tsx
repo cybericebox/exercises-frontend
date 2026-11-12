@@ -21,6 +21,8 @@ const NO_CONSOLE_CODE = 33518
 type LinkState =
   | { kind: "loading" }
   | { kind: "ready"; url: string }
+  /** The laboratory answered with a link that is not the console origin: never framed. */
+  | { kind: "refused" }
   | { kind: "none" }
   | { kind: "failed"; cause: unknown }
 
@@ -34,7 +36,7 @@ function useConsoleLink(deployId: string, device: string, allowed: boolean, atte
     let cancelled = false
     // The port is ignored for the console.
     openDeployLink(deployId, device, 0, "terminal").then(
-      (link) => { if (!cancelled) setResult({ requestId, state: { kind: "ready", url: link.URL } }) },
+      (link) => { if (!cancelled) setResult({ requestId, state: isConsoleFrameUrl(link.URL) ? { kind: "ready", url: link.URL } : { kind: "refused" } }) },
       (cause) => {
         if (cancelled) return
         const missing = cause instanceof ApiError && (cause.status === 404 || cause.code === NO_CONSOLE_CODE)
@@ -45,6 +47,11 @@ function useConsoleLink(deployId: string, device: string, allowed: boolean, atte
   }, [deployId, device, allowed, requestId])
   if (!allowed) return { kind: "none" }
   return result?.requestId === requestId ? result.state : { kind: "loading" }
+}
+
+/** An absolute https address. */
+export function isHttpsUrl(link: string): boolean {
+  try { return new URL(link).protocol === "https:" } catch { return false }
 }
 
 /** Opens the console in a tab of its own. The tab is opened inside the click, so the browser lets it through. */
@@ -58,7 +65,11 @@ export function useOpenConsoleTab(deployId: string) {
     setBusy(true)
     setError(null)
     openDeployLink(deployId, device, 0, "terminal").then(
-      (link) => { tab.location.href = link.URL },
+      (link) => {
+        // Only an https link is ever opened: anything else (javascript:, data:, http:) is refused and the blank tab closed.
+        if (!isHttpsUrl(link.URL)) { tab.close(); setError(new Error("link")); return }
+        tab.location.href = link.URL
+      },
       (cause) => { tab.close(); setError(cause) },
     ).finally(() => setBusy(false))
   }, [deployId])
@@ -85,9 +96,7 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   const [attempt, setAttempt] = useState(0)
   const link = useConsoleLink(deployId, device, allowed, attempt)
   const tab = useOpenConsoleTab(deployId)
-  // Only the console origin of the labs goes into a frame; any other address is offered as a new tab.
-  const refused = link.kind === "ready" && !isConsoleFrameUrl(link.url)
-  const url = link.kind === "ready" && !refused ? link.url : null
+  const url = link.kind === "ready" ? link.url : null
   // What happened to the frame of this address: it loaded, or nothing came within the time.
   const [frame, setFrame] = useState<{ url: string | null; loaded: boolean; timedOut: boolean }>({ url: null, loaded: false, timedOut: false })
   const loaded = frame.url === url && frame.loaded
@@ -104,13 +113,13 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   const newTab = <Button type="button" variant="outline" busy={tab.busy} busyLabel={t("ed.d.console.opening")} onClick={() => tab.open(device)}>
     <ExternalLink aria-hidden="true" size={16} className="mr-1.5" />{t("ed.d.console.newTab")}
   </Button>
-  const failedFrame = link.kind === "ready" && !refused && timedOut && !loaded
+  const failedFrame = link.kind === "ready" && timedOut && !loaded
 
   let body: React.ReactNode
   if (link.kind === "loading") body = <LoadingArea className="h-full" label={t("ed.d.console.loading")} message={t("ed.d.console.loading")} />
   else if (link.kind === "none") body = <LoadError className="h-full" message={t("ed.d.console.none", { device })} help={reason || t("ed.d.console.noneHelp")} />
+  else if (link.kind === "refused") body = <LoadError className="h-full" message={t("ed.d.console.refused", { device })} help={t("ed.d.console.refusedHelp")} actions={newTab} />
   else if (link.kind === "failed") body = <LoadError className="h-full" message={t("ed.d.console.failed", { device })} help={exerciseErrorMessage(link.cause)} error={link.cause} onRetry={retry} actions={newTab} />
-  else if (refused) body = <LoadError className="h-full" message={t("ed.d.console.blocked", { device })} help={t("ed.d.console.blockedHelp")} actions={newTab} />
   else body = <>
     {/* sandbox: scripts and the lab's own origin (its cookies) are needed by the console page; forms carry the file upload,
         downloads the file download. No top navigation, no popups, no modals. clipboard-*: copy and paste in the terminal.
@@ -143,7 +152,7 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
       <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={tab.busy || !allowed} onClick={() => tab.open(device)}>{t("ed.d.console.newTab")}</Button>
     </p>}
     {tab.error !== null && <p role="alert" className="border-t border-border px-3 py-2 text-xs text-destructive">
-      {tab.error instanceof Error && tab.error.message === "popup" ? t("ed.d.console.popup") : exerciseErrorMessage(tab.error)}
+      {tab.error instanceof Error && tab.error.message === "popup" ? t("ed.d.console.popup") : tab.error instanceof Error && tab.error.message === "link" ? t("ed.d.console.refusedHelp") : exerciseErrorMessage(tab.error)}
     </p>}
   </section>
 }
