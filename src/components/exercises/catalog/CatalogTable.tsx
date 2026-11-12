@@ -154,6 +154,8 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
   // block an empty filler column takes the rest (the rows and dividers still span the block), in a narrower one it
   // scrolls sideways (the name and the selection stay). States and long values never move the columns.
   const minWidth = (selecting ? SELECT_WIDTH : 0) + widthOf(NAME_COLUMN) + shown.reduce((sum, key) => sum + widthOf(key), 0)
+  // Until the user sets a width, the name takes the space the other columns leave (and the filler none).
+  const nameFlexible = nameWidth === undefined && preview?.key !== NAME_COLUMN
   const resize = (key: ResizeKey, label: string) => <ResizeHandle name={label} columnKey={key} width={widthOf(key)}
     onPreview={(width) => setPreview(width === null ? null : { key, width })} onCommit={(width) => onWidth(key, width)} />
   return <div className="catalog-table-box">
@@ -161,9 +163,9 @@ export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, sele
       className={cn("catalog-data", selecting && "catalog-has-selection", state && "catalog-data-state")}>
       <colgroup>
         {selecting && <col style={{ width: SELECT_WIDTH }} />}
-        <col style={{ width: widthOf(NAME_COLUMN) }} />
+        <col style={nameFlexible ? undefined : { width: widthOf(NAME_COLUMN) }} />
         {shown.map((key) => <col key={key} style={{ width: widthOf(key) }} />)}
-        <col data-catalog-filler />
+        <col data-catalog-filler style={nameFlexible ? { width: 0 } : undefined} />
       </colgroup>
       <thead><tr>
         {selecting && <th scope="col" className="catalog-th catalog-select"><label className="catalog-check">

@@ -22,18 +22,18 @@ function table(state?: React.ReactNode, rows = [item], onWidth = vi.fn(), column
 }
 
 describe("CatalogTable", () => {
-  it("gives every column, the name too, its own width; an empty filler at the end takes the rest", () => {
+  it("gives every column but the unset name its own width; the name takes the rest, the filler none", () => {
     const { container } = table()
     const cols = [...container.querySelectorAll("col")]
-    expect(cols.slice(0, -1).map((col) => col.style.width)).toEqual(["44px", "268px", "190px", "128px", "160px", "112px", "150px", "124px"])
+    expect(cols.slice(0, -1).map((col) => col.style.width)).toEqual(["44px", "", "124px", "104px", "150px", "120px", "120px", "124px"])
     expect(cols.at(-1)).toHaveAttribute("data-catalog-filler")
-    expect(cols.at(-1)!.style.width).toBe("")
+    expect(cols.at(-1)!.style.width).toBe("0px")
     expect(container.querySelector("thead .catalog-filler")).toHaveAttribute("aria-hidden", "true")
     expect(container.querySelector("tbody .catalog-filler")).toBeEmptyDOMElement()
     const data = container.querySelector("table")!
     expect(data).toHaveClass("catalog-data")
-    // The sum of the columns (filling a 1440px screen's table block); the table scrolls sideways only below that.
-    expect(data.style.minWidth).toBe(`${44 + 268 + 190 + 128 + 160 + 112 + 150 + 124}px`)
+    // The sum of the columns with the name at its least (fits a 1280px screen's table block); the table scrolls sideways only below that.
+    expect(data.style.minWidth).toBe(`${44 + 200 + 124 + 104 + 150 + 120 + 120 + 124}px`)
     // Every column, the name included, has a resize handle.
     expect(screen.getAllByRole("separator")).toHaveLength(7)
     expect(screen.getByRole("link", { name: LONG })).toHaveClass("catalog-task-link")
@@ -50,14 +50,14 @@ describe("CatalogTable", () => {
   it("drags a column edge: previews while moving, saves the clamped width once at the end", () => {
     const onWidth = vi.fn()
     const { container } = table(undefined, [item], onWidth)
-    const author = screen.getAllByRole("separator").find((node) => node.getAttribute("aria-valuenow") === "150")!
+    const author = screen.getAllByRole("separator").findLast((node) => node.getAttribute("aria-valuenow") === "120")!
     fireEvent.pointerDown(author, { pointerId: 1, button: 0, clientX: 500 })
     fireEvent.pointerMove(author, { pointerId: 1, clientX: 560 })
     const authorCol = [...container.querySelectorAll("col")][6]
-    expect(authorCol.style.width).toBe("210px")
+    expect(authorCol.style.width).toBe("180px")
     expect(onWidth).not.toHaveBeenCalled()
     fireEvent.pointerUp(author, { pointerId: 1, clientX: 560 })
-    expect(onWidth).toHaveBeenCalledWith("author", 210)
+    expect(onWidth).toHaveBeenCalledWith("author", 180)
     // The minimum holds.
     fireEvent.pointerDown(author, { pointerId: 2, button: 0, clientX: 500 })
     fireEvent.pointerMove(author, { pointerId: 2, clientX: 0 })
@@ -67,13 +67,13 @@ describe("CatalogTable", () => {
 
   it("moves an edge with ←/→ and goes back to the default on a double click", () => {
     const onWidth = vi.fn()
-    table(undefined, [item], onWidth, DEFAULT_COLUMNS.map((column) => column.key === "status" ? { ...column, width: 200 } : column))
-    const status = screen.getAllByRole("separator").find((node) => node.getAttribute("aria-valuenow") === "200")!
+    table(undefined, [item], onWidth, DEFAULT_COLUMNS.map((column) => column.key === "status" ? { ...column, width: 205 } : column))
+    const status = screen.getAllByRole("separator").find((node) => node.getAttribute("aria-valuenow") === "205")!
     expect(status).toHaveAttribute("tabindex", "0")
     fireEvent.keyDown(status, { key: "ArrowRight" })
-    expect(onWidth).toHaveBeenLastCalledWith("status", 216)
+    expect(onWidth).toHaveBeenLastCalledWith("status", 221)
     fireEvent.keyDown(status, { key: "ArrowLeft", shiftKey: true })
-    expect(onWidth).toHaveBeenLastCalledWith("status", 152)
+    expect(onWidth).toHaveBeenLastCalledWith("status", 157)
     fireEvent.doubleClick(status)
     expect(onWidth).toHaveBeenLastCalledWith("status", undefined)
   })
@@ -84,7 +84,7 @@ describe("CatalogTable", () => {
     const name = screen.getAllByRole("separator")[0]
     expect(name).toHaveAttribute("aria-valuemin", "200")
     fireEvent.keyDown(name, { key: "ArrowLeft", shiftKey: true })
-    expect(onWidth).toHaveBeenLastCalledWith("name", 220)
+    expect(onWidth).toHaveBeenLastCalledWith("name", 200)
     fireEvent.pointerDown(name, { pointerId: 1, button: 0, clientX: 500 })
     fireEvent.pointerMove(name, { pointerId: 1, clientX: 0 })
     fireEvent.pointerUp(name, { pointerId: 1, clientX: 0 })
@@ -106,15 +106,15 @@ describe("CatalogTable", () => {
     drag(separators[0], -150)
     expect(onWidth).toHaveBeenLastCalledWith("name", 210)
     drag(separators.at(-1)!, 150)
-    expect(onWidth).toHaveBeenLastCalledWith("tags", 350)
+    expect(onWidth).toHaveBeenLastCalledWith("tags", 330)
     // The page saves them; the table then shows exactly those widths and every other column as it was.
-    view.rerender(<CatalogTable rows={[item]} columns={columns.map((column) => column.key === "tags" ? { ...column, width: 350 } : column)} nameWidth={210}
+    view.rerender(<CatalogTable rows={[item]} columns={columns.map((column) => column.key === "tags" ? { ...column, width: 330 } : column)} nameWidth={210}
       selected={new Map()} selecting selectable={() => true} atLimit={false} allOnPage={false} pageSelectable={1}
       onToggle={vi.fn()} onToggleAll={vi.fn()} sortProps={{ activeField: "updated", direction: "desc", onSort: vi.fn() }} eventName={() => undefined}
       regionRef={{ current: null }} busy={false} onWidth={onWidth} />)
     const after = widths(view.container)
     expect(after[1]).toBe("210px")
-    expect(after.at(-2)).toBe("350px")
+    expect(after.at(-2)).toBe("330px")
     expect(after.filter((_, index) => index !== 1 && index !== after.length - 2)).toEqual(before.filter((_, index) => index !== 1 && index !== before.length - 2))
   })
 
@@ -127,14 +127,16 @@ describe("CatalogTable", () => {
     separators.forEach((handle) => {
       const start = Number(handle.getAttribute("aria-valuenow"))
       const min = Number(handle.getAttribute("aria-valuemin"))
-      const others = () => [...container.querySelectorAll("col")].filter((_, index) => index !== separators.indexOf(handle) + 1).map((col) => col.style.width)
+      const others = () => [...container.querySelectorAll("col")].filter((_, index, all) => index !== separators.indexOf(handle) + 1 && index !== all.length - 1).map((col) => col.style.width)
       const before = others()
+      onWidth.mockClear()
       fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientX: 600 })
       fireEvent.pointerMove(handle, { pointerId: 1, clientX: 480 })
       expect(others()).toEqual(before)
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 480 })
       const narrowed = Math.max(min, start - 120)
-      expect(onWidth.mock.lastCall![1]).toBe(narrowed)
+      // A width already at its minimum cannot narrow: nothing to save.
+      if (narrowed !== start) expect(onWidth.mock.lastCall![1]).toBe(narrowed)
       // Widening works the same way (the table here keeps the width it was given: the page stores the result).
       fireEvent.pointerDown(handle, { pointerId: 2, button: 0, clientX: 600 })
       fireEvent.pointerMove(handle, { pointerId: 2, clientX: 800 })
