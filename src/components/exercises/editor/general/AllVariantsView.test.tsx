@@ -27,9 +27,9 @@ describe("AllVariantsView", () => {
   it("lists every variant as a row with kind, weight and its share", () => {
     setup()
     expect(rows()).toHaveLength(3)
-    expect(within(rows()[0]).getByText("ed.shell.variant.main")).toBeInTheDocument()
-    expect(within(rows()[1]).getByText('ed.shell.variant.basedOn{"base":1}')).toBeInTheDocument()
-    expect(within(rows()[2]).getByText("ed.shell.variant.separate")).toBeInTheDocument()
+    expect(within(rows()[0]).getByText("ed.a.variants.main")).toBeInTheDocument()
+    expect(within(rows()[1]).getByText('ed.a.variants.basedOn{"base":1}')).toBeInTheDocument()
+    expect(within(rows()[2]).getByText("ed.a.variants.separate")).toBeInTheDocument()
     expect(within(rows()[0]).getByRole("spinbutton")).toHaveValue(3)
     expect(within(rows()[0]).getByText("60%")).toBeInTheDocument()
     expect(within(rows()[1]).getByText("20%")).toBeInTheDocument()
@@ -37,13 +37,13 @@ describe("AllVariantsView", () => {
 
   it("has the one add action in the toolbar and none when read-only", () => {
     const { api } = setup()
-    expect(screen.getAllByRole("button", { name: "ed.shell.variant.add" })).toHaveLength(1)
+    expect(screen.getAllByRole("button", { name: "ed.a.variants.add" })).toHaveLength(1)
     expect(api).toBeDefined()
   })
 
   it("hides the add action and locks the fields in read-only mode, keeping the open action", () => {
     setup({ disabled: true })
-    expect(screen.queryByRole("button", { name: "ed.shell.variant.add" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "ed.a.variants.add" })).not.toBeInTheDocument()
     expect(within(rows()[0]).getByRole("spinbutton")).toBeDisabled()
     fireEvent.keyDown(within(rows()[0]).getByRole("button", { name: /ed\.a\.variants\.menuOf/ }), { key: "Enter" })
     expect(screen.getByRole("menuitem", { name: "ed.a.variants.menu.open" })).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe("AllVariantsView", () => {
     const ref = setup()
     await pick(1, "ed.a.variants.menu.detach")
     expect(ref.form?.getValues("Variants.1.LinkedTo")).toBe("a")
-    fireEvent.click(screen.getByRole("button", { name: "ed.shell.linked.detach" }))
+    fireEvent.click(screen.getByRole("button", { name: "ed.a.variants.detach" }))
     expect(ref.form?.getValues("Variants.1.LinkedTo")).toBe("")
   })
 
@@ -190,7 +190,7 @@ describe("AllVariantsView", () => {
 
   it("opens the add-variant wizard from the toolbar", () => {
     const ref = setup()
-    fireEvent.click(screen.getByRole("button", { name: "ed.shell.variant.add" }))
+    fireEvent.click(screen.getByRole("button", { name: "ed.a.variants.add" }))
     expect(ref.api?.dialog).toBe("wizard")
   })
 })

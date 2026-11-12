@@ -43,7 +43,7 @@ export function NewVariableDialog({ variantIndex, open, onCreate, onClose }: {
   const [name, setName] = useState("")
   const [kind, setKind] = useState<"value" | "template">("value")
   const [text, setText] = useState("")
-  const nameError = name === "" ? undefined : !TASK_KEY_RE.test(name) ? t("ed.b.val.keyFormat") : variables.some((variable) => variable.Name === name) ? t("ed.c.val.variableDuplicate") : undefined
+  const nameError = name === "" ? undefined : !TASK_KEY_RE.test(name) ? t("ed.c.val.variableFormat") : variables.some((variable) => variable.Name === name) ? t("ed.c.val.variableDuplicate") : undefined
   const full = variables.length >= MAX_VARIABLES
   const ready = name !== "" && !nameError && text !== "" && !full
 

@@ -162,6 +162,6 @@ describe("CheckSection: «Куди передається відповідь»",
   it("many values or a template with no delivery is an error beside the values", async () => {
     const { handles } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{a}", "ICE{b}"])] }] })
     await act(async () => { await handles.form.trigger("Variants") })
-    expect(within(screen.getByTestId("answer-values")).getByText("ed.b.val.deliveryRequired")).toBeInTheDocument()
+    expect(within(screen.getByTestId("answer-values")).getByText("ed.shell.val.deliveryRequired")).toBeInTheDocument()
   })
 })

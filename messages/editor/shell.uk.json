@@ -25,6 +25,8 @@
   "ed.shell.tab.infrastructure": "Інфраструктура",
   "ed.shell.tab.tasks": "Підзавдання",
   "ed.shell.tabs.aria": "Розділи завдання",
+  "ed.shell.val.checkKindMismatch": "Вид перевірки однаковий в усіх варіантах",
+  "ed.shell.val.deliveryRequired": "Значення не передається в лабораторію",
   "ed.shell.variant.add": "Додати варіант",
   "ed.shell.variant.all": "Усі варіанти",
   "ed.shell.variant.basedOn": "на основі {base}",

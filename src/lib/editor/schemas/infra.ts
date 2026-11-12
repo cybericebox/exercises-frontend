@@ -254,8 +254,8 @@ const bootstrapFileSchema = z.object({
   if (!file.Path.startsWith("/") || /(^|\/)\.\.?(\/|$)/.test(file.Path)) ctx.addIssue({ code: "custom", path: ["Path"], message: t("ed.c.val.filePath") })
   if (file.From === "file" && !file.Source) ctx.addIssue({ code: "custom", path: ["Source"], message: t("ed.c.val.fileSource") })
   if (file.From === "text" && textBytes(file.Content) > MAX_BOOTSTRAP_CONTENT_BYTES) ctx.addIssue({ code: "custom", path: ["Content"], message: t("ed.c.val.fileContentBytes", { max: "64 KiB" }) })
-  if (file.Mode && !MODE_RE.test(file.Mode)) ctx.addIssue({ code: "custom", path: ["Mode"], message: t("ed.b.val.mode") })
-  for (const key of ["Owner", "Group"] as const) if (file[key] && !USER_RE.test(file[key])) ctx.addIssue({ code: "custom", path: [key], message: t("ed.b.val.owner") })
+  if (file.Mode && !MODE_RE.test(file.Mode)) ctx.addIssue({ code: "custom", path: ["Mode"], message: t("ed.c.val.mode") })
+  for (const key of ["Owner", "Group"] as const) if (file[key] && !USER_RE.test(file[key])) ctx.addIssue({ code: "custom", path: [key], message: t("ed.c.val.owner") })
 })
 
 const bootstrapSchema = z.object({
@@ -283,7 +283,7 @@ const bootstrapSchema = z.object({
   })
   if (textBytes(bootstrap.Script) > MAX_BOOTSTRAP_SCRIPT_BYTES) ctx.addIssue({ code: "custom", path: ["Script"], message: t("ed.c.val.scriptBytes", { max: "64 KiB" }) })
   if (bootstrap.Interpreter && !bootstrap.Script.trim()) ctx.addIssue({ code: "custom", path: ["Interpreter"], message: t("ed.c.val.interpreterNeedsScript") })
-  if (bootstrap.Interpreter && !bootstrap.Interpreter.startsWith("/")) ctx.addIssue({ code: "custom", path: ["Interpreter"], message: t("ed.b.val.pathAbsolute") })
+  if (bootstrap.Interpreter && !bootstrap.Interpreter.startsWith("/")) ctx.addIssue({ code: "custom", path: ["Interpreter"], message: t("ed.c.val.pathAbsolute") })
 })
 
 const deviceSchema = z
@@ -361,7 +361,7 @@ const variableSchema = z.object({
   Text: z.string(),
 }).superRefine((variable, ctx) => {
   if (variable.Name === "") ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.c.val.variableName") })
-  else if (!TASK_KEY_RE.test(variable.Name)) ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.b.val.keyFormat") })
+  else if (!TASK_KEY_RE.test(variable.Name)) ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.c.val.variableFormat") })
   if (variable.Kind === "value" && textBytes(variable.Text) > MAX_VARIABLE_VALUE_BYTES) ctx.addIssue({ code: "custom", path: ["Text"], message: t("ed.c.val.variableBytes", { max: MAX_VARIABLE_VALUE_BYTES }) })
   if (variable.Kind === "template" && variable.Text.trim() === "") ctx.addIssue({ code: "custom", path: ["Text"], message: t("ed.c.val.variableTemplate") })
 })
