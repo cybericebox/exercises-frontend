@@ -34,6 +34,25 @@ const topology: TopologyFormValues = {
 }
 
 describe('TopologyDiagram', () => {
+  it('marks the stage of a node with an outline and a mark that has an icon and a title, not colour alone', () => {
+    const { container } = render(<TopologyDiagram topology={topology} nodeStatus={{ d1: 'ready', d2: 'failed' }} />)
+    const ready = container.querySelector('[data-testid="node-d1"] [data-node-status="ready"]')!
+    expect(ready).toHaveAttribute('aria-label', 'ed.c.diagram.status.ready')
+    expect(ready.querySelector('title')).toHaveTextContent('ed.c.diagram.status.ready')
+    expect(ready.querySelector('svg')).not.toBeNull()
+    expect(container.querySelector('[data-testid="node-d2"] [data-node-status="failed"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="node-d1"] [data-selection-outline]')).toHaveClass('stroke-[var(--ib-ok)]')
+  })
+
+  it('draws no status mark without a status, and no port labels below the minimum scale', () => {
+    const plain = render(<TopologyDiagram topology={topology} />)
+    expect(plain.container.querySelector('[data-node-status]')).toBeNull()
+    expect(plain.container.querySelectorAll('[data-port-label]').length).toBeGreaterThan(0)
+    plain.unmount()
+    const hidden = render(<TopologyDiagram topology={topology} minPortLabelScale={10} />)
+    expect(hidden.container.querySelectorAll('[data-port-label]')).toHaveLength(0)
+  })
+
   it('marks only devices with external web access with a badge', () => {
     const exposed = { ...topology, Devices: [{ ...topology.Devices[0], Access: [emptyAccess('http')] }, topology.Devices[1]] }
     const { container } = render(<TopologyDiagram topology={exposed} />)
@@ -524,7 +543,7 @@ describe('TopologyDiagram', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.type.container' }))
     expect(onCanvasAddNode).toHaveBeenCalledWith('node', expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }))
     fireEvent.contextMenu(screen.getByTestId('node-d1'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.addConnection' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ed.c.diagram.connect' }))
     expect(onNodeLinkStart).toHaveBeenCalledWith('d1')
   })
 
@@ -558,7 +577,7 @@ describe('TopologyDiagram', () => {
     node.focus()
     fireEvent.keyDown(node, { key: 'F10', shiftKey: true })
     const items = screen.getAllByRole('menuitem')
-    expect(items.map((item) => item.textContent)).toEqual(['admin.exTopo.configure', 'admin.exTopo.addConnection', 'admin.exTopo.removeDevice'])
+    expect(items.map((item) => item.textContent)).toEqual(['admin.exTopo.configure', 'ed.c.diagram.connect', 'admin.exTopo.removeDevice'])
     expect(items[0]).toHaveFocus()
     fireEvent.keyDown(items[0], { key: 'ArrowDown' })
     expect(items[1]).toHaveFocus()
@@ -615,7 +634,7 @@ describe('TopologyDiagram', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('need-two')
     fireEvent.pointerDown(document.body)
     fireEvent.contextMenu(screen.getByTestId('node-d1'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.addConnection' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ed.c.diagram.connect' }))
     expect(onNodeLinkStart).not.toHaveBeenCalled()
   })
 
