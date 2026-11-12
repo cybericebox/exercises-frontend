@@ -38,6 +38,7 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
   const { control, setValue } = useFormContext<DraftFormValues>()
   const dp = devicePath(variantIndex, deviceIndex)
   const access = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Access` }) ?? []
+  const profile = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Profile` })
   const support = useLabSupport()
   const indexOf = (kind: AccessKind) => access.findIndex((entry) => entry.Kind === kind)
 
@@ -51,6 +52,8 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
   const terminal = indexOf("terminal")
   const webLab = support({ access: "http" })
   const terminalLab = support({ access: "terminal" })
+  const filesLab = support("terminalFiles")
+  const showFiles = profile !== "vm" && filesLab.state !== "disabled"
 
   return <SwitchList>
     <SwitchBlock label={t("ed.c.access.web")} checked={web >= 0} onCheckedChange={(on) => toggle("http", on)} disabled={disabled}
@@ -75,6 +78,9 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
           <InputField name={`${dp}.Access.${terminal}.User`} label={t("ed.c.access.user")} disabled={disabled} className="w-64 max-w-full" placeholder={t("ed.c.access.userPlaceholder")}
             help={{ intro: t("ed.c.h.terminalUser"), default: t("ed.c.h.terminalUserDefault") }} />
         </div>
+        {showFiles && <SwitchBlock className="mt-1" label={t("ed.c.access.files")} checked={access[terminal]?.Files === true} disabled={disabled}
+          onCheckedChange={(on) => setValue(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Access.${terminal}.Files`, on, { shouldDirty: true })}
+          help={{ intro: [t("ed.c.h.termFiles1"), t("ed.c.h.termFiles2")], items: [{ term: t("ed.c.h.termFilesLimits"), text: t("ed.c.h.termFilesLimitsText") }], default: [t("ed.c.access.off"), filesLab.state === "warn" ? filesLab.reason : ""].filter(Boolean).join(" ") }} />}
       </>}
     </SwitchBlock>
     <UnavailableRow label={t("ed.c.access.vnc")} reason={t("ed.c.access.vncReason")} help={{ intro: [t("ed.c.access.vncHelp"), t("ed.c.access.vncReason")], default: t("ed.c.access.off") }} />

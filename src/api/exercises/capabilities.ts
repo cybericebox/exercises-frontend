@@ -39,6 +39,8 @@ export type LabCapabilities = {
   Bootstrap: LabSupportValue
   Checks: LabSupportValue
   VPNReverse: LabSupportValue
+  /** File transfer through the console. Older servers do not send it: then nothing is disabled. */
+  TerminalFiles?: LabSupportValue
 }
 
 export type ExerciseCapabilities = {

@@ -860,7 +860,7 @@ describe('toDraftFormValues', () => {
     expect(values.Variants[0].Tasks[0].ID).toBe('task1')
     expect(values.Variants[0].Tasks[0].Placeholders[0].Key).toBe('ph_legacy_0_0_0')
     expect(values.Variants[0].Topology.Devices[0].Access)
-      .toEqual([{ Kind: 'http', Port: '8080', Protocol: 'https', Command: '', User: '' }])
+      .toEqual([{ Kind: 'http', Port: '8080', Protocol: 'https', Command: '', User: '', Files: false }])
     expect(values.Variants[0].Tasks[0].Check).toMatchObject({ Kind: 'answer', Answer: { Type: 'flag', Values: ['ICE{x}'] } })
   })
 
