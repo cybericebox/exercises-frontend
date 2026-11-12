@@ -52,8 +52,8 @@ function devContentSecurityPolicy(): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connect.join(" ")}`,
-    // Only the lab console frame (terminal.labs.<domain>); the dev fixture mode also frames its own canned console page.
-    `frame-src ${consoleFrameOrigin(DOMAIN)}${process.env.NEXT_PUBLIC_EDITOR_FIXTURES ? " 'self'" : ""}`,
+    // Only the lab console frame (terminal.labs.<domain>); the dev fixture mode also frames its canned console page (a blob of the dev server).
+    `frame-src ${consoleFrameOrigin(DOMAIN)}${process.env.NEXT_PUBLIC_EDITOR_FIXTURES ? " 'self' blob:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

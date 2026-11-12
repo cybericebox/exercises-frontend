@@ -10,6 +10,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
+import { isConsoleFrameUrl } from "@/lib/consoleFrame"
 import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 
 /** The console page of a lab device did not show within this long: the frame is treated as blocked. */
@@ -84,7 +85,9 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   const [attempt, setAttempt] = useState(0)
   const link = useConsoleLink(deployId, device, allowed, attempt)
   const tab = useOpenConsoleTab(deployId)
-  const url = link.kind === "ready" ? link.url : null
+  // Only the console origin of the labs goes into a frame; any other address is offered as a new tab.
+  const refused = link.kind === "ready" && !isConsoleFrameUrl(link.url)
+  const url = link.kind === "ready" && !refused ? link.url : null
   // What happened to the frame of this address: it loaded, or nothing came within the time.
   const [frame, setFrame] = useState<{ url: string | null; loaded: boolean; timedOut: boolean }>({ url: null, loaded: false, timedOut: false })
   const loaded = frame.url === url && frame.loaded
@@ -101,12 +104,13 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   const newTab = <Button type="button" variant="outline" busy={tab.busy} busyLabel={t("ed.d.console.opening")} onClick={() => tab.open(device)}>
     <ExternalLink aria-hidden="true" size={16} className="mr-1.5" />{t("ed.d.console.newTab")}
   </Button>
-  const failedFrame = link.kind === "ready" && timedOut && !loaded
+  const failedFrame = link.kind === "ready" && !refused && timedOut && !loaded
 
   let body: React.ReactNode
   if (link.kind === "loading") body = <LoadingArea className="h-full" label={t("ed.d.console.loading")} message={t("ed.d.console.loading")} />
   else if (link.kind === "none") body = <LoadError className="h-full" message={t("ed.d.console.none", { device })} help={reason || t("ed.d.console.noneHelp")} />
   else if (link.kind === "failed") body = <LoadError className="h-full" message={t("ed.d.console.failed", { device })} help={exerciseErrorMessage(link.cause)} error={link.cause} onRetry={retry} actions={newTab} />
+  else if (refused) body = <LoadError className="h-full" message={t("ed.d.console.blocked", { device })} help={t("ed.d.console.blockedHelp")} actions={newTab} />
   else body = <>
     {/* sandbox: scripts and the lab's own origin (its cookies) are needed by the console page; forms carry the file upload,
         downloads the file download. No top navigation, no popups, no modals. clipboard-*: copy and paste in the terminal.
