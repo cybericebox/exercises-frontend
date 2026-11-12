@@ -9,6 +9,7 @@ import { CHUNK_RECOVERY_BOOT_SCRIPT } from "@/lib/chunkRecovery"
 import { THEME_BOOT_SCRIPT } from "@/lib/theme"
 import { ToastProvider } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { FixtureGate } from "@/components/dev/FixtureGate"
 import { Analytics } from "@/components/consent/Analytics"
 
 // noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
@@ -23,9 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ChunkRecovery />
         {/* dimmed and inert behind the «server unavailable» overlay */}
         <div data-app-root>
-          <RoleProvider>
-            <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
-          </RoleProvider>
+          <FixtureGate>
+            <RoleProvider>
+              <ToastProvider><ExercisesShell>{children}</ExercisesShell></ToastProvider>
+            </RoleProvider>
+          </FixtureGate>
         </div>
         <ServiceStatusGate />
         {/* the consent panel is always mounted («Налаштування файлів cookie»); GA loads only when configured */}
