@@ -16,11 +16,6 @@ import type { SectionProps } from "./MainSection"
 
 const PROTOCOLS: SelectMenuOption[] = [{ value: "http", label: "http" }, { value: "https", label: "https" }]
 
-/** A quiet warning line: not every laboratory can run the option. */
-export function LabWarn({ text }: { text: string }) {
-  return <p role="note" data-lab-warning className="mt-2 text-xs leading-5 text-[var(--ib-warn)]">{text}</p>
-}
-
 /**
  * A switch that cannot be turned on at all (VNC, RDP). The row stays visible and focusable: the label «Недоступно» is
  * on the row, the full reason is in the tooltip and in the «?».
@@ -60,7 +55,7 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
   return <SwitchList>
     <SwitchBlock label={t("ed.c.access.web")} checked={web >= 0} onCheckedChange={(on) => toggle("http", on)} disabled={disabled}
       unavailable={web < 0 && webLab.state === "disabled" ? webLab.reason : undefined}
-      help={{ intro: t("ed.c.h.web"), default: t("ed.c.access.off") }}>
+      help={{ intro: t("ed.c.h.web"), default: [t("ed.c.access.off"), webLab.state === "warn" ? webLab.reason : ""].filter(Boolean).join(" ") }}>
       {web >= 0 && <>
         <div className="flex flex-wrap items-start gap-3">
           <InputField name={`${dp}.Access.${web}.Port`} label={t("ed.c.access.port")} required type="number" inputMode="numeric" mono disabled={disabled} className="w-40"
@@ -68,12 +63,11 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
           <SelectField name={`${dp}.Access.${web}.Protocol`} label={t("ed.c.access.protocol")} required options={PROTOCOLS} disabled={disabled} className="w-40"
             help={{ intro: t("ed.c.h.protocol"), items: [{ term: "http", text: t("ed.c.h.protocolHttp") }, { term: "https", text: t("ed.c.h.protocolHttps") }] }} />
         </div>
-        {webLab.state !== "ok" && <LabWarn text={webLab.reason} />}
       </>}
     </SwitchBlock>
     <SwitchBlock label={t("ed.c.access.terminal")} checked={terminal >= 0} onCheckedChange={(on) => toggle("terminal", on)} disabled={disabled}
       unavailable={terminal < 0 && terminalLab.state === "disabled" ? terminalLab.reason : undefined}
-      help={{ intro: [t("ed.c.access.terminalHelp1"), t("ed.c.access.terminalHelp2")], default: `${t("ed.c.access.off")} ${t("ed.c.help.consoleEvents")}` }}>
+      help={{ intro: [t("ed.c.access.terminalHelp1"), t("ed.c.access.terminalHelp2")], default: [t("ed.c.access.off"), t("ed.c.help.consoleEvents"), terminalLab.state === "warn" ? terminalLab.reason : ""].filter(Boolean).join(" ") }}>
       {terminal >= 0 && <>
         <div className="flex flex-wrap items-start gap-3">
           <InputField name={`${dp}.Access.${terminal}.Command`} label={t("ed.c.access.command")} mono disabled={disabled} className="w-64 max-w-full" placeholder={t("ed.c.ph.shell")}
@@ -81,7 +75,6 @@ export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionPr
           <InputField name={`${dp}.Access.${terminal}.User`} label={t("ed.c.access.user")} disabled={disabled} className="w-64 max-w-full" placeholder={t("ed.c.access.userPlaceholder")}
             help={{ intro: t("ed.c.h.terminalUser"), default: t("ed.c.h.terminalUserDefault") }} />
         </div>
-        {terminalLab.state !== "ok" && <LabWarn text={terminalLab.reason} />}
       </>}
     </SwitchBlock>
     <UnavailableRow label={t("ed.c.access.vnc")} reason={t("ed.c.access.vncReason")} help={{ intro: [t("ed.c.access.vncHelp"), t("ed.c.access.vncReason")], default: t("ed.c.access.off") }} />
