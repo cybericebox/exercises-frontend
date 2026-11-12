@@ -22,7 +22,28 @@ export type ResourcesConfig = {
   VariantSpreadWarnPercent: number
 }
 
+/** How many of the labs in use can run an option: `none` disables it, `some` warns, `all` and `unknown` say nothing. */
+export type LabSupportValue = "all" | "some" | "none" | "unknown"
+
+/** What the laboratories can run (GET /exercises/capabilities, block LabCapabilities). Every key is always present. */
+export type LabCapabilities = {
+  /** false: nothing reported yet, every value is `unknown`. */
+  Known: boolean
+  Observations: {
+    file: LabSupportValue; directory: LabSupportValue; process: LabSupportValue; port: LabSupportValue
+    kernel_param: LabSupportValue; request: LabSupportValue; permission: LabSupportValue; custom: LabSupportValue
+    "file.type": LabSupportValue; "file.checksum": LabSupportValue
+  }
+  Access: { http: LabSupportValue; terminal: LabSupportValue; vnc: LabSupportValue; rdp: LabSupportValue }
+  Profiles: { container: LabSupportValue; microvm: LabSupportValue; vm: LabSupportValue }
+  Bootstrap: LabSupportValue
+  Checks: LabSupportValue
+  VPNReverse: LabSupportValue
+}
+
 export type ExerciseCapabilities = {
+  /** Older servers do not send it: then nothing is disabled. */
+  LabCapabilities?: LabCapabilities
   Laboratories: boolean
   /** How many test labs one user may run at once (older servers: one). */
   MaxActiveTestDeploys?: number

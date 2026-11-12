@@ -1,4 +1,5 @@
 {
+  "ed.c.help.consoleEvents": "На заходах термінал у браузері типово вимкнено.",
   "ed.c.val.accessKindOnce": "Кожен вид доступу — один раз",
   "ed.c.val.accessMax": "Не більше {max} видів доступу",
   "ed.c.val.accessPort": "Порт — від 1 до 65535",

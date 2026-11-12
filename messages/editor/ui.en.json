@@ -3,5 +3,7 @@
   "ed.ui.collapse": "Collapse",
   "ed.ui.expand": "Expand",
   "ed.ui.hideValue": "Hide the value",
+  "ed.ui.lab.none": "The platform's labs do not support this.",
+  "ed.ui.lab.some": "Not every lab supports this: a test or a launch may not start.",
   "ed.ui.showValue": "Show the value"
 }

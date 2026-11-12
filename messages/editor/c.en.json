@@ -1,4 +1,5 @@
 {
+  "ed.c.help.consoleEvents": "At events the browser terminal is off by default.",
   "ed.c.val.accessKindOnce": "Each kind of access can be added once",
   "ed.c.val.accessMax": "At most {max} kinds of access",
   "ed.c.val.accessPort": "The port is 1 to 65535",
