@@ -412,7 +412,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
   }
 }
 
-function normalizeTopology(raw: TopologyDTO | null | undefined): NormalizedTopology {
+export function normalizeTopology(raw: TopologyDTO | null | undefined): NormalizedTopology {
   return {
     Variables: (raw?.Variables ?? []).map((variable) => ({ Name: variable.Name, ...(variable.Template ? { Template: variable.Template } : { Value: variable.Value ?? "" }) })),
     VPN: raw?.VPN ?? { Enabled: false, DHCP: false },
