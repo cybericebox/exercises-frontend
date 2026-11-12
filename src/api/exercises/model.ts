@@ -124,6 +124,8 @@ export type AccessDTO = {
   Command?: string
   /** terminal: default the user of the image. */
   User?: string
+  /** terminal: upload to and download from the device through the console page (default false; not on profile vm). */
+  Files?: boolean
 }
 
 // ── Device runtime ────────────────────────────────────────────────────────────
