@@ -9,8 +9,8 @@ export type TestStartDialogProps = {
   /** The variants with the reason when one cannot be started. */
   variants: TestVariantOption[]
   busy: boolean
-  /** Starts the test of a variant; the page checks the draft first. */
-  onStart: (variantIndex: number) => void
+  /** Starts the test of a variant for the chosen run length in minutes (absent: the lease in force); the page checks the draft first. */
+  onStart: (variantIndex: number, leaseMinutes?: number) => void
   onClose: () => void
 }
 
