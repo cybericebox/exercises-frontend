@@ -136,6 +136,16 @@ describe("«Ініціалізація»", () => {
     await waitFor(() => expect(path).toHaveAttribute("aria-invalid", "true"))
   })
 
+  it("ties a script error to the script field (invalid and described by its message)", async () => {
+    renderInit({ Bootstrap: { Timeout: "", Env: [], Script: "x".repeat(70000), Interpreter: "", Files: [] } })
+    fireEvent.click(screen.getByRole("button", { name: "validate-all" }))
+    const script = await screen.findByRole("textbox", { name: "ed.c.init.script" })
+    await waitFor(() => expect(script).toHaveAttribute("aria-invalid", "true"))
+    const message = document.getElementById(script.getAttribute("aria-describedby") ?? "")
+    expect(message).not.toBeNull()
+    expect(message?.textContent).toContain("ed.c.val.scriptBytes")
+  })
+
   it("has no add button when read-only", () => {
     renderInit({}, true)
     expect(screen.queryByRole("button", { name: "ed.c.init.addFile" })).not.toBeInTheDocument()
