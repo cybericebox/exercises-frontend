@@ -40,28 +40,31 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
-  /** Busy state: disables the button and shows the crest loader before the label. */
+  /** Busy state: disables the button and shows the crest loader before the label. Pass it (true or false) on a button that can be busy: the button then keeps one size in both states. */
   busy?: boolean
-  /** Reserve the idle and operation labels so busy state never resizes the button. */
+  /** The operation label shown while busy (default: the same label). The button is as wide as the wider of idle and busy, in both states. */
   busyLabel?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, busy = false, busyLabel, disabled, children, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, busy, busyLabel, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        disabled={disabled || busy}
+        disabled={disabled || Boolean(busy)}
         aria-busy={busy || undefined}
         {...props}
       >
-        {busyLabel && !asChild ? <span className="inline-grid items-center justify-items-center">
+        {!asChild && (busyLabel || busy !== undefined) ? <span className="inline-grid items-center justify-items-center">
+          {/* One grid cell holds the idle content, the busy content and its sizer: the button is as wide as the WIDER of idle and busy
+              (loader + operation label, or loader + the same label) in both states, so it never resizes when work starts or ends.
+              The sizer uses the real loader (its width is not 16 px), so idle and busy measure the same. */}
           <span aria-hidden="true" className="invisible col-start-1 row-start-1">{children}</span>
-          <span data-busy-size aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center"><span className="mr-2 h-4 w-4" />{busyLabel}</span>
-          <span className="col-start-1 row-start-1 inline-flex items-center">{busy ? <><Spinner size="sm" className="mr-2" />{busyLabel}</> : children}</span>
-        </span> : busy && !asChild ? <><Spinner size="sm" className="mr-2" />{children}</> : children}
+          <span data-busy-size aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center"><Spinner size="sm" className="mr-2" />{busyLabel ?? children}</span>
+          <span className="col-start-1 row-start-1 inline-flex items-center">{busy ? <><Spinner size="sm" className="mr-2" />{busyLabel ?? children}</> : children}</span>
+        </span> : children}
       </Comp>
     )
   }
