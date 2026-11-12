@@ -51,7 +51,8 @@ export function positionForDraftIssue(
     next.devicePanel = "interfaces"
     next.interface = typeof path[6] === "number" ? path[6] : 0
   } else if (path[5] === "Bootstrap") {
-    section = "init"
+    // Environment variables are in «Сервіс»; files, the script, its interpreter and the timeout are in «Ініціалізація».
+    section = path[6] === "Env" ? "service" : "init"
     next.devicePanel = "env"
     next.env = path[6] === "Env" && typeof path[7] === "number" ? path[7] : 0
   } else if (path[5] === "Command" || path[5] === "Args") {

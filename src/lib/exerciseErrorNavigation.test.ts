@@ -29,7 +29,9 @@ describe("positionForDraftIssue", () => {
   it.each([
     [["Variants", 0, "Topology", "Devices", 0, "Name"], { topologySection: "device:device-1", devicePanel: "basic", openNode: "device-1", deviceSection: "main" }],
     [["Variants", 0, "Topology", "Devices", 0, "Interfaces", 1, "IP", "Addresses"], { topologySection: "device:device-1", devicePanel: "interfaces", interface: 1, deviceSection: "network" }],
-    [["Variants", 0, "Topology", "Devices", 0, "Bootstrap", "Env", 2, "Name"], { topologySection: "device:device-1", devicePanel: "env", env: 2, deviceSection: "init" }],
+    [["Variants", 0, "Topology", "Devices", 0, "Bootstrap", "Env", 2, "Name"], { topologySection: "device:device-1", devicePanel: "env", env: 2, deviceSection: "service" }],
+    [["Variants", 0, "Topology", "Devices", 0, "Bootstrap", "Files", 1, "Path"], { openNode: "device-1", deviceSection: "init" }],
+    [["Variants", 0, "Topology", "Devices", 0, "Bootstrap", "Script"], { openNode: "device-1", deviceSection: "init" }],
     [["Variants", 0, "Topology", "Devices", 0, "Command"], { openNode: "device-1", deviceSection: "service" }],
     [["Variants", 0, "Topology", "Devices", 0, "Access", 0, "Port"], { topologySection: "device:device-1", devicePanel: "external", deviceSection: "access" }],
     [["Variants", 0, "Topology", "Devices", 0, "ResourcePreset"], { topologySection: "device:device-1", devicePanel: "resources" }],
