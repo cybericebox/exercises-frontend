@@ -1,4 +1,4 @@
-import { StrictMode, useLayoutEffect } from "react"
+import { StrictMode, useLayoutEffect, useRef } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ApiError } from "@/api/client"
@@ -721,4 +721,24 @@ it("catalog replacement waits for an orphaned unmount PATCH then PUT before prev
  await act(async () => { put({ ...serverVersion, AdminNote: "Before catalog" }); await saving; await draining })
  expect(prepared).toBe(true)
  expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+})
+
+describe("an edit made before the editor subscribes to its form", () => {
+  it("is not adopted as already saved: it is marked changed and sent", async () => {
+    // A layout effect runs in the commit that first shows the form, before the editor's passive effect subscribes
+    // to the form: the same window a keystroke in the first frame (or a slow machine) lands in.
+    function Early() {
+      const editor = useExerciseEditor({ exerciseId: "ex-1", versionId: null, editable: true, canWrite: true, userId: "editor-1", onCreated: vi.fn(), onPendingRestored: vi.fn() })
+      const done = useRef(false)
+      useLayoutEffect(() => {
+        latest = editor
+        if (editor.loadState === "ready" && !done.current) { done.current = true; editor.identityForm.setValue("Name", "Typed early") }
+      })
+      return <span data-testid="state">{editor.loadState}</span>
+    }
+    render(<Early />)
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("ready"))
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Typed early" }))
+  })
 })

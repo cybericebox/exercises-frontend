@@ -419,7 +419,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
 
   useEffect(() => {
     if (!editable || loadState !== "ready") return
-    lastSignatureRef.current = signature()
     // One check per burst of synchronous changes: a keystroke in a base variant is followed by
     // one mirror write per linked variant (useLinkedVariantSync); the whole-form signature is
     // computed once for all of them, after the burst.
@@ -442,6 +441,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
     const identityWatch = identityForm.watch(onChange)
     const draftWatch = draftForm.watch(onChange)
+    // The baseline is the last loaded or acknowledged state (applyValues, a save); it is NOT taken here. An edit made
+    // between the commit that shows the form and this passive effect (a keystroke in the first frame) was invisible to
+    // the subscription above; comparing against the baseline picks it up instead of adopting it as «already saved».
+    check()
     return () => {
       // A change still waiting for its check is not dropped by a re-subscription.
       if (scheduled) check()
