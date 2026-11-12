@@ -106,3 +106,46 @@ describe("firstErrorPath", () => {
     expect(firstErrorPath({} as never)).toBeNull()
   })
 })
+
+describe("baseIndex follows the current variant", () => {
+  function BaseProbe() {
+    const { baseIndex, variantIndex, variantCount } = useEditor()
+    return <output data-testid="base">{`${variantIndex}/${variantCount}/${baseIndex}`}</output>
+  }
+  function Wrap({ expose }: { expose: (api: EditorApi) => void }) {
+    const draft = emptyDraft()
+    draft.Variants = [{ ...emptyVariant(1), ID: "a" }, { ...emptyVariant(2), ID: "b", LinkedTo: "a" }, { ...emptyVariant(3), ID: "c" }]
+    const form = useForm<DraftFormValues>({ defaultValues: draft })
+    const [position, setPosition] = useState(DEFAULT_EDITOR_POSITION)
+    return <EditorPositionProvider position={position} onChange={(key, value) => setPosition((current) => ({ ...current, [key]: value }))}>
+      <EditorProvider form={form} exerciseId="ex" disabled={false} infrastructureBlocked={false} showNotes={false} page={{} as EditorPageData} onGoToField={vi.fn()}>
+        <Api expose={expose} /><BaseProbe />
+      </EditorProvider>
+    </EditorPositionProvider>
+  }
+  const shown = () => screen.getByTestId("base").textContent
+
+  it("is the base of the CURRENT variant: switching back and forth, detaching, deleting the base, adding a linked one", () => {
+    let api: EditorApi | undefined
+    render(<Wrap expose={(value) => { api = value }} />)
+    expect(shown()).toBe("0/3/-1")
+    act(() => api?.goTo({ tab: "tasks", variant: 1 }))
+    expect(shown()).toBe("1/3/0")
+    act(() => api?.goTo({ tab: "tasks", variant: 2 }))
+    expect(shown()).toBe("2/3/-1")
+    act(() => api?.goTo({ tab: "tasks", variant: 1 }))
+    expect(shown()).toBe("1/3/0")
+    // detach
+    act(() => api?.form.setValue("Variants.1.LinkedTo", ""))
+    expect(shown()).toBe("1/3/-1")
+    // link again, then add a linked variant at the end and go to it
+    act(() => api?.form.setValue("Variants.1.LinkedTo", "a"))
+    expect(shown()).toBe("1/3/0")
+    act(() => { api?.form.setValue("Variants", [...api.form.getValues("Variants"), { ...emptyVariant(4), ID: "d", LinkedTo: "c" }]) })
+    act(() => api?.goTo({ tab: "tasks", variant: 3 }))
+    expect(shown()).toBe("3/4/2")
+    // delete the base of the current variant: it is no longer linked to anything that exists
+    act(() => { api?.form.setValue("Variants", api.form.getValues("Variants").filter((variant) => variant.ID !== "c")) })
+    expect(shown()).toBe("2/3/-1")
+  })
+})
