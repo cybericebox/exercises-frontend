@@ -229,7 +229,7 @@ export function AddVariantWizard({ onClose }: { onClose: () => void }) {
     if (id === "copy") return <div className="ed-wz-dep" id="wz-deps">
       <div className="min-w-0 w-[340px] max-w-full"><FieldLabel className="pointer-coarse:min-h-8" text={t("ed.a.wizard.source")} htmlFor="wz-src" help={fieldHelp("source")} />
         <SelectMenu id="wz-src" ariaLabel={t("ed.a.wizard.source")} className="w-full" value={String(src)} onChange={(value) => setSrc(Number(value))}
-          options={variants.map((variant, index) => ({ value: String(index), label: t("ed.a.wizard.variantN", { n: index + 1 }), description: variant.LinkedTo ? t("ed.shell.variant.basedOn", { base: variants.findIndex((candidate) => candidate.ID !== "" && candidate.ID === variant.LinkedTo) + 1 }) : variant.Note || undefined }))} /></div>
+          options={variants.map((variant, index) => ({ value: String(index), label: t("ed.a.wizard.variantN", { n: index + 1 }), description: variant.LinkedTo ? t("ed.a.variants.basedOn", { base: variants.findIndex((candidate) => candidate.ID !== "" && candidate.ID === variant.LinkedTo) + 1 }) : variant.Note || undefined }))} /></div>
     </div>
     return null
   }

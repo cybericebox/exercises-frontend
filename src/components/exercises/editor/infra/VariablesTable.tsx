@@ -168,7 +168,7 @@ function VariableRow({ base, index, open, onToggle, row, variantIndex, disabled,
   if (!row) return null
   const template = row.Kind === "template"
   const others = (getValues(base) ?? []).filter((_, other) => other !== index).map((variable) => variable.Name)
-  const draftError = draft === null ? "" : draft === "" ? t("ed.c.val.variableName") : !TASK_KEY_RE.test(draft) ? t("ed.b.val.keyFormat") : others.includes(draft) ? t("ed.c.val.variableDuplicate") : ""
+  const draftError = draft === null ? "" : draft === "" ? t("ed.c.val.variableName") : !TASK_KEY_RE.test(draft) ? t("ed.c.val.variableFormat") : others.includes(draft) ? t("ed.c.val.variableDuplicate") : ""
   const nameError = draftError || nameFormError
   const lineError = nameError || textError
 

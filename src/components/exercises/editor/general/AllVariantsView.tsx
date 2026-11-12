@@ -268,7 +268,7 @@ export function AllVariantsView() {
     const { kind, index } = pending
     if (kind === "detach") {
       setVariants(detachVariantAt(variants, index))
-      toast.success(t("ed.shell.linked.done", { n: index + 1 }))
+      toast.success(t("ed.a.variants.detached", { n: index + 1 }))
     } else {
       setVariants(removeVariantAt(variants, index))
       if (variantIndex >= index && variantIndex > 0) selectVariant(variantIndex - 1)
@@ -283,7 +283,7 @@ export function AllVariantsView() {
   const pendingKids = pending && pending.kind === "delete" ? variants.filter((_, other) => baseIndexOf(variants, other) === pending.index).length : 0
 
   return <div className="flex min-w-0 flex-col gap-3">
-    <ViewToolbar add={!disabled ? <Button type="button" id="ea-add" onClick={openWizard}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("ed.shell.variant.add")}</Button> : undefined}>
+    <ViewToolbar add={!disabled ? <Button type="button" id="ea-add" onClick={openWizard}><Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("ed.a.variants.add")}</Button> : undefined}>
       <h2 className="text-sm font-semibold text-foreground">{t("ed.a.variants.title")}<span className="ml-1.5 text-[13px] font-normal text-muted-foreground">· {variants.length}</span></h2>
       {exerciseId && <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setStatsOpen(true)}><BarChart3 aria-hidden="true" className="mr-1.5 h-4 w-4" />{t("admin.exStats.open")}</Button>}
     </ViewToolbar>
@@ -299,7 +299,7 @@ export function AllVariantsView() {
         const key = rowKey(variant, index)
         const isOpen = Boolean(open[key])
         const kids = variants.filter((_, other) => baseIndexOf(variants, other) === index).length
-        const kind = linked ? t("ed.shell.variant.basedOn", { base: base + 1 }) : index === 0 ? t("ed.shell.variant.main") : t("ed.shell.variant.separate")
+        const kind = linked ? t("ed.a.variants.basedOn", { base: base + 1 }) : index === 0 ? t("ed.a.variants.main") : t("ed.a.variants.separate")
         const readOnlyDetails = disabled
         return <div role="listitem" key={key} data-variant-row={index + 1}>
           <ExpandableRow open={isOpen} onOpenChange={(value) => toggle(key, value)} ariaLabel={t("ed.a.variants.rowLabel", { n: index + 1 })}
@@ -338,8 +338,8 @@ export function AllVariantsView() {
     </div>
     {statsOpen && exerciseId && <VariantStatsDialog exerciseId={exerciseId} onClose={() => setStatsOpen(false)} />}
     <ConfirmDialog open={pending?.kind === "detach"} tone="danger" onCancel={() => setPending(null)}
-      title={t("ed.shell.linked.title")} description={pending ? t("ed.shell.linked.description", { n: pending.index + 1, base: pendingBase + 1 }) : undefined}
-      confirmLabel={t("ed.shell.linked.detach")} onConfirm={confirmPending} onCloseAutoFocus={restoreFocus} />
+      title={t("ed.a.variants.detachTitle")} description={pending ? t("ed.a.variants.detachText", { n: pending.index + 1, base: pendingBase + 1 }) : undefined}
+      confirmLabel={t("ed.a.variants.detach")} onConfirm={confirmPending} onCloseAutoFocus={restoreFocus} />
     <ConfirmDialog open={pending?.kind === "delete"} tone="danger" onCancel={() => setPending(null)}
       title={t("ed.a.variants.deleteTitle")} description={pending ? t(pendingKids > 0 ? "ed.a.variants.deleteBase" : "ed.a.variants.deleteText", { n: pending.index + 1, count: pendingKids }) : undefined}
       confirmLabel={t("ed.a.variants.deleteConfirm")} onConfirm={confirmPending} onCloseAutoFocus={restoreFocus} />

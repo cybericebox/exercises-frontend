@@ -92,7 +92,7 @@ export const draftSchema = z
           const values = task.Check.Answer.Values
           const many = values.length > 1 || values.some((value) => value.startsWith(TEMPLATE_PREFIX))
           if (many && deliveriesOfTask(variant.Topology, task.Key).length === 0) {
-            ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Check", "Answer", "Values"], message: t("ed.b.val.deliveryRequired") })
+            ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Check", "Answer", "Values"], message: t("ed.shell.val.deliveryRequired") })
           }
         }
       })
@@ -121,7 +121,7 @@ export const draftSchema = z
         }
         // The kind of check and the answer type are the same in every variant.
         if (canonical && (task.Check.Kind !== canonical.Check.Kind || (task.Check.Kind === "answer" && task.Check.Answer.Type !== canonical.Check.Answer.Type))) {
-          ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Check", "Kind"], message: t("ed.b.val.checkKindMismatch") })
+          ctx.addIssue({ code: "custom", path: ["Variants", i, "Tasks", taskIndex, "Check", "Kind"], message: t("ed.shell.val.checkKindMismatch") })
         }
       })
     })

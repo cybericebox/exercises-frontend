@@ -50,7 +50,7 @@ export function DocumentDialog({ onClose }: { onClose: () => void }) {
   return <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
     <DialogContent className="max-w-3xl" onCloseAutoFocus={returnFocus}>
       <DialogHeader>
-        <DialogTitle>{t("ed.shell.menu.documentTitle")}</DialogTitle>
+        <DialogTitle>{t("ed.a.document.title")}</DialogTitle>
         <DialogDescription>{t("ed.a.document.description")}</DialogDescription>
       </DialogHeader>
       {!exerciseId ? <EmptyState className={BLOCK} message={t("ed.a.document.unsaved")} />

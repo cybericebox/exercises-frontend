@@ -25,6 +25,8 @@
   "ed.shell.tab.infrastructure": "Infrastructure",
   "ed.shell.tab.tasks": "Subtasks",
   "ed.shell.tabs.aria": "Sections of the task",
+  "ed.shell.val.checkKindMismatch": "The kind of check is the same in every variant",
+  "ed.shell.val.deliveryRequired": "The value does not reach the lab",
   "ed.shell.variant.add": "Add a variant",
   "ed.shell.variant.all": "All variants",
   "ed.shell.variant.basedOn": "based on {base}",
