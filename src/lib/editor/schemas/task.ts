@@ -111,6 +111,7 @@ export function durationSeconds(value: string): number | null {
 /** A substitution `{{task.<key>}}` or `{{var.<name>}}` in a text key; a text with one is not checked as a literal. */
 const hasRef = (value: string) => value.includes("{{")
 
+
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
 const placeholderSchema = z

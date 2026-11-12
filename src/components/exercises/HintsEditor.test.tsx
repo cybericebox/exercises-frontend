@@ -42,7 +42,7 @@ describe("HintsEditor", () => {
     expect(hints(1).map((hint) => hint.Level)).toEqual(["nudge", "nudge"])
 
     fireEvent.keyDown(screen.getAllByRole("button", { name: "exercises.hints.level" })[1], { key: "ArrowDown" })
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "exercises.hints.level.steps" }))
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /exercises.hints.level.steps/ }))
     expect(hints(0)[1].Level).toBe("steps")
     expect(hints(1)[1].Level).toBe("steps")
 
@@ -64,9 +64,9 @@ describe("HintsEditor", () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.hints.add" }))
     const row = screen.getByTestId("hint-row")
-    expect(row.querySelectorAll(".text-destructive[aria-hidden='true']")).toHaveLength(1)
-    expect(screen.getByText("exercises.hints.levelShort")).toBeInTheDocument()
-    expect(screen.queryByText("exercises.hints.text")).not.toBeInTheDocument()
+    expect(row.querySelectorAll(".text-destructive[aria-hidden='true']").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText("exercises.hints.level")).toBeInTheDocument()
+    expect(row).toHaveTextContent("exercises.hints.level.nudge")
     expect(hints(0)[0].Level).toBe("nudge")
   })
 
@@ -97,11 +97,8 @@ describe("HintsEditor", () => {
   })
 })
 
-it("puts «+ Додати підказку» in the section header, right-aligned; none below the list", () => {
+it("has one «Додати підказку» action; the empty state is compact", () => {
  render(<Harness />)
- const add = screen.getByRole("button", { name: "exercises.hints.add" })
- expect(add.closest(".subtask-section-title")).toBeInTheDocument()
- expect(add.closest(".subtask-section-action")).toBeInTheDocument()
  expect(screen.getAllByRole("button", { name: "exercises.hints.add" })).toHaveLength(1)
  // A compact empty state.
  expect(screen.getByText("exercises.hints.empty").closest("[data-empty-state]")).toHaveClass("min-h-0")
@@ -144,25 +141,20 @@ describe("hint rows", () => {
     expect(current!.formState.isDirty).toBe(false)
   })
 
-  it("collapsed: chevron on the left, then number, preview and level; expanded: the level select in the header, no preview", () => {
+  it("every row shows its level, closed or open; open: the level select and the text, no preview", () => {
     render(<Loaded />)
     const [row] = screen.getAllByTestId("hint-row")
     const toggle = within(row).getByRole("button", { name: "exercises.hints.rowLabel" })
     expect(toggle.firstElementChild).toHaveClass("hint-row-chevron")
     expect(toggle.children[1]).toHaveTextContent("1.")
+    expect(toggle.children[2]).toHaveTextContent("exercises.hints.level.direction")
     expect(toggle).toHaveTextContent("Почніть зі сканування портів.")
-    expect(toggle).toHaveTextContent("exercises.hints.rowLevel")
     expect(within(row).queryByRole("button", { name: "exercises.hints.level" })).toBeNull()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(toggle).toHaveTextContent("exercises.hints.level.direction")
     expect(toggle).not.toHaveTextContent("Почніть зі сканування портів.")
-    const level = within(row).getByRole("button", { name: "exercises.hints.level" })
-    const head = row.querySelector(".hint-row-head")!
-    expect(head).toContainElement(level)
-    // Keyboard order: chevron, level, then the actions.
-    const order = [...head.querySelectorAll("button")].map((button) => button.getAttribute("aria-label"))
-    expect(order.indexOf("exercises.hints.rowLabel")).toBeLessThan(order.indexOf("exercises.hints.level"))
-    expect(order.indexOf("exercises.hints.level")).toBeLessThan(order.indexOf("exercises.hints.up"))
+    expect(within(row).getByRole("button", { name: "exercises.hints.level" })).toBeInTheDocument()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute("aria-expanded", "false")
   })

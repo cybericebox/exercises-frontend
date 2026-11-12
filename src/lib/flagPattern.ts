@@ -3,6 +3,9 @@ const PREFIX = "template:"
 /** Mirror of the server flagpattern.TemplatePrefix. */
 export const TEMPLATE_PREFIX = PREFIX
 const FLAG_RE = /^ICE\{[^\p{White_Space}\p{Cc}{}]+\}$/u
+/** A template may repeat a class with `{n}` (1-64); the flag it generates never holds braces. */
+const TEMPLATE_RE = /^ICE\{[^\p{White_Space}\p{Cc}]+\}$/u
+const MAX_REPEAT = 64
 const DIGITS = "0123456789"
 const LOWER = "abcdefghijklmnopqrstuvwxyz"
 const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -92,7 +95,7 @@ function entropyBits(cardinality: bigint): number {
 export function parseFlagCandidate(raw: string): ParsedFlagCandidate {
   const isTemplate = raw.startsWith(PREFIX)
   const value = isTemplate ? raw.slice(PREFIX.length) : raw
-  if (!FLAG_RE.test(value)) throw new Error("Invalid ICE flag")
+  if (!(isTemplate ? TEMPLATE_RE : FLAG_RE).test(value)) throw new Error("Invalid ICE flag")
   if (!isTemplate) {
     return { kind: "fixed", cardinality: BigInt(1), example: value, entropyBits: 0, parts: [{ literal: value.slice(4, -1) }] }
   }
@@ -101,12 +104,27 @@ export function parseFlagCandidate(raw: string): ParsedFlagCandidate {
   const parts: Part[] = []
   let literal = ""
   let randomSlots = 0
+  // True right after a class: only then a `{n}` repeat count may follow.
+  let afterClass = false
   const flush = () => {
     if (literal) parts.push({ literal })
     literal = ""
   }
   for (let i = 0; i < body.length;) {
     const char = body[i]
+    if (char === "{") {
+      const repeat = /^\{(\d{1,3})\}/.exec(body.slice(i))
+      const count = repeat ? Number(repeat[1]) : 0
+      if (!afterClass || !repeat || count < 1 || count > MAX_REPEAT) throw new Error("Invalid flag repeat")
+      const last = parts[parts.length - 1]
+      for (let n = 1; n < count; n++) parts.push(last)
+      randomSlots += count - 1
+      i += repeat[0].length
+      afterClass = false
+      continue
+    }
+    if (char === "}") throw new Error("Unmatched flag brace")
+    afterClass = false
     if (char === "\\") {
       const next = body[i + 1]
       if (!next) throw new Error("Invalid flag escape")
@@ -118,6 +136,7 @@ export function parseFlagCandidate(raw: string): ParsedFlagCandidate {
         flush()
         parts.push({ choices })
         randomSlots++
+        afterClass = true
       }
       i += 2
     } else if (char === "[") {
@@ -125,6 +144,7 @@ export function parseFlagCandidate(raw: string): ParsedFlagCandidate {
       flush()
       parts.push({ choices: parsed.choices })
       randomSlots++
+      afterClass = true
       i = parsed.next
     } else if (char === "]") {
       throw new Error("Unmatched flag bracket")

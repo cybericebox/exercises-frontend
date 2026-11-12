@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { PlaceholderDialog } from './PlaceholderDialog'
 import type { PlaceholderFormValues } from '@/lib/exerciseSchemas'
 
-const unavailable = { vpnEnabled: false, internetEnabled: false, externalDeviceNames: [] }
+const unavailable = { vpnEnabled: false, internetEnabled: false, externalDevices: [] }
 
 describe('PlaceholderDialog', () => {
   it('marks a removed external-link device red in its dropdown', () => {
@@ -71,7 +71,7 @@ describe('PlaceholderDialog', () => {
     const save = vi.fn()
     const existing: PlaceholderFormValues = { Key: 'ph_existing', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web' }
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
-      topology={{ ...unavailable, externalDeviceNames: ['web', 'db'] }} onSave={save} />)
+      topology={{ ...unavailable, externalDevices: [{ name: 'web', access: ['http'] }, { name: 'db', access: ['http'] }] }} onSave={save} />)
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
     fireEvent.keyDown(screen.getByRole('button', { name: 'Пристрій' }), { key: 'ArrowDown' })
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'db' }))
@@ -157,5 +157,26 @@ describe('PlaceholderDialog', () => {
       fireEvent.change(screen.getByRole('textbox', { name: /^Шлях/ }), { target: { value: '/ok' } })
       expect(screen.getByRole('button', { name: 'Вставити' })).toBeEnabled()
     })
+  })
+
+  it('offers the access kinds a device has switched on; vnc and rdp stay disabled with the reason', () => {
+    const save = vi.fn()
+    render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
+      topology={{ ...unavailable, externalDevices: [{ name: 'web', access: ['http', 'terminal', 'vnc'] }, { name: 'db', access: ['terminal'] }] }} onSave={save} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Зовнішнє посилання/ }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Вид доступу' }), { key: 'ArrowDown' })
+    const items = screen.getAllByRole('menuitemradio')
+    expect(items.map((item) => item.textContent)).toEqual([expect.stringContaining('Веб-сторінка'), expect.stringContaining('Консоль'), expect.stringContaining('VNC')])
+    expect(screen.getByRole('menuitemradio', { name: /VNC/ })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Консоль/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Вставити' }))
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'external.link', DeviceName: 'web', Access: 'terminal' }))
+  })
+
+  it('an access kind switched off in the device later disables «Вставити»', () => {
+    const existing: PlaceholderFormValues = { Key: 'ph_x', Kind: 'external.link', IPReference: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web', Access: 'terminal' }
+    render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
+      topology={{ ...unavailable, externalDevices: [{ name: 'web', access: ['http'] }] }} onSave={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
   })
 })
