@@ -21,7 +21,7 @@ export function IssuesDialog() {
         <DialogTitle>{t(test ? "ed.shell.issues.titleTest" : "ed.shell.issues.titlePublish")}</DialogTitle>
         <DialogDescription>{t(test ? "ed.shell.issues.descTest" : "ed.shell.issues.descPublish", { n: issues.issues.length })}</DialogDescription>
       </DialogHeader>
-      <ul className="m-0 flex max-h-[50dvh] list-none flex-col gap-2 overflow-y-auto p-0">
+      <ul className="-m-1 flex max-h-[50dvh] list-none flex-col gap-2 overflow-y-auto p-1">
         {issues.issues.map((issue) => <li key={`${issue.path.join(".")}|${issue.message}`} className="flex items-start justify-between gap-3">
           <span className="flex min-w-0 items-start gap-2 text-sm text-foreground">
             <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /><span className="break-words">{issue.text}</span>
