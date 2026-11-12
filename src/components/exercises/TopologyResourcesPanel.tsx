@@ -46,7 +46,7 @@ export function TopologyResourcesButton({ form, ...panel }: PanelProps & { form:
   const chip = t("ed.ui.res.chip", { cpu: range(resources.Min.CPUMillicores, resources.Max.CPUMillicores, formatCPU), memory: range(resources.Min.MemoryBytes, resources.Max.MemoryBytes, formatMemory) })
   return <Popover>
     <PopoverTrigger asChild>
-      <Button type="button" variant="ghost" size="sm" className="gap-2" aria-label={pending ? t("exercises.res.buttonPending", { label, count: pending }) : label}>
+      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[13px] pointer-coarse:h-11" aria-label={pending ? t("exercises.res.buttonPending", { label, count: pending }) : label}>
         <Cpu aria-hidden="true" className="h-4 w-4" /><span>{chip}</span>
         {pending > 0 && <Badge tone="warn" className="gap-1"><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("exercises.res.pendingCount", { count: pending })}</Badge>}
       </Button>
