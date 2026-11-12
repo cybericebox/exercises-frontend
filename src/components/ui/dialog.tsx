@@ -28,11 +28,24 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+/** Mounted with the open content, before focus moves into it: notes the element that had focus. */
+function RememberOpener({ onNote }: { onNote: (element: HTMLElement | null) => void }) {
+  React.useLayoutEffect(() => {
+    const active = document.activeElement
+    onNote(active instanceof HTMLElement && active !== document.body ? active : null)
+  }, [onNote])
+  return null
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { onOverlayPointerDown?: React.PointerEventHandler<HTMLDivElement> }
->(({ className, children, onOverlayPointerDown, ...props }, ref) => (
-  <DialogPortal>
+>(({ className, children, onOverlayPointerDown, onCloseAutoFocus, ...props }, ref) => {
+  // A dialog opened from state (not through DialogTrigger) has no trigger for Radix to return focus to:
+  // remember the element that had focus when the content mounted and give focus back to it on close.
+  const opener = React.useRef<HTMLElement | null>(null)
+  const note = React.useCallback((element: HTMLElement | null) => { opener.current = element }, [])
+  return <DialogPortal>
     <DialogOverlay onPointerDown={onOverlayPointerDown} />
     <DialogPrimitive.Content
       ref={ref}
@@ -40,12 +53,19 @@ const DialogContent = React.forwardRef<
         "fixed left-[50%] top-[50%] z-(--ib-z-dialog) grid grid-cols-[minmax(0,1fr)] min-w-0 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-card p-4 sm:p-6 ib-dialog-in sm:rounded-lg",
         className
       )}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event)
+        if (event.defaultPrevented) return
+        const target = opener.current
+        if (target?.isConnected) { event.preventDefault(); target.focus() }
+      }}
       {...props}
     >
+      <RememberOpener onNote={note} />
       {children}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

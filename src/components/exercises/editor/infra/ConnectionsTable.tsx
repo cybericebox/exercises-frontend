@@ -1,7 +1,8 @@
 "use client"
 
 import { Fragment, useEffect, useState } from "react"
-import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { Controller, get, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { useErrorsAt } from "../fieldErrors"
 import { ChevronRight, LocateFixed, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -43,7 +44,7 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
   onShow: (index: number) => void
   onAdded: (index: number) => void
 }) {
-  const { control, formState } = useFormContext<DraftFormValues>()
+  const { control } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Topology.Connections` as const
   const { fields, append, remove } = useFieldArray({ control, name })
   const connections = useWatch({ control, name }) ?? []
@@ -52,7 +53,7 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
   const internetEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
   const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
-  const errorRows = formState.errors.Variants?.[variantIndex]?.Topology?.Connections
+  const errorRows = get(useErrorsAt(name), name) as unknown
   const firstBad = Array.isArray(errorRows) ? errorRows.findIndex(Boolean) : -1
   useEffect(() => {
     if (firstBad >= 0) onExpand(firstBad)

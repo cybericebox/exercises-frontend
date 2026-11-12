@@ -11,7 +11,7 @@ import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
 import { ERR_EXERCISE_IN_USE, deviceImageErrorTarget, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
-import { placeServerFieldError } from "@/lib/editor/serverErrorTarget"
+import { forgetServerErrors, placeServerFieldError } from "@/lib/editor/serverErrorTarget"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
@@ -101,6 +101,7 @@ export function useExerciseActions({
   async function publish(): Promise<void> {
     if (!exerciseId) return
     await run(async () => {
+      forgetServerErrors(editor.draftForm)
       const valid = await editor.draftForm.trigger()
       const values = editor.draftForm.getValues()
       const missingDescriptions = values.Variants.flatMap((variant, vi) => variant.Tasks.flatMap((task, ti) =>

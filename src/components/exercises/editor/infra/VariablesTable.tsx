@@ -1,7 +1,8 @@
 "use client"
 
 import { Fragment, useEffect, useRef, useState } from "react"
-import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { Controller, get, useFieldArray, useFormContext, useWatch } from "react-hook-form"
+import { useErrorsAt } from "../fieldErrors"
 import { ChevronRight, Trash2, Upload } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -36,8 +37,8 @@ export function VariablesTable({ variantIndex, disabled, onOpenUse }: { variantI
   const rows = useWatch({ control, name: base }) ?? []
   const topology = useWatch({ control, name: `Variants.${variantIndex}.Topology` })
   const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
-  const { formState } = useFormContext<DraftFormValues>()
-  const errorRows = formState.errors.Variants?.[variantIndex]?.Topology?.Variables
+  const variablesPath = `Variants.${variantIndex}.Topology.Variables`
+  const errorRows = get(useErrorsAt(variablesPath), variablesPath) as unknown
   const firstBad = Array.isArray(errorRows) ? errorRows.findIndex(Boolean) : -1
   const [open, setOpen] = useState(firstBad)
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)

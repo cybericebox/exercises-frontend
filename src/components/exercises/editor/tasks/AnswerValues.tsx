@@ -108,7 +108,7 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
       }} />
       {linked && !inherited && <Badge tone="info">{t("ed.b.answer.own")}</Badge>}
     </div>
-    <div role="group" aria-labelledby={`${path}-label`} className="space-y-1">
+    <div role="group" aria-labelledby={`${path}-label`} {...fieldProps(path, listError)} tabIndex={-1} className="space-y-1 rounded-md focus-visible:outline-none aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive/60">
       {inherited
         ? <div className="flex min-h-9 flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-3 py-1.5">
           <span className="min-w-0 flex-1 truncate font-mono text-sm">{inheritedLine(baseValues)}</span>

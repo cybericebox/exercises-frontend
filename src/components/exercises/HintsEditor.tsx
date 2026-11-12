@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useFormContext, useWatch } from "react-hook-form"
+import { get, useFormContext, useWatch } from "react-hook-form"
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { t } from "@/i18n/t"
@@ -17,7 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ExpandableRow } from "@/components/ui/expandable-row"
 import { RowActions, type RowAction } from "./RowActions"
 import { SectionAddButton } from "./SectionAddButton"
-import { FieldError, fieldId, fieldProps } from "./editor/fieldErrors"
+import { FieldError, fieldId, fieldProps, useErrorsAt } from "./editor/fieldErrors"
 
 const levelOptions = () => HINT_LEVELS.map((level) => ({ value: level, label: t(`exercises.hints.level.${level}`), description: t(`exercises.hints.levelDescription.${level}`) }))
 const levelHelp = () => ({
@@ -58,10 +58,10 @@ export function HintsEditor({ variantIndex, taskIndex, disabled, editor, textsOn
   /** A linked variant: the hints are the base's; nothing here changes. */
   textsOnly?: boolean
 }) {
-  const { control, getValues, setValue, formState } = useFormContext<DraftFormValues>()
+  const { control, getValues, setValue } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Tasks.${taskIndex}.Hints` as const
   const hints = useWatch({ control, name: base }) ?? []
-  const errors = formState.errors.Variants?.[variantIndex]?.Tasks?.[taskIndex]?.Hints
+  const errors = get(useErrorsAt(base), base) as ({ Level?: { message?: string }; Text?: { message?: string } } | undefined)[] | undefined
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set())
   const [removing, setRemoving] = useState<number | null>(null)
   const setOpen = (index: number, open: boolean) => setExpanded((current) => {
