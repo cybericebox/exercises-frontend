@@ -61,3 +61,26 @@ export function deliveriesOfTask(topology: Pick<TopologyFormValues, "Devices">, 
 export function deliveryDevices(deliveries: Delivery[]): string[] {
   return [...new Set(deliveries.map((delivery) => delivery.deviceName))]
 }
+
+/** The plain text of a rich-text (Lexical) document or of a plain string: every `text` leaf, joined with spaces. */
+export function richTextPlain(node: unknown): string {
+  if (typeof node === "string") {
+    try { const parsed: unknown = JSON.parse(node); if (parsed && typeof parsed === "object") return richTextPlain(parsed) } catch { /* plain text */ }
+    return node
+  }
+  const leaves: string[] = []
+  const walk = (value: unknown) => {
+    if (Array.isArray(value)) { value.forEach(walk); return }
+    if (!value || typeof value !== "object") return
+    const record = value as Record<string, unknown>
+    if (typeof record.text === "string") leaves.push(record.text)
+    for (const [key, child] of Object.entries(record)) if (key !== "text" && child && typeof child === "object") walk(child)
+  }
+  walk(node)
+  return leaves.join(" ")
+}
+
+/** A description or a hint is shown to participants: it must not name an answer or a variable of the schema (error 23519). */
+export function hasSubstitution(node: unknown): boolean {
+  return findRefs(richTextPlain(node)).length > 0
+}

@@ -22,6 +22,7 @@
   "ed.b.val.keyDuplicate": "This key is already used in the variant",
   "ed.b.val.keyFormat": "Lowercase Latin letters, digits and «_», starting with a letter",
   "ed.b.val.mode": "Permissions are an octal number of 3-4 digits",
+  "ed.b.val.noSubstitution": "A description or a hint cannot contain an answer or a schema variable: participants see it.",
   "ed.b.val.owner": "A user or group name, or a number",
   "ed.b.val.pathAbsolute": "The path starts with «/»",
   "ed.b.val.pathRequired": "Enter a path starting with «/»",

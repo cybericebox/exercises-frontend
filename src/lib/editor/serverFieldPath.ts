@@ -37,7 +37,9 @@ export function taskFieldPath(field: string): Segment[] | null {
   if (!parts) return null
   const [head, ...rest] = parts
   if (head === "requires") return typeof rest[0] === "number" ? ["Requires", rest[0]] : ["Requires"]
-  if (head === "key" || head === "name" || head === "difficulty") return [pascal(head)]
+  if (head === "key" || head === "name" || head === "difficulty" || head === "description") return [pascal(head)]
+  // 23519: `hints[N].text`
+  if (head === "hints") return typeof rest[0] === "number" ? (rest[1] === "text" ? ["Hints", rest[0], "Text"] : ["Hints", rest[0]]) : ["Hints"]
   if (head !== "check") return null
   if (rest[0] === "answer") return rest.length === 1 ? ["Check", "Answer"] : ["Check", "Answer", pascal(String(rest[1]))]
   if (rest[0] !== "state") return null

@@ -8,6 +8,7 @@
  * The messages of the validation live in `messages/editor/b.*.json` (prefix `ed.b.val.`); the mockup's wording
  * (parts/25-yaml-validate.js) is reused verbatim.
  */
+import { hasSubstitution } from "../refs"
 import { z } from "zod"
 import { t } from "@/i18n/t"
 import { parseFlagCandidate, flagCandidateErrorKey, TEMPLATE_PREFIX } from "@/lib/flagPattern"
@@ -336,8 +337,11 @@ export function refineVariantTasks(
     keys.set(task.Key, index)
   })
   tasks.forEach((task, index) => {
+    // The description and the hints are read by participants: no answer or schema variable inside (23519).
+    if (hasSubstitution(task.Description)) ctx.addIssue({ code: "custom", path: [...base, index, "Description"], message: t("ed.b.val.noSubstitution") })
     task.Hints.forEach((hint, hintIndex) => {
       if (!hintTextHasContent(hint.Text)) ctx.addIssue({ code: "custom", path: [...base, index, "Hints", hintIndex, "Text"], message: t("exercises.hints.val.textRequired") })
+      else if (hasSubstitution(hint.Text)) ctx.addIssue({ code: "custom", path: [...base, index, "Hints", hintIndex, "Text"], message: t("ed.b.val.noSubstitution") })
     })
     const seen = new Set<string>()
     task.Requires.forEach((key, requireIndex) => {
