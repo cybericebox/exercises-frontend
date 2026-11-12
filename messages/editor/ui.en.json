@@ -16,5 +16,6 @@
   "ed.ui.ref.unnamed": "Untitled",
   "ed.ui.ref.variable": "Variable {name}",
   "ed.ui.ref.variables": "Schema variables",
+  "ed.ui.res.chip": "{cpu} CPU · {memory}",
   "ed.ui.showValue": "Show the value"
 }

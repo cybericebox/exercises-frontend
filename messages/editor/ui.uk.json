@@ -16,5 +16,6 @@
   "ed.ui.ref.unnamed": "Без назви",
   "ed.ui.ref.variable": "Змінна {name}",
   "ed.ui.ref.variables": "Змінні схеми",
+  "ed.ui.res.chip": "{cpu} CPU · {memory}",
   "ed.ui.showValue": "Показати значення"
 }

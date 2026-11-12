@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { consoleFrameHost, consoleFrameOrigin, isConsoleFrameUrl } from "./consoleFrame"
+import { consoleFrameHost, consoleFrameOrigin, devFrameSrc, isConsoleFrameUrl } from "./consoleFrame"
 
 describe("console frame origin", () => {
   it("is terminal.labs.<domain> over https", () => {
@@ -26,5 +27,14 @@ describe("console frame origin", () => {
     expect(ok("https://user:pw@terminal.labs.example.test/")).toBe(false)
     expect(ok("not a url")).toBe(false)
     expect(isConsoleFrameUrl("https://terminal.labs.example.test/", undefined)).toBe(false)
+  })
+})
+
+describe("dev frame-src", () => {
+  it("allows blob: and the page itself only in the fixture mode, and never in the container policy", () => {
+    expect(devFrameSrc("example.test", false)).toBe("https://terminal.labs.example.test")
+    expect(devFrameSrc("example.test", true)).toBe("https://terminal.labs.example.test 'self' blob:")
+    expect(devFrameSrc("example.test", false)).not.toContain("blob:")
+    expect(readFileSync("deploy/csp.sh", "utf8").split("\n").filter((line) => line.startsWith("frame_src="))).toEqual(['frame_src="https://$(base_domain_host terminal.labs)"'])
   })
 })

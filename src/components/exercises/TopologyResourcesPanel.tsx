@@ -1,7 +1,7 @@
 "use client"
 
 import { useWatch, type UseFormReturn } from "react-hook-form"
-import { Gauge, TriangleAlert } from "lucide-react"
+import { Cpu, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -42,10 +42,12 @@ export function TopologyResourcesButton({ form, ...panel }: PanelProps & { form:
     cpu: range(resources.Min.CPUMillicores, resources.Max.CPUMillicores, formatCPU),
     memory: range(resources.Min.MemoryBytes, resources.Max.MemoryBytes, formatMemory),
   })
+  // The mockup's form: an icon chip with the numbers only; the accessible name keeps the full «Ресурси: …».
+  const chip = t("ed.ui.res.chip", { cpu: range(resources.Min.CPUMillicores, resources.Max.CPUMillicores, formatCPU), memory: range(resources.Min.MemoryBytes, resources.Max.MemoryBytes, formatMemory) })
   return <Popover>
     <PopoverTrigger asChild>
-      <Button type="button" variant="outline" className="gap-2" aria-label={pending ? t("exercises.res.buttonPending", { label, count: pending }) : label}>
-        <Gauge aria-hidden="true" className="h-4 w-4" /><span className="hidden lg:inline">{label}</span><span className="lg:hidden">{t("exercises.res.title")}</span>
+      <Button type="button" variant="ghost" size="sm" className="gap-2" aria-label={pending ? t("exercises.res.buttonPending", { label, count: pending }) : label}>
+        <Cpu aria-hidden="true" className="h-4 w-4" /><span>{chip}</span>
         {pending > 0 && <Badge tone="warn" className="gap-1"><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("exercises.res.pendingCount", { count: pending })}</Badge>}
       </Button>
     </PopoverTrigger>

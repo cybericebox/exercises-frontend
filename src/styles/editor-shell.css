@@ -20,3 +20,18 @@
 .editor-vsel-on::after { content:""; position:absolute; left:8px; right:8px; bottom:0; height:2px; border-radius:1px 1px 0 0; background:var(--ib-ink); }
 
 .editor-linked-bar { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:12px; padding:8px 12px; border:1px solid var(--ib-line); border-radius:8px; background:var(--ib-paper); font-size:13px; line-height:1.45; color:var(--ib-dim); }
+
+/* Scrollbars of the editor and its dialogs and menus (owner requirement, as in the mockup): classic 10 px bars in their own
+   gutter, so a bar never covers a control and the content width is the same with or without scrolling. The tab strips hide theirs. */
+:where(.exercise-general-screen [data-scroll], .exercise-general-screen .overflow-y-auto, .exercise-general-screen .overflow-auto, [role="dialog"], [role="dialog"] .overflow-y-auto, [role="menu"]) { scrollbar-gutter: stable; }
+:where(.exercise-general-screen, [role="dialog"], [role="menu"]) *::-webkit-scrollbar,
+:where(.exercise-general-screen, [role="dialog"], [role="menu"])::-webkit-scrollbar { width: 10px; height: 10px; }
+:where(.exercise-general-screen, [role="dialog"], [role="menu"]) *::-webkit-scrollbar-track,
+:where(.exercise-general-screen, [role="dialog"], [role="menu"])::-webkit-scrollbar-track { background: transparent; }
+:where(.exercise-general-screen, [role="dialog"], [role="menu"]) *::-webkit-scrollbar-thumb,
+:where(.exercise-general-screen, [role="dialog"], [role="menu"])::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--ib-faint) 60%, transparent); border: 2px solid transparent; background-clip: content-box; border-radius: 999px; }
+:where(.exercise-general-screen, [role="dialog"], [role="menu"]) *::-webkit-scrollbar-thumb:hover,
+:where(.exercise-general-screen, [role="dialog"], [role="menu"])::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--ib-dim) 80%, transparent); }
+:where(.exercise-general-screen, [role="dialog"], [role="menu"]) *::-webkit-scrollbar-corner { background: transparent; }
+.exercise-general-screen .editor-tablist::-webkit-scrollbar, .exercise-general-screen .editor-tab-group::-webkit-scrollbar { display: none; }
+@supports (-moz-appearance: none) { :where(.exercise-general-screen, [role="dialog"], [role="menu"]), :where(.exercise-general-screen, [role="dialog"], [role="menu"]) * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ib-faint) 60%, transparent) transparent; } }
