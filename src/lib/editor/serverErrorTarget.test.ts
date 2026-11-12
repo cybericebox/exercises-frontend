@@ -23,8 +23,8 @@ describe("serverFieldTargets", () => {
   const one = draft([{ keys: ["scan", "exploit"], devices: ["web", "db"] }])
 
   it("places a device runtime key (23506) on the device of the variant", () => {
-    expect(serverFieldTargets(fail(23506, { device: "db", field: "bootstrap.env[2].name" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Bootstrap", "Env", 2, "Name"]])
-    expect(serverFieldTargets(fail(23506, { device: "web", field: "access[1].port" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 0, "Access", 1, "Port"]])
+    expect(serverFieldTargets(fail(23506, { device: "db", field: "bootstrap.env[3].name" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Bootstrap", "Env", 2, "Name"]])
+    expect(serverFieldTargets(fail(23506, { device: "web", field: "access[2].port" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 0, "Access", 1, "Port"]])
   })
 
   it("places 23105 on the launch profile field", () => {
@@ -33,8 +33,8 @@ describe("serverFieldTargets", () => {
 
   it("places a description or a hint substitution (23519) and the task errors", () => {
     expect(serverFieldTargets(fail(23519, { task: "exploit", field: "description" }), one)).toEqual([["Variants", 0, "Tasks", 1, "Description"]])
-    expect(serverFieldTargets(fail(23519, { task: "scan", field: "hints[1].text" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Hints", 1, "Text"]])
-    expect(serverFieldTargets(fail(23505, { task: "scan", field: "check.state.conditions[2].port.port" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Check", "State", "Conditions", 2, "Port", "Port"]])
+    expect(serverFieldTargets(fail(23519, { task: "scan", field: "hints[2].text" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Hints", 1, "Text"]])
+    expect(serverFieldTargets(fail(23505, { task: "scan", field: "check.state.conditions[3].port.port" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Check", "State", "Conditions", 2, "Port", "Port"]])
     expect(serverFieldTargets(fail(23504, { task: "scan", field: "check.answer.values" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Check", "Answer", "Values"]])
     expect(serverFieldTargets(fail(23501, { task: "scan", key: "scan" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Key"]])
     expect(serverFieldTargets(fail(23502, { task: "scan", key: "scan" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Requires"]])
@@ -42,7 +42,7 @@ describe("serverFieldTargets", () => {
   })
 
   it("places a variable of the schema (23507) and the reverse-connections error (23518)", () => {
-    expect(serverFieldTargets(fail(23507, { field: "variables[1].name" }), one)).toEqual([["Variants", 0, "Topology", "Variables", 1, "Name"]])
+    expect(serverFieldTargets(fail(23507, { field: "variables[2].name" }), one)).toEqual([["Variants", 0, "Topology", "Variables", 1, "Name"]])
     expect(serverFieldTargets(fail(23518, { field: "topology.vpn.reverse_connections" }), one)).toEqual([["Variants", 0, "Topology", "VPN", "ReverseConnections"]])
   })
 
@@ -76,7 +76,7 @@ describe("serverFieldTargets", () => {
     expect(serverFieldTargets(fail(23519, { task: "scan", field: "description", variant: "v0" }), two)).toBeNull()
     expect(serverFieldTargets(fail(23519, { task: "ghost", field: "description", variant: 1 }), two)).toBeNull()
     // a publish error with task and field resolves in the one variant that has them
-    expect(serverFieldTargets(fail(23519, { task: "exploit", field: "hints[0].text" }), draft([{ keys: ["scan", "exploit"] }]))).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
+    expect(serverFieldTargets(fail(23519, { task: "exploit", field: "hints[1].text" }), draft([{ keys: ["scan", "exploit"] }]))).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
   })
 
   it("stays form-level when it cannot be placed reliably", () => {
@@ -113,5 +113,23 @@ describe("withServerErrors", () => {
     const dropped = await resolver({ Name: "b" } as never, undefined, options)
     expect(dropped.errors).toEqual({})
     expect(memory.size).toBe(0)
+  })
+})
+
+describe("publish errors with task, variant and field (daemon counts from 1)", () => {
+  const two = draft([{ keys: ["scan"] }, { keys: ["scan"], linked: true }])
+  const publish = (field: string, variant: number) => fail(23520, { task: "scan", variant, field })
+
+  it("places name, description, a hint by its 1-based number and the answer values on the named variant", () => {
+    expect(serverFieldTargets(publish("name", 1), two)).toEqual([["Variants", 0, "Tasks", 0, "Name"]])
+    expect(serverFieldTargets(publish("description", 2), two)).toEqual([["Variants", 1, "Tasks", 0, "Description"]])
+    expect(serverFieldTargets(publish("hints[1].text", 1), two)).toEqual([["Variants", 0, "Tasks", 0, "Hints", 0, "Text"]])
+    expect(serverFieldTargets(publish("hints[3].text", 2), two)).toEqual([["Variants", 1, "Tasks", 0, "Hints", 2, "Text"]])
+    expect(serverFieldTargets(publish("check.answer.values", 2), two)).toEqual([["Variants", 1, "Tasks", 0, "Check", "Answer", "Values"]])
+  })
+
+  it("does not place hints[0] (the daemon never sends it) or a variant outside the form", () => {
+    expect(serverFieldTargets(publish("hints[0].text", 1), two)).toBeNull()
+    expect(serverFieldTargets(publish("name", 3), two)).toBeNull()
   })
 })

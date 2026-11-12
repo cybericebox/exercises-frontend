@@ -19,14 +19,17 @@ export const pascal = (key: string): string => key.split("_").map((part) => part
 
 type Segment = string | number
 
-/** `a[2].b` -> ["a", 2, "b"]. null when the text has another shape. */
+/** `a[2].b` -> ["a", 1, "b"]: the daemon counts list items from 1 (`hints[1]` is the first hint), the form from 0. null when the text has another shape or an index below 1. */
 function segments(field: string): Segment[] | null {
   const out: Segment[] = []
   for (const part of field.split(".")) {
     const match = /^([a-z_]+)((?:\[\d+\])*)$/.exec(part)
     if (!match) return null
     out.push(match[1])
-    for (const index of match[2].matchAll(/\[(\d+)\]/g)) out.push(Number(index[1]))
+    for (const index of match[2].matchAll(/\[(\d+)\]/g)) {
+      if (Number(index[1]) < 1) return null
+      out.push(Number(index[1]) - 1)
+    }
   }
   return out
 }
@@ -38,7 +41,7 @@ export function taskFieldPath(field: string): Segment[] | null {
   const [head, ...rest] = parts
   if (head === "requires") return typeof rest[0] === "number" ? ["Requires", rest[0]] : ["Requires"]
   if (head === "key" || head === "name" || head === "difficulty" || head === "description") return [pascal(head)]
-  // 23519: `hints[N].text`
+  // `hints[N].text`, N from 1 on the wire
   if (head === "hints") return typeof rest[0] === "number" ? (rest[1] === "text" ? ["Hints", rest[0], "Text"] : ["Hints", rest[0]]) : ["Hints"]
   if (head !== "check") return null
   if (rest[0] === "answer") return rest.length === 1 ? ["Check", "Answer"] : ["Check", "Answer", pascal(String(rest[1]))]
