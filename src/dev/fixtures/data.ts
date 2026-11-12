@@ -17,12 +17,14 @@ const T = (n: number) => `bbbbbbb${n}-0000-4000-8000-00000000000${n}`
 const D = { r1: "ccccccc1-0000-4000-8000-000000000001", r2: "ccccccc2-0000-4000-8000-000000000002", srv: "ccccccc3-0000-4000-8000-000000000003", hub1: "ccccccc4-0000-4000-8000-000000000004", sw1: "ccccccc5-0000-4000-8000-000000000005" }
 const NOW = "2026-11-12T09:00:00Z"
 
-/** A minimal Lexical document with one paragraph per line. */
+/** A minimal Lexical document with one paragraph per line; `{{ph_key}}` becomes a placeholder node, as the editor saves it. */
 export function lexical(text: string) {
-  const paragraph = (line: string) => ({
-    children: line ? [{ detail: 0, format: 0, mode: "normal", style: "", text: line, type: "text", version: 1 }] : [],
-    direction: "ltr", format: "", indent: 0, type: "paragraph", version: 1,
+  const textNode = (value: string) => ({ detail: 0, format: 0, mode: "normal", style: "", text: value, type: "text", version: 1 })
+  const inline = (line: string) => line.split(/(\{\{ph_[A-Za-z0-9_]+\}\})/).filter(Boolean).map((part) => {
+    const token = /^\{\{(ph_[A-Za-z0-9_]+)\}\}$/.exec(part)
+    return token ? { type: "variable", version: 1, varName: token[1] } : textNode(part)
   })
+  const paragraph = (line: string) => ({ children: inline(line), direction: "ltr", format: "", indent: 0, type: "paragraph", version: 1 })
   return { root: { children: text.split("\n").map(paragraph), direction: "ltr", format: "", indent: 0, type: "root", version: 1 } }
 }
 
@@ -122,14 +124,26 @@ function tasks(second: boolean) {
   ]
 }
 
-export function buildDraft() {
+export type DraftShape = "rich" | "needless"
+
+/** `needless`: the linked variant differs only by an answer that reaches the lab (no files, no images), so the list says variants are not needed. */
+function variantTwo(shape: DraftShape) {
+  const second = tasks(true)
+  if (shape === "needless") second[2].Attachments = []
+  return second
+}
+
+export function buildDraft(shape: DraftShape = "rich") {
+  const first = tasks(false)
+  // `needless`: the only answer left reaches the lab, so no variant needs its own answers (the first subtask is a state check).
+  const stateOnly = (list: ReturnType<typeof tasks>) => { if (shape === "needless") list[0].Check = { State: { Mode: "once", Interval: "", Manual: false, Conditions: [] } } as unknown as typeof list[0]["Check"]; return list }
   return {
     ID: FIXTURE_DRAFT_ID, ExerciseID: FIXTURE_EXERCISE_ID, Status: "draft", Label: "",
     Name: "Маршрутизація і сервіс", Description: "Налаштування динамічної маршрутизації між двома маршрутизаторами та пошук прихованого сервісу за ними.", Tags: ["network", "academy"],
     AdminNote: "Образ frr зібрано з FRR 9.1. Перевірити ліміт часу скрипта на r2 перед публікацією.",
     Variants: [
-      { ID: V1, Index: 1, Note: "Основний варіант", Weight: 2, Tasks: tasks(false), Topology: topology() },
-      { ID: V2, Index: 2, Note: "Варіант Б: інший прапор і файл", Weight: 1, LinkedTo: V1, Tasks: tasks(true), Topology: topology() },
+      { ID: V1, Index: 1, Note: "Основний варіант", Weight: 2, Tasks: stateOnly(first), Topology: topology() },
+      { ID: V2, Index: 2, Note: "Варіант Б: інший прапор і файл", Weight: 1, LinkedTo: V1, Tasks: stateOnly(variantTwo(shape)), Topology: topology() },
     ],
     Resources: {
       Min: { CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 }, Max: { CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 },
@@ -208,8 +222,37 @@ export const FIXTURE_IMAGE_SERVICES = (images: string[]) => images.map((Image, i
   ? { Image, Known: false, Entrypoint: [], Cmd: [], User: "", WorkingDir: "" }
   : { Image, Known: true, Entrypoint: ["/usr/lib/frr/docker-start"], Cmd: ["/usr/lib/frr/watchfrr.sh"], User: "frr", WorkingDir: "/" })
 
-/** An import preview with a problem, a warning and a diff, to see the report. */
-export function buildImportPreview() {
+export type ImportKind = "update" | "new" | "blocked"
+
+/** An import preview with a problem, a warning and a diff, to see the report. `new`: the document has no exercise id, everything is added; `blocked`: events that would lose answered tasks. */
+export function buildImportPreview(kind: ImportKind = "update") {
+  const preview = buildUpdatePreview()
+  const item = preview.Items[0]
+  if (kind === "new") {
+    item.SuggestedTarget = { ItemKey: "item-1", Mode: "new" } as typeof item.SuggestedTarget
+    item.Target = { ItemKey: "item-1", Mode: "new" } as typeof item.Target
+    item.TargetExercise = null as unknown as typeof item.TargetExercise
+    item.SourceExerciseID = null as unknown as string
+    item.ReplacesDraft = false
+    item.Report = {
+      Diff: { Variants: [
+        { Status: "added", Position: 1, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Протокол маршрутизації", Key: "theory" }, { Name: "Налаштуйте OSPF", Key: "ospf" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "r1" }, { Name: "r2" }], Removed: [] } },
+        { Status: "added", Position: 2, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Знайдіть прапор", Key: "secret" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "srv" }], Removed: [] } },
+      ] },
+      Issues: [], Publishable: true, Warnings: [{ Code: "no_exercise_id" }], Usage: { Events: [], TestDeploys: 0 },
+    } as unknown as typeof item.Report
+  }
+  if (kind === "blocked") {
+    item.Report.Usage = { Events: [
+      { EventID: FIXTURE_EVENT_ID, Name: "Весняний захід", Archived: false, VersionPublished: true, RunningLabs: 2, Removed: [{ Name: "Налаштуйте OSPF", Attempts: 12, Solves: 4 }], Added: [], VariantMissing: false, Blocked: true },
+      { EventID: "44444444-4444-4444-8444-444444444444", Name: "Минулорічний захід", Archived: true, VersionPublished: false, RunningLabs: 0, Removed: [], Added: [], VariantMissing: true, Blocked: true },
+    ], TestDeploys: 0 } as unknown as typeof item.Report.Usage
+    item.Report.Warnings = [{ Code: "removed_task_has_attempts", Context: { event: "Весняний захід", task: "Налаштуйте OSPF", attempts: 12, solves: 4 } }, { Code: "used_by_events", Context: { events: 2 } }] as unknown as typeof item.Report.Warnings
+  }
+  return preview
+}
+
+function buildUpdatePreview() {
   return {
     Items: [{
       ItemKey: "item-1", SourceExerciseID: FIXTURE_EXERCISE_ID, Name: "Маршрутизація і сервіс", SourceVersion: { Position: 1, Status: "published" },
