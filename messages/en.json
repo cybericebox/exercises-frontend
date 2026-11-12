@@ -113,7 +113,7 @@
   "admin.exPage.action.snapshot": "Take snapshot",
   "admin.exPage.action.revert": "Discard changes",
   "admin.exPage.action.revertHint": "Return the working copy to the published version",
-  "admin.exPage.action.export": "Export…",
+  "admin.exPage.action.export": "Export",
   "admin.exPage.action.archive": "Archive",
   "admin.exPage.action.unarchive": "Unarchive",
   "admin.exPage.action.unarchiving": "Unarchiving…",

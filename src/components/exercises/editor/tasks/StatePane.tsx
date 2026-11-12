@@ -146,8 +146,8 @@ function ConditionRow({ variantIndex, taskIndex, index, count, condition, open, 
           <span className="min-w-40 flex-1 sm:max-w-64"><ChoiceControl path={`${base}.Kind`} ariaLabel={t("ed.b.cond.kindN", { n })} disabled={disabled} options={kindOptions} value={condition.Kind}
             onChoose={(kind) => setValue(base as never, withKind(getValues(base as never) as unknown as ConditionFormValues, kind as ConditionFormValues["Kind"]) as never, { shouldDirty: true })} /></span>
           <FieldHelp help={{
-            intro: [t("ed.b.cond.kind.help"), t("ed.b.cond.device.help")],
-            items: OBSERVATION_KINDS.map((kind) => ({ term: t(`ed.b.cond.kind.${KIND_SPEC[kind].stem}`), text: t(KIND_SPEC[kind].runsCode ? "ed.b.cond.kind.runs" : "ed.b.cond.kind.reads") })),
+            intro: [t("ed.b.cond.kind.help"), t("ed.b.cond.device.help"), t("ed.b.cond.kind.readOnly")],
+            items: OBSERVATION_KINDS.filter((kind) => KIND_SPEC[kind].runsCode).map((kind) => ({ term: t(`ed.b.cond.kind.${KIND_SPEC[kind].stem}`), text: t("ed.b.cond.kind.runs") })),
             default: t("ed.b.cond.kind.default"),
           }} />
           {!disabled && <RowActions actions={actions} className="ml-auto opacity-100" />}

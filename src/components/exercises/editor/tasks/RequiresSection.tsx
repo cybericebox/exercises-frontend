@@ -40,12 +40,11 @@ export function RequiresSection({ variantIndex, taskIndex, disabled }: { variant
       })}
       {selected.length === 0 && disabled && <span className="text-sm text-muted-foreground">{t("ed.b.requires.none")}</span>}
       {!disabled && <>
-        <CheckMenu label={t("ed.b.requires.add")} values={selected} className="h-8 w-auto gap-2" menuClassName="min-w-72 max-h-72 overflow-y-auto" onToggle={toggle}
+        <CheckMenu label={t("ed.b.requires.add")} values={selected} disabled={eligible.length === 0 && selected.length === 0} className="h-8 w-auto gap-2" menuClassName="min-w-72 max-h-72 overflow-y-auto" onToggle={toggle}
           options={eligible.map((position) => ({ value: tasks[position].Key, label: `${position + 1}. ${nameOf(position)}` }))} />
         {previous && <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => toggle(previous.Key, true)}>{t("ed.b.requires.afterPrevious")}</Button>}
       </>}
     </div>
-    {!disabled && eligible.length === 0 && <p className="text-xs text-muted-foreground">{t("ed.b.requires.noneEligible")}</p>}
     <RequiresErrors variantIndex={variantIndex} taskIndex={taskIndex} count={selected.length} />
   </section>
 }
