@@ -142,13 +142,6 @@ function MoreMenu(props: ExerciseHeaderProps) {
       </DropdownMenuTrigger>
     </HoverTooltip>
     <DropdownMenuContent align="end" className="w-72">
-      {props.testAvailable && <>
-        <DropdownMenuGroup aria-label={t("admin.exPage.action.test")} className="general-phone-test">
-          <DropdownMenuItem className="gap-2" disabled={busy || Boolean(props.testBlocked)} onSelect={props.onTest}><Play aria-hidden="true" className={ICON} />{t("admin.exPage.action.test")}</DropdownMenuItem>
-          {props.testBlockedReason && <p className="px-2 text-xs text-muted-foreground">{props.testBlockedReason}</p>}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator className="general-phone-test" />
-      </>}
       {props.onDocument && <>
         <DropdownMenuGroup aria-label={t("ed.shell.menu.documentTitle")}>
           <DropdownMenuItem className="gap-2" onSelect={props.onDocument}><FileCode aria-hidden="true" className={ICON} />{t("ed.shell.menu.document")}</DropdownMenuItem>
@@ -219,7 +212,7 @@ export function ExerciseHeader(props: ExerciseHeaderProps) {
     {mode !== "readonly" && mode !== "version" && <div className="general-primary-actions">
       {created && testAvailable && <span className="general-direct-test">{(() => {
         const button = <Button type="button" variant="outline" disabled={busy || Boolean(props.testBlocked)} onClick={props.onTest}>
-          <Play aria-hidden="true" className={cn(ICON, "mr-1.5")} />{t("admin.exPage.action.test")}
+          <Play aria-hidden="true" className={cn(ICON, "mr-1.5 general-test-icon")} /><span className="general-test-label">{t("admin.exPage.action.test")}</span>
         </Button>
         return props.testBlockedReason ? <HoverTooltip text={props.testBlockedReason} describe>{button}</HoverTooltip> : button
       })()}</span>}
