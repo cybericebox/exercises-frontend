@@ -111,13 +111,17 @@ export function EditorProvider({ form, exerciseId, disabled, infrastructureBlock
   const [, setDeviceSection] = useEditorPosition("deviceSection")
   const [dialog, setDialog] = useState<EditorDialogName | null>(null)
   const [issues, setIssues] = useState<IssuesState | null>(null)
-  const variantCount = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => variants.length })
+  // Only the link structure of ALL variants, as one string: a keystroke inside a variant leaves it equal (no re-render),
+  // and nothing here closes over the current variant, so a change of the current variant is always seen (useWatch's
+  // `compute` is not re-run when only its closure changes).
+  const links = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => JSON.stringify(variants.map((v) => [v.ID, v.LinkedTo])) })
+  const pairs = useMemo(() => JSON.parse(links) as [string, string][], [links])
+  const variantCount = pairs.length
   const variantIndex = Math.min(variant, Math.max(variantCount - 1, 0))
-  // Only the link structure: a keystroke inside a variant leaves it equal, so no re-render.
-  const baseIndex = useWatch({ control: form.control, name: "Variants", compute: (variants: DraftFormValues["Variants"]) => {
-    const linkedTo = variants[variantIndex]?.LinkedTo
-    return linkedTo ? variants.findIndex((candidate) => candidate.ID !== "" && candidate.ID === linkedTo) : -1
-  } })
+  const baseIndex = useMemo(() => {
+    const linkedTo = pairs[variantIndex]?.[1]
+    return linkedTo ? pairs.findIndex(([id]) => id !== "" && id === linkedTo) : -1
+  }, [pairs, variantIndex])
 
   const selectVariant = useCallback((index: number) => setVariant(index), [setVariant])
   const goTo = useCallback((target: EditorTarget) => {
