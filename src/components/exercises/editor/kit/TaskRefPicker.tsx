@@ -1,6 +1,6 @@
 "use client"
 
-import { Braces } from "lucide-react"
+import { Braces, Plus } from "lucide-react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -16,13 +16,15 @@ import { taskRefOptions } from "./taskRefs"
  * `{{var.<name>}}`) to put into the text. Only tasks with an answer are offered: a state check has no answer to insert.
  * The menu keeps the focus of the field it belongs to, so the caret is not lost.
  */
-export function TaskRefPicker({ variantIndex, onPick, disabled = false, className, excludeTaskKey }: {
+export function TaskRefPicker({ variantIndex, onPick, disabled = false, className, excludeTaskKey, onNewVariable }: {
   variantIndex: number
   onPick: (token: string) => void
   disabled?: boolean
   className?: string
   /** A task that must not be offered (the task being edited, where it has no sense). */
   excludeTaskKey?: string
+  /** Adds «Нова змінна схеми» to the menu: the owner opens its dialog and inserts the token of the new variable. */
+  onNewVariable?: () => void
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
@@ -51,6 +53,10 @@ export function TaskRefPicker({ variantIndex, onPick, disabled = false, classNam
       {vars.map((variable) => <DropdownMenuItem key={variable.Name} onSelect={() => onPick(`{{var.${variable.Name}}}`)}>
         <span className="min-w-0 truncate">{t("ed.b.ref.variable", { name: variable.Name })}</span>
       </DropdownMenuItem>)}
+      {onNewVariable && <>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onNewVariable}><Plus aria-hidden="true" className="mr-2 h-4 w-4" />{t("ed.c.ref.newVariable")}</DropdownMenuItem>
+      </>}
     </DropdownMenuContent>
   </DropdownMenu>
 }
