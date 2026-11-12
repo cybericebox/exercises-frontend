@@ -31,6 +31,7 @@
   "ed.a.general.note.helpDefault": "Учасники й читачі каталогу її не бачать.",
   "ed.a.general.note.helpIntro": "Внутрішня нотатка до цієї версії завдання. Її бачать лише автори з повним доступом.",
   "ed.a.general.note.label": "Нотатка адміністратора",
+  "ed.a.general.tags.create": "Створити тег «{tag}»",
   "ed.a.general.tags.empty": "Теги не додано",
   "ed.a.general.tags.helpDefault": "Типово без тегів.",
   "ed.a.general.tags.helpIntro": "Теги допомагають знайти завдання в каталозі.",

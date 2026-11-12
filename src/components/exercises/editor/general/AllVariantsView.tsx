@@ -304,7 +304,7 @@ export function AllVariantsView() {
         return <div role="listitem" key={key} data-variant-row={index + 1}>
           <ExpandableRow open={isOpen} onOpenChange={(value) => toggle(key, value)} ariaLabel={t("ed.a.variants.rowLabel", { n: index + 1 })}
             summary={<div className="ea-vgrid">
-              <span className={cn("flex min-w-0 items-center gap-2 text-sm", linked && "ea-linked")}><span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded bg-muted px-1 text-xs font-semibold tabular-nums text-foreground">{index + 1}</span><span className="truncate font-medium text-foreground">{kind}</span></span>
+              <span className="flex min-w-0 items-center gap-2 text-sm"><span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded bg-muted px-1 text-xs font-semibold tabular-nums text-foreground">{index + 1}</span><span className="truncate font-medium text-foreground">{kind}</span></span>
               <WeightField index={index} value={variant.Weight} share={shares[index]} disabled={disabled} />
               <p className="min-w-0 text-[13.5px] text-muted-foreground" id={`ea-summary-${index}`}>{variantSummary(variants, index, t)}</p>
               <DropdownMenu>
