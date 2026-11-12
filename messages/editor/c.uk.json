@@ -377,7 +377,7 @@
   "ed.c.ph.varName": "db_password",
   "ed.c.profile.container": "Контейнер",
   "ed.c.profile.containerHelp": "Звичайний застосунок в ізольованому контейнері.",
-  "ed.c.profile.microvm": "Мікро-VM",
+  "ed.c.profile.microvm": "МікроВМ (Kata Containers)",
   "ed.c.profile.microvmHelp": "Окреме ядро для пристроїв, яким потрібна повна ізоляція.",
   "ed.c.profile.soon": "Незабаром",
   "ed.c.profile.vm": "Віртуальна машина",

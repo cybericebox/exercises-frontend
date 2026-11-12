@@ -377,7 +377,7 @@
   "ed.c.ph.varName": "db_password",
   "ed.c.profile.container": "Container",
   "ed.c.profile.containerHelp": "An ordinary application in an isolated container.",
-  "ed.c.profile.microvm": "Micro-VM",
+  "ed.c.profile.microvm": "MicroVM (Kata Containers)",
   "ed.c.profile.microvmHelp": "A separate kernel for devices that need full isolation.",
   "ed.c.profile.soon": "Coming soon",
   "ed.c.profile.vm": "Virtual machine",

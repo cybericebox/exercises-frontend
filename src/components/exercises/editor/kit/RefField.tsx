@@ -180,9 +180,9 @@ export const RefField = forwardRef<HTMLInputElement & HTMLTextAreaElement, RefFi
     </div>
     {multiline
       ? <textarea {...(rest as object)} {...(handlers as object)} ref={setRef as Ref<HTMLTextAreaElement>} rows={rows} wrap="off" value={shown} disabled={disabled} spellCheck={false} autoComplete="off"
-        className={cn(font, "resize-y overflow-auto py-2 text-transparent caret-foreground placeholder:text-placeholder", padRight)} style={{ minHeight: `calc(${rows}lh + 1rem)` }} />
+        className={cn(font, "resize-y overflow-auto py-2 text-transparent [-webkit-text-fill-color:transparent] placeholder:[-webkit-text-fill-color:currentcolor] caret-foreground placeholder:text-placeholder", padRight)} style={{ minHeight: `calc(${rows}lh + 1rem)` }} />
       : <input {...rest} {...handlers} ref={setRef as Ref<HTMLInputElement>} type="text" value={shown} disabled={disabled} spellCheck={false} autoComplete="off"
-        className={cn(font, "h-[34px] py-[7px] placeholder:text-placeholder", hasTokens || shown !== "" ? "text-transparent caret-foreground" : "", padRight)} />}
+        className={cn(font, "h-[34px] py-[7px] placeholder:text-placeholder", hasTokens || shown !== "" ? "text-transparent [-webkit-text-fill-color:transparent] placeholder:[-webkit-text-fill-color:currentcolor] caret-foreground" : "", padRight)} />}
     {toolbar}
   </div>
 })

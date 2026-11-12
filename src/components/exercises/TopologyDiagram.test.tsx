@@ -34,6 +34,14 @@ const topology: TopologyFormValues = {
 }
 
 describe('TopologyDiagram', () => {
+  it('draws the outline of the VPN gateway along its shield, not as a rectangle', () => {
+    const { container } = render(<TopologyDiagram topology={topology} selectedNodes={['vpn']} />)
+    const outline = container.querySelector('[data-testid="node-vpn"] [data-selection-outline]')!
+    expect(outline.tagName.toLowerCase()).toBe('path')
+    expect(outline).toHaveClass('stroke-primary')
+    expect(container.querySelector('[data-testid="node-d2"] [data-selection-outline]')!.tagName.toLowerCase()).toBe('rect')
+  })
+
   it('marks the stage of a node with an outline and a mark that has an icon and a title, not colour alone', () => {
     const { container } = render(<TopologyDiagram topology={topology} nodeStatus={{ d1: 'ready', d2: 'failed' }} />)
     const ready = container.querySelector('[data-testid="node-d1"] [data-node-status="ready"]')!
