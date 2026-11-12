@@ -76,7 +76,7 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
     const init = [device.Bootstrap.Files.length ? t("ed.c.panel.files", { n: device.Bootstrap.Files.length }) : "", device.Bootstrap.Script ? t("ed.c.panel.script") : ""].filter(Boolean)
     const service = [device.Command.length ? t("ed.c.panel.ownCommand") : t("ed.c.panel.imageCommand"), device.Bootstrap.Env.length ? t("ed.c.panel.vars", { n: device.Bootstrap.Env.length }) : t("ed.c.panel.noVars"),
       [device.WaitReadyFile ? t("ed.c.panel.readySignal") : "", profileKeepsState(device.Profile) && device.Persistence?.Enabled ? t("ed.c.panel.persist") : ""].filter(Boolean).join(", ")].filter(Boolean)
-    const access = device.Access.map((entry) => entry.Kind === "http" ? t("ed.c.panel.accessWeb", { protocol: entry.Protocol, port: entry.Port }) : entry.Kind === "terminal" ? t(entry.Files ? "ed.c.panel.accessTerminalFiles" : "ed.c.panel.accessTerminal") : entry.Kind.toUpperCase())
+    const access = device.Access.map((entry) => entry.Kind === "http" ? t("ed.c.panel.accessWeb", { protocol: entry.Protocol, port: entry.Port }) : entry.Kind === "terminal" ? t("ed.c.panel.accessTerminal") : entry.Kind.toUpperCase())
     const related = tasks.flatMap((task, index) => {
       if (!task.Key && task.Check?.Kind !== "state") return []
       const parts: string[] = []

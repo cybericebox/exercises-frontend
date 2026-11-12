@@ -65,7 +65,7 @@ describe("device access", () => {
   })
 
   it("lets an unsupported entry that is already there be switched off", () => {
-    renderAccess({ access: [{ Kind: "terminal", Port: "", Protocol: "http", Command: "", User: "", Files: false }], caps: capabilities({ Access: { http: "all", terminal: "none", vnc: "none", rdp: "none" } }) })
+    renderAccess({ access: [{ Kind: "terminal", Port: "", Protocol: "http", Command: "", User: "" }], caps: capabilities({ Access: { http: "all", terminal: "none", vnc: "none", rdp: "none" } }) })
     const toggle = screen.getByRole("switch", { name: "ed.c.access.terminal" })
     expect(toggle).toBeEnabled()
     fireEvent.click(toggle)
@@ -84,37 +84,8 @@ describe("device access", () => {
   })
 
   it("is read-only when disabled", () => {
-    renderAccess({ disabled: true, access: [{ Kind: "http", Port: "80", Protocol: "http", Command: "", User: "", Files: false }] })
+    renderAccess({ disabled: true, access: [{ Kind: "http", Port: "80", Protocol: "http", Command: "", User: "" }] })
     expect(screen.getByRole("switch", { name: "ed.c.access.web" })).toBeDisabled()
     expect(screen.getByRole("spinbutton", { name: /ed.c.access.port/ })).toBeDisabled()
-  })
-
-  describe("file transfer through the console", () => {
-    const filesSwitch = () => screen.queryByRole("switch", { name: "ed.c.access.files" })
-    const terminalOn = (extra: object = {}) => ({ Kind: "terminal" as const, Port: "", Protocol: "http" as const, Command: "", User: "", Files: false, ...extra })
-
-    it("is a plain switch row inside the terminal block, off by default, absent while the terminal is off", () => {
-      const { container } = render(<FormHarness draft={draftWith([device()])}><AccessSection variantIndex={0} deviceIndex={0} disabled={false} /><Values path="Variants.0.Topology.Devices.0.Access" /></FormHarness>)
-      expect(filesSwitch()).toBeNull()
-      fireEvent.click(screen.getByRole("switch", { name: "ed.c.access.terminal" }))
-      expect(filesSwitch()).toHaveAttribute("aria-checked", "false")
-      expect(container.querySelectorAll("[data-switch-block] [data-switch-block]")).toHaveLength(1)
-      fireEvent.click(filesSwitch()!)
-      expect(readValues()).toMatchObject([{ Kind: "terminal", Files: true }])
-    })
-
-    it("is absent for the vm profile and when no laboratory can transfer files", () => {
-      render(<FormHarness draft={draftWith([device({ Profile: "vm", Access: [terminalOn()] })])}><AccessSection variantIndex={0} deviceIndex={0} disabled={false} /></FormHarness>)
-      expect(filesSwitch()).toBeNull()
-    })
-
-    it("none removes the switch, some puts the note into the help", () => {
-      const none = render(<FormHarness draft={draftWith([device({ Access: [terminalOn()] })])} caps={capabilities({ TerminalFiles: "none" })}><AccessSection variantIndex={0} deviceIndex={0} disabled={false} /></FormHarness>)
-      expect(filesSwitch()).toBeNull()
-      none.unmount()
-      render(<FormHarness draft={draftWith([device({ Access: [terminalOn()] })])} caps={capabilities({ TerminalFiles: "some" })}><AccessSection variantIndex={0} deviceIndex={0} disabled={false} /></FormHarness>)
-      expect(filesSwitch()).toBeInTheDocument()
-      expect(screen.getAllByText(/ed\.ui\.lab\.some/).length).toBeGreaterThan(0)
-    })
   })
 })

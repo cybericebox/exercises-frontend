@@ -127,4 +127,14 @@ describe("interfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: /ed.ui.expand: eth0/ }))
     expect(screen.getByRole("textbox", { name: /ed.c.net.ifaceName/ })).toBeDisabled()
   })
+
+  it("gives the name label and the mode label the same spacing, so both controls start on one line", () => {
+    renderNetwork([iface("eth0")])
+    fireEvent.click(document.querySelector("[data-expandable-row] button[aria-expanded]")!)
+    const form = document.querySelector("[data-interface-form]")!
+    const name = form.querySelector("label[for$='Name']")!.parentElement!
+    const mode = form.querySelector("label[for$='Type']")!.parentElement!
+    expect(name.className).toContain("mb-1")
+    expect(mode.className).toContain("mb-1")
+  })
 })

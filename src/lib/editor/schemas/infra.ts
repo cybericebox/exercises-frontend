@@ -89,7 +89,7 @@ export const profileKeepsState = (profile: string): boolean => profile === "cont
 export type PersistenceFormValues = { Enabled: boolean; Debounce: string }
 
 /** One entry of the access list; Port is typed text ("" = not set). */
-export type AccessFormEntry = { Kind: AccessKind; Port: string; Protocol: AccessProtocol; Command: string; User: string; Files: boolean }
+export type AccessFormEntry = { Kind: AccessKind; Port: string; Protocol: AccessProtocol; Command: string; User: string }
 
 /** A file placed before the service starts: typed text or an uploaded file. */
 export type BootstrapFileForm = {
@@ -233,7 +233,6 @@ const accessSchema = z.object({
   Protocol: z.enum(["http", "https"]),
   Command: z.string(),
   User: z.string(),
-  Files: z.boolean(),
 }).superRefine((entry, ctx) => {
   if (entry.Kind === "terminal") {
     if (entry.Command && !entry.Command.startsWith("/")) ctx.addIssue({ code: "custom", path: ["Command"], message: t("ed.c.val.terminalCommand") })
@@ -497,7 +496,6 @@ export const emptyAccess = (kind: AccessKind): AccessFormEntry => ({
   Protocol: "http",
   Command: "",
   User: "",
-  Files: false,
 })
 
 export const emptyBootstrapFile = (): BootstrapFileForm => ({ Path: "", From: "text", Content: "", Source: null, Owner: "", Group: "", Mode: "" })
@@ -543,7 +541,7 @@ export function deviceToForm(d: NormalizedDevice): DeviceFormValues {
     ...d,
     ResourcePreset: d.ResourcePreset ?? "",
     Interfaces: d.Interfaces.map((iface) => ({ ...iface, IP: { ...iface.IP, Routes: iface.IP.Routes ?? [] } })),
-    Access: d.Access.map((entry) => ({ Kind: entry.Kind, Port: entry.Port ? String(entry.Port) : "", Protocol: entry.Protocol === "https" ? "https" : "http", Command: entry.Command ?? "", User: entry.User ?? "", Files: entry.Files === true })),
+    Access: d.Access.map((entry) => ({ Kind: entry.Kind, Port: entry.Port ? String(entry.Port) : "", Protocol: entry.Protocol === "https" ? "https" : "http", Command: entry.Command ?? "", User: entry.User ?? "" })),
     Bootstrap: {
       ...d.Bootstrap,
       Files: d.Bootstrap.Files.map((file) => ({ Path: file.Path, From: file.Source ? "file" : "text", Content: file.Content, Source: file.Source ?? null, Owner: file.Owner, Group: file.Group, Mode: file.Mode })),
@@ -629,7 +627,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...(d.Access.length ? { Access: d.Access.map((entry) => ({
       Kind: entry.Kind,
       ...(entry.Kind === "terminal"
-        ? { ...(entry.Command ? { Command: entry.Command } : {}), ...(entry.User ? { User: entry.User } : {}), ...(entry.Files && d.Profile !== "vm" ? { Files: true } : {}) }
+        ? { ...(entry.Command ? { Command: entry.Command } : {}), ...(entry.User ? { User: entry.User } : {}) }
         : { Port: Number(entry.Port), ...(entry.Kind === "http" && entry.Protocol === "https" ? { Protocol: "https" as const } : {}) }),
     })) } : {}),
     ...(d.Command.length ? { Command: d.Command } : {}),

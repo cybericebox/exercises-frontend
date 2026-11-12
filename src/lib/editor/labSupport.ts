@@ -16,7 +16,6 @@ export type LabKind =
   | "bootstrap"
   | "checks"
   | "vpnReverse"
-  | "terminalFiles"
 
 export type LabSupport = { state: "ok" | "warn" | "disabled"; reason: string }
 
@@ -28,7 +27,6 @@ function valueOf(caps: LabCapabilities, kind: LabKind): LabSupportValue {
   if (kind === "bootstrap") return caps.Bootstrap
   if (kind === "checks") return caps.Checks
   if (kind === "vpnReverse") return caps.VPNReverse
-  if (kind === "terminalFiles") return caps.TerminalFiles ?? "unknown"
   if ("observation" in kind) {
     const key = kind.observation === "file.type" || kind.observation === "file.checksum" ? kind.observation : OBSERVATION_WIRE[kind.observation]
     return caps.Observations[key]
