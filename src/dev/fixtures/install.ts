@@ -99,7 +99,12 @@ export function installFixtures(): void {
     if (path === "/api/exercises/flag-policy") return json({ RandomHexLength: 16, RandomBits: 64, WarningBits: 24 })
     if (path === "/api/exercises/test-runs/lengths") return json({ AllowedMinutes: [30, 60, 120], DefaultMinutes: 60 })
     if (path === "/api/exercises/preferences/catalog-columns") return json(method === "PUT" ? body : [])
-    if (path === "/api/exercises/tags" || path === "/api/exercises/authors" || path === "/api/exercises/proposals" || path === "/api/exercises/bookings" || path === "/api/exercises/import/jobs") return json([])
+    if (path === "/api/exercises/tags") {
+      // The tags that exist in the catalog, most used first; the daemon matches the prefix.
+      const prefix = (url.searchParams.get("prefix") ?? "").toLowerCase()
+      return json([{ Tag: "web", Count: 14 }, { Tag: "network", Count: 9 }, { Tag: "routing", Count: 6 }, { Tag: "crypto", Count: 5 }, { Tag: "forensics", Count: 3 }, { Tag: "ospf", Count: 2 }].filter(({ Tag }) => Tag.startsWith(prefix)))
+    }
+    if (path === "/api/exercises/authors" || path === "/api/exercises/proposals" || path === "/api/exercises/bookings" || path === "/api/exercises/import/jobs") return json([])
     if (path === "/api/exercises" && method === "GET") return json({ Items: [buildListItem()], Total: 1, Page: 1, PageSize: 20 })
     if (path === "/api/events") return json({ Items: [], Total: 0, Page: 1, PageSize: 20 })
     if (path.startsWith("/api/notifications/")) return json(path.endsWith("/inbox") ? { Items: [], Unread: 0 } : path.endsWith("/pulse") ? { Unread: 0 } : [])

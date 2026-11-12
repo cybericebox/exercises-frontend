@@ -31,6 +31,7 @@
   "ed.a.general.note.helpDefault": "Participants and catalog readers never see it.",
   "ed.a.general.note.helpIntro": "An internal note for this version of the task. Only authors with full access see it.",
   "ed.a.general.note.label": "Administrator note",
+  "ed.a.general.tags.create": "Create tag “{tag}”",
   "ed.a.general.tags.empty": "No tags",
   "ed.a.general.tags.helpDefault": "No tags by default.",
   "ed.a.general.tags.helpIntro": "Tags help find the task in the catalog.",

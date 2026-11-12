@@ -22,6 +22,8 @@ export function TagInput({
   draftValue,
   onDraftValueChange,
   suggestions,
+  createLabel,
+  onFocusChange,
   "aria-describedby": describedBy,
   "aria-invalid": invalid,
 }: {
@@ -37,7 +39,12 @@ export function TagInput({
   draftValue?: string
   onDraftValueChange?: (value: string) => void
   suggestions?: { Tag: string; Count: number }[]
+  /** Label of the «new tag» row that ends the list when the typed text is not an existing tag. */
+  createLabel?: (tag: string) => string
+  /** The field gained or lost focus: the owner loads the list of existing tags on the first focus. */
+  onFocusChange?: (focused: boolean) => void
 }) {
+  const [focused, setFocused] = useState(false)
   const [internalDraft, setInternalDraft] = useState("")
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
@@ -46,10 +53,16 @@ export function TagInput({
   const [position, setPosition] = useState<{ left: number; top: number; width: number; maxHeight: number; above: boolean } | null>(null)
   const draft = draftValue ?? internalDraft
   const setDraft = onDraftValueChange ?? setInternalDraft
+  // An empty field in focus lists the existing tags (most used first); typing narrows the list to the tags that start with it.
+  const typed = draft.trim().toLocaleLowerCase()
   const matchingSuggestions = suggestions?.filter(({ Tag }) =>
-    draft.trim() && Tag.toLocaleLowerCase().startsWith(draft.trim().toLocaleLowerCase()) &&
+    (typed ? Tag.toLocaleLowerCase().startsWith(typed) : focused) &&
     !value.some((selected) => selected.toLocaleLowerCase() === Tag.toLocaleLowerCase())) ?? []
-  const showSuggestions = !suggestionsDismissed && matchingSuggestions.length > 0
+  const canCreate = Boolean(createLabel && typed && !value.some((selected) => selected.toLocaleLowerCase() === typed) &&
+    !suggestions?.some(({ Tag }) => Tag.toLocaleLowerCase() === typed))
+  // The «new tag» row is the last option; its index is matchingSuggestions.length.
+  const optionCount = matchingSuggestions.length + (canCreate ? 1 : 0)
+  const showSuggestions = !suggestionsDismissed && (focused || typed !== "") && optionCount > 0
 
   useLayoutEffect(() => {
     if (!showSuggestions) return
@@ -110,12 +123,12 @@ export function TagInput({
         onKeyDown={(e) => {
           if (e.key === "ArrowDown" && showSuggestions) {
             e.preventDefault()
-            setActiveSuggestion((current) => (current + 1) % matchingSuggestions.length)
+            setActiveSuggestion((current) => (current + 1) % optionCount)
             return
           }
           if (e.key === "ArrowUp" && showSuggestions) {
             e.preventDefault()
-            setActiveSuggestion((current) => current <= 0 ? matchingSuggestions.length - 1 : current - 1)
+            setActiveSuggestion((current) => current <= 0 ? optionCount - 1 : current - 1)
             return
           }
           if (e.key === "Escape" && showSuggestions) {
@@ -127,13 +140,14 @@ export function TagInput({
           if (e.key === "Enter" || e.key === ",") {
             e.preventDefault()
             commit(e.key === "Enter" && showSuggestions && activeSuggestion >= 0
-              ? matchingSuggestions[activeSuggestion].Tag : undefined)
+              ? matchingSuggestions[activeSuggestion]?.Tag : undefined)
           }
           if (e.key === "Backspace" && draft === "" && value.length > 0) {
             onChange(value.slice(0, -1))
           }
         }}
-        onBlur={() => commit()}
+        onFocus={() => { setFocused(true); setSuggestionsDismissed(false); onFocusChange?.(true) }}
+        onBlur={() => { setFocused(false); onFocusChange?.(false); commit() }}
         placeholder={disabled ? undefined : placeholder ?? t("admin.ex.tagHint")}
         className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-placeholder"
       />
@@ -143,6 +157,10 @@ export function TagInput({
         onPointerDown={(event) => { event.preventDefault(); commit(Tag) }}
         className={cn("flex cursor-pointer items-center justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-[var(--ib-hover)]", activeSuggestion === index && "bg-[var(--ib-soft)]")}
       ><span>{Tag}</span><span className="text-xs text-muted-foreground">· {Count}</span></div>)}
+      {canCreate && createLabel && <div id={`${listId}-${matchingSuggestions.length}`} role="option" aria-selected={activeSuggestion === matchingSuggestions.length}
+        onPointerDown={(event) => { event.preventDefault(); commit() }}
+        className={cn("flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-[var(--ib-hover)]", matchingSuggestions.length > 0 && "border-t border-border", activeSuggestion === matchingSuggestions.length && "bg-[var(--ib-soft)]")}
+      >{createLabel(draft.trim())}</div>}
     </div>, document.body)}
     </div>
   )

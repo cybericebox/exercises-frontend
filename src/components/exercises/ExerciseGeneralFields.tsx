@@ -45,9 +45,11 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
   const [pendingTag, setPendingTag] = useState("")
   const [tagSuggestions, setTagSuggestions] = useState<ExerciseTagSuggestion[]>([])
 
+  // The existing tags load on the first focus of the field (most used first), then narrow by what is typed.
+  const [tagsTouched, setTagsTouched] = useState(false)
   useEffect(() => {
+    if (!tagsTouched) return
     const prefix = pendingTag.trim()
-    if (!prefix) return
     let cancelled = false
     const timer = window.setTimeout(() => {
       void listExerciseTags(prefix).then((items) => {
@@ -57,7 +59,7 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
       })
     }, 200)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [pendingTag])
+  }, [pendingTag, tagsTouched])
 
   const tagError = errors.Tags
   const tagErrorMessage = Array.isArray(tagError)
@@ -81,7 +83,8 @@ export function ExerciseGeneralFields({ identityForm, draftForm, disabled, autoF
       {readOnly ? <GeneralSectionHeading field="tags" /> : <FieldLabel text={t("ed.a.general.tags.label")} htmlFor="exercise-tags" help={helpOf("tags")} />}
       {readOnly ? <div className="general-read-box general-read-tags" data-read-field>{tags.length ? tags.map((tag) => <span key={tag} className="general-tag">{tag}</span>) : <span className="text-sm text-muted-foreground">{t("ed.a.general.tags.empty")}</span>}</div> : <>
         <TagInput disabled={disabled} id="exercise-tags" value={tags} onChange={(nextTags) => identityForm.setValue("Tags", nextTags, { shouldValidate: true })} aria-invalid={Boolean(tagErrorMessage)} aria-describedby={tagErrorMessage ? "fe-Tags-error" : undefined}
-          draftValue={pendingTag} suggestions={tagSuggestions} onDraftValueChange={setPendingTag} />
+          draftValue={pendingTag} suggestions={tagSuggestions} onDraftValueChange={setPendingTag}
+          createLabel={(tag) => t("ed.a.general.tags.create", { tag })} onFocusChange={(focused) => { if (focused) setTagsTouched(true) }} />
         <FieldError path="Tags" message={tagErrorMessage} />
       </>}
     </div>
