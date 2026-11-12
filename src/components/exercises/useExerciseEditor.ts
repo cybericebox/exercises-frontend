@@ -1,5 +1,6 @@
 "use client"
 
+import { placeServerFieldError } from "@/lib/editor/serverErrorTarget"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -140,6 +141,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const savedDraftRef = useRef<string | null>(null)
   const suppressRef = useRef(false)
   const lastSignatureRef = useRef("")
+  const placedErrorsRef = useRef<string[]>([])
   const lastSaveErrorRef = useRef<string | null>(null)
   const loadStartedRef = useRef(false)
   // Runs the change check a burst of edits is still waiting for (see the watch effect below).
@@ -254,6 +256,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         }
       }
       lastSaveErrorRef.current = null
+      // A save that went through settles the field errors the server put on the document earlier.
+      if (placedErrorsRef.current.length > 0) { draftForm.clearErrors(placedErrorsRef.current as never[]); placedErrorsRef.current = [] }
       if (identityRejected) throw new IdentityRejectedError()
       return true
     } catch (error) {
@@ -269,6 +273,9 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         identityForm.setError(field, { type: "server", message })
         throw error
       }
+      // A document error that names its field (23506, 23519 …) sits beside it, like the identity ones; the save stays failed.
+      const placed = placeServerFieldError(error, draftForm)
+      if (placed) { placedErrorsRef.current = placed.map((issue) => issue.path.join(".")); throw error }
       if (lastSaveErrorRef.current !== message) {
         toast.error(message)
         lastSaveErrorRef.current = message

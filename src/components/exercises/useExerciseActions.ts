@@ -11,6 +11,7 @@ import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
 import { ERR_EXERCISE_IN_USE, deviceImageErrorTarget, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
+import { placeServerFieldError } from "@/lib/editor/serverErrorTarget"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
@@ -123,7 +124,13 @@ export function useExerciseActions({
       try {
         await publishDraft(exerciseId)
       } catch (cause) {
-        if (!showDeviceImageError(cause)) throw cause
+        if (showDeviceImageError(cause)) return false
+        // A document error that names its field (23105, 23506, 23519 …) goes beside that field and into the problems list.
+        const placed = placeServerFieldError(cause, editor.draftForm)
+        if (!placed) throw cause
+        if (canWrite) setMode("edit")
+        if (onIssues) onIssues(placed)
+        else { setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), placed[0].path)); focusField(placed[0].path) }
         return false
       }
       await editor.reloadWorkingCopy()

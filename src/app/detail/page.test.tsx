@@ -184,6 +184,25 @@ describe("exercise page — publishing and history", () => {
     expect(await screen.findByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
   })
 
+  it("puts a publish error that names its field into the problems list and beside the field, not into a toast", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Key: "scan" }] }] })
+    vi.mocked(publishDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 23519, Message: "m", Context: { task: "scan", field: "description" } } }, "m", undefined, 23519))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
+    expect(toast.error).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
+    expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
+  })
+
+  it("keeps a publish error without a place as a toast", async () => {
+    vi.mocked(publishDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 73509, Message: "m", Context: { features: "guest_agent" } } }, "m", undefined, 73509))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    expect(screen.queryByRole("dialog", { name: "ed.shell.issues.titlePublish" })).not.toBeInTheDocument()
+  })
+
   it("opens the task with a missing description before sending a publish request", async () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Description: null }] }] })
     render(<Page />)

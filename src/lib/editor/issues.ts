@@ -42,6 +42,13 @@ function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
   return parts
 }
 
+/** One line for a field of the draft: where it is («Варіант 2, підзавдання 3») and what is wrong. */
+export function describeIssue(values: DraftFormValues, path: (string | number)[], message: string): EditorIssue {
+  const variant = path[0] === "Variants" && typeof path[1] === "number" ? path[1] : null
+  const where = [...(variant !== null && values.Variants.length > 1 ? [t("ed.shell.issue.variant", { n: variant + 1 })] : []), ...placeOf(values, path)]
+  return { path, message, variant, text: upperFirst(where.length ? `${where.join(", ")}: ${lowerFirst(message)}` : message) }
+}
+
 /** Every invalid field of the draft, one line per field and message. */
 export function draftIssues(values: DraftFormValues): EditorIssue[] {
   const found: { path: (string | number)[]; message: string }[] = []
@@ -57,9 +64,7 @@ export function draftIssues(values: DraftFormValues): EditorIssue[] {
     const key = `${path.join(".")}\0${message}`
     if (seen.has(key)) continue
     seen.add(key)
-    const variant = path[0] === "Variants" && typeof path[1] === "number" ? path[1] : null
-    const where = [...(variant !== null && values.Variants.length > 1 ? [t("ed.shell.issue.variant", { n: variant + 1 })] : []), ...placeOf(values, path)]
-    out.push({ path, message, variant, text: upperFirst(where.length ? `${where.join(", ")}: ${lowerFirst(message)}` : message) })
+    out.push(describeIssue(values, path, message))
   }
   return out
 }
