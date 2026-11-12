@@ -38,7 +38,7 @@ const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 /** The substitutions as the author sees them (`{{відповідь: Вхід}}`, `{{змінна: pw}}`). */
 function tokenRe(): RegExp {
-  return new RegExp(`\\{\\{\\s*(${escapeRe(t("ed.b.ref.tagAnswer"))}|${escapeRe(t("ed.b.ref.tagVar"))}):\\s*(.+?)\\s*\\}\\}`, "g")
+  return new RegExp(`\\{\\{\\s*(${escapeRe(t("ed.ui.ref.tagAnswer"))}|${escapeRe(t("ed.ui.ref.tagVar"))}):\\s*(.+?)\\s*\\}\\}`, "g")
 }
 
 function tokenRanges(display: string): Range[] {
@@ -50,7 +50,7 @@ function pieces(display: string, taskNames: string[], variables: string[]): Piec
   let last = 0
   for (const match of display.matchAll(tokenRe())) {
     if (match.index > last) out.push({ text: display.slice(last, match.index), kind: "plain" })
-    const isAnswer = match[1] === t("ed.b.ref.tagAnswer")
+    const isAnswer = match[1] === t("ed.ui.ref.tagAnswer")
     const known = isAnswer ? taskNames.includes(match[2]) : variables.includes(match[2])
     out.push({ text: match[0], kind: known ? (isAnswer ? "task" : "var") : "unknown" })
     last = match.index + match[0].length

@@ -5,5 +5,16 @@
   "ed.ui.hideValue": "Hide the value",
   "ed.ui.lab.none": "The platform's labs do not support this.",
   "ed.ui.lab.some": "Not every lab supports this: a test or a launch may not start.",
+  "ed.ui.ref.answerOf": "Answer to “{name}”",
+  "ed.ui.ref.answers": "Answers of subtasks",
+  "ed.ui.ref.insert": "Insert a value",
+  "ed.ui.ref.newVariable": "New schema variable",
+  "ed.ui.ref.noAnswers": "No subtasks with an answer",
+  "ed.ui.ref.noVariables": "No schema variables",
+  "ed.ui.ref.tagAnswer": "answer",
+  "ed.ui.ref.tagVar": "variable",
+  "ed.ui.ref.unnamed": "Untitled",
+  "ed.ui.ref.variable": "Variable {name}",
+  "ed.ui.ref.variables": "Schema variables",
   "ed.ui.showValue": "Show the value"
 }
