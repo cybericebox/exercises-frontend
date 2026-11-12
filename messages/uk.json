@@ -99,7 +99,7 @@
   "admin.exPage.save.saved": "Збережено",
   "admin.exPage.save.error": "Не збережено",
   "admin.exPage.save.retry": "Повторити",
-  "admin.exPage.action.test": "Тестування",
+  "admin.exPage.action.test": "Тестувати",
   "admin.exPage.test.running": "Тест запущено · до {time}",
   "admin.exPage.test.open": "Відкрити",
   "admin.exPage.action.testNoPlatform": "Інфраструктуру платформи не підключено",

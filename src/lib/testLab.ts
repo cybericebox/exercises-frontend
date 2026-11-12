@@ -69,12 +69,15 @@ export type LabChipKind = "creating" | "queued" | "starting" | "ready" | "device
 export type LabChip = { kind: LabChipKind; ready: number; total: number; failed: string[]; queuePosition: number | null }
 
 /** The one status of the lab: what the header chip says. `status` null = the lab was just asked for. */
-export function labChip(status: DeployStatus | null | undefined, startFailed = false): LabChip {
+export function labChip(status: DeployStatus | null | undefined, startFailed = false, topology?: ReadonlyArray<Pick<NormalizedDevice, "Name" | "Type">>): LabChip {
   const devices = status?.Devices ?? []
-  const stages = devices.map((device) => ({ name: device.Name, stage: deviceStage(device, status?.Phase) }))
+  // With the topology known, count every device of the schema (hub and switch included), so the chip and the device list show one number.
+  const stages = topology
+    ? topology.map((device) => ({ name: device.Name, stage: stageFor(device, status) }))
+    : devices.map((device) => ({ name: device.Name, stage: deviceStage(device, status?.Phase) }))
   const ready = stages.filter((entry) => entry.stage.kind === "ready").length
   const failed = stages.filter((entry) => isDeviceFailed(entry.stage)).map((entry) => entry.name)
-  const base = { ready, total: devices.length, failed, queuePosition: status?.Queue && status.Queue.Position > 0 ? status.Queue.Position : null }
+  const base = { ready, total: stages.length, failed, queuePosition: status?.Queue && status.Queue.Position > 0 ? status.Queue.Position : null }
   if (startFailed || status?.Phase === "Failed" || status?.Phase === "Error") return { ...base, kind: "failed" }
   if (!status) return { ...base, kind: "creating" }
   if (status.Removing || status.Phase === "Removing") return { ...base, kind: "removing" }

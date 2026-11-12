@@ -60,6 +60,7 @@
   "ed.d.console.blockedHelp": "Лабораторія може не дозволяти вбудовувати термінал сюди. Відкрийте його в новій вкладці.",
   "ed.d.console.close": "Закрити термінал",
   "ed.d.console.failed": "Не вдалося отримати доступ до термінала {device}",
+  "ed.d.console.failedHelp": "Спробуйте ще раз або відкрийте термінал у новій вкладці.",
   "ed.d.console.frame": "Термінал пристрою {device}",
   "ed.d.console.linkText": "Термінал {device}",
   "ed.d.console.loading": "Відкриваємо термінал…",

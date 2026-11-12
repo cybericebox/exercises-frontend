@@ -99,7 +99,7 @@
   "admin.exPage.save.saved": "Saved",
   "admin.exPage.save.error": "Not saved",
   "admin.exPage.save.retry": "Retry",
-  "admin.exPage.action.test": "Testing",
+  "admin.exPage.action.test": "Test",
   "admin.exPage.test.running": "Test running · until {time}",
   "admin.exPage.test.open": "Open",
   "admin.exPage.action.testNoPlatform": "Platform infrastructure is not connected",

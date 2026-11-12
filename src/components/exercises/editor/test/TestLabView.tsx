@@ -189,7 +189,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   const startFailed = Boolean(deploy.error)
   const labFailed = !expired && (startFailed || status?.Phase === "Failed" || status?.Phase === "Error")
   const ready = isStatic || (status?.Ready ?? false)
-  const labState = useMemo(() => labChip(status, startFailed), [status, startFailed])
+  const labState = useMemo(() => labChip(status, startFailed, devices), [status, startFailed, devices])
   // The end stays in view as the mockup has it: the chip and the panel say «Завершуємо тест» until the page leaves.
   const chip = ending || ended ? { ...labState, kind: "removing" as const } : labState
   const vpn = useMemo(() => vpnView(status), [status])
