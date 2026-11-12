@@ -36,6 +36,14 @@ export function containerNameError(name: string): string | null {
   if (name.length > MAX_DEVICE_NAME_LEN) return t("admin.ex.val.deviceNameTooLong", { max: MAX_DEVICE_NAME_LEN })
   return DNS_LABEL_RE.test(name) ? null : t("admin.ex.val.deviceName")
 }
+/** Interface name: filled in, at most 15 characters, letters, digits and . _ -, unique on the device. Empty string = valid. */
+export function interfaceNameError(name: string, others: string[]): string {
+  if (name === "") return t("ed.c.val.ifaceRequired")
+  if (name.length > 15) return t("ed.c.val.ifaceLength")
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) return t("ed.c.val.ifaceChars")
+  if (others.includes(name)) return t("ed.c.val.ifaceDuplicate")
+  return ""
+}
 // MAC requires ONE consistent separator across all octets (all ":" OR all "-"):
 // net.ParseMAC rejects mixed separators like "02:42-ac:11:00:02".
 export const MAC_RE = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$|^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/
@@ -195,7 +203,7 @@ const ipConfigSchema = z
   })
 
 const interfaceSchema = z.object({
-  Name: z.string().min(1, t("admin.ex.val.ifaceName")),
+  Name: z.string(),
   MAC: z.string().refine((v) => v === "" || MAC_RE.test(v), t("admin.ex.val.mac")),
   IP: ipConfigSchema,
 })
@@ -307,6 +315,10 @@ const deviceSchema = z
     if (node && d.Interfaces.length === 0) {
       ctx.addIssue({ code: "custom", path: ["Interfaces"], message: t("admin.ex.val.interfacesRequired") })
     }
+    d.Interfaces.forEach((iface, index) => {
+      const message = interfaceNameError(iface.Name, d.Interfaces.filter((_, other) => other !== index).map((other) => other.Name))
+      if (message) ctx.addIssue({ code: "custom", path: ["Interfaces", index, "Name"], message })
+    })
     if (node && d.Profile !== "vm" && (d.System === "windows" || d.Hardware === "compatible")) {
       ctx.addIssue({ code: "custom", path: [d.System === "windows" ? "System" : "Hardware"], message: t("ed.c.val.vmOnly") })
     }
@@ -376,6 +388,11 @@ export const topologySchema = z
     if (topology.Internet.ReverseConnections) {
       ctx.addIssue({ code: "custom", path: ["Internet", "ReverseConnections"], message: t("ed.c.val.reverseNeedsVpn") })
     }
+    const deviceNames = new Set<string>()
+    topology.Devices.forEach((device, index) => {
+      if (device.Name && deviceNames.has(device.Name)) ctx.addIssue({ code: "custom", path: ["Devices", index, "Name"], message: t("ed.c.val.deviceNameDuplicate") })
+      deviceNames.add(device.Name)
+    })
     const names = new Set<string>()
     topology.Variables.forEach((variable, index) => {
       if (variable.Name && names.has(variable.Name)) ctx.addIssue({ code: "custom", path: ["Variables", index, "Name"], message: t("ed.c.val.variableDuplicate") })

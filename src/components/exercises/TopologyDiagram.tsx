@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, ChevronDown, Globe, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, Check, ChevronDown, Clock, Globe, Hourglass, Maximize, Pencil, Power, Settings2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react"
+import { cn } from "@/utils/cn"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +25,13 @@ import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMe
  * reading order (uplinks → forwarding devices → containers); editor positions
  * override them. No external graph library or second topology model.
  */
+
+/** The stage of a node in a running lab (the test lab view): shown as an outline and a mark with a title, so it reads without colour. */
+export type TopologyNodeStatus = "pending" | "starting" | "initializing" | "ready" | "failed"
+const STATUS_ICON = { pending: Clock, starting: Power, initializing: Hourglass, ready: Check, failed: X } as const
+const STATUS_OUTLINE: Record<TopologyNodeStatus, string> = {
+  pending: "stroke-[var(--ib-warn)]", starting: "stroke-[var(--ib-warn)]", initializing: "stroke-[var(--ib-warn)]", ready: "stroke-[var(--ib-ok)]", failed: "stroke-destructive",
+}
 
 type NodeKind = "device" | "forwarding" | "vpn" | "internet"
 type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey; external?: boolean }
@@ -181,7 +189,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: Labe
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
   onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
-  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra }: {
+  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra, controlsPosition = "bottom-right", nodeSettingsLabel, nodeSettingsBlocked, nodeStatus, minPortLabelScale }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
   onLabelOffsetChange?: (key: string, offset: Point) => void
@@ -206,6 +214,16 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   connectionMode?: boolean
   /** More buttons at the end of the canvas toolbar. */
   toolbarExtra?: ReactNode
+  /** Where the zoom panel stands in the canvas: the test view keeps the bottom right, the editor puts it at the top right. */
+  controlsPosition?: "bottom-right" | "top-right"
+  /** The text of the settings item of the node menu (the settings, or a view when nothing can be changed). */
+  nodeSettingsLabel?: string
+  /** Why a node has no settings (a switch, a hub); the menu item stays, disabled with this reason. */
+  nodeSettingsBlocked?: (nodeKey: string) => string | null
+  /** The stage of each node (by node key); a node with a status gets a coloured outline and a mark with a title. */
+  nodeStatus?: Record<string, TopologyNodeStatus | undefined>
+  /** Port labels are not drawn while the zoom is below this scale (the editor keeps its own dimming rule). */
+  minPortLabelScale?: number
 }) {
   const [drag, setDrag] = useState<
     | { kind: "node"; key: string; point: Point; start: Point; moved: boolean }
@@ -303,6 +321,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     }
   }, [])
   const closeContext = useCallback(() => setContext(null), [])
+  const outlineClass = (key: string) => nodeStatus?.[key] ? STATUS_OUTLINE[nodeStatus[key]!]
+    : selectedNodes.includes(key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"
   const { nodes, edges } = useMemo(() => {
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
       key: d.ID,
@@ -376,6 +396,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       // trackpad scroll pans the view.
       event.preventDefault()
       viewportTouched.current = true
+      // A zoom or a scroll of the canvas closes an open context menu.
+      setContext(null)
       if (!event.ctrlKey && !event.metaKey) {
         const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? VH : 1
         const dx = (event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX) * unit
@@ -451,8 +473,9 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     if (menu.kind === "node") {
       const noPort = unavailableConnectionNodes.includes(menu.key)
       return [
-        ...(onNodeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onNodeSettings(menu.key) }] as const : []),
-        ...(onNodeLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />,
+        ...(onNodeSettings ? [{ kind: "item", key: "settings", label: nodeSettingsLabel ?? t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />,
+          disabled: !!nodeSettingsBlocked?.(menu.key), reason: nodeSettingsBlocked?.(menu.key) ?? undefined, onSelect: () => onNodeSettings(menu.key) }] as const : []),
+        ...(onNodeLinkStart ? [{ kind: "item", key: "link", label: t("ed.c.diagram.connect"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />,
           disabled: noPort || !!linkUnavailableReason, reason: noPort ? t("admin.exTopo.noFreePort") : linkUnavailableReason ?? undefined,
           onSelect: () => onNodeLinkStart(menu.key) }] as const : []),
         ...(onNodeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeDevice"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!(onNodeSettings || onNodeLinkStart),
@@ -611,7 +634,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           ? "fill-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
           : "fill-foreground"
         const renderPortLabel = (port: string, nodeKey: string, own: Point, other: Point) => {
-          if (!port) return null
+          if (!port || (minPortLabelScale !== undefined && viewport.scale < minPortLabelScale)) return null
           const key = portLabelKey(nodeKey, port)
           const offset = drag?.kind === "port-label" && drag.key === key
             ? drag.offset : storedPortLabelOffset(topology.VisualRender, key)
@@ -724,7 +747,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               setHint(null)
               setContext({ kind: "node", key: node.key, x: event.clientX, y: event.clientY, trigger: event.currentTarget })
             }}
-            onDoubleClick={() => { setHint(null); onNodeSettings?.(node.key) }}
+            onDoubleClick={() => { setHint(null); if (!nodeSettingsBlocked?.(node.key)) onNodeSettings?.(node.key) }}
             onKeyDown={(event) => {
               if ((onNodeSettings || onNodeLinkStart || onNodeRemove) && isMenuKey(event)) {
                 event.preventDefault()
@@ -751,10 +774,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               fill="transparent" className="stroke-transparent" />
             {glyphBounds.radius
               ? <circle data-selection-outline cx={p.x} cy={p.y} r={glyphBounds.radius + 2} fill="none" strokeWidth={1.5}
-                  pointerEvents="none" className={selectedNodes.includes(node.key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"} />
+                  pointerEvents="none" className={outlineClass(node.key)} />
               : <rect data-selection-outline x={p.x - glyphBounds.halfX - 2} y={p.y - glyphBounds.halfY - 2}
                   width={(glyphBounds.halfX + 2) * 2} height={(glyphBounds.halfY + 2) * 2} rx={3} fill="none" strokeWidth={1.5}
-                  pointerEvents="none" className={selectedNodes.includes(node.key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"} />}
+                  pointerEvents="none" className={outlineClass(node.key)} />}
+            {nodeStatus?.[node.key] && <StatusMark status={nodeStatus[node.key]!} x={p.x + GLYPH_SIZE / 2 - 2} y={p.y + GLYPH_SIZE / 2 - 2} />}
             {editingLabel?.key === node.key ? <foreignObject data-node-rename
               x={Math.max(8, Math.min(W - 248, labelX - 120))} y={labelY - 22} width={240} height={editingLabel.error ? 64 : 40}
               onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
@@ -829,7 +853,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="topology-zoom absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1" aria-describedby={controlsHelpId}>
+    <div className={cn("topology-zoom absolute right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1", controlsPosition === "top-right" ? "top-3" : "bottom-3")} aria-describedby={controlsHelpId}>
       <HoverTooltip text={t("admin.exTopo.zoomOutTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
@@ -870,4 +894,15 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )
+}
+
+/** A small mark at the node's corner: an icon per stage and a title, never colour alone. */
+function StatusMark({ status, x, y }: { status: TopologyNodeStatus; x: number; y: number }) {
+  const Icon = STATUS_ICON[status]
+  const label = t(`ed.c.diagram.status.${status}`)
+  return <g data-node-status={status} role="img" aria-label={label}>
+    <title>{label}</title>
+    <circle cx={x} cy={y} r={8} className="fill-background stroke-border" />
+    <Icon aria-hidden="true" x={x - 6} y={y - 6} width={12} height={12} className={status === "failed" ? "text-destructive" : status === "ready" ? "text-[var(--ib-ok)]" : "text-[var(--ib-warn)]"} />
+  </g>
 }

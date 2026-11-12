@@ -11,7 +11,7 @@ import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, GATEWAY_PORT, shortForwardingPort } from "@/lib/topologyPorts"
 import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
-import { decodeEndpoint } from "./ConnectionList"
+import { decodeEndpoint } from "./editor/infra/ConnectionsTable"
 
 type EndpointOption = { value: string; label: string }
 

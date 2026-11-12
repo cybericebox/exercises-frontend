@@ -1,16 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import { Pencil } from "lucide-react"
 import { t } from "@/i18n/t"
-import { PasswordInput } from "@/components/ui/password-input"
-import { Button } from "@/components/ui/button"
+import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { MaskedInput } from "@/components/ui/masked-value"
 
 /**
  * SecretInput — write-only secret value.
  * Backend contract: Value is empty in responses, HasValue=true if a value is
  * stored; an empty Value on save means "keep the stored value". Therefore:
- *  - hasValue && value === "" → "value is stored" label + a "Replace" button;
- *  - replace mode / new secret → a password input with a reveal toggle; leaving it empty is fine
+ *  - hasValue && value === "" → «Значення збережено» and a replace icon button;
+ *  - replace mode / new secret → a masked input with an eye; leaving it empty is fine
  *    (the stored value is left unchanged).
  */
 export function SecretInput({
@@ -21,7 +22,7 @@ export function SecretInput({
   id,
   "aria-invalid": invalid,
   "aria-describedby": describedBy,
-  "aria-labelledby": labelledBy,
+  "aria-label": ariaLabel,
 }: {
   value: string
   hasValue: boolean
@@ -30,35 +31,39 @@ export function SecretInput({
   id?: string
   "aria-invalid"?: boolean
   "aria-describedby"?: string
-  "aria-labelledby"?: string
+  "aria-label"?: string
 }) {
   const [replacing, setReplacing] = useState(false)
   const showStored = hasValue && !replacing && value === ""
 
   if (showStored) {
     return (
-      <div className="flex h-9 items-center gap-2">
-        <span className="text-xs text-muted-foreground">{t("admin.exSecret.stored")}</span>
+      <div id={id} className="flex h-9 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-sm pointer-coarse:h-11">
+        <span className="text-muted-foreground">{t("ed.c.env.stored")}</span>
         {!disabled && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setReplacing(true)}>
-            {t("admin.exSecret.replace")}
-          </Button>
+          <HoverTooltip text={t("ed.c.env.replace")}>
+            <button type="button" aria-label={t("ed.c.env.replace")} onClick={() => setReplacing(true)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-[var(--ib-hover)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+              <Pencil aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </HoverTooltip>
         )}
       </div>
     )
   }
 
   return (
-    <PasswordInput
+    <MaskedInput
       id={id}
       aria-invalid={invalid}
       aria-describedby={describedBy}
-      aria-labelledby={labelledBy}
+      aria-label={ariaLabel}
       data-testid="secret-value-input"
       autoComplete="new-password"
+      autoFocus={replacing}
       value={value}
       disabled={disabled}
-      placeholder={hasValue ? t("admin.exSecret.keep") : ""}
+      placeholder={hasValue ? t("ed.c.env.keep") : t("ed.c.env.valuePlaceholder")}
       onChange={(e) => onChange(e.target.value)}
     />
   )
