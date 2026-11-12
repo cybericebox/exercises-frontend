@@ -41,9 +41,9 @@ describe("serverFieldTargets", () => {
     expect(serverFieldTargets(fail(23513, { task: "scan" }), one)).toEqual([["Variants", 0, "Tasks", 0, "Check", "Kind"]])
   })
 
-  it("places a variable of the schema (23507) and the reverse-connections error (23518)", () => {
+  it("places a variable of the schema (23507) and the reverse-connections error (23520)", () => {
     expect(serverFieldTargets(fail(23507, { field: "variables[2].name" }), one)).toEqual([["Variants", 0, "Topology", "Variables", 1, "Name"]])
-    expect(serverFieldTargets(fail(23518, { field: "topology.vpn.reverse_connections" }), one)).toEqual([["Variants", 0, "Topology", "VPN", "ReverseConnections"]])
+    expect(serverFieldTargets(fail(23520, { field: "topology.vpn.reverse_connections" }), one)).toEqual([["Variants", 0, "Topology", "VPN", "ReverseConnections"]])
   })
 
   it("answers may be in any variant, the structure only in the variants that own it: one candidate is placed", () => {
@@ -118,7 +118,7 @@ describe("withServerErrors", () => {
 
 describe("publish errors with task, variant and field (daemon counts from 1)", () => {
   const two = draft([{ keys: ["scan"] }, { keys: ["scan"], linked: true }])
-  const publish = (field: string, variant: number) => fail(23520, { task: "scan", variant, field })
+  const publish = (field: string, variant: number) => fail(23504, { task: "scan", variant, field })
 
   it("places name, description, a hint by its 1-based number and the answer values on the named variant", () => {
     expect(serverFieldTargets(publish("name", 1), two)).toEqual([["Variants", 0, "Tasks", 0, "Name"]])
