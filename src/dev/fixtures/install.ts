@@ -16,6 +16,7 @@
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
  */
+import errorsEn from "../../../messages/errors.en.json"
 import {
   FIXTURE_ACCESS, FIXTURE_EXERCISE_ID, FIXTURE_IMAGE_SERVICES, FIXTURE_ME,
   buildCapabilities, buildDeployStatus, buildDraft, buildExercise, buildImportPreview, buildListItem, type DraftShape, type ImportKind, type LabsMode,
@@ -30,8 +31,8 @@ const SERVER_ERRORS = {
   variables: { code: 23506, context: { device: "srv", field: "bootstrap.env[1].name" } },
   access: { code: 23506, context: { device: "r1", field: "access[1].command" } },
   profile: { code: 23105, context: { device: "r2", field: "persistence" } },
-  description: { code: 23519, context: { task: "secret", field: "description" } },
-  hint: { code: 23519, context: { task: "ospf", field: "hints[2].text" } },
+  description: { code: 23519, context: { task: "secret", variant: 1, field: "description" } },
+  hint: { code: 23519, context: { task: "ospf", variant: 1, field: "hints[2].text" } },
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
   variable: { code: 23507, context: { field: "variables[1].name" } },
@@ -134,7 +135,7 @@ export function installFixtures(): void {
 
     if (sw.serverError && ((path === `${ex}/publish` && method === "POST" && sw.serverErrorAt === "publish") || (path === `${ex}/draft` && method === "PUT" && sw.serverErrorAt === "save"))) {
       const e = SERVER_ERRORS[sw.serverError]
-      return fail(400, e.code, "fixture document error", e.context)
+      return fail(400, e.code, (errorsEn as Record<string, string>)[String(e.code)] ?? "fixture document error", e.context)
     }
     if (path === ex) {
       if (method === "PATCH") { Object.assign(exercise, b); draft.Name = exercise.Name; return json(exercise) }
