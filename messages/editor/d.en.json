@@ -69,6 +69,8 @@
   "ed.d.console.notShown": "The console is not shown?",
   "ed.d.console.opening": "Opening…",
   "ed.d.console.popup": "The browser blocked the new window. Allow pop-ups for this site.",
+  "ed.d.console.refused": "The console of {device} cannot be shown on this page",
+  "ed.d.console.refusedHelp": "The link does not lead to the laboratory's console service. Open the console in a new tab.",
   "ed.d.console.region": "Console of {device}",
   "ed.d.dev.access": "Access",
   "ed.d.dev.accessConsole": "console",

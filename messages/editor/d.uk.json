@@ -69,6 +69,8 @@
   "ed.d.console.notShown": "Термінал не відображається?",
   "ed.d.console.opening": "Відкриваємо…",
   "ed.d.console.popup": "Браузер заблокував нове вікно. Дозвольте спливні вікна для цього сайту.",
+  "ed.d.console.refused": "Термінал {device} не можна показати на цій сторінці",
+  "ed.d.console.refusedHelp": "Посилання веде не на сервіс терміналів лабораторії. Відкрийте термінал у новій вкладці.",
   "ed.d.console.region": "Термінал {device}",
   "ed.d.dev.access": "Доступ",
   "ed.d.dev.accessConsole": "термінал",
