@@ -1,24 +1,33 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { ExternalLink, History, Maximize2, Terminal, X } from "lucide-react"
 
 import type { DeployStatus } from "@/api/exercises/deploy"
 import type { NormalizedTopology } from "@/api/exercises/versions"
-import { TopologyDiagram } from "@/components/exercises/TopologyDiagram"
+import { TopologyDiagram, type TopologyNodeStatus } from "@/components/exercises/TopologyDiagram"
 import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { labNodeInfo, labTopology } from "@/lib/labTopology"
-import { hasConsole, isDeviceFailed, stageFor } from "@/lib/testLab"
+import { hasConsole, isDeviceFailed, stageFor, type DeviceStage } from "@/lib/testLab"
 import { SidePanel, SummaryList, type SummaryRow } from "../kit/SidePanel"
 import { deviceKindText, initText, stageText, type DeviceActions } from "./DeviceList"
-import { NodeStatusStyle, nodeStatusOf, useBelowScale } from "./diagramStatus"
-import "@/styles/test-lab.css"
 
 /** Below this scale of the view the port labels are too small to read and are hidden. */
 export const PORT_LABEL_MIN_SCALE = 0.75
+
+/** The outline stage of a node on the canvas (the canvas draws the colour, the pattern and the mark). */
+function nodeStatusOf(stage: DeviceStage): TopologyNodeStatus {
+  switch (stage.kind) {
+    case "ready": return "ready"
+    case "failed": case "initFailed": return "failed"
+    case "initializing": return "initializing"
+    case "starting": return "starting"
+    default: return "pending"
+  }
+}
 
 /**
  * The read-only schema of the lab: the variant's own arrangement, every device outlined in the colour of its stage, a click
@@ -31,13 +40,11 @@ export function SchemaView({ topology, status, selected, onSelect }: {
   onSelect: (key: string | null) => void
 }) {
   const shown = useMemo(() => labTopology(topology), [topology])
-  const wrapper = useRef<HTMLDivElement>(null)
-  const low = useBelowScale(wrapper, PORT_LABEL_MIN_SCALE)
   const statuses = Object.fromEntries(topology.Devices.map((device) => [device.ID, nodeStatusOf(stageFor(device, status))]))
 
-  return <div ref={wrapper} data-lab-schema data-low-scale={low ? "" : undefined} className="absolute inset-0">
-    <NodeStatusStyle statuses={statuses} selected={selected} />
-    <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={onSelect} onCanvasSelect={() => onSelect(null)} />
+  return <div className="absolute inset-0">
+    <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={onSelect} onCanvasSelect={() => onSelect(null)}
+      nodeStatus={statuses} minPortLabelScale={PORT_LABEL_MIN_SCALE} />
   </div>
 }
 
