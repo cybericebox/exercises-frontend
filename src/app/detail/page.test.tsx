@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: v
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
 vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
-vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]) }))
+vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }) }))
 import { listDeploys } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG }) }))
@@ -161,6 +161,13 @@ describe("exercise page — modes", () => {
   })
 })
 
+/** The start button of the test dialog, once the run lengths were read. */
+async function startButton() {
+  const button = await screen.findByRole("button", { name: "ed.d.start.go" })
+  await waitFor(() => expect(button).toBeEnabled())
+  return button
+}
+
 describe("exercise page — publishing and history", () => {
   it("publishes a valid working copy", async () => {
     vi.mocked(publishDraft).mockResolvedValue({ ...workingCopy, Status: "published" })
@@ -287,7 +294,7 @@ describe("exercise page — publishing and history", () => {
     const test = await screen.findByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
     fireEvent.click(test)
-    expect(await screen.findByRole("button", { name: "admin.exDraft.variantN" })).toBeEnabled()
+    expect(await screen.findByRole("button", { name: "ed.d.start.go" })).toBeEnabled()
   })
 
   it("disables a lab variant when the platform infrastructure is not connected", async () => {
@@ -300,7 +307,7 @@ describe("exercise page — publishing and history", () => {
     const test = screen.getByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
     fireEvent.click(test)
-    expect(await screen.findByRole("button", { name: "admin.exDraft.variantN" })).toBeDisabled()
+    expect(await screen.findByRole("button", { name: "ed.d.start.go" })).toBeDisabled()
   })
 
   it("tests the authoritative draft produced by a metadata-only PATCH after flush", async () => {
@@ -310,8 +317,8 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(await screen.findByRole("button", { name:"admin.exPage.action.edit" }))
     fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target:{ value:"Web 103" } })
     fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.test" }))
-    fireEvent.click(await screen.findByRole("button", { name:"admin.exDraft.variantN" }))
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1"))
+    fireEvent.click(await startButton())
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1&minutes=60"))
     expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] })
     expect(saveDraft).not.toHaveBeenCalled()
   })
@@ -320,8 +327,8 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exDraft.variantN" }))
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
+    fireEvent.click(await startButton())
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1&minutes=60"))
   })
 })
 
@@ -330,7 +337,7 @@ describe("exercise page — one test lab per user", () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
-    fireEvent.click(await screen.findByRole("button", { name: "admin.exDraft.variantN" }))
+    fireEvent.click(await startButton())
   }
 
   it("offers the user's running test of another exercise instead of starting a second", async () => {
@@ -347,7 +354,7 @@ describe("exercise page — one test lab per user", () => {
     vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
     await pickVariant()
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1&minutes=60"))
     vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG })
   })
 

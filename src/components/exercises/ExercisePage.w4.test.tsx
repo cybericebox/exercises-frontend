@@ -27,7 +27,7 @@ vi.mock("@/api/exercises/catalog", () => ({
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
-vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(),
+vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }),
   listDeploys: vi.fn().mockResolvedValue([]), deployVariant: vi.fn(), deployStatus: vi.fn().mockResolvedValue({ Phase: "Provisioning", Ready: false }),
   destroyDeploy: vi.fn().mockResolvedValue(undefined), openDeployLink: vi.fn(),
 }))
@@ -167,11 +167,13 @@ describe("exercise editor — W4 rights", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.test" }))
     const dialog = await screen.findByRole("dialog")
-    const items = within(dialog).getAllByRole("button").filter((button) => /admin\.exDraft\.variantN/.test(button.textContent ?? ""))
+    // The variants are one select (the dot mark); the one that cannot start is switched off and carries its reason.
+    fireEvent.pointerDown(within(dialog).getByRole("button", { name: /ed\.d\.start\.variant/ }), { button: 0, ctrlKey: false })
+    const items = await screen.findAllByRole("menuitemradio")
     expect(items).toHaveLength(2)
-    expect(items[0]).toBeEnabled()
-    expect(items[1]).toBeDisabled()
-    expect(within(dialog).getByText("exercises.infra.blocked")).toBeInTheDocument()
+    expect(items[0]).not.toHaveAttribute("data-disabled")
+    expect(items[1]).toHaveAttribute("data-disabled")
+    expect(within(items[1]).getByText("exercises.infra.blocked")).toBeInTheDocument()
   })
 
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
