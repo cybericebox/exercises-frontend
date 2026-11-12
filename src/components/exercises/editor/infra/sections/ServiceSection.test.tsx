@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within, cleanup } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
@@ -146,6 +146,15 @@ describe("service command and behavior", () => {
     renderService({}, { persistence: false, path: PATH })
     expect(screen.getByRole("switch", { name: "ed.c.service.persist" })).toBeDisabled()
     expect(screen.getByText("ed.c.service.persistUnavailable")).toBeInTheDocument()
+  })
+
+  it("has no persistence switch, note or gap for a microVM or a VM, and shows it again for a container", () => {
+    renderService({ Profile: "microvm" })
+    expect(screen.queryByRole("switch", { name: "ed.c.service.persist" })).not.toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "ed.c.service.ready" })).toBeInTheDocument()
+    cleanup()
+    renderService({ Profile: "container" })
+    expect(screen.getByRole("switch", { name: "ed.c.service.persist" })).not.toBeChecked()
   })
 
   it("is read-only when disabled", () => {

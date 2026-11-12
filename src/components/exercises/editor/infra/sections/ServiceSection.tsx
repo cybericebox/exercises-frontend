@@ -9,6 +9,7 @@ import { FieldLabel } from "@/components/ui/field-label"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { useDevicePersistenceAvailable } from "../../../DevicePersistenceContext"
 import { FieldError, fieldProps, useFieldError } from "../../fieldErrors"
+import { profileKeepsState } from "@/lib/editor/schemas/infra"
 import { SwitchBlock, SwitchList } from "../../kit"
 import { joinArgs, sameList, splitArgs } from "../argsText"
 import { Block, InputField, devicePath } from "../fields"
@@ -71,6 +72,7 @@ export function ServiceSection({ variantIndex, deviceIndex, disabled, onOpenVari
   const persistence = useWatch({ control, name: `${base}.Persistence.Enabled` }) ?? false
   const waitReady = useWatch({ control, name: `${base}.WaitReadyFile` }) ?? false
   const persistenceAvailable = useDevicePersistenceAvailable()
+  const keepsState = profileKeepsState(useWatch({ control, name: `${base}.Profile` }) ?? "container")
   const service = useImageService(image)
   const [own, setOwn] = useState(command.length > 0)
   const ownOn = own || command.length > 0
@@ -111,18 +113,18 @@ export function ServiceSection({ variantIndex, deviceIndex, disabled, onOpenVari
       </SwitchList>
     </Block>
     <EnvBlock variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} onOpenVariables={onOpenVariables} requestVariable={requestVariable} />
-    <div className="border-t border-border pt-5"><Block title={t("ed.c.service.behavior")} help={{ intro: t("ed.c.h.behaviour"), items: [{ term: t("ed.c.h.behaviourPersist"), text: t("ed.c.h.behaviourPersistText") }, { term: t("ed.c.h.behaviourReady"), text: t("ed.c.h.behaviourReadyText") }] }}>
+    <div className="border-t border-border pt-5"><Block title={t("ed.c.service.behavior")} help={{ intro: t("ed.c.h.behaviour"), items: [...(keepsState ? [{ term: t("ed.c.h.behaviourPersist"), text: t("ed.c.h.behaviourPersistText") }] : []), { term: t("ed.c.h.behaviourReady"), text: t("ed.c.h.behaviourReadyText") }] }}>
       <SwitchList>
         <SwitchBlock label={t("ed.c.service.ready")} checked={waitReady} disabled={disabled}
           onCheckedChange={(on) => setValue(`${base}.WaitReadyFile`, on, { shouldDirty: true })}
           help={{ intro: [t("ed.c.h.ready1"), t("ed.c.h.ready2")], items: [{ term: t("ed.c.h.readyAdds"), text: t("ed.c.h.readyAddsText") }, { term: t("ed.c.h.readyWeb"), text: t("ed.c.h.readyWebText") }], default: t("ed.c.h.readyDefault") }} />
-        <SwitchBlock label={t("ed.c.service.persist")} checked={persistence} disabled={disabled}
+        {keepsState && <SwitchBlock label={t("ed.c.service.persist")} checked={persistence} disabled={disabled}
           unavailable={!persistence && !persistenceAvailable ? t("ed.c.service.persistUnavailable") : undefined}
           onCheckedChange={(on) => setValue(`${base}.Persistence.Enabled`, on, { shouldDirty: true, shouldValidate: true })}
           help={{ intro: [t("ed.c.h.persist1"), t("ed.c.h.persist2")], default: t("ed.c.access.off") }}>
           <InputField name={`${dp}.Persistence.Debounce`} label={t("ed.c.service.debounce")} mono disabled={disabled} className="w-40" placeholder={t("ed.c.ph.debounce")}
             help={{ intro: [t("ed.c.h.debounce1"), t("ed.c.h.debounce2")] }} />
-        </SwitchBlock>
+        </SwitchBlock>}
       </SwitchList>
     </Block></div>
   </div>
