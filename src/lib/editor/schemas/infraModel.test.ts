@@ -29,21 +29,6 @@ describe("access list", () => {
     expect(topologyToDTO(topology).Devices?.[0]?.Access).toEqual([{ Kind: "terminal" }])
     expect(messages(topology)).toEqual([])
   })
-
-  it("sends Files only for a terminal that allows file transfer, and never on the vm profile", () => {
-    const files = { ...emptyAccess("terminal"), Files: true }
-    const container = { ...emptyTopology(), Devices: [device({ Access: [files] })] }
-    expect(topologyToDTO(container).Devices?.[0]?.Access).toEqual([{ Kind: "terminal", Files: true }])
-    const vm = { ...emptyTopology(), Devices: [device({ Profile: "vm", Access: [files] })] }
-    expect(topologyToDTO(vm).Devices?.[0]?.Access).toEqual([{ Kind: "terminal" }])
-  })
-
-  it("reads Files back from the server entry, off when absent", () => {
-    const dto = { Variables: [], Connections: [], Devices: [{ ID: "d1", Name: "web", Type: "node", Interfaces: [], Bootstrap: { Env: [], Files: [] }, Access: [{ Kind: "terminal", Files: true }] }] } as unknown as NormalizedTopology
-    expect(topologyToForm(dto).Devices[0].Access[0].Files).toBe(true)
-    const none = { Variables: [], Connections: [], Devices: [{ ID: "d1", Name: "web", Type: "node", Interfaces: [], Bootstrap: { Env: [], Files: [] }, Access: [{ Kind: "terminal" }] }] } as unknown as NormalizedTopology
-    expect(topologyToForm(none).Devices[0].Access[0].Files).toBe(false)
-  })
 })
 
 describe("secrets of the environment", () => {

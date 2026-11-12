@@ -186,7 +186,7 @@ export function buildLabCapabilities(mode: LabsMode): LabCapabilities {
     Observations: { file: value, directory: value, process: value, port: value, kernel_param: value, request: value, permission: value, custom: value, "file.type": value, "file.checksum": value },
     Access: { http: value, terminal: value, vnc: "none", rdp: "none" },
     Profiles: { container: value, microvm: value, vm: value },
-    Bootstrap: value, Checks: value, VPNReverse: value, TerminalFiles: value,
+    Bootstrap: value, Checks: value, VPNReverse: value,
   })
   if (mode === "mixed") {
     const caps = same("all")
@@ -196,7 +196,6 @@ export function buildLabCapabilities(mode: LabsMode): LabCapabilities {
       Access: { http: "all", terminal: "some", vnc: "none", rdp: "none" },
       Profiles: { container: "all", microvm: "none", vm: "some" },
       VPNReverse: "some",
-      TerminalFiles: "some",
     }
   }
   return same(mode)

@@ -55,7 +55,7 @@ function refWords(ref: NetworkIPRefDTO | null | undefined, text: string): string
   return ref ? t("ed.c.net.fromNetwork", { network: t(ref.Network === "vpn" ? "ed.c.net.vpnShort" : "ed.c.net.internetShort"), host: ref.Host }) : text || "—"
 }
 
-const GRID = "grid min-w-0 text-sm grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-4 @lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)]"
+const GRID = "grid min-w-0 text-sm grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-4 @lg:grid-cols-[minmax(6.75rem,0.8fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)]"
 
 /** «Мережа»: interfaces as rows. A closed row is a plain text summary, an open row is the form; one is open at a time. */
 export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionProps) {
@@ -224,7 +224,7 @@ function InterfaceForm({ base, index, deviceId, disabled, vpn, internet, links, 
   return <div className="space-y-4 pr-3 pt-1" data-interface-form>
     <div className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 @md:grid-cols-2">
       <div className="min-w-0">
-        <FieldLabel text={t("ed.c.net.ifaceName")} required htmlFor={nameProps.id} help={{ intro: [t("ed.c.h.ifaceName1"), t("ed.c.h.ifaceName2")] }} />
+        <FieldLabel text={t("ed.c.net.ifaceName")} required htmlFor={nameProps.id} help={{ intro: [t("ed.c.h.ifaceName1"), t("ed.c.h.ifaceName2")] }} className="mb-1" />
         <Input {...nameProps} value={draft ?? name} disabled={disabled} placeholder={t("ed.c.ph.iface")} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" onChange={(event) => rename(event.target.value)} />
         <FieldError path={`${path}.Name`} message={nameError || undefined} />
       </div>

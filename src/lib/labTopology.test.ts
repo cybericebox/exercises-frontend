@@ -29,7 +29,7 @@ describe("labTopology", () => {
 
   it("reads the web access into the form shape", () => {
     const [web, db] = labTopology(topology).Devices
-    expect(web.Access).toEqual([{ Kind: "http", Port: "443", Protocol: "https", Command: "", User: "", Files: false }])
+    expect(web.Access).toEqual([{ Kind: "http", Port: "443", Protocol: "https", Command: "", User: "" }])
     expect(db.Access).toEqual([])
   })
 })
