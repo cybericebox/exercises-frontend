@@ -133,11 +133,14 @@ describe("publish errors with task, variant and field (daemon counts from 1)", (
     expect(serverFieldTargets(publish("name", 3), two)).toBeNull()
   })
 
-  it("finds the task by its name when the error sends the name (empty description or hint, a substitution in a text)", () => {
+  it("uses `task` as the key, and `task_name` only when `task` is absent", () => {
     const named = draft([{ keys: ["scan", "exploit"] }])
     named.Variants[0].Tasks[1].Name = "Exploit the host"
-    expect(serverFieldTargets(fail(23519, { task: "Exploit the host", field: "hints[1].text" }), named)).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
+    expect(serverFieldTargets(fail(23519, { task: "exploit", task_name: "Exploit the host", field: "hints[1].text" }), named)).toEqual([["Variants", 0, "Tasks", 1, "Hints", 0, "Text"]])
+    // a key that is not in the variant is not rescued by the name
+    expect(serverFieldTargets(fail(23519, { task: "other", task_name: "Exploit the host", field: "description" }), named)).toBeNull()
+    expect(serverFieldTargets(fail(23519, { task_name: "Exploit the host", field: "description" }), named)).toEqual([["Variants", 0, "Tasks", 1, "Description"]])
     named.Variants[0].Tasks[0].Name = "Exploit the host"
-    expect(serverFieldTargets(fail(23519, { task: "Exploit the host", field: "description" }), named)).toBeNull()
+    expect(serverFieldTargets(fail(23519, { task_name: "Exploit the host", field: "description" }), named)).toBeNull()
   })
 })

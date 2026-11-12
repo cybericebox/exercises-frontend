@@ -1,7 +1,7 @@
 /**
  * serverErrorTarget.ts — where a daemon error about the document sits in the editor form.
  *
- * A save or publish error names its place in the public context: `task` = the task key, `device` = the device name,
+ * A save or publish error names its place in the public context: `task` = the task key (`task_name` only for a task without a key yet), `device` = the device name,
  * `field` = the path inside it (see serverFieldPath.ts), and, when the daemon says it, `variant` (an int: the 1-based position of the variant in the version).
  * Resolution never guesses a field (AGENTS.md: an ambiguous server error is never assigned to a field):
  *   - exactly one candidate → its field; none or several → no target, the error stays form-level (a toast);
@@ -30,14 +30,14 @@ function variantIndexOf(ref: string, draft: Pick<DraftFormValues, "Variants">): 
 export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, "Variants">): Path[] | null {
   const code = exerciseErrorCode(error)
   if (code === null) return null
-  const { task, device, field = "", variant: variantRef } = errorContext(error)
+  const { task, task_name: taskName, device, field = "", variant: variantRef } = errorContext(error)
   const out: Path[] = []
   const named = variantRef === undefined ? -1 : variantIndexOf(variantRef, draft)
   // A named variant that is not in the form cannot be placed; an unnamed one falls back to who owns the field.
   if (variantRef !== undefined && named < 0) return null
   const own = (vi: number) => (named >= 0 ? vi === named : draft.Variants[vi].LinkedTo === "")
 
-  if (task) {
+  if (task || taskName) {
     let rest: Path | null = null
     if (field) rest = taskFieldPath(field)
     else if (code === ERR.taskKey) rest = ["Key"]
@@ -47,10 +47,9 @@ export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, 
     const isAnswer = rest[0] === "Check" && rest[1] === "Answer" && rest[2] === "Values"
     draft.Variants.forEach((variant, vi) => {
       if (named >= 0 ? vi !== named : !isAnswer && !own(vi)) return
-      // `task` is the key; a few publish errors (an empty name, description or hint, a substitution in a text) send the task's name instead.
-      const byKey = variant.Tasks.findIndex((candidate) => candidate.Key === task)
-      const byName = variant.Tasks.filter((candidate) => candidate.Name === task)
-      const ti = byKey >= 0 ? byKey : byName.length === 1 ? variant.Tasks.indexOf(byName[0]) : -1
+      // `task` is the task key; only a task that has no key yet is named by `task_name`, which then must be the one name in the variant.
+      const byName = variant.Tasks.filter((candidate) => candidate.Name === taskName)
+      const ti = task ? variant.Tasks.findIndex((candidate) => candidate.Key === task) : byName.length === 1 ? variant.Tasks.indexOf(byName[0]) : -1
       if (ti >= 0) out.push(["Variants", vi, "Tasks", ti, ...rest])
     })
   } else if (device) {
