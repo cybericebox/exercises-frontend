@@ -52,7 +52,7 @@ function devContentSecurityPolicy(): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connect.join(" ")}`,
-    // The labs domain (https://*.labs.<domain>; consoleFrame.ts narrows it to the console hosts); the dev fixture mode also frames its canned console page ('self' and blob:).
+    // The labs domain (https://*.labs.<domain>; isConsoleFrameUrl narrows it to one label); the dev fixture mode also frames its canned console page ('self' and blob:).
     `frame-src ${devFrameSrc(DOMAIN, Boolean(process.env.NEXT_PUBLIC_EDITOR_FIXTURES))}`,
     "object-src 'none'",
     "base-uri 'self'",

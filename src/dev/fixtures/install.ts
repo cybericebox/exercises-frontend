@@ -169,7 +169,7 @@ export function installFixtures(): void {
         const page = `<body style="font:14px monospace;background:#111;color:#9f9;margin:0;padding:12px">${String(b.Device)}:~# console fixture (a real console page is served by the lab)</body>`
         return json({ URL: URL.createObjectURL(new Blob([page], { type: "text/html" })), ExpiresAt: new Date(Date.now() + 60_000).toISOString() })
       }
-      if (rest === "/link") return json({ URL: `https://${String(b.Device ?? "srv")}-fx01.labs.${window.location.hostname}/_auth?t=fixture`, ExpiresAt: new Date(Date.now() + 60_000).toISOString() })
+      if (rest === "/link") return json({ URL: `https://${String(b.Device ?? "srv")}-ab1t.labs.${window.location.hostname}/_auth?t=fixture`, ExpiresAt: new Date(Date.now() + 60_000).toISOString() })
       if (rest === "/extend") return json({ DeployID: d.id, Lab: "fixture", ExerciseID: FIXTURE_EXERCISE_ID, VersionID: d.versionId, VariantID: d.variantId, CreatedAt: new Date(d.startedAt).toISOString(), ExpiresAt: new Date(Date.now() + 3_600_000).toISOString(), Tasks: [] })
       if (rest === "/check") return json({ Correct: String(b.Flag ?? "").startsWith("ICE{") })
       if (rest.endsWith("/run-checks")) {
