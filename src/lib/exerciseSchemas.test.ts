@@ -1025,6 +1025,17 @@ describe('toSaveDraftInput', () => {
     expect(input.Variants[1].Index).toBe(2)
   })
 
+  it('a microVM or a VM sends no persistence even if the draft still holds it', () => {
+    const draft = emptyDraft()
+    draft.Variants[0].Tasks[0].Name = 'New task'
+    const micro = emptyDevice()
+    micro.Name = 'micro'
+    micro.Profile = 'microvm'
+    micro.Persistence = { Enabled: true, Debounce: '5s' }
+    draft.Variants[0].Topology.Devices = [micro]
+    expect(toSaveDraftInput(draft).Variants[0].Topology.Devices![0].Persistence).toBeUndefined()
+  })
+
   it('persistence goes out only when enabled and keeps a loaded debounce', () => {
     const draft = emptyDraft()
     draft.Variants[0].Tasks[0].Name = 'New task'

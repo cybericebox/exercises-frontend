@@ -82,6 +82,9 @@ const textBytes = (value: string) => new TextEncoder().encode(value).length
 
 // ── Form types ────────────────────────────────────────────────────────────────
 
+/** Only a container keeps its state across a restart: a microVM or a VM has no such setting. */
+export const profileKeepsState = (profile: string): boolean => profile === "container"
+
 /** Persistence in the form: Debounce is not edited here, it only travels back as loaded. */
 export type PersistenceFormValues = { Enabled: boolean; Debounce: string }
 
@@ -632,7 +635,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...(d.Profile === "vm" && d.System !== "linux" ? { System: d.System } : {}),
     ...(d.Profile === "vm" && d.Hardware !== "fast" ? { Hardware: d.Hardware } : {}),
     ...(bootstrap ? { Bootstrap: bootstrap } : {}),
-    ...(d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } satisfies PersistenceDTO } : {}),
+    ...(d.Profile === "container" && d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } satisfies PersistenceDTO } : {}),
     ...(d.WaitReadyFile ? { WaitReadyFile: true } : {}),
   }
 }

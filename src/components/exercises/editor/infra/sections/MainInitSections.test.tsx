@@ -32,6 +32,13 @@ describe("«Основне»", () => {
     expect(readValues()).toMatchObject({ Name: "api", Profile: "microvm" })
   })
 
+  it("drops the persistence of a device that becomes a microVM", () => {
+    renderMain({ Persistence: { Enabled: true, Debounce: "5s" } })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.main.profile/ }), { key: "ArrowDown" })
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /ed.c.profile.microvm/ }))
+    expect(readValues()).toMatchObject({ Profile: "microvm", Persistence: { Enabled: false, Debounce: "" } })
+  })
+
   it("keeps an unavailable profile visible and disabled with the reason", () => {
     renderMain({}, { caps: capabilities({ Profiles: { container: "all", microvm: "none", vm: "none" } }) })
     fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.main.profile/ }), { key: "ArrowDown" })

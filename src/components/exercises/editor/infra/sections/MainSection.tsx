@@ -1,5 +1,6 @@
 "use client"
 
+import { profileKeepsState } from "@/lib/editor/schemas/infra"
 import { useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { FieldLabel } from "@/components/ui/field-label"
@@ -71,6 +72,7 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
     <InputField name={`${dp}.Name`} label={t("ed.c.main.name")} required disabled={disabled} maxLength={MAX_DEVICE_NAME_LEN}
       help={{ intro: [t("ed.c.h.name1"), t("ed.c.h.name2")] }} />
     <SelectField name={`${dp}.Profile`} label={t("ed.c.main.profile")} disabled={disabled} options={profileOptions} menuClassName="w-[26rem] max-w-[90vw]"
+      onValue={(value) => { if (!profileKeepsState(value)) setValue(`${dp}.Persistence` as never, { Enabled: false, Debounce: "" } as never, { shouldDirty: true }) }}
       help={{ intro: t("ed.c.h.profile"), items: PROFILES.map((value) => ({ term: t(`ed.c.profile.${value}`), text: t(`ed.c.h.profile${value === "microvm" ? "Microvm" : value === "vm" ? "Vm" : "Container"}`) })) }} />
     <div className="min-w-0 @md:col-span-2">
       <DeviceImageField variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={imageDisabled ?? disabled} compact baseVariantIndex={linkedBaseIndex} />
