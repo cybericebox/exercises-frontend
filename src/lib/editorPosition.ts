@@ -13,7 +13,7 @@ export type EditorPosition = {
   variant: number
   task: number
   infraView: InfraView
-  /** Device id or "vpn" / "internet" whose editor dialog is open, "" = none. */
+  /** Device id (a gateway is a device too) whose editor dialog is open, "" = none. */
   openNode: string
   deviceSection: DeviceSection
   /** Open condition of a state check (index), -1 = none. */

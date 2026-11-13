@@ -12,20 +12,19 @@ import { SelectMenu } from "@/components/ui/select-menu"
 import { Table, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW } from "@/components/ui/table"
 import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { availableDevicePorts, GATEWAY_PORT, shortForwardingPort } from "@/lib/topologyPorts"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
+import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
+import { gatewayClashOfLink } from "@/lib/editor/schemas/infra"
 import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
 import { AddButton, FieldError, RowActions, fieldProps, useFieldError } from "../kit"
 import { InActionsSlot } from "./ActionsSlot"
 
-/** One connection endpoint as a select value: vpn | internet | device:<id>:<iface>. */
+/** One connection endpoint as a select value: device:<id>:<iface> (a gateway is a device with its one port). */
 export function encodeEndpoint(ep: NormalizedEndpoint): string {
-  return ep.Kind === "device" ? `device:${ep.DeviceID}:${ep.Interface}` : ep.Kind
+  return `device:${ep.DeviceID}:${ep.Interface}`
 }
 
 export function decodeEndpoint(value: string): NormalizedEndpoint {
-  if (value === "vpn" || value === "internet") return { Kind: value, DeviceID: "", Interface: GATEWAY_PORT }
   const rest = value.slice("device:".length)
   const separator = rest.indexOf(":")
   return { Kind: "device", DeviceID: rest.slice(0, separator), Interface: rest.slice(separator + 1) }
@@ -49,9 +48,6 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
   const { fields, append, remove } = useFieldArray({ control, name })
   const connections = useWatch({ control, name }) ?? []
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
-  const vpnEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN.Enabled` })
-  const internetEnabled = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet.Enabled` })
-  const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
   const errorRows = get(useErrorsAt(name), name) as unknown
   const firstBad = Array.isArray(errorRows) ? errorRows.findIndex(Boolean) : -1
@@ -60,14 +56,12 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new error opens its row once
   }, [firstBad])
 
-  const nodeCount = devices.length + (vpnEnabled ? 1 : 0) + (internetEnabled ? 1 : 0)
+  const nodeCount = devices.length
   const freeNodeCount = devices.filter((device) => availableDevicePorts({ Connections: connections }, device).length > 0).length
-    + (["vpn", "internet"] as const).filter((kind) => (kind === "vpn" ? vpnEnabled : internetEnabled) && !connections.some((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === kind))).length
   const addBlockedReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : freeNodeCount < 2 ? t("admin.exTopo.needFreePorts") : null
 
   function endpointSummary(endpoint: NormalizedEndpoint | undefined): string {
     if (!endpoint) return t("admin.exTopo.endpoint.placeholder")
-    if (endpoint.Kind === "vpn" || endpoint.Kind === "internet") return `${gatewayLabelFor(visual, endpoint.Kind, t(`admin.exTopo.endpoint.${endpoint.Kind}`))} · ${endpoint.Interface || "—"}`
     const device = devices.find((candidate) => candidate.ID === endpoint.DeviceID)
     if (!device) return t("admin.exTopo.endpoint.placeholder")
     return `${device.Name || t("admin.exTopo.unnamedDevice")} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
@@ -76,19 +70,20 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
     const endpoints = connections[index]?.Endpoints ?? []
     return endpoints.length === 2 && endpoints.every((endpoint) => {
       if (!endpoint.Interface) return false
-      if (endpoint.Kind === "vpn") return vpnEnabled
-      if (endpoint.Kind === "internet") return internetEnabled
       return devices.some((device) => device.ID === endpoint.DeviceID)
     })
   }
   function options(connectionIndex: number, side: number) {
-    const list = [
-      ...(vpnEnabled ? [{ value: "vpn", label: `${gatewayLabelFor(visual, "vpn", t("admin.exTopo.endpoint.vpn"))} · ${GATEWAY_PORT}` }] : []),
-      ...(internetEnabled ? [{ value: "internet", label: `${gatewayLabelFor(visual, "internet", t("admin.exTopo.endpoint.internet"))} · ${GATEWAY_PORT}` }] : []),
-      ...devices.flatMap((device) => availableDevicePorts({ Connections: connections }, device, { connectionIndex, side })
-        .map((port) => ({ value: `device:${device.ID}:${port}`, label: `${device.Name || device.ID.slice(0, 8)} · ${shortForwardingPort(port)}` }))),
-    ]
-    return list.filter((option) => (option.value !== "vpn" && option.value !== "internet") || !connections.some((connection, ci) => connection.Endpoints.some((endpoint, si) => !(ci === connectionIndex && si === side) && endpoint.Kind === option.value)))
+    // A link that would put a second gateway into one network is offered disabled, with the reason.
+    const others = connections.filter((_, index) => index !== connectionIndex)
+    const other = connections[connectionIndex]?.Endpoints[side === 0 ? 1 : 0]
+    const otherChosen = other && other.DeviceID !== "" && other.Interface !== "" ? other : null
+    return devices.flatMap((device) => availableDevicePorts({ Connections: connections }, device, { connectionIndex, side })
+      .map((port) => {
+        const clash = otherChosen ? gatewayClashOfLink({ Devices: devices, Connections: others }, { DeviceID: device.ID, Interface: port }, otherChosen) : null
+        return { value: `device:${device.ID}:${port}`, label: `${device.Name || device.ID.slice(0, 8)} · ${shortForwardingPort(port)}`,
+          ...(clash ? { disabled: true, description: t("ed.c.gw.networkTaken", { name: clash }) } : {}) }
+      }))
   }
   function add() {
     const index = fields.length

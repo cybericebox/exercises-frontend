@@ -8,8 +8,8 @@ import { GatewayDialog } from "./GatewayDialog"
 import { ActionsSlotContext } from "./ActionsSlot"
 import { renameVarInText } from "./renameRefs"
 import { useState } from "react"
-import { capabilities, device, draftWith, FormHarness, readValues, Values } from "./test/harness"
-import type { VariableFormValues } from "@/lib/exerciseSchemas"
+import { capabilities, device, draftWith, FormHarness, gatewayDevice, readValues, Values } from "./test/harness"
+import type { DeviceFormValues, VariableFormValues } from "@/lib/exerciseSchemas"
 
 const variable = (Name: string, Text = "v", Kind: "value" | "template" = "value"): VariableFormValues => ({ Name, Kind, Text })
 
@@ -126,22 +126,59 @@ describe("variables of the schema", () => {
   })
 })
 
-describe("network and VPN gateway dialogs", () => {
-  function renderGateway(kind: "vpn" | "internet", options: { disabled?: boolean; caps?: ReturnType<typeof capabilities> } = {}) {
-    render(<FormHarness draft={draftWith([device()], { VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: true, DHCP: false } })} caps={options.caps ?? null} validate>
-      <GatewayDialog variantIndex={0} kind={kind} disabled={options.disabled ?? false} onClose={() => {}} />
-      <Values path={`Variants.0.Topology.${kind === "vpn" ? "VPN" : "Internet"}`} />
+describe("gateway dialogs", () => {
+  const vpnDevice = () => gatewayDevice("vpn", "attack", "g1", { DHCP: false, DHCPRanges: [] })
+  const internetDevice = () => gatewayDevice("internet", "out", "g2", { DHCP: false, DHCPRanges: [] })
+  const indexOf = { vpn: 1, internet: 2 }
+  function renderGateway(kind: "vpn" | "internet", options: { disabled?: boolean; caps?: ReturnType<typeof capabilities>; maxGateways?: number | null; extra?: DeviceFormValues[] } = {}) {
+    render(<FormHarness draft={draftWith([device(), vpnDevice(), internetDevice(), ...(options.extra ?? [])])} caps={options.caps ?? null} maxGateways={options.maxGateways ?? null} validate>
+      <GatewayDialog variantIndex={0} deviceIndex={indexOf[kind]} disabled={options.disabled ?? false} onClose={() => {}} />
+      <Values path={`Variants.0.Topology.Devices.${indexOf[kind]}`} />
     </FormHarness>)
   }
 
   it("switches DHCP on with its ranges on the next line and a default range", () => {
     renderGateway("internet")
     expect(screen.queryByText("admin.exTopo.dhcp.ranges")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("switch", { name: "ed.c.gw.dhcpInternet" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.c.gw.dhcp" }))
     expect(screen.getByText("admin.exTopo.dhcp.ranges")).toBeInTheDocument()
     expect(readValues()).toMatchObject({ DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] })
     fireEvent.change(screen.getByRole("textbox", { name: /ed.c.gw.dns/ }), { target: { value: "1.1.1.1" } })
     expect(readValues()).toMatchObject({ DNS: "1.1.1.1" })
+  })
+
+  it("starts with the name of the gateway, the first field of the dialog", () => {
+    renderGateway("vpn")
+    const name = screen.getByRole("textbox", { name: /ed.c.gw.name/ })
+    expect(name).toHaveValue("attack")
+    expect(document.querySelector("[data-gateway-dialog] input")).toBe(name)
+  })
+
+  it("renames the gateway with every reference to it, and keeps a bad name as a draft with its error beside the field", () => {
+    const client = device({ ID: "d9", Name: "client", Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Gateway: "attack", Host: 10 }, Gateway: "", GatewayRef: { Gateway: "attack", Host: 1 }, Routes: [{ Dst: "", DstRef: { Gateway: "attack" }, Via: "", ViaRef: { Gateway: "attack", Host: 1 } }] } }] })
+    render(<FormHarness draft={draftWith([device(), vpnDevice(), internetDevice(), client])} validate>
+      <GatewayDialog variantIndex={0} deviceIndex={1} disabled={false} onClose={() => {}} />
+      <Values path="Variants.0.Topology.Devices" />
+    </FormHarness>)
+    const name = screen.getByRole("textbox", { name: /ed.c.gw.name/ })
+    fireEvent.change(name, { target: { value: "Bad Name" } })
+    expect(name).toHaveAttribute("aria-invalid", "true")
+    expect((readValues() as { Name: string }[])[1].Name).toBe("attack")
+    fireEvent.change(name, { target: { value: "out" } })
+    expect(name).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByText("admin.ex.err.deviceNameDuplicate")).toBeInTheDocument()
+    fireEvent.change(name, { target: { value: "lab-vpn" } })
+    expect(name).not.toHaveAttribute("aria-invalid")
+    const devices = readValues() as { Name: string; Interfaces: { IP: { AddressRef: unknown; GatewayRef: unknown; Routes: { DstRef: unknown; ViaRef: unknown }[] } }[] }[]
+    expect(devices[1].Name).toBe("lab-vpn")
+    expect(devices[3].Interfaces[0].IP).toMatchObject({ AddressRef: { Gateway: "lab-vpn", Host: 10 }, GatewayRef: { Gateway: "lab-vpn", Host: 1 }, Routes: [{ DstRef: { Gateway: "lab-vpn" }, ViaRef: { Gateway: "lab-vpn", Host: 1 } }] })
+  })
+
+  it("flags a surplus gateway beside its name when the platform limit is lower than the lab holds", () => {
+    renderGateway("internet", { maxGateways: 1 })
+    const name = screen.getByRole("textbox", { name: /ed.c.gw.name/ })
+    expect(name).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByText("ed.c.val.gatewayLimit 1")).toBeInTheDocument()
   })
 
   it("has the reverse-connections switch only for the VPN gateway, off by default", () => {
@@ -152,9 +189,11 @@ describe("network and VPN gateway dialogs", () => {
     expect(readValues()).toMatchObject({ ReverseConnections: true })
   })
 
-  it("does not offer reverse connections or a DNS field where they do not belong", () => {
+  it("does not offer reverse connections or a DNS field where they do not belong, and no warning about two DHCP servers", () => {
     renderGateway("internet")
     expect(screen.queryByRole("switch", { name: "ed.c.gw.reverse" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("switch", { name: "ed.c.gw.dhcp" }))
+    expect(document.querySelector("[role=note]")).toBeNull()
   })
 
   it("disables reverse connections when no laboratory supports them, with the reason", () => {
@@ -165,7 +204,7 @@ describe("network and VPN gateway dialogs", () => {
 
   it("shows the range error beside the ranges", async () => {
     renderGateway("internet")
-    fireEvent.click(screen.getByRole("switch", { name: "ed.c.gw.dhcpInternet" }))
+    fireEvent.click(screen.getByRole("switch", { name: "ed.c.gw.dhcp" }))
     fireEvent.change(screen.getByRole("spinbutton", { name: "admin.exTopo.dhcp.rangeStartN 1" }), { target: { value: "1" } })
     fireEvent.click(screen.getByRole("button", { name: "validate-all", hidden: true }))
     expect(await screen.findByText("admin.ex.val.dhcpRange")).toBeInTheDocument()

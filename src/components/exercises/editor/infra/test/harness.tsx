@@ -8,9 +8,18 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import type { LabCapabilities } from "@/api/exercises/capabilities"
 import { draftSchema, emptyDevice, emptyDraft, type DeviceFormValues, type DraftFormValues, type TopologyFormValues } from "@/lib/exerciseSchemas"
 import { LabCapabilitiesProvider } from "../../labCapabilities"
+import { GatewayLimitProvider } from "../../gatewayLimit"
+import { emptyGateway } from "@/lib/editor/schemas/infra"
+import type { GatewayDeviceType } from "@/api/exercises/versions"
 
 export function device(overrides: Partial<DeviceFormValues> = {}): DeviceFormValues {
   return { ...emptyDevice(), ID: overrides.ID ?? "d1", Name: "web", ...overrides }
+}
+
+/** A gateway device of a test draft: `vpn` or `internet`, with a fixed id. */
+export function gatewayDevice(kind: "vpn" | "internet", name: string, id: string, overrides: Partial<DeviceFormValues> = {}): DeviceFormValues {
+  const type: GatewayDeviceType = kind === "vpn" ? "vpn_gateway" : "internet_gateway"
+  return { ...emptyGateway(type, name), ID: id, ...overrides }
 }
 
 export function draftWith(devices: DeviceFormValues[], topology: Partial<TopologyFormValues> = {}): DraftFormValues {
@@ -31,13 +40,13 @@ export function readValues(): unknown {
 }
 
 /** Renders `children` inside a form with `draft`; `validate` wires the real zod resolver. */
-export function FormHarness({ draft, children, caps = null, validate = false }: { draft: DraftFormValues; children: ReactNode; caps?: LabCapabilities | null; validate?: boolean }) {
+export function FormHarness({ draft, children, caps = null, validate = false, maxGateways = null }: { draft: DraftFormValues; children: ReactNode; caps?: LabCapabilities | null; validate?: boolean; maxGateways?: number | null }) {
   const form = useForm<DraftFormValues>({ defaultValues: draft, ...(validate ? { resolver: zodResolver(draftSchema) } : {}) })
   return <FormProvider {...form}>
-    <LabCapabilitiesProvider value={caps}>
+    <LabCapabilitiesProvider value={caps}><GatewayLimitProvider value={maxGateways}>
       {children}
       <button type="button" onClick={() => void form.trigger()}>validate-all</button>
-    </LabCapabilitiesProvider>
+    </GatewayLimitProvider></LabCapabilitiesProvider>
   </FormProvider>
 }
 

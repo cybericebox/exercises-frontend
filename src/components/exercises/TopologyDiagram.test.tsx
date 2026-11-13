@@ -8,27 +8,33 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
 import { TopologyDiagram } from './TopologyDiagram'
 import { emptyAccess, type TopologyFormValues } from '@/lib/exerciseSchemas'
+import { emptyGateway } from '@/lib/editor/schemas/infra'
+
+// A gateway is a device; its id doubles as the key of its node (and of its stored position).
+const vpnGateway = { ...emptyGateway('vpn_gateway', 'vpn-1'), ID: 'vpn' }
+const internetGateway = { ...emptyGateway('internet_gateway', 'internet-1'), ID: 'internet' }
 
 const topology: TopologyFormValues = {
   Variables: [],
-  VPN: { Enabled: true, DHCP: true },
-  Internet: { Enabled: false, DHCP: false },
   Devices: [
     {
       ID: 'd1', Name: 'web', Type: 'node', SecurityPreset: '', Image: 'nginx',
       ResourcePreset: "",
       Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] } }],
       Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
+      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
     },
     {
       ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '',
       ResourcePreset: "",
       Interfaces: [], Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
+      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
     },
+    vpnGateway,
   ],
   Connections: [
     { Endpoints: [{ Kind: 'device', DeviceID: 'd1', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd2', Interface: 'GigabitEthernet0/1' }] },
-    { Endpoints: [{ Kind: 'vpn', DeviceID: '', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd2', Interface: 'GigabitEthernet0/2' }] },
+    { Endpoints: [{ Kind: 'device', DeviceID: 'vpn', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd2', Interface: 'GigabitEthernet0/2' }] },
   ],
   VisualRender: null,
 }
@@ -151,7 +157,7 @@ describe('TopologyDiagram', () => {
     const devices = Array.from({ length: 30 }, (_, index) => ({
       ...topology.Devices[0], ID: `host-${index + 1}`, Name: `host-${index + 1}`,
     }))
-    const { container } = render(<TopologyDiagram topology={{ ...topology, VPN: { Enabled: false, DHCP: false }, Devices: devices, Connections: [], VisualRender: null }} />)
+    const { container } = render(<TopologyDiagram topology={{ ...topology, Devices: devices, Connections: [], VisualRender: null }} />)
     const svg = container.querySelector('svg[role="group"]')!
     const hitboxes = Array.from(container.querySelectorAll('[data-icon-hitbox]'))
     const points = hitboxes.map((rect) => `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
@@ -162,7 +168,7 @@ describe('TopologyDiagram', () => {
   })
 
   it('does not reserve empty gateway rows above a standalone forwarding device', () => {
-    const { container } = render(<TopologyDiagram topology={{ ...topology, VPN: { Enabled: false, DHCP: false }, Connections: [] }} />)
+    const { container } = render(<TopologyDiagram topology={{ ...topology, Devices: topology.Devices.filter((device) => device.ID !== 'vpn'), Connections: [] }} />)
     const switchY = Number(container.querySelector('[data-testid="node-d2"] [data-icon-hitbox]')?.getAttribute('y'))
     const hostY = Number(container.querySelector('[data-testid="node-d1"] [data-icon-hitbox]')?.getAttribute('y'))
     expect(switchY).toBeLessThan(180)
@@ -170,7 +176,7 @@ describe('TopologyDiagram', () => {
   })
 
   it('starts a hosts-only topology in the first available row', () => {
-    const { container } = render(<TopologyDiagram topology={{ ...topology, VPN: { Enabled: false, DHCP: false }, Devices: [topology.Devices[0]], Connections: [] }} />)
+    const { container } = render(<TopologyDiagram topology={{ ...topology, Devices: [topology.Devices[0]], Connections: [] }} />)
     const hostY = Number(container.querySelector('[data-testid="node-d1"] [data-icon-hitbox]')?.getAttribute('y'))
     expect(hostY).toBeLessThan(180)
   })
@@ -235,12 +241,12 @@ describe('TopologyDiagram', () => {
     }
   })
 
-  it('renders a node per device plus enabled networks', () => {
+  it('renders a node per device, gateways included', () => {
     render(<TopologyDiagram topology={topology} />)
     expect(screen.getByText('web', { selector: 'text' })).toBeInTheDocument()
     expect(screen.getByText('sw1', { selector: 'text' })).toBeInTheDocument()
-    expect(screen.getByText('admin.exTopo.vpn', { selector: 'text' })).toBeInTheDocument() // VPN enabled
-    expect(screen.queryByText('admin.exTopo.internet')).not.toBeInTheDocument() // Internet disabled
+    expect(screen.getByText('vpn-1', { selector: 'text' })).toBeInTheDocument() // a gateway is named like a device
+    expect(screen.queryByText('internet-1')).not.toBeInTheDocument() // no Internet gateway in this lab
   })
 
   it('does not select the label text or open an editor when the label is dragged', () => {
@@ -382,7 +388,7 @@ describe('TopologyDiagram', () => {
     expect(Number(host.querySelector('[data-selection-outline]')?.getAttribute('width'))).toBeLessThan(34)
     expect(host.querySelector('[data-selection-outline]')).toHaveClass('stroke-primary')
     expect(host.querySelector('[data-icon-hitbox]')).toHaveClass('stroke-transparent')
-    const internetTopology = { ...topology, Internet: { Enabled: true, DHCP: false } }
+    const internetTopology = { ...topology, Devices: [...topology.Devices, internetGateway] }
     const round = render(<TopologyDiagram topology={internetTopology} selectedNodes={['internet']} />)
     expect(Number(round.container.querySelector('[data-testid="node-internet"] circle[data-selection-outline]')?.getAttribute('r'))).toBeLessThan(19)
   })
@@ -443,10 +449,10 @@ describe('TopologyDiagram', () => {
   it('joins the visible glyph boundaries without detached endpoint circles', () => {
     const connected: TopologyFormValues = {
       ...topology,
-      Internet: { Enabled: true, DHCP: false },
+      Devices: [...topology.Devices, internetGateway],
       Connections: [{ Endpoints: [
         { Kind: 'device', DeviceID: 'd1', Interface: 'eth0' },
-        { Kind: 'internet', DeviceID: '', Interface: 'eth0' },
+        { Kind: 'device', DeviceID: 'internet', Interface: 'eth0' },
       ] }],
       VisualRender: { version: 1, positions: { d1: { x: 0.2, y: 0.4 }, internet: { x: 0.8, y: 0.4 } } },
     }
@@ -458,7 +464,7 @@ describe('TopologyDiagram', () => {
   it('skips connections with unresolved endpoints', () => {
     const broken: TopologyFormValues = {
       ...topology,
-      Connections: [{ Endpoints: [{ Kind: 'device', DeviceID: 'ghost', Interface: '' }, { Kind: 'vpn', DeviceID: '', Interface: 'eth0' }] }],
+      Connections: [{ Endpoints: [{ Kind: 'device', DeviceID: 'ghost', Interface: '' }, { Kind: 'device', DeviceID: 'vpn', Interface: 'eth0' }] }],
     }
     const { container } = render(<TopologyDiagram topology={broken} />)
     expect(container.querySelectorAll('[data-edge]')).toHaveLength(0)
@@ -467,8 +473,6 @@ describe('TopologyDiagram', () => {
   it('renders without crashing for an empty topology', () => {
     const empty: TopologyFormValues = {
       Variables: [],
-      VPN: { Enabled: false, DHCP: false },
-      Internet: { Enabled: false, DHCP: false },
       Devices: [],
       Connections: [],
       VisualRender: null,
@@ -553,6 +557,29 @@ describe('TopologyDiagram', () => {
     fireEvent.contextMenu(screen.getByTestId('node-d1'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'ed.c.diagram.connect' }))
     expect(onNodeLinkStart).toHaveBeenCalledWith('d1')
+  })
+
+  it('adds a gateway from the canvas menu again and again, and disables the entries with the reason at the limit', () => {
+    const onCanvasAddNode = vi.fn()
+    const first = render(<TopologyDiagram topology={topology} onCanvasAddNode={onCanvasAddNode} />)
+    fireEvent.contextMenu(first.container.querySelector('svg')!, { clientX: 250, clientY: 220 })
+    // The lab already has a VPN gateway: the entry is not «already added», a second one can be placed.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'admin.exTopo.vpn' }))
+    expect(onCanvasAddNode).toHaveBeenCalledWith('vpn', expect.anything())
+    first.unmount()
+    const limited = render(<TopologyDiagram topology={topology} onCanvasAddNode={onCanvasAddNode} gatewayAddBlockedReason="ed.c.gw.limitReached 1" />)
+    fireEvent.contextMenu(limited.container.querySelector('svg')!, { clientX: 250, clientY: 220 })
+    for (const name of ['admin.exTopo.vpn', 'admin.exTopo.internet']) expect(screen.getByRole('menuitem', { name: new RegExp(name) })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getAllByText('ed.c.gw.limitReached 1').length).toBeGreaterThan(0)
+    expect(screen.getByRole('menuitem', { name: 'admin.exTopo.type.container' })).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('draws several gateways of one kind as ordinary nodes named like devices', () => {
+    const second = { ...emptyGateway('vpn_gateway', 'vpn-2'), ID: 'vpn-b' }
+    const { container } = render(<TopologyDiagram topology={{ ...topology, Devices: [...topology.Devices, second] }} />)
+    expect(screen.getByText('vpn-1', { selector: 'text' })).toBeInTheDocument()
+    expect(screen.getByText('vpn-2', { selector: 'text' })).toBeInTheDocument()
+    expect(container.querySelector('[data-testid="node-vpn-b"] [data-topology-glyph]')).toHaveAttribute('data-topology-glyph', 'vpn')
   })
 
   it('keeps the connection action card open when its empty area is clicked', () => {
@@ -663,9 +690,9 @@ describe('TopologyDiagram', () => {
   })
 
   it('shows the one-port labels and distinct pictograms for both connector kinds', () => {
-    const both = { ...topology, Internet: { Enabled: true, DHCP: false }, Connections: [
+    const both = { ...topology, Devices: [...topology.Devices, internetGateway], Connections: [
       ...topology.Connections,
-      { Endpoints: [{ Kind: 'internet' as const, DeviceID: '', Interface: 'eth0' }, { Kind: 'device' as const, DeviceID: 'd1', Interface: 'eth1' }] },
+      { Endpoints: [{ Kind: 'device' as const, DeviceID: 'internet', Interface: 'eth0' }, { Kind: 'device' as const, DeviceID: 'd1', Interface: 'eth1' }] },
     ] }
     const { container } = render(<TopologyDiagram topology={both} selectedConnectionIndex={2} />)
     expect(container.querySelector('[data-testid="node-vpn"] [data-topology-glyph]')).toHaveAttribute('data-topology-glyph', 'vpn')

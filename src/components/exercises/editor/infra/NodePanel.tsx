@@ -11,7 +11,7 @@ import { deliveriesOfTask } from "@/lib/editor/refs"
 import { devicePreset } from "@/lib/deviceResources"
 import { amountLabel, blocksLabel } from "@/lib/presetLabels"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
+import { gatewayKindOf, isGatewayType } from "@/api/exercises/versions"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { outsideFrame } from "@/lib/deviceResources"
 import { parsePlatformRef } from "../../ImageUpload"
@@ -44,14 +44,13 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
   const tasks = useWatch({ control, name: `Variants.${variantIndex}.Tasks` }) ?? []
   const config = useResourcesConfig()
   const device = topology?.Devices.find((candidate) => candidate.ID === nodeKey)
-  const gateway = nodeKey === "vpn" || nodeKey === "internet" ? nodeKey : null
+  const gateway = device && isGatewayType(device.Type) ? gatewayKindOf(device.Type) : null
 
   const connections = useMemo(() => {
     if (!topology) return [] as string[]
-    const nameOf = (endpoint: { Kind: string; DeviceID: string; Interface: string }) => endpoint.Kind === "device"
-      ? `${topology.Devices.find((candidate) => candidate.ID === endpoint.DeviceID)?.Name || t("admin.exTopo.unnamedDevice")} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
-      : `${gatewayLabelFor(topology.VisualRender, endpoint.Kind as "vpn" | "internet", t(`admin.exTopo.${endpoint.Kind}`))} · ${endpoint.Interface || "—"}`
-    const mine = (endpoint: { Kind: string; DeviceID: string }) => endpoint.Kind === "device" ? endpoint.DeviceID === nodeKey : endpoint.Kind === nodeKey
+    const nameOf = (endpoint: { DeviceID: string; Interface: string }) =>
+      `${topology.Devices.find((candidate) => candidate.ID === endpoint.DeviceID)?.Name || t("admin.exTopo.unnamedDevice")} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
+    const mine = (endpoint: { DeviceID: string }) => endpoint.DeviceID === nodeKey
     return topology.Connections.filter((connection) => connection.Endpoints.some(mine)).map((connection) => {
       const own = connection.Endpoints.find(mine) ?? connection.Endpoints[0]
       const other = connection.Endpoints.find((endpoint) => endpoint !== own) ?? connection.Endpoints[0]
@@ -59,15 +58,15 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
     })
   }, [topology, nodeKey])
 
-  if (!topology || (!device && !gateway)) return null
+  if (!topology || !device) return null
   const isNode = device?.Type === "node"
-  const label = gateway ? gatewayLabelFor(topology.VisualRender, gateway, t(`admin.exTopo.${gateway}`)) : device?.Name || t("admin.exTopo.unnamedDevice")
+  const label = device.Name || t("admin.exTopo.unnamedDevice")
   const kindText = gateway ? t(`admin.exTopo.${gateway}`) : device?.Type === "hub" ? t("ed.c.panel.kindHub") : device?.Type === "unmanaged-switch" ? t("ed.c.panel.kindSwitch") : t("ed.c.panel.kindNode")
   const open = (section: DeviceSection) => () => onConfigure(section)
   const on = (value: boolean) => t(value ? "ed.c.panel.on" : "ed.c.panel.off")
 
   const linkRow: SummaryRow = { key: "links", label: t("ed.c.panel.links"), value: connections.length ? lines(connections) : muted(t("ed.c.panel.none")) }
-  let rows: SummaryRow[] = []
+  let rows: SummaryRow[]
 
   if (device && isNode) {
     const preset = config ? devicePreset(device, config) : null
@@ -103,7 +102,7 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
         : muted(t("ed.c.panel.none")) },
     ]
   } else if (gateway) {
-    const network = gateway === "vpn" ? topology.VPN : topology.Internet
+    const network = device
     const ranges = (network.DHCPRanges ?? []).map((range) => `.${range.Start}–.${range.End}`)
     rows = [
       ...(gateway === "vpn" ? [{ key: "reverse", label: t("ed.c.panel.reverse"), onSelect: () => onConfigure(), value: t(network.ReverseConnections ? "ed.c.panel.allowed" : "ed.c.panel.denied") }] : []),
@@ -114,7 +113,7 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
       ] : []),
       linkRow,
     ]
-  } else if (device) {
+  } else {
     rows = [{ key: "type", label: t("ed.c.panel.type"), value: kindText }, linkRow, { key: "ports", label: t("ed.c.panel.ports"), value: t("ed.c.panel.portsAuto") }]
   }
 
@@ -137,6 +136,6 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
 }
 
 function ifaceWords(ip: DraftFormValues["Variants"][number]["Topology"]["Devices"][number]["Interfaces"][number]["IP"]): string {
-  if (ip.Type === "static") return ip.AddressRef ? t("ed.c.net.fromNetwork", { network: t(ip.AddressRef.Network === "vpn" ? "ed.c.net.vpnShort" : "ed.c.net.internetShort"), host: ip.AddressRef.Host }) : ip.Addresses.join(", ") || "—"
+  if (ip.Type === "static") return ip.AddressRef ? t("ed.c.net.fromGateway", { gateway: ip.AddressRef.Gateway, host: ip.AddressRef.Host }) : ip.Addresses.join(", ") || "—"
   return t(ip.Type === "dhcp" ? "admin.exTopo.ip.dhcp" : ip.Type === "dhcp-preset" ? "admin.exTopo.ip.dhcpPreset" : "ed.c.net.noIp")
 }

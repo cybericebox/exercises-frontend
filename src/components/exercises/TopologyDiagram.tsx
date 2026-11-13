@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { MAX_DEVICE_NAME_LEN, type TopologyFormValues } from "@/lib/exerciseSchemas"
+import { gatewayKindOf, isGatewayType } from "@/api/exercises/versions"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { fitViewport, initialTopologyViewport, pointInWorld, TOPOLOGY_VIEWPORT_DEFAULT, zoomViewportAt, type TopologyViewport } from "@/lib/topologyViewport"
 import { TopologyGlyph, type TopologyGlyphKind } from "./TopologyGlyph"
 import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMenu"
@@ -191,7 +191,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: Labe
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
   unavailableConnectionNodes = [], connectionMode = false, toolbarExtra, controlsPosition = "bottom-right", nodeSettingsLabel, nodeSettingsBlocked, nodeStatus, minPortLabelScale }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
@@ -211,6 +211,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   onEdgeRemove?: (index: number) => void
   /** Why a new connection cannot start now (fewer than two nodes with free ports); null when it can. */
   linkUnavailableReason?: string | null
+  /** Why another gateway cannot be added (the platform limit); the canvas menu entries are disabled with it. */
+  gatewayAddBlockedReason?: string | null
   selectedNodes?: string[]
   selectedConnectionIndex?: number | null
   unavailableConnectionNodes?: string[]
@@ -330,20 +332,18 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
       key: d.ID,
       label: d.Name || t("admin.exTopo.unnamedDeviceN", { n: index + 1 }),
-      kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
+      kind: isGatewayType(d.Type) ? gatewayKindOf(d.Type) : d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
       external: d.Access.some((entry) => entry.Kind === "http"),
     }))
-    if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: gatewayLabelFor(topology.VisualRender, "vpn", t("admin.exTopo.vpn")), kind: "vpn" })
-    if (topology.Internet.Enabled) nodes.push({ key: "internet", label: gatewayLabelFor(topology.VisualRender, "internet", t("admin.exTopo.internet")), kind: "internet" })
 
     const known = new Set(nodes.map((n) => n.key))
     const edges: DiagramEdge[] = []
     topology.Connections.forEach((c, i) => {
       const [a, b] = c.Endpoints
       if (!a || !b) return
-      const keyA = a.Kind === "device" ? a.DeviceID : a.Kind
-      const keyB = b.Kind === "device" ? b.DeviceID : b.Kind
+      const keyA = a.DeviceID
+      const keyB = b.DeviceID
       if (!known.has(keyA) || !known.has(keyB)) return // unresolvable endpoint — skip
       edges.push({ key: `e${i}`, index: i, a: keyA, b: keyB, labelA: a.Interface, labelB: b.Interface })
     })
@@ -501,7 +501,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           ["hub", "admin.exTopo.type.hub", "hub"], ["vpn", "admin.exTopo.vpn", "vpn"], ["internet", "admin.exTopo.internet", "internet"],
         ] as const).map(([kind, label, glyph]) => ({ kind: "item", key: kind, label: t(label),
           icon: <TopologyGlyph kind={glyph} className="h-5 w-5 shrink-0" />,
-          disabled: (kind === "vpn" && topology.VPN.Enabled) || (kind === "internet" && topology.Internet.Enabled),
+          disabled: (kind === "vpn" || kind === "internet") && !!gatewayAddBlockedReason, reason: (kind === "vpn" || kind === "internet") ? gatewayAddBlockedReason ?? undefined : undefined,
           onSelect: () => addNode(kind, menu.position) }) as const)),
       ] : []),
       ...(onCanvasLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />, separated: !!addNode,
@@ -792,7 +792,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               onDoubleClick={(event) => event.stopPropagation()}>
               <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error} aria-describedby={editingLabel.error ? `topology-node-${node.key}-error` : undefined}
-                  value={editingLabel.draft} maxLength={node.kind === "device" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
+                  value={editingLabel.draft} maxLength={node.kind !== "forwarding" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
                   onBlur={commitNodeRename}
                   onKeyDown={(event) => {

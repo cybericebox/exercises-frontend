@@ -8,7 +8,10 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableState, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW } from "@/components/ui/table"
 import { deliveriesOfTask } from "@/lib/editor/refs"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
+import { gatewayKindOf, isGatewayType } from "@/api/exercises/versions"
+import { gatewaysOverLimit } from "@/lib/editor/schemas/infra"
+import { useMaxLabGateways } from "../gatewayLimit"
+import { FieldError } from "../fieldErrors"
 import { topologyIconFor } from "@/lib/topologyIcons"
 import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
@@ -33,6 +36,7 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
   const { control } = useFormContext<DraftFormValues>()
   const topology = useWatch({ control, name: `Variants.${variantIndex}.Topology` })
   const taskList = useWatch({ control, name: `Variants.${variantIndex}.Tasks` })
+  const maxGateways = useMaxLabGateways()
 
   const rows = useMemo(() => {
     if (!topology) return []
@@ -40,18 +44,18 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
     const linksOf = (match: (endpoint: { Kind: string; DeviceID: string }) => boolean) => topology.Connections.filter((connection) => connection.Endpoints.some(match)).length
     const related = (deviceId: string) => tasks.filter((task) => (task.Check?.Kind === "state" && task.Check.State.Conditions.some((condition) => condition.DeviceID === deviceId))
       || deliveriesOfTask(topology, task.Key).some((delivery) => delivery.deviceId === deviceId)).length
-    const devices = topology.Devices.map((device) => ({
-      key: device.ID, name: device.Name || t("admin.exTopo.unnamedDevice"), glyph: topologyIconFor(device, topology.VisualRender),
-      type: device.Type === "node" ? t("ed.c.panel.kindNode") : device.Type === "hub" ? t("ed.c.panel.kindHub") : t("ed.c.panel.kindSwitch"),
-      image: device.Type === "node" ? device.Image.trim() : "", node: device.Type === "node", links: linksOf((endpoint) => endpoint.Kind === "device" && endpoint.DeviceID === device.ID),
-      tasks: device.Type === "node" ? related(device.ID) : null, access: device.Type === "node" ? accessWords(device.Access) : null,
-    }))
-    const gateways = (["vpn", "internet"] as const).filter((kind) => (kind === "vpn" ? topology.VPN.Enabled : topology.Internet.Enabled)).map((kind) => ({
-      key: kind, name: gatewayLabelFor(topology.VisualRender, kind, t(`admin.exTopo.${kind}`)), glyph: kind, type: t(`admin.exTopo.${kind}`), image: "", node: true,
-      links: linksOf((endpoint) => endpoint.Kind === kind), tasks: null as number | null, access: null as string | null,
-    }))
-    return [...devices, ...gateways]
-  }, [topology, taskList])
+    const overLimit = new Set(maxGateways === null ? [] : gatewaysOverLimit(topology.Devices, maxGateways))
+    return topology.Devices.map((device, index) => {
+      const gateway = isGatewayType(device.Type)
+      return {
+        key: device.ID, name: device.Name || t("admin.exTopo.unnamedDevice"), glyph: isGatewayType(device.Type) ? gatewayKindOf(device.Type) : topologyIconFor(device, topology.VisualRender),
+        type: gateway ? t(device.Type === "vpn_gateway" ? "admin.exTopo.vpn" : "admin.exTopo.internet") : device.Type === "node" ? t("ed.c.panel.kindNode") : device.Type === "hub" ? t("ed.c.panel.kindHub") : t("ed.c.panel.kindSwitch"),
+        image: device.Type === "node" ? device.Image.trim() : "", node: device.Type === "node" || gateway, links: linksOf((endpoint) => endpoint.DeviceID === device.ID),
+        tasks: device.Type === "node" ? related(device.ID) : null, access: device.Type === "node" ? accessWords(device.Access) : null,
+        limitError: overLimit.has(index) && maxGateways !== null ? t("ed.c.val.gatewayLimit", { max: maxGateways }) : null,
+      }
+    })
+  }, [topology, taskList, maxGateways])
 
   return <Table label={t("ed.c.devices.title")} className="min-w-[44rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
     <thead>
@@ -73,6 +77,7 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
             className="flex max-w-full items-center gap-2 rounded-sm text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
             <TopologyGlyph kind={row.glyph} className="h-5 w-5 shrink-0 text-foreground" /><span className="truncate">{row.name}</span>
           </button>
+          {row.limitError && <FieldError path={`${row.key}-limit`} message={row.limitError} className="mt-0.5" />}
         </td>
         <td className={cn(TABLE_CELL, "truncate text-muted-foreground")}>{row.type}</td>
         <td className={cn(TABLE_CELL, "truncate font-mono text-[13px]")}>{row.image ? (parsePlatformRef(row.image)?.name ?? row.image) : "—"}</td>

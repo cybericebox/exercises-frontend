@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 
@@ -10,29 +11,29 @@ import { InfraWorkspace } from "./InfraWorkspace"
 import { ResourcesConfigProvider } from "../../ResourcesConfigContext"
 import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
 import { emptyVariant } from "@/lib/exerciseSchemas"
-import { device, draftWith, FormHarness, readValues, Values } from "./test/harness"
+import { device, draftWith, FormHarness, gatewayDevice, readValues, Values } from "./test/harness"
 
 const web = () => device({ ID: "d1", Name: "web", Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "dhcp", Addresses: [], AddressRef: null, Gateway: "", GatewayRef: null, Routes: [] } }] })
 const sw = () => device({ ID: "d2", Name: "sw1", Type: "unmanaged-switch", Interfaces: [] })
 
-function renderWorkspace(options: { linked?: boolean } = {}) {
-  const draft = draftWith([web(), sw()], {
-    VPN: { Enabled: true, DHCP: false },
-    Connections: [{ Endpoints: [{ Kind: "device", DeviceID: "d1", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/1" }] }],
+function renderWorkspace(options: { linked?: boolean; maxGateways?: number | null; devices?: ReturnType<typeof web>[]; connections?: unknown[]; extra?: ReactNode } = {}) {
+  const draft = draftWith(options.devices ?? [web(), sw(), gatewayDevice("vpn", "attack", "vpn", { DHCP: false, DHCPRanges: [] })], {
+    ...(options.connections ? { Connections: options.connections as never } : {
+    Connections: [{ Endpoints: [{ Kind: "device", DeviceID: "d1", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/1" }] }] }),
     VisualRender: { positions: { d1: { x: 0.3, y: 0.3 }, d2: { x: 0.6, y: 0.3 }, vpn: { x: 0.8, y: 0.3 } } },
   })
   if (options.linked) {
     draft.Variants[0].LinkedTo = "base-variant"
     draft.Variants.push({ ...emptyVariant(2), ID: "base-variant" })
   }
-  render(<ResourcesConfigProvider value={RESOURCES_CONFIG}><FormHarness draft={draft} validate>
-    <InfraWorkspace /><Values path="Variants.0.Topology" />
+  render(<ResourcesConfigProvider value={RESOURCES_CONFIG}><FormHarness draft={draft} validate maxGateways={options.maxGateways ?? null}>
+    <InfraWorkspace /><Values path="Variants.0.Topology" />{options.extra}
   </FormHarness></ResourcesConfigProvider>)
 }
 
 beforeEach(() => { editor.value = { variantIndex: 0, disabled: false, baseIndex: -1, resources: null, goTo: vi.fn(), goToField: vi.fn() } })
 
-const topology = () => readValues() as { Devices: { ID: string; Name: string }[]; Connections: unknown[]; VPN: { Enabled: boolean } }
+const topology = () => readValues() as { Devices: { ID: string; Name: string }[]; Connections: unknown[] }
 
 describe("infrastructure workspace", () => {
   it("has the four sub-views in one row and marks the active one", () => {
@@ -91,9 +92,9 @@ describe("infrastructure workspace", () => {
     fireEvent.click(within(document.querySelector<HTMLElement>("[data-side-panel]")!).getByRole("button", { name: "ed.c.panel.delete" }))
     const dialog = await screen.findByRole("dialog")
     expect(dialog).toHaveTextContent("ed.c.remove.withConnections 1")
-    expect(topology().Devices).toHaveLength(2)
+    expect(topology().Devices).toHaveLength(3)
     fireEvent.click(within(dialog).getByRole("button", { name: "admin.exTopo.removeDevice" }))
-    await waitFor(() => expect(topology().Devices.map((item) => item.Name)).toEqual(["sw1"]))
+    await waitFor(() => expect(topology().Devices.map((item) => item.Name)).toEqual(["sw1", "attack"]))
     expect(topology().Connections).toHaveLength(0)
   })
 
@@ -101,7 +102,7 @@ describe("infrastructure workspace", () => {
     renderWorkspace()
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.type.container" }))
-    expect(topology().Devices.map((item) => item.Name)).toEqual(["web", "sw1", "host-1"])
+    expect(topology().Devices.map((item) => item.Name)).toEqual(["web", "sw1", "attack", "host-1"])
     expect(document.querySelector("[data-side-panel]")).toHaveTextContent("host-1")
   })
 
@@ -128,6 +129,97 @@ describe("infrastructure workspace", () => {
     const draft = draftWith([web()])
     render(<FormHarness draft={draft}><InfraWorkspace /></FormHarness>)
     expect(screen.getByRole("button", { name: "admin.exTopo.addConnection" })).toHaveAttribute("aria-disabled", "true")
+  })
+})
+
+describe("gateways as devices", () => {
+  const client = () => device({ ID: "d1", Name: "web", Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Gateway: "attack", Host: 10 }, Gateway: "", GatewayRef: { Gateway: "attack", Host: 1 }, Routes: [{ Dst: "", DstRef: { Gateway: "attack" }, Via: "10.0.0.1", ViaRef: null }] } }] })
+  const vpn = (name = "attack", id = "vpn") => gatewayDevice("vpn", name, id, { DHCP: false, DHCPRanges: [] })
+  const addGateway = (label: string) => {
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.click(screen.getByRole("menuitem", { name: new RegExp(label) }))
+  }
+
+  it("adds gateway after gateway from the same menu, named vpn-1, vpn-2 and internet-1, never «already added»", () => {
+    renderWorkspace({ devices: [web()], connections: [] })
+    addGateway("admin.exTopo.vpn")
+    addGateway("admin.exTopo.vpn")
+    addGateway("admin.exTopo.internet")
+    const devices = topology().Devices as unknown as { Name: string; Type: string; DHCP: boolean }[]
+    expect(devices.map((item) => item.Name)).toEqual(["web", "vpn-1", "vpn-2", "internet-1"])
+    expect(devices.slice(1).map((item) => item.Type)).toEqual(["vpn_gateway", "vpn_gateway", "internet_gateway"])
+    expect(devices[1].DHCP).toBe(true)
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    expect(screen.queryByText("ed.c.toolbar.alreadyAdded")).not.toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: /admin.exTopo.vpn/ })).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("disables both gateway entries with the reason once the platform limit is reached", () => {
+    renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2")], connections: [], maxGateways: 2 })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    for (const label of ["admin.exTopo.vpn", "admin.exTopo.internet"]) expect(screen.getByRole("menuitem", { name: new RegExp(label) })).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByRole("note")).toHaveTextContent("ed.c.gw.limitReached 2")
+    fireEvent.click(screen.getByRole("menuitem", { name: /admin.exTopo.type.container/ }))
+    expect(topology().Devices).toHaveLength(4)
+  })
+
+  it("does not limit gateways while the platform limit is not known", () => {
+    renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2"), vpn("c", "g3")], connections: [], maxGateways: null })
+    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    expect(screen.getByRole("menuitem", { name: /admin.exTopo.vpn/ })).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("opens the gateway dialog from its side panel and lists a gateway as a row with its kind", () => {
+    renderWorkspace()
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.devices" }))
+    const row = within(screen.getByRole("table", { name: "ed.c.devices.title" })).getByRole("button", { name: /ed.c.devices.showN attack/ }).closest("tr")!
+    expect(row).toHaveTextContent("admin.exTopo.vpn")
+    fireEvent.click(within(row).getByRole("button", { name: "ed.c.panel.configure" }))
+    expect(screen.getByRole("dialog")).toHaveTextContent("ed.c.gw.title attack")
+  })
+
+  it("on removal says how many references it clears, clears them and drops the connections of the gateway", async () => {
+    renderWorkspace({ devices: [client(), sw(), vpn()], connections: [{ Endpoints: [{ Kind: "device", DeviceID: "vpn", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/1" }] }] })
+    fireEvent.click(screen.getByTestId("node-vpn"))
+    fireEvent.click(within(document.querySelector<HTMLElement>("[data-side-panel]")!).getByRole("button", { name: "ed.c.panel.delete" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(dialog).toHaveTextContent("ed.c.remove.gatewayGone attack")
+    expect(dialog).toHaveTextContent("ed.c.remove.withConnections 1")
+    expect(dialog).toHaveTextContent("ed.c.remove.gatewayRefs 2 1")
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.c.remove.gateway" }))
+    await waitFor(() => expect(topology().Devices.map((item) => item.Name)).toEqual(["web", "sw1"]))
+    expect(topology().Connections).toHaveLength(0)
+    const ip = (topology().Devices[0] as unknown as { Interfaces: { IP: { AddressRef: unknown; GatewayRef: unknown; Addresses: string[]; Routes: { DstRef: unknown; Dst: string; Via: string }[] } }[] }).Interfaces[0].IP
+    expect(ip.AddressRef).toBeNull()
+    expect(ip.GatewayRef).toBeNull()
+    expect(ip.Addresses).toEqual([""])
+    expect(ip.Routes[0]).toMatchObject({ DstRef: null, Dst: "", Via: "10.0.0.1" })
+  })
+
+  it("offers a gateway that would share a network with another gateway disabled, with the reason", () => {
+    const devices = [sw(), vpn("a", "g1"), vpn("b", "g2")]
+    renderWorkspace({ devices, connections: [
+      { Endpoints: [{ Kind: "device", DeviceID: "g1", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/1" }] },
+      { Endpoints: [{ Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/2" }, { Kind: "device", DeviceID: "", Interface: "" }] },
+    ] } as never)
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.connections" }))
+    fireEvent.click(screen.getAllByRole("button", { name: /admin.exTopo.overview.editConnectionN/ })[1])
+    const editor = screen.getByTestId("connection-editor-1")
+    fireEvent.keyDown(within(editor).getAllByRole("button", { name: "admin.exTopo.endpoint.second" })[0], { key: "ArrowDown" })
+    const taken = screen.getByRole("menuitemradio", { name: /b · eth0/ })
+    expect(taken).toHaveAttribute("data-disabled")
+    expect(taken).toHaveTextContent("ed.c.gw.networkTaken a")
+  })
+
+  it("refuses a second gateway in one network in the connection dropdowns, with the reason, and beside the endpoint after validation", async () => {
+    const devices = [sw(), vpn("a", "g1"), vpn("b", "g2")]
+    renderWorkspace({ devices, validate: true, connections: [
+      { Endpoints: [{ Kind: "device", DeviceID: "g1", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/1" }] },
+      { Endpoints: [{ Kind: "device", DeviceID: "g2", Interface: "eth0" }, { Kind: "device", DeviceID: "d2", Interface: "GigabitEthernet0/2" }] },
+    ] } as never)
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.connections" }))
+    fireEvent.click(screen.getByRole("button", { name: "validate-all" }))
+    expect(await screen.findByText("ed.c.val.gatewayNetworkTaken a")).toBeInTheDocument()
   })
 })
 

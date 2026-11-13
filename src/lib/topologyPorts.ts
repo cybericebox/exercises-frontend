@@ -28,6 +28,9 @@ export function availableDevicePorts(
   device: TopologyFormValues["Devices"][number],
   editing?: { connectionIndex: number; side: number },
 ): string[] {
+  if (device.Type === "vpn_gateway" || device.Type === "internet_gateway") {
+    return usedDevicePorts(topology, device.ID, editing).has(GATEWAY_PORT) ? [] : [GATEWAY_PORT]
+  }
   if (device.Type === "unmanaged-switch" || device.Type === "hub") {
     return availableForwardingPorts(topology, device.ID, editing)
   }
