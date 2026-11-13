@@ -20,7 +20,7 @@
 import errorsEn from "../../../messages/errors.en.json"
 import {
   FIXTURE_ACCESS, FIXTURE_EXERCISE_ID, FIXTURE_IMAGE_SERVICES, FIXTURE_ME,
-  buildCapabilities, buildDeployStatus, buildDraft, buildExercise, buildImportPreview, buildListItem, type DraftShape, type ImportKind, type LabsMode,
+  buildCapabilities, buildDeployStatus, gatewaysOfTopology, type FixtureGateway, buildDraft, buildExercise, buildImportPreview, buildListItem, type DraftShape, type ImportKind, type LabsMode,
 } from "./data"
 
 const MARK = "[editor fixtures]"
@@ -76,7 +76,7 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify({ Stat
 const fail = (status: number, code: number, message: string, context?: Record<string, string | number>) => new Response(JSON.stringify({ Status: { Code: code, Message: message, ...(context ? { Context: context } : {}) } }), { status, headers: { "Content-Type": "application/json" } })
 const empty = () => new Response(null, { status: 200 })
 
-type Deploy = { id: string; versionId: string; variantId: string; startedAt: number }
+type Deploy = { id: string; versionId: string; variantId: string; startedAt: number; gateways: FixtureGateway[] }
 
 export function installFixtures(): void {
   if ((window as unknown as Record<string, unknown>)[KEY]) return
@@ -177,8 +177,9 @@ export function installFixtures(): void {
       const id = `fx-lab-${++counter}`
       // ?age=N: the lab is created as if N seconds old (to reach a later state at once).
       const age = Number(new URLSearchParams(window.location.search).get("age")) || 0
-      deploys.set(id, { id, versionId: deploy[1], variantId: deploy[2], startedAt: Date.now() - age * 1000 })
       const variant = draft.Variants.find((item) => item.ID === deploy[2]) ?? draft.Variants[0]
+      // The lab is made of the topology as it is now: its gateways are the ones the status lists.
+      deploys.set(id, { id, versionId: deploy[1], variantId: deploy[2], startedAt: Date.now() - age * 1000, gateways: gatewaysOfTopology(variant.Topology) })
       return json({ DeployID: id, Lab: "fixture", Kind: "lab", Tasks: variant.Tasks.filter((task) => task.Check && "Answer" in task.Check).map((task) => ({ TaskID: task.ID, Name: task.Name })) })
     }
     if (path === "/api/exercises/deploys" && method === "GET") {
@@ -192,7 +193,7 @@ export function installFixtures(): void {
       const d = deploys.get(lab[1])
       const rest = lab[2] ?? ""
       if (!d) return fail(404, 72801, "deploy not found")
-      if (rest === "" && method === "GET") return json(deployStatus(d.startedAt, sw))
+      if (rest === "" && method === "GET") return json(deployStatus(d.startedAt, sw, d.gateways))
       if (rest === "" && method === "DELETE") { deploys.delete(d.id); return empty() }
       if (rest === "/link" && b.Access === "terminal") {
         if (sw.console === "none") return fail(404, 33518, "the lab has no console for this device")
@@ -256,10 +257,10 @@ export function installFixtures(): void {
 }
 
 /** The canned status of a test lab for the chosen outcome. */
-function deployStatus(startedAt: number, sw: Switches) {
+function deployStatus(startedAt: number, sw: Switches, gateways: FixtureGateway[]) {
   const now = Date.now()
   const seconds = (now - startedAt) / 1000
-  const status = buildDeployStatus(startedAt, now, sw.deploy === "fail") as Record<string, unknown> & { Devices?: Record<string, unknown>[] }
+  const status = buildDeployStatus(startedAt, now, sw.deploy === "fail", gateways) as Record<string, unknown> & { Devices?: Record<string, unknown>[] }
   if (sw.deploy === "retry" && seconds >= 7 && seconds < 40) {
     // srv initializes more than once: attempt 1, then 2, then it passes.
     const attempt = seconds < 20 ? 1 : 2

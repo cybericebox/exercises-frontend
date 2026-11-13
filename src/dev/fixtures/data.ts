@@ -277,13 +277,27 @@ function buildUpdatePreview() {
 }
 
 /** A test deploy walks through its phases by the time since it started (`?deploy=fail` ends it in Failed). */
-export function buildDeployStatus(startedAt: number, now: number, fail: boolean) {
+/** A gateway of the deployed variant as the lab lists it: the name and the kind (VPN or Internet). */
+export type FixtureGateway = { Name: string; Kind: "vpn" | "internet" }
+
+/** The gateways of a variant topology (wire shape), in device order: the lab lists exactly those. */
+export function gatewaysOfTopology(topology: { Devices?: { Name: string; Type: string }[] } | undefined): FixtureGateway[] {
+  const out: FixtureGateway[] = []
+  for (const device of topology?.Devices ?? []) {
+    if (device.Type === "vpn_gateway") out.push({ Name: device.Name, Kind: "vpn" })
+    else if (device.Type === "internet_gateway") out.push({ Name: device.Name, Kind: "internet" })
+  }
+  return out
+}
+
+export function buildDeployStatus(startedAt: number, now: number, fail: boolean, gatewayList: FixtureGateway[]) {
   const s = (now - startedAt) / 1000
   const device = (Name: string, ready: boolean, extra: Record<string, unknown> = {}) => ({ Name, Ready: ready, ...extra })
-  const gateways = (ready: boolean) => [
-    { Name: "attack", Kind: "vpn", CIDR: "10.200.0.0/24", Ready: ready, ReverseConnections: false, Reverse: "blocked" },
-    { Name: "out", Kind: "internet", CIDR: "10.201.0.0/24", Ready: ready },
-  ]
+  // Every gateway of the deployed topology has its own /24 (10.200+i.0.0/24), the VPN ones the reverse state.
+  const gateways = (ready: boolean) => gatewayList.map((gateway, index) => ({
+    Name: gateway.Name, Kind: gateway.Kind, CIDR: `10.${200 + index}.0.0/24`, Ready: ready,
+    ...(gateway.Kind === "vpn" ? { ReverseConnections: false, Reverse: "blocked" } : {}),
+  }))
   const base = { Gateways: gateways(s >= 7), ExpiresAt: new Date(startedAt + 3_600_000).toISOString() }
   if (s < 3) return { ...base, Phase: "Queued", Ready: false, Queue: { Position: 2, Length: 3, Reason: "WaitingForTurn", Message: "", Pods: 3, Pending: 3 }, Devices: [] }
   if (s < 7) return { ...base, Phase: "Provisioning", Ready: false, Devices: [device("r1", s > 5), device("r2", false), device("srv", false)] }
