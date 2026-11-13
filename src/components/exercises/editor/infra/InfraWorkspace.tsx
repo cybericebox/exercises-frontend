@@ -9,17 +9,19 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { containerNameError, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyGateway, gatewayNameError } from "@/lib/editor/schemas/infra"
+import { countGatewayRefs, renameGatewayInForm, rewriteGatewayRefs } from "@/lib/editor/gatewayRefs"
 import type { DeviceSection, InfraView } from "@/lib/editorPosition"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { deliveriesOfTask } from "@/lib/editor/refs"
-import type { DeviceType } from "@/api/exercises/versions"
+import { gatewayKindOf, isGatewayType, type DeviceType, type GatewayDeviceType } from "@/api/exercises/versions"
 import { useEditorPosition } from "../../EditorPosition"
 import { TopologyConnectionDialog } from "../../TopologyConnectionDialog"
 import { TopologyDiagram } from "../../TopologyDiagram"
 import { TopologyGlyph } from "../../TopologyGlyph"
 import { SidePanel, SummaryList, ViewToolbar } from "../kit"
 import { useEditor } from "../context"
+import { useMaxLabGateways } from "../gatewayLimit"
 import { ActionsSlotContext } from "./ActionsSlot"
 import { ConnectionsTable } from "./ConnectionsTable"
 import { DeviceDialog } from "./DeviceDialog"
@@ -32,6 +34,10 @@ import type { VariableUse } from "./varUsage"
 import { cn } from "@/utils/cn"
 
 const VIEWS: InfraView[] = ["diagram", "devices", "connections", "vars"]
+const GATEWAY_OPTIONS: { type: GatewayDeviceType; label: string; prefix: string }[] = [
+  { type: "vpn_gateway", label: "admin.exTopo.vpn", prefix: "vpn" },
+  { type: "internet_gateway", label: "admin.exTopo.internet", prefix: "internet" },
+]
 const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
   { type: "node", label: "admin.exTopo.type.container", prefix: "host" },
   { type: "unmanaged-switch", label: "admin.exTopo.type.switch", prefix: "sw" },
@@ -58,6 +64,9 @@ export function InfraWorkspace() {
   const topology = useWatch({ control, name: base })
   const diagramTopology = useDeferredValue(topology)
   const devices = topology?.Devices ?? []
+  const maxGateways = useMaxLabGateways()
+  const gatewayCount = devices.filter((device) => isGatewayType(device.Type)).length
+  const gatewayAddBlockedReason = maxGateways !== null && gatewayCount >= maxGateways ? t("ed.c.gw.limitReached", { max: maxGateways }) : null
   const [view, setView] = useEditorPosition("infraView")
   const [openNode, setOpenNode] = useEditorPosition("openNode")
   const [section, setSection] = useEditorPosition("deviceSection")
@@ -74,8 +83,8 @@ export function InfraWorkspace() {
   const activeView: InfraView = VIEWS.includes(view) ? view : "diagram"
   const returnFocus = useRef<HTMLElement | null>(null)
 
-  const connectionsOf = (key: string) => (topology?.Connections ?? []).filter((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === key || (endpoint.Kind === "device" && endpoint.DeviceID === key)))
-  const nodeExists = (key: string) => devices.some((device) => device.ID === key) || (key === "vpn" && topology?.VPN.Enabled) || (key === "internet" && topology?.Internet.Enabled)
+  const connectionsOf = (key: string) => (topology?.Connections ?? []).filter((connection) => connection.Endpoints.some((endpoint) => endpoint.DeviceID === key))
+  const nodeExists = (key: string) => devices.some((device) => device.ID === key)
 
   // A node that is gone (deleted, or another variant) cannot stay selected or open.
   useEffect(() => {
@@ -122,31 +131,32 @@ export function InfraWorkspace() {
     setSelectedEdge(null)
   }
 
-  function addGateway(kind: "vpn" | "internet", position?: { x: number; y: number }) {
-    const branch = kind === "vpn" ? "VPN" : "Internet"
-    if (getValues(`${base}.${branch}.Enabled`)) return
-    setValue(`${base}.${branch}.Enabled`, true, { shouldDirty: true, shouldValidate: true })
-    if (position) visualPatch("positions", kind, position)
+  function addGateway(type: GatewayDeviceType, position?: { x: number; y: number }) {
+    if (gatewayAddBlockedReason) return
+    const option = GATEWAY_OPTIONS.find((candidate) => candidate.type === type)!
+    const current = getValues(`${base}.Devices`)
+    const names = new Set(current.map((device) => device.Name))
+    let number = 1
+    while (names.has(`${option.prefix}-${number}`)) number++
+    const gateway = emptyGateway(type, `${option.prefix}-${number}`)
+    setValue(`${base}.Devices`, [...current, gateway], { shouldDirty: true, shouldValidate: true })
+    if (position) visualPatch("positions", gateway.ID, position)
     setView("diagram")
-    setSelected(kind)
+    setSelected(gateway.ID)
     setSelectedEdge(null)
   }
 
   function renameNode(key: string, draft: string): string | null {
     const name = draft.trim()
-    const device = devices.find((candidate) => candidate.ID === key)
-    const error = device?.Type === "node" ? containerNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
-    if (error) return error
-    const labelOf = (kind: "vpn" | "internet") => gatewayLabelFor(topology?.VisualRender ?? null, kind, t(`admin.exTopo.${kind}`))
-    if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)
-      || (["vpn", "internet"] as const).some((kind) => kind !== key && (kind === "vpn" ? topology?.VPN.Enabled : topology?.Internet.Enabled) && labelOf(kind) === name)) return t("admin.ex.err.deviceNameDuplicate")
     const index = devices.findIndex((candidate) => candidate.ID === key)
-    if (index >= 0) setValue(`${base}.Devices.${index}.Name`, name, { shouldDirty: true, shouldValidate: true })
-    else if (key === "vpn" || key === "internet") {
-      const visual = getValues(`${base}.VisualRender`) ?? {}
-      const labels = visual.gatewayLabels && typeof visual.gatewayLabels === "object" && !Array.isArray(visual.gatewayLabels) ? visual.gatewayLabels as Record<string, unknown> : {}
-      setValue(`${base}.VisualRender`, { ...visual, version: 1, gatewayLabels: { ...labels, [key]: name } }, { shouldDirty: true })
-    }
+    if (index < 0) return null
+    const device = devices[index]
+    const error = device.Type === "node" ? containerNameError(name) : isGatewayType(device.Type) ? gatewayNameError(name) : name ? null : t("admin.ex.val.deviceDisplayName")
+    if (error) return error
+    if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)) return t("admin.ex.err.deviceNameDuplicate")
+    if (name === device.Name) return null
+    if (isGatewayType(device.Type)) renameGatewayInForm({ getValues, setValue }, variantIndex, key, name)
+    else setValue(`${base}.Devices.${index}.Name`, name, { shouldDirty: true, shouldValidate: true })
     return null
   }
 
@@ -173,9 +183,8 @@ export function InfraWorkspace() {
   // Connections: who can still take one.
   const unavailableNodes = [
     ...devices.filter((device) => availableDevicePorts({ Connections: topology?.Connections ?? [] }, device).length === 0).map((device) => device.ID),
-    ...(["vpn", "internet"] as const).filter((kind) => (kind === "vpn" ? topology?.VPN.Enabled : topology?.Internet.Enabled) && connectionsOf(kind).length > 0),
   ]
-  const nodeCount = devices.length + (topology?.VPN.Enabled ? 1 : 0) + (topology?.Internet.Enabled ? 1 : 0)
+  const nodeCount = devices.length
   const linkUnavailableReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : nodeCount - unavailableNodes.length < 2 ? t("admin.exTopo.needFreePorts") : null
   const pendingPair = connectMode && linkNodes.length === 2 ? linkNodes as [string, string] : null
 
@@ -187,30 +196,28 @@ export function InfraWorkspace() {
   const cancelConnect = () => { setConnectMode(false); setLinkNodes([]) }
 
   function nodeName(key: string): string {
-    if (key === "vpn" || key === "internet") return gatewayLabelFor(topology?.VisualRender ?? null, key, t(`admin.exTopo.${key}`))
     return devices.find((device) => device.ID === key)?.Name || t("admin.exTopo.unnamedDevice")
   }
   function connectionName(index: number) {
     const [first, second] = topology?.Connections[index]?.Endpoints ?? []
-    const side = (endpoint: typeof first) => !endpoint ? "—" : `${nodeName(endpoint.Kind === "device" ? endpoint.DeviceID : endpoint.Kind)} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
+    const side = (endpoint: typeof first) => !endpoint ? "—" : `${nodeName(endpoint.DeviceID)} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
     return { first: side(first), second: side(second) }
   }
 
   function confirmRemoval() {
     if (!pendingRemoval) return
     const target = pendingRemoval
-    setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((connection) => !connection.Endpoints.some((endpoint) => endpoint.Kind === target || (endpoint.Kind === "device" && endpoint.DeviceID === target))), { shouldDirty: true, shouldValidate: true })
-    if (target === "vpn" || target === "internet") {
-      setValue(`${base}.${target === "vpn" ? "VPN" : "Internet"}.Enabled`, false, { shouldDirty: true, shouldValidate: true })
-      const visual = getValues(`${base}.VisualRender`)
-      if (visual?.gatewayLabels && typeof visual.gatewayLabels === "object" && !Array.isArray(visual.gatewayLabels)) {
-        const gatewayLabels = { ...visual.gatewayLabels as Record<string, unknown> }
-        delete gatewayLabels[target]
-        setValue(`${base}.VisualRender`, { ...visual, gatewayLabels }, { shouldDirty: true })
-      }
-    } else {
-      setValue(`${base}.Devices`, getValues(`${base}.Devices`).filter((device) => device.ID !== target), { shouldDirty: true, shouldValidate: true })
+    const removed = devices.find((device) => device.ID === target)
+    setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((connection) => !connection.Endpoints.some((endpoint) => endpoint.DeviceID === target)), { shouldDirty: true, shouldValidate: true })
+    let rest = getValues(`${base}.Devices`).filter((device) => device.ID !== target)
+    if (removed && isGatewayType(removed.Type)) {
+      // Addresses, gateways and routes that named it are cleared; the placeholders of the tasks lose their gateway.
+      const tasks = getValues(`Variants.${variantIndex}.Tasks`)
+      const rewritten = rewriteGatewayRefs(rest, tasks, removed.Name, null)
+      rest = rewritten.devices
+      if (rewritten.tasks.some((task, taskIndex) => task !== tasks[taskIndex])) setValue(`Variants.${variantIndex}.Tasks`, rewritten.tasks, { shouldDirty: true, shouldValidate: true })
     }
+    setValue(`${base}.Devices`, rest, { shouldDirty: true, shouldValidate: true })
     if (selected === target) setSelected(null)
     if (openNode === target) setOpenNode("")
     setSelectedEdge(null)
@@ -227,12 +234,21 @@ export function InfraWorkspace() {
     setPendingEdgeRemoval(null)
   }
 
-  const removalTitle = pendingRemoval ? t(pendingRemoval === "vpn" || pendingRemoval === "internet" ? "ed.c.remove.titleGateway" : "ed.c.remove.titleDevice", { name: nodeName(pendingRemoval) }) : ""
+  const pendingDevice = pendingRemoval ? devices.find((device) => device.ID === pendingRemoval) : undefined
+  const pendingGateway = pendingDevice !== undefined && isGatewayType(pendingDevice.Type)
+  const removalTitle = pendingRemoval ? t(pendingGateway ? "ed.c.remove.titleGateway" : "ed.c.remove.titleDevice", { name: nodeName(pendingRemoval) }) : ""
   const removalDescription = pendingRemoval ? [
-    t(pendingRemoval === "vpn" || pendingRemoval === "internet" ? "ed.c.remove.gatewayGone" : "ed.c.remove.deviceGone", { name: nodeName(pendingRemoval) }),
+    t(pendingGateway ? "ed.c.remove.gatewayGone" : "ed.c.remove.deviceGone", { name: nodeName(pendingRemoval) }),
     connectionsOf(pendingRemoval).length ? t("ed.c.remove.withConnections", { n: connectionsOf(pendingRemoval).length }) : t("ed.c.remove.noConnections"),
     ...(() => {
-      if (!topology || pendingRemoval === "vpn" || pendingRemoval === "internet") return []
+      if (!topology || !pendingDevice) return []
+      if (pendingGateway) {
+        const use = countGatewayRefs(devices, getValues(`Variants.${variantIndex}.Tasks`) ?? [], pendingDevice.Name)
+        return [
+          ...(use.addresses + use.routes > 0 ? [t("ed.c.remove.gatewayRefs", { addresses: use.addresses, routes: use.routes })] : []),
+          ...(use.placeholders > 0 ? [t("ed.c.remove.gatewayPlaceholders", { n: use.placeholders })] : []),
+        ]
+      }
       const names = (getValues(`Variants.${variantIndex}.Tasks`) ?? []).filter((task) => (task.Check?.Kind === "state" && task.Check.State.Conditions.some((condition) => condition.DeviceID === pendingRemoval))
         || deliveriesOfTask(topology, task.Key).some((delivery) => delivery.deviceId === pendingRemoval)).map((task) => `«${task.Name}»`)
       return names.length ? [t("ed.c.remove.usedBy", { tasks: names.join(", ") })] : []
@@ -248,10 +264,10 @@ export function InfraWorkspace() {
       {DEVICE_OPTIONS.map((option) => <DropdownMenuItem key={option.type} className="gap-2" onSelect={() => addDevice(option.type)}>
         <TopologyGlyph kind={option.type === "node" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
       </DropdownMenuItem>)}
-      {(["vpn", "internet"] as const).map((kind) => <DropdownMenuItem key={kind} disabled={kind === "vpn" ? topology?.VPN.Enabled : topology?.Internet.Enabled} className="gap-2" onSelect={() => addGateway(kind)}>
-        <TopologyGlyph kind={kind} className="h-5 w-5 shrink-0" />{t(`admin.exTopo.${kind}`)}
-        {(kind === "vpn" ? topology?.VPN.Enabled : topology?.Internet.Enabled) && <span className="ml-auto text-xs text-muted-foreground">{t("ed.c.toolbar.alreadyAdded")}</span>}
+      {GATEWAY_OPTIONS.map((option) => <DropdownMenuItem key={option.type} disabled={gatewayAddBlockedReason !== null} className="gap-2" onSelect={() => addGateway(option.type)}>
+        <TopologyGlyph kind={gatewayKindOf(option.type)} className="h-5 w-5 shrink-0" />{t(option.label)}
       </DropdownMenuItem>)}
+      {gatewayAddBlockedReason && <p role="note" className="max-w-64 px-2 pb-1.5 pt-1 text-xs leading-5 text-muted-foreground">{gatewayAddBlockedReason}</p>}
     </DropdownMenuContent>
   </DropdownMenu>
   const connectButton = !readOnly && activeView === "diagram" && !connectMode && <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
@@ -302,13 +318,14 @@ export function InfraWorkspace() {
               selectedConnectionIndex={selectedEdge} onEdgeSelect={(index) => { setSelectedEdge(index); setSelected(null) }}
               onNodeSelect={selectNode} onNodeSettings={(key) => openEditor(key)}
               nodeSettingsLabel={readOnly ? t("ed.c.panel.view") : t("ed.c.panel.configure")}
-              nodeSettingsBlocked={(key) => { const device = devices.find((candidate) => candidate.ID === key); return device && device.Type !== "node" ? t("ed.c.panel.noSettings") : null }}
+              nodeSettingsBlocked={(key) => { const device = devices.find((candidate) => candidate.ID === key); return device && device.Type !== "node" && !isGatewayType(device.Type) ? t("ed.c.panel.noSettings") : null }}
+              gatewayAddBlockedReason={gatewayAddBlockedReason}
               onEdgeSettings={(index) => { cancelConnect(); setView("connections"); setExpandedConnection(index) }}
               onEdgeRemove={readOnly ? undefined : setPendingEdgeRemoval} linkUnavailableReason={linkUnavailableReason}
               onNodeRemove={readOnly ? undefined : setPendingRemoval}
               onNodeLinkStart={readOnly ? undefined : (key) => { if (unavailableNodes.includes(key)) return; setSelected(key); setConnectMode(true); setLinkNodes([key]) }}
               onCanvasSelect={() => { if (!connectMode) { setSelected(null); setSelectedEdge(null) } }}
-              onCanvasAddNode={readOnly ? undefined : (kind, position) => kind === "vpn" || kind === "internet" ? addGateway(kind, position) : addDevice(kind, position)}
+              onCanvasAddNode={readOnly ? undefined : (kind, position) => kind === "vpn" ? addGateway("vpn_gateway", position) : kind === "internet" ? addGateway("internet_gateway", position) : addDevice(kind, position)}
               onCanvasLinkStart={readOnly ? undefined : () => { setConnectMode(true); setLinkNodes([]) }}
               controlsPosition="top-right" toolbarExtra={fullscreen ? <HoverTooltip text={t(fullscreen ? "admin.exTopo.collapseCanvasTip" : "admin.exTopo.expandCanvasTip")}>
                 <Button type="button" variant="ghost" size="icon" onClick={toggleFullscreen} aria-label={t(fullscreen ? "admin.exTopo.collapseCanvas" : "admin.exTopo.expandCanvas")} className="h-8 w-8">
@@ -349,10 +366,10 @@ export function InfraWorkspace() {
       {openNode && openIndex >= 0 && devices[openIndex].Type === "node" && <DeviceDialog variantIndex={variantIndex} deviceIndex={openIndex} section={section} onSection={setSection} onClose={closeEditor}
         readOnly={readOnly} linkedBaseIndex={linked ? baseIndex : undefined} imageEditable={linked && !disabled}
         onOpenVariables={() => { closeEditor(); setView("vars") }} />}
-      {(openNode === "vpn" || openNode === "internet") && nodeExists(openNode) && <GatewayDialog variantIndex={variantIndex} kind={openNode} disabled={readOnly} onClose={closeEditor} />}
+      {openNode && openIndex >= 0 && isGatewayType(devices[openIndex].Type) && <GatewayDialog variantIndex={variantIndex} deviceIndex={openIndex} disabled={readOnly} onClose={closeEditor} />}
 
       <ConfirmDialog open={pendingRemoval !== null} onCancel={() => setPendingRemoval(null)} tone="danger" title={removalTitle} description={removalDescription}
-        cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={pendingRemoval === "vpn" || pendingRemoval === "internet" ? t("ed.c.remove.gateway") : t("admin.exTopo.removeDevice")}
+        cancelLabel={t("admin.exTopo.canvasCancel")} confirmLabel={pendingGateway ? t("ed.c.remove.gateway") : t("admin.exTopo.removeDevice")}
         busyLabel={t("ed.c.remove.busy")} onConfirm={confirmRemoval} />
       <ConfirmDialog open={pendingEdgeRemoval !== null} onCancel={() => setPendingEdgeRemoval(null)} tone="danger" title={t("admin.exTopo.removeConnectionTitle")}
         description={pendingEdgeRemoval !== null ? t("admin.exTopo.removeConnectionConfirm", connectionName(pendingEdgeRemoval)) : undefined}

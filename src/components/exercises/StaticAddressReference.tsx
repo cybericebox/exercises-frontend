@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { t } from "@/i18n/t"
 
-type NetworkState = { Enabled: boolean; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
-type Common = { invalid?: boolean; describedBy?: string; vpn: NetworkState; internet: NetworkState; disabled?: boolean; manualInput?: ReactNode }
+/** A gateway of the lab as a source of addresses: its name, and the DHCP ranges its hosts are served from. */
+export type GatewaySource = { Name: string; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
+
+type Common = { invalid?: boolean; describedBy?: string; gateways: GatewaySource[]; disabled?: boolean; manualInput?: ReactNode }
 type HostReferenceProps = Common & {
   kind: "address" | "gateway" | "via"
   reference: NetworkIPRefDTO | null
@@ -20,36 +22,41 @@ type SubnetReferenceProps = Common & {
 }
 type Props = HostReferenceProps | SubnetReferenceProps
 
-export function addressReferenceOverlapsDHCP(reference: NetworkIPRefDTO | null, network: NetworkState): boolean {
-  if (!reference || !network.DHCP) return false
-  const ranges = network.DHCPRanges ?? []
-  return ranges.some((range) => reference.Host >= range.Start && reference.Host <= range.End)
+export function addressReferenceOverlapsDHCP(reference: NetworkIPRefDTO | null, gateways: GatewaySource[]): boolean {
+  if (!reference) return false
+  const gateway = gateways.find((candidate) => candidate.Name === reference.Gateway)
+  if (!gateway?.DHCP) return false
+  return (gateway.DHCPRanges ?? []).some((range) => reference.Host >= range.Start && reference.Host <= range.End)
 }
 
+const MANUAL = "manual"
+const prefix = "gateway:"
+
+/**
+ * The source of an address, a default gateway, a route destination or a next hop: typed by hand, or taken from the network
+ * of one of the lab's gateways (by the gateway's name; the host number follows). A reference to a gateway that is no longer
+ * there stays in the list, marked, so it can be seen and replaced.
+ */
 export function StaticAddressReference(props: Props) {
-  const { kind, reference, disabled, vpn, internet } = props
-  const selected = reference?.Network ?? "manual"
+  const { kind, reference, disabled, gateways } = props
   const hostReference = reference && "Host" in reference ? reference : null
-  const source = (network: "vpn" | "internet") => network === "vpn" ? vpn : internet
-  const sourceDisabled = (network: "vpn" | "internet") => !source(network).Enabled
-  const options = (["manual", "vpn", "internet"] as const).map((choice) => {
-    if (choice === "manual") return { value: choice, label: t("admin.exTopo.ref.manual") }
-    const label = t(`admin.exTopo.ref.${choice}`)
-    return {
-      value: choice,
-      label,
-      description: !source(choice).Enabled ? t("admin.exTopo.ref.networkDisabled") : t("admin.exTopo.ref.assignedOnStart"),
-      disabled: sourceDisabled(choice),
-    }
-  })
+  const selected = reference ? `${prefix}${reference.Gateway}` : MANUAL
+  const known = reference ? gateways.some((gateway) => gateway.Name === reference.Gateway) : true
+  const options = [
+    { value: MANUAL, label: t("admin.exTopo.ref.manual") },
+    ...gateways.map((gateway) => ({ value: `${prefix}${gateway.Name}`, label: t("ed.c.ref.fromGateway", { name: gateway.Name }), description: t("admin.exTopo.ref.assignedOnStart") })),
+    ...(gateways.length === 0 ? [{ value: `${prefix}`, label: t("ed.c.ref.fromGatewayNone"), description: t("ed.c.ref.noGateways"), disabled: true }] : []),
+    ...(reference && !known ? [{ value: selected, label: t("ed.c.ref.fromGateway", { name: reference.Gateway || "—" }), description: t("ed.c.ref.gatewayGone"), disabled: true }] : []),
+  ]
 
   function choose(value: string) {
-    if (value === "manual") {
+    if (value === MANUAL) {
       props.onChange(null)
-    } else if (value === "vpn" || value === "internet") {
-      if (sourceDisabled(value)) return
-      if (props.kind === "destination") props.onChange({ Network: value })
-      else props.onChange({ Network: value, Host: props.kind === "address" ? 10 : 1 })
+    } else if (value.startsWith(prefix) && value.length > prefix.length) {
+      const name = value.slice(prefix.length)
+      if (!gateways.some((gateway) => gateway.Name === name)) return
+      if (props.kind === "destination") props.onChange({ Gateway: name })
+      else props.onChange({ Gateway: name, Host: props.kind === "address" ? 10 : 1 })
     }
   }
 
@@ -60,7 +67,7 @@ export function StaticAddressReference(props: Props) {
     {hostReference && kind !== "destination" && <div className="flex shrink-0 items-center gap-1">
       <Input type="number" min={kind === "address" ? 2 : 1} max={254} step={1}
         value={hostReference.Host} disabled={disabled} aria-invalid={props.invalid} aria-describedby={props.describedBy} aria-label={t("admin.exTopo.ref.host")}
-        onChange={(event) => props.onChange({ Network: hostReference.Network, Host: Number(event.target.value) })}
+        onChange={(event) => props.onChange({ Gateway: hostReference.Gateway, Host: Number(event.target.value) })}
         className="h-9 w-20" />
       {kind === "address" && <span className={`text-sm font-normal text-foreground ${disabled ? "opacity-50" : ""}`}>/24</span>}
     </div>}

@@ -12,14 +12,13 @@ import { FieldLabel } from "@/components/ui/field-label"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { Input } from "@/components/ui/input"
 import type { SelectMenuOption } from "@/components/ui/select-menu"
-import type { NetworkIPRefDTO, NetworkSubnetRefDTO } from "@/api/exercises/versions"
+import { isGatewayType, type NetworkIPRefDTO, type NetworkSubnetRefDTO } from "@/api/exercises/versions"
 import { emptyInterface, interfaceNameError } from "@/lib/editor/schemas/infra"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { shortForwardingPort } from "@/lib/topologyPorts"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { pluralKey } from "@/lib/presetLabels"
 import { cn } from "@/utils/cn"
-import { addressReferenceOverlapsDHCP, StaticAddressReference } from "../../../StaticAddressReference"
+import { addressReferenceOverlapsDHCP, StaticAddressReference, type GatewaySource } from "../../../StaticAddressReference"
 import { useResourcesConfig } from "../../../ResourcesConfigContext"
 import { AddButton, ExpandableRow, FieldHelp } from "../../kit"
 import { FieldError, fieldProps, useErrorsAt, useFieldError } from "../../fieldErrors"
@@ -29,8 +28,6 @@ import type { SectionProps } from "./MainSection"
 type IPDraft = DraftFormValues["Variants"][number]["Topology"]["Devices"][number]["Interfaces"][number]["IP"]
 // Form-scoped UI drafts survive the dialog's unmount and are never sent to the server.
 const modeDrafts = new WeakMap<Control<DraftFormValues>, WeakMap<object, Map<string, Map<string, IPDraft>>>>()
-
-type NetworkState = { Enabled: boolean; DHCP: boolean; DHCPRanges?: { Start: number; End: number }[] }
 
 const IP_TYPES = [
   { value: "static", label: "admin.exTopo.ip.static", help: "admin.exTopo.ip.staticHelp" },
@@ -45,14 +42,14 @@ type Iface = DraftFormValues["Variants"][number]["Topology"]["Devices"][number][
 
 function modeWords(ip: Iface["IP"]): string {
   if (ip.Type === "static") {
-    if (ip.AddressRef) return t("ed.c.net.fromNetwork", { network: t(ip.AddressRef.Network === "vpn" ? "ed.c.net.vpnShort" : "ed.c.net.internetShort"), host: ip.AddressRef.Host })
+    if (ip.AddressRef) return t("ed.c.net.fromGateway", { gateway: ip.AddressRef.Gateway, host: ip.AddressRef.Host })
     return t("ed.c.net.staticAddress", { address: ip.Addresses[0] || "—" })
   }
   return t(IP_TYPES.find((type) => type.value === ip.Type)?.label ?? "admin.exTopo.ip.none")
 }
 
 function refWords(ref: NetworkIPRefDTO | null | undefined, text: string): string {
-  return ref ? t("ed.c.net.fromNetwork", { network: t(ref.Network === "vpn" ? "ed.c.net.vpnShort" : "ed.c.net.internetShort"), host: ref.Host }) : text || "—"
+  return ref ? t("ed.c.net.fromGateway", { gateway: ref.Gateway, host: "Host" in ref ? ref.Host : 0 }) : text || "—"
 }
 
 const GRID = "grid min-w-0 text-sm grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-4 @lg:grid-cols-[minmax(6.75rem,0.8fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)]"
@@ -66,9 +63,7 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
   const deviceId = useWatch({ control, name: `${base}.ID` })
   const connections = useWatch({ control, name: `Variants.${variantIndex}.Topology.Connections` }) ?? []
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
-  const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
-  const vpn = useWatch({ control, name: `Variants.${variantIndex}.Topology.VPN` }) ?? { Enabled: false, DHCP: false }
-  const internet = useWatch({ control, name: `Variants.${variantIndex}.Topology.Internet` }) ?? { Enabled: false, DHCP: false }
+  const gateways: GatewaySource[] = devices.filter((device) => isGatewayType(device.Type)).map((device) => ({ Name: device.Name, DHCP: device.DHCP, DHCPRanges: device.DHCPRanges }))
   const config = useResourcesConfig()
   const errorRows = (get(useErrorsAt(`${base}.Interfaces`), `${base}.Interfaces`) ?? []) as unknown[]
   const firstBad = Array.isArray(errorRows) ? errorRows.findIndex(Boolean) : -1
@@ -84,7 +79,6 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
   const full = limit !== undefined && fields.length >= limit
 
   function endLabel(endpoint: { Kind: string; DeviceID: string; Interface: string }): string {
-    if (endpoint.Kind === "vpn" || endpoint.Kind === "internet") return `${gatewayLabelFor(visual, endpoint.Kind, t(`admin.exTopo.${endpoint.Kind}`))} · ${endpoint.Interface}`
     const device = devices.find((candidate) => candidate.ID === endpoint.DeviceID)
     return `${device?.Name || t("admin.exTopo.unnamedDevice")} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
   }
@@ -144,7 +138,7 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
             </div>
             return <ExpandableRow key={field.id} open={isOpen} onOpenChange={(next) => setOpen(next ? index : -1)} ariaLabel={iface.Name || t("ed.c.net.unnamed")} summary={isOpen ? <span className="sr-only">{iface.Name}</span> : summary}
               actions={!disabled && links.length === 0 ? [{ key: "remove", label: t("admin.exTopo.removeInterface"), icon: <Trash2 aria-hidden="true" className="h-4 w-4" />, danger: true, onSelect: () => setPendingRemoval(index) }] : []}>
-              <InterfaceForm base={base} index={index} deviceId={deviceId} disabled={disabled} vpn={vpn} internet={internet} links={links}
+              <InterfaceForm base={base} index={index} deviceId={deviceId} disabled={disabled} gateways={gateways} links={links}
                 otherNames={rows.filter((_, other) => other !== index).map((row) => row.Name)} />
             </ExpandableRow>
           })}
@@ -168,13 +162,12 @@ function draftsOf(control: Control<DraftFormValues>, variant: object) {
   return drafts
 }
 
-function InterfaceForm({ base, index, deviceId, disabled, vpn, internet, links, otherNames }: {
+function InterfaceForm({ base, index, deviceId, disabled, gateways, links, otherNames }: {
   base: `Variants.${number}.Topology.Devices.${number}`
   index: number
   deviceId: string
   disabled: boolean
-  vpn: NetworkState
-  internet: NetworkState
+  gateways: GatewaySource[]
   links: string[]
   otherNames: string[]
 }) {
@@ -231,7 +224,7 @@ function InterfaceForm({ base, index, deviceId, disabled, vpn, internet, links, 
       <SelectField name={`${path}.IP.Type`} label={t("ed.c.net.mode")} required options={typeOptions} disabled={disabled} menuClassName="w-[30rem] max-w-[90vw]" onValue={changeType}
         help={{ intro: t("ed.c.h.ifMode"), items: IP_TYPES.map((type) => ({ term: t(type.label), text: t(MODE_HELP[type.value]) })) }} />
     </div>
-    {ipType === "static" && <StaticFields path={path} disabled={disabled} vpn={vpn} internet={internet} />}
+    {ipType === "static" && <StaticFields path={path} disabled={disabled} gateways={gateways} />}
     <InputField name={`${path}.MAC`} label={t("ed.c.net.mac")} mono disabled={disabled} placeholder={t("admin.exTopo.macPlaceholder")} className=""
       help={{ intro: t("ed.c.h.mac"), default: t("ed.c.h.macDefault") }} />
     <div className="min-w-0">
@@ -246,10 +239,10 @@ function firstOf(...messages: (string | undefined)[]): string | undefined {
 }
 
 /** One static address, a gateway and explicit routes; each source is the app's own choice (typed or from a lab network). */
-function StaticFields({ path, disabled, vpn, internet }: { path: `Variants.${number}.Topology.Devices.${number}.Interfaces.${number}`; disabled: boolean; vpn: NetworkState; internet: NetworkState }) {
+function StaticFields({ path, disabled, gateways }: { path: `Variants.${number}.Topology.Devices.${number}.Interfaces.${number}`; disabled: boolean; gateways: GatewaySource[] }) {
   const { control, setValue } = useFormContext<DraftFormValues>()
   const addressRef = useWatch({ control, name: `${path}.IP.AddressRef` }) ?? null
-  const overlap = addressRef && addressReferenceOverlapsDHCP(addressRef, addressRef.Network === "vpn" ? vpn : internet)
+  const overlap = addressRef && addressReferenceOverlapsDHCP(addressRef, gateways)
   const addressError = firstOf(useFieldError(`${path}.IP.Addresses`), useFieldError(`${path}.IP.Addresses.0`), useFieldError(`${path}.IP.AddressRef`))
   const gatewayError = firstOf(useFieldError(`${path}.IP.Gateway`), useFieldError(`${path}.IP.GatewayRef`))
   const addressPath = `${path}.IP.Addresses.0`
@@ -261,7 +254,7 @@ function StaticFields({ path, disabled, vpn, internet }: { path: `Variants.${num
       <div className="min-w-0">
         <FieldLabel text={t("admin.exTopo.addresses")} required htmlFor={fieldProps(addressPath, addressError).id} help={{ intro: [t("ed.c.h.address1"), t("ed.c.h.address2")] }} />
         <Controller control={control} name={`${path}.IP.AddressRef`} render={({ field: refField }) => <StaticAddressReference invalid={Boolean(addressError)} describedBy={addressError ? `${fieldProps(addressPath, addressError)["aria-describedby"]}` : undefined}
-          kind="address" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
+          kind="address" reference={refField.value ?? null} gateways={gateways} disabled={disabled}
           manualInput={<Controller control={control} name={`${path}.IP.Addresses`} render={({ field }) => <Input {...fieldProps(addressPath, addressError)} value={field.value[0] ?? ""} onChange={(event) => field.onChange([event.target.value])} disabled={disabled} placeholder="10.0.0.2/24" className="font-mono text-[13px]" autoComplete="off" />} />}
           onChange={(ref) => { refField.onChange(ref); setValue(`${path}.IP.Addresses`, ref ? [] : [""], { shouldDirty: true }) }} />} />
         {overlap && <p role="note" data-ip-warning className="mt-1 text-xs leading-5 text-[var(--ib-warn)]">{t("admin.exTopo.ref.dhcpOverlap")}</p>}
@@ -270,7 +263,7 @@ function StaticFields({ path, disabled, vpn, internet }: { path: `Variants.${num
       <div className="min-w-0">
         <FieldLabel text={t("admin.exTopo.gateway")} htmlFor={fieldProps(gatewayPath, gatewayError).id} help={{ intro: [t("ed.c.h.gateway1"), t("ed.c.h.gateway2")], default: t("ed.c.h.optional") }} />
         <Controller control={control} name={`${path}.IP.GatewayRef`} render={({ field: refField }) => <StaticAddressReference invalid={Boolean(gatewayError)} describedBy={gatewayError ? `${fieldProps(gatewayPath, gatewayError)["aria-describedby"]}` : undefined}
-          kind="gateway" reference={refField.value ?? null} vpn={vpn} internet={internet} disabled={disabled}
+          kind="gateway" reference={refField.value ?? null} gateways={gateways} disabled={disabled}
           manualInput={<Controller control={control} name={`${path}.IP.Gateway`} render={({ field }) => <Input {...fieldProps(gatewayPath, gatewayError)} value={field.value} onChange={field.onChange} disabled={disabled} placeholder="10.0.0.1" className="font-mono text-[13px]" autoComplete="off" />} />}
           onChange={(ref) => { refField.onChange(ref); setValue(`${path}.IP.Gateway`, "", { shouldDirty: true }) }} />} />
         <FieldError path={gatewayPath} message={gatewayError} />
@@ -278,13 +271,13 @@ function StaticFields({ path, disabled, vpn, internet }: { path: `Variants.${num
     </div>
     <div className="min-w-0 space-y-2">
       <FieldLabel as="span" text={t("admin.exTopo.routes")} help={{ intro: t("ed.c.h.routes"), default: t("ed.c.h.optional") }} className="min-h-0" labelClassName="font-semibold" />
-      {fields.map((route, index) => <RouteRow key={route.id} path={path} index={index} disabled={disabled} vpn={vpn} internet={internet} onRemove={() => remove(index)} />)}
+      {fields.map((route, index) => <RouteRow key={route.id} path={path} index={index} disabled={disabled} gateways={gateways} onRemove={() => remove(index)} />)}
       {!disabled && <div><Button type="button" variant="outline" size="sm" onClick={() => append({ Dst: "", Via: "" })}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addRoute")}</Button></div>}
     </div>
   </div>
 }
 
-function RouteRow({ path, index, disabled, vpn, internet, onRemove }: { path: string; index: number; disabled: boolean; vpn: NetworkState; internet: NetworkState; onRemove: () => void }) {
+function RouteRow({ path, index, disabled, gateways, onRemove }: { path: string; index: number; disabled: boolean; gateways: GatewaySource[]; onRemove: () => void }) {
   const { control, setValue } = useFormContext<DraftFormValues>()
   const routePath = `${path}.IP.Routes.${index}`
   const dstError = firstOf(useFieldError(`${routePath}.Dst`), useFieldError(`${routePath}.DstRef`))
@@ -297,7 +290,7 @@ function RouteRow({ path, index, disabled, vpn, internet, onRemove }: { path: st
       <div className="min-w-0 space-y-1">
         <FieldLabel text={t("admin.exTopo.routeDst")} required htmlFor={dstProps.id} help={{ intro: t("admin.exTopo.routeDstHelp") }} />
         <Controller control={control} name={name("DstRef")} render={({ field: refField }) => <StaticAddressReference invalid={Boolean(dstError)} describedBy={dstError ? dstProps["aria-describedby"] : undefined}
-          kind="destination" reference={(refField.value ?? null) as NetworkSubnetRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
+          kind="destination" reference={(refField.value ?? null) as NetworkSubnetRefDTO | null} gateways={gateways} disabled={disabled}
           manualInput={<Controller control={control} name={name("Dst")} render={({ field }) => <Input {...dstProps} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} disabled={disabled} placeholder="10.1.0.0/16" className="font-mono text-[13px]" autoComplete="off" />} />}
           onChange={(ref) => { refField.onChange(ref); setValue(name("Dst"), "" as never, { shouldDirty: true }) }} />} />
         <FieldError path={`${routePath}.Dst`} message={dstError ? t("admin.exTopo.routeDstError", { error: dstError }) : undefined} />
@@ -305,7 +298,7 @@ function RouteRow({ path, index, disabled, vpn, internet, onRemove }: { path: st
       <div className="min-w-0 space-y-1">
         <FieldLabel text={t("admin.exTopo.routeVia")} required htmlFor={viaProps.id} help={{ intro: t("admin.exTopo.routeViaHelp") }} />
         <Controller control={control} name={name("ViaRef")} render={({ field: refField }) => <StaticAddressReference invalid={Boolean(viaError)} describedBy={viaError ? viaProps["aria-describedby"] : undefined}
-          kind="via" reference={(refField.value ?? null) as NetworkIPRefDTO | null} vpn={vpn} internet={internet} disabled={disabled}
+          kind="via" reference={(refField.value ?? null) as NetworkIPRefDTO | null} gateways={gateways} disabled={disabled}
           manualInput={<Controller control={control} name={name("Via")} render={({ field }) => <Input {...viaProps} value={typeof field.value === "string" ? field.value : ""} onChange={field.onChange} disabled={disabled} placeholder="10.0.0.1" className="font-mono text-[13px]" autoComplete="off" />} />}
           onChange={(ref) => { refField.onChange(ref); setValue(name("Via"), "" as never, { shouldDirty: true }) }} />} />
         <FieldError path={`${routePath}.Via`} message={viaError ? t("admin.exTopo.routeViaError", { error: viaError }) : undefined} />

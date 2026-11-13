@@ -8,7 +8,7 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { cn } from "@/utils/cn"
 
 /**
- * H10 — the one side panel for every node kind (device, network, VPN gateway, Internet): a read-only summary, no editable
+ * H10 — the one side panel for every node kind (device, network, gateway): a read-only summary, no editable
  * fields. The header holds the name and the close cross only; the footer is pinned to the bottom and holds the actions
  * («Налаштувати», the trash «Видалити»). The panel spans the full height of its area (H5), rows at the top.
  */
