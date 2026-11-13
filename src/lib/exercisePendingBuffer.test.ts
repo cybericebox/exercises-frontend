@@ -84,6 +84,23 @@ describe("exercise pending buffer", () => {
     expect(storage.get(key)).not.toContain("ValueGroup")
   })
 
+  it("gives a plain variable of the server its value back on a restore (the buffer holds none) and keeps a secret blank", () => {
+    const key = pendingBufferKey("u1", "e1")
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    server.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [
+      { Name: "APP_MODE", Value: "ctf", Secret: false, HasValue: false },
+      { Name: "FLAG", Value: "{{task.secret}}", Secret: false, HasValue: false },
+      { Name: "LICENSE", Value: "", Secret: true, HasValue: true, ValueGroup: 2 },
+    ] } }]
+    writePendingChanges(key, identity, server)
+    const restored = readPendingChanges(key)!.draft
+    expect(restored.Variants[0].Topology.Devices[0].Bootstrap.Env.map((entry) => entry.Value)).toEqual(["", "", ""])
+    const merged = mergePendingDraft(server, restored).Variants[0].Topology.Devices[0].Bootstrap.Env
+    expect(merged.map((entry) => entry.Value)).toEqual(["ctf", "{{task.secret}}", ""])
+    expect(merged[2]).toMatchObject({ Secret: true, HasValue: true })
+  })
+
   it("clears an entry", () => {
     const key = pendingBufferKey("u1", "e1")
     writePendingChanges(key, identity, emptyDraft())

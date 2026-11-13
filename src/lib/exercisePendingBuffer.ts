@@ -164,10 +164,16 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
               ...device,
               Bootstrap: {
                 ...device.Bootstrap,
-                Env: device.Bootstrap.Env.map((entry) => ({
-                  ...entry,
-                  HasValue: serverDevice?.Bootstrap.Env.find((serverEntry) => serverEntry.Name === entry.Name)?.HasValue ?? false,
-                })),
+                Env: device.Bootstrap.Env.map((entry) => {
+                  const serverEntry = serverDevice?.Bootstrap.Env.find((candidate) => candidate.Name === entry.Name)
+                  return {
+                    ...entry,
+                    // The buffer never holds a value (sanitizePendingDraft), so a plain variable that exists on the server takes its
+                    // stored value back; a blank one would be sent with the next save and erase it. A secret stays blank = keep.
+                    Value: serverEntry && !entry.Secret && !serverEntry.Secret ? serverEntry.Value : entry.Value,
+                    HasValue: serverEntry?.HasValue ?? false,
+                  }
+                }),
               },
             }
           }),
