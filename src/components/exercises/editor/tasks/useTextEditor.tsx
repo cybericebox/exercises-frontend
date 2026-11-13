@@ -9,7 +9,7 @@ import { ipExample } from "@/lib/placeholderLink"
 import { isValidIPv4, type DraftFormValues, type PlaceholderFormValues } from "@/lib/exerciseSchemas"
 import type { VariableDef } from "@/components/editor/variableUtils"
 import type { DescriptionEditorConfig } from "../../HintsEditor"
-import { gatewayKindOf, isGatewayType, type GatewayDeviceType } from "@/api/exercises/versions"
+import { gatewayKindOf, isGatewayType, type GatewayDeviceType } from "@/lib/gatewayTypes"
 import { PlaceholderDialog, type ExternalDevice, type GatewayOption } from "../../PlaceholderDialog"
 
 /**
