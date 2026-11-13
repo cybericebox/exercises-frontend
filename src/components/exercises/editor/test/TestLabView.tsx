@@ -11,6 +11,7 @@ import { getExerciseCapabilities, type LabCapabilities } from "@/api/exercises/c
 import { getExercise, type Exercise } from "@/api/exercises/catalog"
 import { unavailableImagesOf, type ImageAvailability } from "@/api/exercises/imageCheck"
 import { getVersion, type NormalizedVariant, type VersionResources } from "@/api/exercises/versions"
+import { isGatewayType } from "@/lib/gatewayTypes"
 import { DeviceFailure } from "@/components/exercises/DeviceLiveInfo"
 import { NoRoomPanel } from "@/components/exercises/NoRoomPanel"
 import { VpnDialog } from "@/components/exercises/VpnDialog"
@@ -255,7 +256,8 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   function selectNode(key: string | null) {
     setSchemaSelected(key)
     const device = devices?.find((candidate) => candidate.ID === key)
-    if (!device || !status) return
+    // A gateway has no row to open in the list: its card is in the full-screen schema, so the tab stays.
+    if (!device || !status || isGatewayType(device.Type)) return
     const failed = isDeviceFailed(deviceStage(status.Devices?.find((entry) => entry.Name === device.Name), status.Phase))
     setExpanded((current) => {
       const next = new Set(current)

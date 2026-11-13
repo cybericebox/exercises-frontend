@@ -6,7 +6,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }))
 vi.mock("@/components/ErrorPage", () => ({ ErrorPage: ({ title, body }: { title?: string; body?: string }) => <div role="alert">{title ?? body}</div> }))
 vi.mock("@/components/exercises/NoRoomPanel", () => ({ NoRoomPanel: () => <div>no room</div> }))
-vi.mock("@/components/exercises/TopologyDiagram", () => ({ TopologyDiagram: () => <div data-testid="diagram" /> }))
+// The canvas is the editor's: here it only lets a test click a node by its device ID.
+vi.mock("@/components/exercises/TopologyDiagram", () => ({
+  TopologyDiagram: ({ nodeStatus, onNodeSelect }: { nodeStatus?: Record<string, string>; onNodeSelect?: (id: string) => void }) => <div data-testid="diagram">
+    {Object.keys(nodeStatus ?? {}).map((id) => <button key={id} type="button" data-node={id} onClick={() => onNodeSelect?.(id)}>{`node ${id}`}</button>)}
+  </div>,
+}))
 vi.mock("./ConsolePanel", () => ({ ConsolePanel: ({ device }: { device: string }) => <div data-testid="console">{device}</div> }))
 vi.mock("@/components/exercises/AttachmentDownload", () => ({ AttachmentDownload: () => null }))
 vi.mock("@/api/exercises/catalog", () => ({ getExercise: vi.fn() }))
@@ -194,5 +199,16 @@ describe("TestLabView", () => {
     await screen.findByRole("status", { name: t("ed.d.chip.ready") })
     fireEvent.click(screen.getByRole("button", { name: t("ed.d.dev.openConsoleNamed", { device: "r1" }) }))
     expect(screen.getByTestId("console").textContent).toBe("r1")
+  })
+
+  it("a click on a device in the schema opens its row in the device list, a click on a gateway keeps the schema tab", async () => {
+    vi.mocked(deployStatus).mockResolvedValue(ready())
+    open()
+    await screen.findByRole("status", { name: t("ed.d.chip.ready") })
+    fireEvent.click(screen.getByRole("tab", { name: t("ed.d.dock.tab.schema") }))
+    fireEvent.click(screen.getByRole("button", { name: "node g1" }))
+    expect(screen.getByRole("tab", { name: t("ed.d.dock.tab.schema") }).getAttribute("aria-selected")).toBe("true")
+    fireEvent.click(screen.getByRole("button", { name: "node d1" }))
+    expect(screen.getByRole("tab", { name: t("ed.d.dock.tab.devices") }).getAttribute("aria-selected")).toBe("true")
   })
 })
