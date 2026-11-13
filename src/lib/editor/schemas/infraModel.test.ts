@@ -33,6 +33,18 @@ describe("access list", () => {
 })
 
 describe("secrets of the environment", () => {
+  it("never sends a new secret that has no value (a restored buffer drops the typed one): the field asks for it instead of storing an empty secret", () => {
+    const env = [
+      { Name: "KEPT", Value: "", Secret: true, HasValue: true },
+      { Name: "TYPED", Value: "s3", Secret: true, HasValue: false },
+      { Name: "NEW_EMPTY", Value: "", Secret: true, HasValue: false },
+      { Name: "PLAIN", Value: "", Secret: false, HasValue: false },
+    ]
+    expect(bootstrapToDTO({ ...emptyBootstrap(), Env: env })?.Env?.map((entry) => entry.Name)).toEqual(["KEPT", "TYPED", "PLAIN"])
+    const found = messages({ ...emptyTopology(), Devices: [device({ Bootstrap: { ...emptyBootstrap(), Env: env } })] })
+    expect(found).toContain("Devices.0.Bootstrap.Env.2.Value: admin.ex.val.secretValue")
+  })
+
   it("sends a saved secret with an empty value: the server keeps what it stores", () => {
     const dto = bootstrapToDTO({ ...emptyBootstrap(), Env: [{ Name: "DB_PASS", Value: "", Secret: true, HasValue: true }] })
     expect(dto?.Env).toEqual([{ Name: "DB_PASS", Value: "", Secret: true }])
