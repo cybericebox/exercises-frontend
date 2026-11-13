@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version, VersionListItem } from "@/api/exercises/versions"
 
@@ -193,6 +193,20 @@ describe("exercise page — publishing and history", () => {
     expect(toast.error).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
     expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
+  })
+
+  it("does not add the generic «not saved» toast to a publish whose save error sits beside its field", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(saveDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "web", field: "device" } } }, "m", undefined, 23202))
+    // an unsent edit (the buffer) makes the working copy differ, so a save is tried before the publish
+    writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, toDraftFormValues({ ...withDevice, AdminNote: "edited" }))
+    render(<Page />)
+    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled(), { timeout: 3000 })
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 100)) })
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
   })
 
   it("keeps a publish error without a place as a toast", async () => {

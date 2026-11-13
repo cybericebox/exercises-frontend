@@ -1,6 +1,6 @@
 "use client"
 
-import { forgetServerErrors, placeServerFieldError, registerServerErrorMemory, withServerErrors, type ServerErrorMemory } from "@/lib/editor/serverErrorTarget"
+import { forgetServerErrors, placeServerFieldError, registerServerErrorMemory, settleChangedServerErrors, withServerErrors, type ServerErrorMemory } from "@/lib/editor/serverErrorTarget"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useForm, type Resolver, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -68,6 +68,8 @@ export type ExerciseEditor = {
   identityForm: UseFormReturn<IdentityFormValues>
   draftForm: UseFormReturn<DraftFormValues>
   autosave: ExerciseAutosave
+  /** A failed save put its error beside a field (the generic "not saved" toast is then not needed). */
+  saveErrorPlaced: () => boolean
   getDraftVersionId: () => string
   reloadWorkingCopy: () => Promise<void>
   /** Replaces the latest elevation request shown for the working copy (after a request is sent). */
@@ -451,7 +453,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     checkPendingRef.current = () => { if (scheduled) check() }
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
     const identityWatch = identityForm.watch(onChange)
-    const draftWatch = draftForm.watch(onChange)
+    const draftWatch = draftForm.watch(() => {
+      // A server error beside a field goes away when the author changes that field, without waiting for a blur or a publish check.
+      if (!suppressRef.current) settleChangedServerErrors(draftForm)
+      onChange()
+    })
     // The baseline is the last loaded or acknowledged state (applyValues, a save); it is NOT taken here. An edit made
     // between the commit that shows the form and this passive effect (a keystroke in the first frame) was invisible to
     // the subscription above; comparing against the baseline picks it up instead of adopting it as «already saved».
@@ -587,6 +593,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
 
   return {
     replacementActive, replacementRecovery, prepareImportReplacement, cancelImportReplacement, recordImportDispatch, reconcileImportReplacement,
-    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, saveErrorPlaced: () => placedErrorsRef.current.length > 0, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
   }
 }
