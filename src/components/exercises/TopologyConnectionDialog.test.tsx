@@ -27,6 +27,12 @@ describe("connecting on the canvas", () => {
   it("refuses a link that would put a second gateway into one network, with the reason", () => {
     const onAdd = renderDialog(["g2", "sw"])
     expect(screen.getByRole("alert")).toHaveTextContent("ed.c.gw.networkTaken a")
+    // The reason is tied to both port selects, which are marked invalid.
+    for (const name of ["admin.exTopo.endpoint.first", "admin.exTopo.endpoint.second"]) {
+      const select = screen.getByRole("button", { name })
+      expect(select).toHaveAttribute("aria-invalid", "true")
+      expect((select.getAttribute("aria-describedby") ?? "").split(" ")).toContain(screen.getByRole("alert").id)
+    }
     expect(screen.getByRole("button", { name: "admin.exTopo.canvasConnect" })).toBeDisabled()
     expect(onAdd).not.toHaveBeenCalled()
   })

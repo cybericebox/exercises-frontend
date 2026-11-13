@@ -12,7 +12,7 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { gatewayClashOfLink } from "@/lib/editor/schemas/infra"
 import { decodeEndpoint } from "./editor/infra/ConnectionsTable"
-import { FieldError } from "./editor/fieldErrors"
+import { FieldError, fieldProps } from "./editor/fieldErrors"
 
 type EndpointOption = { value: string; label: string }
 
@@ -79,14 +79,16 @@ function CanvasConnectionChoice({ firstLabel, secondLabel, firstOptions, secondO
     <Button type="button" variant="outline" size="sm" onClick={onCancel}>{t("admin.exTopo.canvasCancel")}</Button>
   </div>
   const clash = first && second ? clashOf(first, second) : null
+  // The refusal belongs to the pair: both port selects are marked and described by the reason shown under them.
+  const clashAria = fieldProps("canvas-connection", clash ?? undefined)
   return <div className="space-y-4">
     <div className="grid min-w-0 gap-3 sm:grid-cols-2">
       <div className="min-w-0 space-y-1"><HoverTooltip text={firstLabel} className="block min-w-0"><p className="truncate text-xs font-medium text-muted-foreground">{firstLabel}</p></HoverTooltip>
-        <SelectMenu value={first} onChange={setFirst} options={firstOptions} ariaLabel={t("admin.exTopo.endpoint.first")} portalled={false} modal={false} sideOffset={8}
+        <SelectMenu value={first} onChange={setFirst} options={firstOptions} ariaLabel={t("admin.exTopo.endpoint.first")} aria-invalid={clashAria["aria-invalid"]} aria-describedby={clashAria["aria-describedby"]} portalled={false} modal={false} sideOffset={8}
           placeholder={t("admin.exTopo.endpoint.placeholder")} className="h-9 w-full min-w-0 text-sm" menuClassName="max-h-60 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain" />
       </div>
       <div className="min-w-0 space-y-1"><HoverTooltip text={secondLabel} className="block min-w-0"><p className="truncate text-xs font-medium text-muted-foreground">{secondLabel}</p></HoverTooltip>
-        <SelectMenu value={second} onChange={setSecond} options={secondOptions} ariaLabel={t("admin.exTopo.endpoint.second")} portalled={false} modal={false} sideOffset={8}
+        <SelectMenu value={second} onChange={setSecond} options={secondOptions} ariaLabel={t("admin.exTopo.endpoint.second")} aria-invalid={clashAria["aria-invalid"]} aria-describedby={clashAria["aria-describedby"]} portalled={false} modal={false} sideOffset={8}
           placeholder={t("admin.exTopo.endpoint.placeholder")} className="h-9 w-full min-w-0 text-sm" menuClassName="max-h-60 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain" />
       </div>
     </div>

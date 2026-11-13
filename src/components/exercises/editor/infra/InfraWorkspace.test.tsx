@@ -163,6 +163,17 @@ describe("gateways as devices", () => {
     expect(topology().Devices).toHaveLength(4)
   })
 
+  it("flags a surplus gateway in the devices table and ties the message to the name control", () => {
+    renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2")], connections: [], maxGateways: 1 })
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.devices" }))
+    const table = within(screen.getByRole("table", { name: "ed.c.devices.title" }))
+    const surplus = table.getByRole("button", { name: /ed.c.devices.showN b/ })
+    expect(surplus).toHaveAttribute("aria-invalid", "true")
+    const message = document.getElementById(surplus.getAttribute("aria-describedby") ?? "")
+    expect(message).toHaveTextContent("ed.c.val.gatewayLimit 1")
+    expect(table.getByRole("button", { name: /ed.c.devices.showN a/ })).not.toHaveAttribute("aria-invalid")
+  })
+
   it("does not limit gateways while the platform limit is not known", () => {
     renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2"), vpn("c", "g3")], connections: [], maxGateways: null })
     fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
