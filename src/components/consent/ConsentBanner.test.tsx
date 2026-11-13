@@ -12,25 +12,25 @@ describe("ConsentBanner", () => {
   afterEach(clear)
 
   it("asks with a general line, the policy link, «Налаштувати» and «Прийняти всі»", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="https://cybericebox.com/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     expect(banner()).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveAttribute("href", "https://cybericebox.com/cookies")
+    expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveAttribute("href", "https://example.test/cookies")
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Налаштувати", "Прийняти всі"])
   })
 
   it("is hidden once a choice exists", () => {
     document.cookie = "cib_consent=analytics:denied; path=/"
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     expect(screen.queryByRole("region")).toBeNull()
   })
 
   it("is hidden when GA is not configured", () => {
-    render(<ConsentBanner gaId="" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="" />)
     expect(screen.queryByRole("region")).toBeNull()
   })
 
   it("accept all grants analytics and hides", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     fireEvent.keyDown(banner(), { key: "Escape" })
     expect(banner()).toBeInTheDocument()
     click("Прийняти всі")
@@ -39,7 +39,7 @@ describe("ConsentBanner", () => {
   })
 
   it("customize: necessary is locked on, analytics starts off; save choice keeps it off", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("Налаштувати")
     expect(panel()).toHaveFocus()
     const [necessary, analytics] = screen.getAllByRole("switch")
@@ -52,7 +52,7 @@ describe("ConsentBanner", () => {
   })
 
   it("customize: save choice with analytics on grants it", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("Налаштувати")
     fireEvent.click(screen.getByRole("switch", { name: "Аналітика" }))
     click("Зберегти вибір")
@@ -61,7 +61,7 @@ describe("ConsentBanner", () => {
 
   it("the panel has only «Зберегти вибір» and «Прийняти всі»; saving with analytics off drops _ga; Esc steps back without consent", () => {
     document.cookie = "_ga=GA1.1.1; path=/"
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("Налаштувати")
     fireEvent.keyDown(panel(), { key: "Escape" })
     expect(banner()).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe("ConsentBanner", () => {
 
   it("«Налаштування файлів cookie» opens the panel with focus inside; Esc closes it unchanged", () => {
     document.cookie = "cib_consent=analytics:granted; path=/"
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     act(() => openConsentSettings())
     expect(panel()).toHaveFocus()
     expect(screen.getByRole("switch", { name: "Аналітика" })).toBeChecked()
@@ -87,7 +87,7 @@ describe("ConsentBanner", () => {
   })
 
   it("the policy link opens a new tab and keeps the panel and its unsaved toggles", () => {
-    render(<ConsentBanner gaId="G-TEST" policyHref="/cookies" />)
+    render(<ConsentBanner gaId="G-TEST" />)
     click("Налаштувати")
     fireEvent.click(screen.getByRole("switch", { name: "Аналітика" }))
     const link = screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })
@@ -104,9 +104,17 @@ describe("ConsentBanner without GA", () => {
   afterEach(clear)
 
   it("never asks on its own but opens the panel on request", () => {
-    render(<ConsentBanner policyHref="/cookies" />)
+    render(<ConsentBanner />)
     expect(screen.queryByRole("region")).not.toBeInTheDocument()
     act(() => openConsentSettings())
     expect(panel()).toBeInTheDocument()
+  })
+
+  it("marks the policy link and the «Докладніше» line as cfg-cookies, so the stylesheet hides them while the setting is empty", () => {
+    render(<ConsentBanner gaId="G-TEST" />)
+    expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveClass("cfg-cookies")
+    click("Налаштувати")
+    expect(panel().querySelector("p.cfg-cookies")?.textContent).toContain("Політика файлів cookie")
+    expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveClass("cfg-cookies")
   })
 })

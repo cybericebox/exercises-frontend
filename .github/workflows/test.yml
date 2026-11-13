@@ -29,3 +29,6 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+      - name: Optional settings survive the image build
+        # Builds the export the way deploy/Dockerfile does (placeholders) and checks the placeholders, the substitution and an empty build.
+        run: npm run check:cfg

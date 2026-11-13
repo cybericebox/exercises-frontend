@@ -14,6 +14,9 @@ COPY . .
 ENV NEXT_PUBLIC_DOMAIN="__NEXT_PUBLIC_DOMAIN__"
 ENV NEXT_PUBLIC_SUPPORT_EMAIL="__NEXT_PUBLIC_SUPPORT_EMAIL__"
 ENV NEXT_PUBLIC_GOOGLE_ANALYTICS_ID="__NEXT_PUBLIC_GOOGLE_ANALYTICS_ID__"
+# The optional installation settings (empty or unset = not shown): NEXT_PUBLIC_MAIN_SITE_URL, NEXT_PUBLIC_COOKIES_URL.
+ENV NEXT_PUBLIC_MAIN_SITE_URL="__NEXT_PUBLIC_MAIN_SITE_URL__"
+ENV NEXT_PUBLIC_COOKIES_URL="__NEXT_PUBLIC_COOKIES_URL__"
 RUN npm run build && node scripts/csp-inline.mjs
 
 FROM mirror.gcr.io/library/nginx:1.30.5-alpine-slim@sha256:32463212baf0e7d91aded2e9b843a4f2b9e017804b8c9d5bae7b51dcef64389c AS runner
@@ -23,6 +26,8 @@ COPY deploy/nginx/listen-http.conf deploy/nginx/listen-https.conf deploy/nginx/c
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.d/40-next-public-env.sh
 # The base-domain derivation (NEXT_PUBLIC_DOMAIN check, the API host for the CSP), sourced by 40-next-public-env.sh and 50-csp.sh.
 COPY deploy/base-domain.sh /usr/local/lib/base-domain.sh
+# The rule for the optional installation settings (URLs), sourced by 40-next-public-env.sh.
+COPY deploy/cfg-check.sh /usr/local/lib/cfg-check.sh
 # 50-csp.sh runs after the env substitution: it hashes the inline scripts and writes the CSP header
 # snippet that server.conf includes (see the header comment in deploy/csp.sh).
 COPY deploy/csp.sh /docker-entrypoint.d/50-csp.sh

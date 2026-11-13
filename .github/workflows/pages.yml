@@ -50,9 +50,16 @@ jobs:
             [ -n "$value" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then echo "::error::Set the repository variables:$missing"; exit 1; fi
+          # Installation settings are optional (empty = not shown); a set one must follow the rule (deploy/cfg-check.sh).
+          . ./deploy/cfg-check.sh
+          for name in NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL; do
+            cfg_url_check "$name" || { echo "::error::Fix the repository variable $name"; exit 1; }
+          done
         env:
           NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
+          NEXT_PUBLIC_MAIN_SITE_URL: ${{ vars.NEXT_PUBLIC_MAIN_SITE_URL }}
+          NEXT_PUBLIC_COOKIES_URL: ${{ vars.NEXT_PUBLIC_COOKIES_URL }}
       - name: Build static export
         run: npm run build
         env:
@@ -60,6 +67,8 @@ jobs:
           NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
+          NEXT_PUBLIC_MAIN_SITE_URL: ${{ vars.NEXT_PUBLIC_MAIN_SITE_URL }}
+          NEXT_PUBLIC_COOKIES_URL: ${{ vars.NEXT_PUBLIC_COOKIES_URL }}
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Upload artifact
