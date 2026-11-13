@@ -33,13 +33,7 @@ describe("serverFieldTargets", () => {
 
   it("places a ':' in a device name or in a variable name (23202)", () => {
     expect(serverFieldTargets(fail(23202, { variant: 1, device: "db", field: "device" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Name"]])
-    const withEnv = draft([{ devices: ["web", "db"] }])
-    const env = (name: string) => ({ Name: name, Value: "", Secret: false, HasValue: false })
-    withEnv.Variants[0].Topology.Devices[1].Bootstrap.Env = [env("OK"), env("A:B"), env("C")]
-    expect(serverFieldTargets(fail(23202, { variant: 1, device: "db", field: "env" }), withEnv)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Bootstrap", "Env", 1, "Name"]])
-    // two variables with ':' are not told apart by the daemon: the error stays a form-level one
-    withEnv.Variants[0].Topology.Devices[1].Bootstrap.Env = [env("A:B"), env("C:D")]
-    expect(serverFieldTargets(fail(23202, { variant: 1, device: "db", field: "env" }), withEnv)).toBeNull()
+    expect(serverFieldTargets(fail(23202, { variant: 1, device: "db", field: "env[2].name", name: "A:B" }), one)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Bootstrap", "Env", 1, "Name"]])
   })
 
   it("places a description or a hint substitution (23519) and the task errors", () => {
