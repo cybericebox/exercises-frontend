@@ -568,8 +568,10 @@ function envToDTO(ev: NormalizedEnvVar): EnvVarDTO {
 }
 
 export function bootstrapToDTO(b: BootstrapFormValues): BootstrapDTO | undefined {
-  // A variable without a name and without a value is an unfinished row: it is not sent.
-  const env = b.Env.filter((variable) => variable.Name !== "" || variable.Value !== "" || variable.HasValue)
+  // A variable without a name and without a value is an unfinished row: it is not sent. Neither is a secret that has no stored value
+  // and no typed one (a new secret restored from the browser buffer, whose typed value is never kept there): sending it would store an
+  // empty secret. The row stays in the form and publishing asks for its value at the field (ed.c / admin.ex.val.secretValue).
+  const env = b.Env.filter((variable) => (variable.Name !== "" || variable.Value !== "" || variable.HasValue) && !(variable.Secret && !variable.HasValue && variable.Value === ""))
   const files = b.Files.filter((file) => file.Path !== "")
   const out: BootstrapDTO = {
     ...(b.Timeout.trim() ? { Timeout: b.Timeout.trim() } : {}),
