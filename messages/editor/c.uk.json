@@ -392,8 +392,6 @@
   "ed.c.remove.deviceGone": "Пристрій «{name}» зникне зі схеми.",
   "ed.c.remove.gateway": "Видалити шлюз",
   "ed.c.remove.gatewayGone": "Шлюз «{name}» зникне зі схеми.",
-  "ed.c.remove.gatewayPlaceholders": "Підстановки підзавдань із цим шлюзом залишаться, але шлюз у них доведеться обрати знову (кількість: {n}).",
-  "ed.c.remove.gatewayRefs": "Адреси, шлюзи й маршрути, що на нього посилаються, буде очищено: адрес і шлюзів {addresses}, маршрутів {routes}.",
   "ed.c.remove.noConnections": "Зʼєднань у нього немає.",
   "ed.c.remove.titleDevice": "Видалити пристрій «{name}»?",
   "ed.c.remove.titleGateway": "Видалити шлюз «{name}»?",
@@ -541,5 +539,6 @@
   "ed.c.views.devices": "Пристрої",
   "ed.c.views.diagram": "Схема",
   "ed.c.views.linkedNote": "Як у варіанті {n}: змінюється лише образ пристроїв.",
-  "ed.c.views.vars": "Змінні"
+  "ed.c.views.vars": "Змінні",
+  "ed.c.remove.gatewayCleared": "Буде очищено посилань: {refs}, підстановок: {placeholders}."
 }

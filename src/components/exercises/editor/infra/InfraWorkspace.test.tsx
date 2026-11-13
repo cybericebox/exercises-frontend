@@ -196,7 +196,7 @@ describe("gateways as devices", () => {
     const dialog = await screen.findByRole("dialog")
     expect(dialog).toHaveTextContent("ed.c.remove.gatewayGone attack")
     expect(dialog).toHaveTextContent("ed.c.remove.withConnections 1")
-    expect(dialog).toHaveTextContent("ed.c.remove.gatewayRefs 2 1")
+    expect(dialog).toHaveTextContent("ed.c.remove.gatewayCleared 3 0")
     fireEvent.click(within(dialog).getByRole("button", { name: "ed.c.remove.gateway" }))
     await waitFor(() => expect(topology().Devices.map((item) => item.Name)).toEqual(["web", "sw1"]))
     expect(topology().Connections).toHaveLength(0)

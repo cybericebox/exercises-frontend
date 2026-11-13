@@ -245,10 +245,8 @@ export function InfraWorkspace() {
       if (!topology || !pendingDevice) return []
       if (pendingGateway) {
         const use = countGatewayRefs(devices, getValues(`Variants.${variantIndex}.Tasks`) ?? [], pendingDevice.Name)
-        return [
-          ...(use.addresses + use.routes > 0 ? [t("ed.c.remove.gatewayRefs", { addresses: use.addresses, routes: use.routes })] : []),
-          ...(use.placeholders > 0 ? [t("ed.c.remove.gatewayPlaceholders", { n: use.placeholders })] : []),
-        ]
+        const refs = use.addresses + use.routes
+        return refs + use.placeholders > 0 ? [t("ed.c.remove.gatewayCleared", { refs, placeholders: use.placeholders })] : []
       }
       const names = (getValues(`Variants.${variantIndex}.Tasks`) ?? []).filter((task) => (task.Check?.Kind === "state" && task.Check.State.Conditions.some((condition) => condition.DeviceID === pendingRemoval))
         || deliveriesOfTask(topology, task.Key).some((delivery) => delivery.deviceId === pendingRemoval)).map((task) => `«${task.Name}»`)
