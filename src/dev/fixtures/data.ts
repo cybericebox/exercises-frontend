@@ -14,7 +14,7 @@ export const FIXTURE_EVENT_ID = "33333333-3333-4333-8333-333333333333"
 const V1 = "aaaaaaa1-0000-4000-8000-000000000001"
 const V2 = "aaaaaaa2-0000-4000-8000-000000000002"
 const T = (n: number) => `bbbbbbb${n}-0000-4000-8000-00000000000${n}`
-const D = { r1: "ccccccc1-0000-4000-8000-000000000001", r2: "ccccccc2-0000-4000-8000-000000000002", srv: "ccccccc3-0000-4000-8000-000000000003", hub1: "ccccccc4-0000-4000-8000-000000000004", sw1: "ccccccc5-0000-4000-8000-000000000005" }
+const D = { r1: "ccccccc1-0000-4000-8000-000000000001", r2: "ccccccc2-0000-4000-8000-000000000002", srv: "ccccccc3-0000-4000-8000-000000000003", hub1: "ccccccc4-0000-4000-8000-000000000004", sw1: "ccccccc5-0000-4000-8000-000000000005", attack: "ccccccc6-0000-4000-8000-000000000006", out: "ccccccc7-0000-4000-8000-000000000007" }
 const NOW = "2026-11-12T09:00:00Z"
 
 /** A minimal Lexical document with one paragraph per line; `{{ph_key}}` becomes a placeholder node, as the editor saves it. */
@@ -33,12 +33,12 @@ const iface = (Name: string, IP: Record<string, unknown>) => ({ Name, IP })
 function topology() {
   return {
     Variables: [{ Name: "admin_password", Template: "[a-z0-9]{12}" }, { Name: "app_title", Value: "Internal portal" }],
-    VPN: { Enabled: true, DHCP: false, ReverseConnections: false },
-    Internet: { Enabled: true, DHCP: false },
     Devices: [
+      { ID: D.attack, Name: "attack", Type: "vpn_gateway", DHCP: false, ReverseConnections: false },
+      { ID: D.out, Name: "out", Type: "internet_gateway", DHCP: true, DHCPRanges: [{ Start: 50, End: 90 }], DNS: "1.1.1.1" },
       {
         ID: D.r1, Name: "r1", Type: "node", Profile: "container", Image: "platform/frr:9.1", SecurityPreset: "extended", ResourcePreset: "small",
-        Interfaces: [iface("eth0", { Type: "static", AddressRef: { Network: "vpn", Host: 10 } }), iface("eth1", { Type: "none" })],
+        Interfaces: [iface("eth0", { Type: "static", AddressRef: { Gateway: "attack", Host: 10 } }), iface("eth1", { Type: "none" })],
         Access: [{ Kind: "terminal", Command: "/bin/sh" }],
       },
       {
@@ -68,14 +68,14 @@ function topology() {
       { ID: D.sw1, Name: "sw1", Type: "unmanaged-switch", Interfaces: [] },
     ],
     Connections: [
-      { Endpoints: [{ Kind: "vpn", Interface: "eth0" }, { Kind: "device", DeviceID: D.r1, Interface: "eth0" }] },
+      { Endpoints: [{ Kind: "device", DeviceID: D.attack, Interface: "eth0" }, { Kind: "device", DeviceID: D.r1, Interface: "eth0" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.r1, Interface: "eth1" }, { Kind: "device", DeviceID: D.r2, Interface: "eth0" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.r2, Interface: "eth1" }, { Kind: "device", DeviceID: D.srv, Interface: "eth0" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.r2, Interface: "eth2" }, { Kind: "device", DeviceID: D.hub1, Interface: "GigabitEthernet0/1" }] },
       { Endpoints: [{ Kind: "device", DeviceID: D.hub1, Interface: "GigabitEthernet0/2" }, { Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/1" }] },
-      { Endpoints: [{ Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/2" }, { Kind: "internet", Interface: "eth0" }] },
+      { Endpoints: [{ Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/2" }, { Kind: "device", DeviceID: D.out, Interface: "eth0" }] },
     ],
-    VisualRender: { icons: { [D.r1]: "router", [D.r2]: "router" }, positions: { vpn: { x: 0.08, y: 0.2 }, [D.r1]: { x: 0.26, y: 0.2 }, [D.r2]: { x: 0.44, y: 0.2 }, [D.srv]: { x: 0.62, y: 0.2 }, [D.hub1]: { x: 0.44, y: 0.55 }, [D.sw1]: { x: 0.62, y: 0.55 }, internet: { x: 0.62, y: 0.85 } } },
+    VisualRender: { icons: { [D.r1]: "router", [D.r2]: "router" }, positions: { [D.attack]: { x: 0.08, y: 0.2 }, [D.r1]: { x: 0.26, y: 0.2 }, [D.r2]: { x: 0.44, y: 0.2 }, [D.srv]: { x: 0.62, y: 0.2 }, [D.hub1]: { x: 0.44, y: 0.55 }, [D.sw1]: { x: 0.62, y: 0.55 }, [D.out]: { x: 0.62, y: 0.85 } } },
   }
 }
 
@@ -201,9 +201,9 @@ export function buildLabCapabilities(mode: LabsMode): LabCapabilities {
   return same(mode)
 }
 
-export function buildCapabilities(mode: LabsMode): ExerciseCapabilities {
+export function buildCapabilities(mode: LabsMode, maxGateways = 10): ExerciseCapabilities {
   return {
-    Laboratories: true, MaxActiveTestDeploys: 2, DevicePersistence: true, LabCapabilities: buildLabCapabilities(mode),
+    Laboratories: true, MaxActiveTestDeploys: 2, MaxLabGateways: maxGateways, DevicePersistence: true, LabCapabilities: buildLabCapabilities(mode),
     Resources: {
       Block: { CPUMillicores: 250, MemoryBytes: 268435456 },
       Presets: [
@@ -280,7 +280,11 @@ function buildUpdatePreview() {
 export function buildDeployStatus(startedAt: number, now: number, fail: boolean) {
   const s = (now - startedAt) / 1000
   const device = (Name: string, ready: boolean, extra: Record<string, unknown> = {}) => ({ Name, Ready: ready, ...extra })
-  const base = { VPNCIDR: "10.200.0.0/24", InternetCIDR: "10.201.0.0/24", ReverseConnections: false, VPNReverse: "blocked", ExpiresAt: new Date(startedAt + 3_600_000).toISOString() }
+  const gateways = (ready: boolean) => [
+    { Name: "attack", Kind: "vpn", CIDR: "10.200.0.0/24", Ready: ready, ReverseConnections: false, Reverse: "blocked" },
+    { Name: "out", Kind: "internet", CIDR: "10.201.0.0/24", Ready: ready },
+  ]
+  const base = { Gateways: gateways(s >= 7), ExpiresAt: new Date(startedAt + 3_600_000).toISOString() }
   if (s < 3) return { ...base, Phase: "Queued", Ready: false, Queue: { Position: 2, Length: 3, Reason: "WaitingForTurn", Message: "", Pods: 3, Pending: 3 }, Devices: [] }
   if (s < 7) return { ...base, Phase: "Provisioning", Ready: false, Devices: [device("r1", s > 5), device("r2", false), device("srv", false)] }
   if (fail) return { ...base, Phase: "Failed", Ready: false, Devices: [device("r1", true), device("r2", true), device("srv", false, { Reason: "bootstrap failed", Bootstrap: { Phase: "failed", Attempts: 3, Reason: "script exited with 1" } })] }

@@ -43,7 +43,9 @@ describe("serverFieldTargets", () => {
 
   it("places a variable of the schema (23507) and the reverse-connections error (23520)", () => {
     expect(serverFieldTargets(fail(23507, { field: "variables[2].name" }), one)).toEqual([["Variants", 0, "Topology", "Variables", 1, "Name"]])
-    expect(serverFieldTargets(fail(23520, { field: "topology.vpn.reverse_connections" }), one)).toEqual([["Variants", 0, "Topology", "VPN", "ReverseConnections"]])
+    // The reverse-connections error names the gateway (a device) it is on.
+    const withGateway = draft([{ devices: ["web", "attack"] }])
+    expect(serverFieldTargets(fail(23520, { device: "attack", field: "reverse_connections" }), withGateway)).toEqual([["Variants", 0, "Topology", "Devices", 1, "ReverseConnections"]])
   })
 
   it("answers may be in any variant, the structure only in the variants that own it: one candidate is placed", () => {

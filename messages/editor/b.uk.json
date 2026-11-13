@@ -438,6 +438,7 @@
   "ed.b.val.pathAbsolute": "Шлях починається з «/»",
   "ed.b.val.pathRequired": "Вкажіть шлях, що починається з «/»",
   "ed.b.val.permissionAction": "Оберіть хоча б одну дію: читання, запис чи виконання",
+  "ed.b.val.placeholderGateway": "Оберіть шлюз.",
   "ed.b.val.portRange": "Порт — від 1 до 65535",
   "ed.b.val.portRequired": "Вкажіть порт від 1 до 65535",
   "ed.b.val.processNameNoPath": "Назва процесу без шляху",

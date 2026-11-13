@@ -47,6 +47,8 @@ export type ExerciseCapabilities = {
   Laboratories: boolean
   /** How many test labs one user may run at once (older servers: one). */
   MaxActiveTestDeploys?: number
+  /** How many gateways (VPN and Internet together) one lab may have; the editor never assumes a number of its own. */
+  MaxLabGateways: number
   /** The platform can keep a container's state across an unplanned restart (device Persistence). */
   DevicePersistence?: boolean
   Resources: ResourcesConfig

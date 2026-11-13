@@ -21,12 +21,13 @@ export function normalizedDevice(overrides: Partial<NormalizedDevice> = {}): Nor
   return {
     ID: "", Name: "host", Type: "node", Profile: "container", SecurityPreset: "", Image: "", ResourcePreset: "", Interfaces: [],
     Access: [], Command: [], Args: [], System: "linux", Hardware: "fast",
-    Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, ...overrides,
+    Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
+    DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false, ...overrides,
   }
 }
 
 export function normalizedTopology(overrides: Partial<NormalizedTopology> = {}): NormalizedTopology {
-  return { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null, ...overrides }
+  return { Variables: [], Devices: [], Connections: [], VisualRender: null, ...overrides }
 }
 
 /** A task in the form with an answer check holding `flag`. */

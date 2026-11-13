@@ -14,7 +14,7 @@ vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p
 vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }) }))
 import { listDeploys } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
-vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG }) }))
+vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG }) }))
 vi.mock("@/api/exercises/catalog", () => ({
   getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn(),
@@ -49,7 +49,7 @@ const device = normalizedDevice({ ID: "dev-1", Name: "web", Image: "nginx" })
 const workingCopy: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "2026-09-20T10:00:00Z", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [task],
-    Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 const withDevice: Version = {
   ...workingCopy,
@@ -305,7 +305,7 @@ describe("exercise page — publishing and history", () => {
   })
 
   it("keeps the test action enabled for a static variant without laboratories", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
     render(<Page />)
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -317,7 +317,7 @@ describe("exercise page — publishing and history", () => {
 
   it("disables a lab variant when the platform infrastructure is not connected", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
-    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
@@ -369,15 +369,15 @@ describe("exercise page — one test lab per user", () => {
   })
 
   it("starts a new test while fewer labs run than the limit allows", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
     await pickVariant()
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1&minutes=60"))
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
   })
 
   it("lists every running lab once the limit is reached, each with an open button", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
     const lab = (id: string, ex: string) => ({ DeployID: id, Lab: "lab", ExerciseID: ex, VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] })
     vi.mocked(listDeploys).mockResolvedValue([lab("run-8", "ex-8"), lab("run-9", "ex-9")])
     await pickVariant()
@@ -387,7 +387,7 @@ describe("exercise page — one test lab per user", () => {
     expect(h.push).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getAllByRole("button", { name: /admin\.exTest\.openLabNamed/ })[1])
     expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-9&deploy=run-9")
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
   })
 
   it("opens the running test straight away when it belongs to this exercise", async () => {

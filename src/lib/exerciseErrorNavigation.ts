@@ -17,6 +17,8 @@ export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection>
   Bootstrap: "init",
   Command: "service", Args: "service", Persistence: "service", WaitReadyFile: "service",
   Access: "access",
+  // A gateway has one small dialog: every field of it is in the first section.
+  DHCP: "main", DHCPRanges: "main", DNS: "main", ReverseConnections: "main",
 }
 
 /** Environment variables are in «Сервіс»; files, the script, its interpreter and the timeout are in «Ініціалізація». */
@@ -58,10 +60,9 @@ export function positionForDraftIssue(
     return next
   }
   if (path[3] !== "Devices" || typeof path[4] !== "number") {
-    const node = path[3] === "VPN" ? "vpn" : path[3] === "Internet" ? "internet" : ""
-    next.topologySection = node ? `device:${node}` : "diagram"
+    next.topologySection = "diagram"
     next.infraView = "diagram"
-    next.openNode = node
+    next.openNode = ""
     return next
   }
   const device = draft.Variants[variant]?.Topology.Devices[path[4]]

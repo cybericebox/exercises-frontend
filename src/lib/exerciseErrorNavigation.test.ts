@@ -37,7 +37,9 @@ describe("positionForDraftIssue", () => {
     [["Variants", 0, "Topology", "Devices", 0, "ResourcePreset"], { topologySection: "device:device-1", devicePanel: "resources" }],
     [["Variants", 0, "Topology", "Connections", 0], { topologySection: "connections", infraView: "connections" }],
     [["Variants", 0, "Topology", "Variables", 1, "Name"], { infraView: "vars" }],
-    [["Variants", 0, "Topology", "VPN"], { topologySection: "device:vpn", openNode: "vpn" }],
+    // A gateway is a device: its fields open its small dialog by the device id.
+    [["Variants", 0, "Topology", "Devices", 0, "DHCPRanges"], { openNode: "device-1", deviceSection: "main" }],
+    [["Variants", 0, "Topology", "Devices", 0, "ReverseConnections"], { topologySection: "device:device-1", deviceSection: "main" }],
   ] as const)("opens the owning part of the infrastructure for %j", (path, expected) => {
     const position = positionForDraftIssue(DEFAULT_EDITOR_POSITION, draft, [...path])
     expect(position).toMatchObject({ tab: "infrastructure", variant: 0, ...expected })
