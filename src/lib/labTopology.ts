@@ -5,7 +5,8 @@
  * anything is rendered.
  */
 import type { DeployAccess, DeployStatus } from "@/api/exercises/deploy"
-import { gatewayKindOf, isGatewayType, type GatewayKind, type NormalizedDevice, type NormalizedTopology } from "@/api/exercises/versions"
+import { type NormalizedDevice, type NormalizedTopology } from "@/api/exercises/versions"
+import { gatewayKindOf, isGatewayType, type GatewayKind } from "@/lib/gatewayTypes"
 import { emptyBootstrap, topologyToForm, type TopologyFormValues } from "@/lib/editor/schemas/infra"
 
 /** The diagram's model of the variant's topology, without anything private. */

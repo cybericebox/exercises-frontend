@@ -16,7 +16,7 @@ import {
   MAX_ACCESS_ENTRIES, MAX_BOOTSTRAP_CONTENT_BYTES, MAX_BOOTSTRAP_ENV, MAX_BOOTSTRAP_FILES, MAX_BOOTSTRAP_SCRIPT_BYTES, MAX_DEVICE_ARGS, MAX_DEVICE_COMMAND,
   MAX_VARIABLES, MAX_VARIABLE_VALUE_BYTES, TASK_KEY_RE, type AccessKind, type AccessProtocol, type BootstrapDTO, type EnvVarDTO, type VariableDTO,
 } from "@/api/exercises/model"
-import { isGatewayType, type GatewayDeviceType } from "@/api/exercises/versions"
+import { isGatewayType, type GatewayDeviceType } from "@/lib/gatewayTypes"
 import type {
   ConnectionDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, TopologyDTO,
 } from "@/api/exercises/versions"

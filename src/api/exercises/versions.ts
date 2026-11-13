@@ -37,11 +37,7 @@ export type Difficulty = "elementary" | "trivial" | "easy" | "medium" | "hard" |
  * A VPN or an Internet gateway is a device of its own kind: one implicit port (eth0) and its own small settings.
  */
 export type DeviceType = "node" | "unmanaged-switch" | "hub" | "vpn_gateway" | "internet_gateway"
-export type GatewayDeviceType = "vpn_gateway" | "internet_gateway"
-export const isGatewayType = (type: string): type is GatewayDeviceType => type === "vpn_gateway" || type === "internet_gateway"
-/** A gateway is a VPN or an Internet exit; the kind of the lab status and of the pictograms. */
-export type GatewayKind = "vpn" | "internet"
-export const gatewayKindOf = (type: GatewayDeviceType): GatewayKind => type === "vpn_gateway" ? "vpn" : "internet"
+export type { GatewayDeviceType, GatewayKind } from "@/lib/gatewayTypes"
 export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
 export type SecurityPreset = "" | "standard" | "extended"
 /** Only devices are endpoints now: a gateway is a device. */

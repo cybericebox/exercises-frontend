@@ -8,7 +8,8 @@
  */
 import type { DeployDeviceStatus, DeployStateTask, DeployStatus } from "@/api/exercises/deploy"
 import { OBSERVATION_KINDS, OBSERVATION_WIRE_KEY, type ConditionDTO, type ObservationKind } from "@/api/exercises/model"
-import { isGatewayType, type NormalizedDevice, type NormalizedTask } from "@/api/exercises/versions"
+import { type NormalizedDevice, type NormalizedTask } from "@/api/exercises/versions"
+import { isGatewayType } from "@/lib/gatewayTypes"
 
 /** How many tries the laboratory gives a device initialization before it reports a failure. */
 export const BOOTSTRAP_MAX_ATTEMPTS = 3
