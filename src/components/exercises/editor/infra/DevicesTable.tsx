@@ -11,7 +11,7 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { gatewayKindOf, isGatewayType } from "@/lib/gatewayTypes"
 import { gatewaysOverLimit } from "@/lib/editor/schemas/infra"
 import { useMaxLabGateways } from "../gatewayLimit"
-import { FieldError } from "../fieldErrors"
+import { FieldError, fieldProps } from "../fieldErrors"
 import { topologyIconFor } from "@/lib/topologyIcons"
 import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
@@ -74,6 +74,7 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
       : <tbody>{rows.map((row) => <tr key={row.key} data-selected={selectedKey === row.key || undefined} className="group h-[49px] transition-colors hover:bg-[var(--ib-hover)] data-[selected]:bg-accent/60">
         <td className={cn(TABLE_CELL, "min-w-0")}>
           <button type="button" aria-label={t("ed.c.devices.showN", { name: row.name })} onClick={() => onShow(row.key)}
+            aria-invalid={row.limitError ? true : undefined} aria-describedby={fieldProps(`${row.key}-limit`, row.limitError ?? undefined)["aria-describedby"]}
             className="flex max-w-full items-center gap-2 rounded-sm text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
             <TopologyGlyph kind={row.glyph} className="h-5 w-5 shrink-0 text-foreground" /><span className="truncate">{row.name}</span>
           </button>
