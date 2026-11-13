@@ -57,7 +57,7 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
     })
   }, [topology, taskList, maxGateways])
 
-  return <Table label={t("ed.c.devices.title")} className="min-w-[44rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
+  return <Table label={t("ed.c.devices.title")} className="min-w-[61.25rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
     <thead>
       <tr className={TABLE_HEAD_ROW}>
         <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[19%]")}><TableHeadHelp text={t("ed.c.devices.device")} help={{ intro: t("ed.c.th.device") }} /></th>
