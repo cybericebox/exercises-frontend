@@ -195,7 +195,7 @@ describe("exercise page — publishing and history", () => {
     expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
   })
 
-  it("does not add the generic «not saved» toast to a publish whose save error sits beside its field", async () => {
+  it("shows the problems list, not the generic «not saved» toast, for a publish whose save error sits beside its field", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     vi.mocked(saveDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "web", field: "device" } } }, "m", undefined, 23202))
     // an unsent edit (the buffer) makes the working copy differ, so a save is tried before the publish
@@ -207,6 +207,9 @@ describe("exercise page — publishing and history", () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 100)) })
     expect(publishDraft).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
+    // the problem is not silent: the problems list names it and leads to its field
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
+    expect(within(dialog).getByRole("button", { name: "ed.shell.issues.go" })).toBeInTheDocument()
   })
 
   it("keeps a publish error without a place as a toast", async () => {

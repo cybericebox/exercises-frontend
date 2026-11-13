@@ -94,9 +94,14 @@ export function useExerciseActions({
       return false
     }
     const ok = await editor.autosave.flush()
-    // A failed save whose error sits beside its field (placed by the editor) has said what is wrong: no second generic toast.
-    if (!ok && (inline || !editor.saveErrorPlaced())) report(t("admin.exPage.toast.saveFailed"))
-    return ok
+    if (ok) return true
+    // A failed save whose error sits beside its field (placed by the editor) says what is wrong: show where, no generic toast.
+    const placed = editor.saveErrorIssues()
+    if (placed.length === 0 || inline) { report(t("admin.exPage.toast.saveFailed")); return false }
+    if (canWrite) setMode("edit")
+    if (onIssues) onIssues(placed)
+    else { setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), placed[0].path)); focusField(placed[0].path) }
+    return false
   }
 
   async function publish(): Promise<void> {
