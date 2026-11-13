@@ -194,6 +194,13 @@ export function InfraWorkspace() {
     if (!connectMode) { setSelected(key); setSelectedEdge(null); return }
     setLinkNodes((current) => current.length === 0 || current.length === 2 ? [key] : current[0] === key ? [] : [current[0], key])
   }
+  /** Starts the connect mode. The node panel closes: on a phone it is a sheet over the canvas and would hide the nodes to pick. */
+  function startConnect(first?: string) {
+    setSelected(null)
+    setSelectedEdge(null)
+    setConnectMode(true)
+    setLinkNodes(first ? [first] : [])
+  }
   const cancelConnect = () => { setConnectMode(false); setLinkNodes([]) }
 
   function nodeName(key: string): string {
@@ -271,7 +278,7 @@ export function InfraWorkspace() {
   </DropdownMenu>
   const connectButton = !readOnly && activeView === "diagram" && !connectMode && <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
     <Button type="button" variant="outline" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-      onClick={() => { if (linkUnavailableReason !== null) return; setConnectMode(true); setLinkNodes([]) }}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}</Button>
+      onClick={() => { if (linkUnavailableReason !== null) return; startConnect() }}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}</Button>
   </HoverTooltip>
 
   const toggleFullscreen = () => {
@@ -322,10 +329,10 @@ export function InfraWorkspace() {
               onEdgeSettings={(index) => { cancelConnect(); setView("connections"); setExpandedConnection(index) }}
               onEdgeRemove={readOnly ? undefined : setPendingEdgeRemoval} linkUnavailableReason={linkUnavailableReason}
               onNodeRemove={readOnly ? undefined : setPendingRemoval}
-              onNodeLinkStart={readOnly ? undefined : (key) => { if (unavailableNodes.includes(key)) return; setSelected(key); setConnectMode(true); setLinkNodes([key]) }}
+              onNodeLinkStart={readOnly ? undefined : (key) => { if (unavailableNodes.includes(key)) return; startConnect(key) }}
               onCanvasSelect={() => { if (!connectMode) { setSelected(null); setSelectedEdge(null) } }}
               onCanvasAddNode={readOnly ? undefined : (kind, position) => kind === "vpn" ? addGateway("vpn_gateway", position) : kind === "internet" ? addGateway("internet_gateway", position) : addDevice(kind, position)}
-              onCanvasLinkStart={readOnly ? undefined : () => { setConnectMode(true); setLinkNodes([]) }}
+              onCanvasLinkStart={readOnly ? undefined : () => startConnect()}
               controlsPosition="top-right" toolbarExtra={fullscreen ? <HoverTooltip text={t(fullscreen ? "admin.exTopo.collapseCanvasTip" : "admin.exTopo.expandCanvasTip")}>
                 <Button type="button" variant="ghost" size="icon" onClick={toggleFullscreen} aria-label={t(fullscreen ? "admin.exTopo.collapseCanvas" : "admin.exTopo.expandCanvas")} className="h-8 w-8">
                   <Minimize2 aria-hidden="true" className="h-4 w-4" />
