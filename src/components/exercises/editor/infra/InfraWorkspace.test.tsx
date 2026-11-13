@@ -234,6 +234,26 @@ describe("gateways as devices", () => {
   })
 })
 
+describe("connect mode and the node panel", () => {
+  it("closes the node panel when «add connection» starts, so the sheet over the canvas does not hide the nodes", () => {
+    renderWorkspace()
+    fireEvent.click(screen.getByTestId("node-d1"))
+    expect(document.querySelector("[data-side-panel]")).not.toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
+    expect(document.querySelector("[data-side-panel]")).toBeNull()
+    expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("admin.exTopo.canvasSelectFirst")
+  })
+
+  it("closes it for «Зʼєднати» of a node menu as well, and keeps that node as the first of the pair", () => {
+    renderWorkspace()
+    fireEvent.click(screen.getByTestId("node-d1"))
+    fireEvent.contextMenu(screen.getByTestId("node-d2"))
+    fireEvent.click(screen.getByRole("menuitem", { name: "ed.c.diagram.connect" }))
+    expect(document.querySelector("[data-side-panel]")).toBeNull()
+    expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("admin.exTopo.canvasSelectSecond")
+  })
+})
+
 describe("read-only and linked variants", () => {
   it("offers no add and no delete when viewing, and the dialog opens to read", () => {
     editor.value = { ...editor.value, disabled: true }
