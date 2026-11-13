@@ -105,3 +105,16 @@ describe("variables and gateways", () => {
 function topologyOnWire(): NormalizedTopology {
   return { Variables: [], Devices: [], Connections: [], VisualRender: null }
 }
+
+describe("':' in names (the backend refuses it, error 23202)", () => {
+  it("refuses ':' in a node name, a gateway name and a variable name at the field", () => {
+    const withEnv = (name: string) => ({ ...emptyBootstrap(), Env: [{ Name: name, Value: "1", Secret: false, HasValue: false }] })
+    const found = messages({ ...emptyTopology(), Devices: [
+      device({ ID: "n", Name: "web:1", Bootstrap: withEnv("A:B") }),
+      emptyGateway("vpn_gateway", "vpn:1"),
+    ] })
+    expect(found).toContain("Devices.0.Name: admin.ex.val.deviceName")
+    expect(found).toContain("Devices.0.Bootstrap.Env.0.Name: ed.c.val.envName")
+    expect(found).toContain("Devices.1.Name: admin.ex.val.deviceName")
+  })
+})

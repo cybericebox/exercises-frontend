@@ -13,7 +13,7 @@ import { get, set, type FieldErrors, type Resolver, type UseFormReturn } from "r
 import { errorContext, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { describeIssue, type EditorIssue } from "./issues"
-import { deviceErrorPath, taskFieldPath, variantFieldPath } from "./serverFieldPath"
+import { deviceErrorPath, ERR_NAME_SEPARATOR, taskFieldPath, variantFieldPath } from "./serverFieldPath"
 
 type Path = (string | number)[]
 
@@ -53,12 +53,20 @@ export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, 
       if (ti >= 0) out.push(["Variants", vi, "Tasks", ti, ...rest])
     })
   } else if (device) {
-    const rest = deviceErrorPath(code, field)
+    // 23202 "env": the daemon names the device, not the variable. Only a device with exactly one variable name holding ':' gives a reliable place.
+    const envSeparator = code === ERR_NAME_SEPARATOR && field === "env"
+    const rest = envSeparator ? [] : deviceErrorPath(code, field)
     if (!rest) return null
     draft.Variants.forEach((variant, vi) => {
       if (!own(vi)) return
       const di = variant.Topology.Devices.findIndex((candidate) => candidate.Name === device)
-      if (di >= 0) out.push(["Variants", vi, "Topology", "Devices", di, ...rest])
+      if (di < 0) return
+      if (!envSeparator) {
+        out.push(["Variants", vi, "Topology", "Devices", di, ...rest])
+        return
+      }
+      const bad = variant.Topology.Devices[di].Bootstrap.Env.flatMap((env, ei) => (env.Name.includes(":") ? [ei] : []))
+      if (bad.length === 1) out.push(["Variants", vi, "Topology", "Devices", di, "Bootstrap", "Env", bad[0], "Name"])
     })
   } else if (field) {
     const rest = variantFieldPath(field)
