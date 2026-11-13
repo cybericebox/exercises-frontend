@@ -12,15 +12,17 @@ import { emptyPlaceholder, placeholderToDTO } from "@/lib/exerciseSchemas"
 import { FieldHelp } from "@/components/ui/field-help"
 import { FieldLabel } from "@/components/ui/field-label"
 import { LINK_SCHEMES, MAX_LINK_PATH, ipExample, isValidLinkPath, isValidLinkPort } from "@/lib/placeholderLink"
-import type { PlaceholderAccess, PlaceholderKind } from "@/api/exercises/versions"
+import type { GatewayKind, PlaceholderAccess, PlaceholderKind } from "@/api/exercises/versions"
 import { ACCESS_KINDS, ACCESS_KINDS_SERVED, type AccessKind } from "@/api/exercises/model"
 
 /** A device that can be linked to: its name and the access kinds it has switched on. */
 export type ExternalDevice = { name: string; access: AccessKind[] }
 
+/** A gateway of the lab a placeholder can name: its name and its kind. */
+export type GatewayOption = { name: string; kind: GatewayKind }
+
 export type PlaceholderTopology = {
-  vpnEnabled: boolean
-  internetEnabled: boolean
+  gateways: GatewayOption[]
   externalDevices: ExternalDevice[]
 }
 
@@ -48,34 +50,36 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
   const [draft, setDraft] = useState<PlaceholderFormValues | null>(value)
   const dirty = Boolean(draft && (!value || JSON.stringify(placeholderToDTO(draft)) !== JSON.stringify(placeholderToDTO(value))))
   const kind = draft?.Kind
-  const canVPN = topology.vpnEnabled
-  const canInternet = topology.internetEnabled
-  const canIP = canVPN || canInternet
+  const gatewayNames = topology.gateways.map((gateway) => gateway.name)
+  const canGateway = gatewayNames.length > 0
   const externalNames = topology.externalDevices.map((device) => device.name)
   const canExternal = externalNames.length > 0
   const externalDevice = topology.externalDevices.find((device) => device.name === draft?.DeviceName)
   const accessKind: AccessKind = draft?.Access ?? "http"
   const accessOk = Boolean(externalDevice?.access.includes(accessKind) && ACCESS_KINDS_SERVED.includes(accessKind))
   const options: { kind: PlaceholderKind; enabled: boolean; reason: string; label: string }[] = [
-    { kind: "vpn.subnet", enabled: canVPN, reason: t("admin.exPh.unavailable.vpn"), label: t("admin.exPh.kind.vpnSubnet") },
-    { kind: "internet.subnet", enabled: canInternet, reason: t("admin.exPh.unavailable.internet"), label: t("admin.exPh.kind.internetSubnet") },
-    { kind: "ip", enabled: canIP, reason: t("admin.exPh.unavailable.ip"), label: t("admin.exPh.kind.ip") },
+    { kind: "gateway.subnet", enabled: canGateway, reason: t("admin.exPh.unavailable.gateway"), label: t("admin.exPh.kind.gatewaySubnet") },
+    { kind: "ip", enabled: canGateway, reason: t("admin.exPh.unavailable.ip"), label: t("admin.exPh.kind.ip") },
     { kind: "external.link", enabled: canExternal, reason: t("admin.exPh.unavailable.external"), label: t("admin.exPh.kind.externalLink") },
   ]
   const selectedAvailable = options.find((option) => option.kind === kind)?.enabled ?? false
-  const ipSourceAvailable = draft?.IPReference === "vpn" ? canVPN : draft?.IPReference === "internet" ? canInternet : draft?.IPReference === "static" && Boolean(value)
+  const gatewayChosen = Boolean(draft && gatewayNames.includes(draft.Gateway))
+  const ipSourceAvailable = draft?.IPReference === "gateway" ? gatewayChosen : draft?.IPReference === "static" && Boolean(value)
+  // The gateway dropdown belongs to a gateway subnet and to an address taken from a gateway.
+  const needsGateway = kind === "gateway.subnet" || (kind === "ip" && draft?.IPReference === "gateway")
   const asLink = kind === "ip" && Boolean(draft?.AsLink)
   const portError = asLink && !isValidLinkPort(draft?.PortText ?? "") ? t("admin.ex.val.placeholderPort") : ""
   const pathError = asLink && !isValidLinkPath(draft?.Path ?? "") ? t("admin.ex.val.placeholderPath") : ""
   const valid = Boolean(draft && !portError && !pathError && (selectedAvailable || (Boolean(value) && draft.IPReference === "static")) &&
+    (kind !== "gateway.subnet" || gatewayChosen) &&
     (kind !== "ip" || (ipSourceAvailable && Number.isInteger(draft.LastOctet) && draft.LastOctet >= 0 && draft.LastOctet <= 255)) &&
     (kind !== "external.link" || (externalNames.includes(draft.DeviceName) && accessOk)))
 
   function choose(nextKind: PlaceholderKind) {
     const next = draft ?? emptyPlaceholder()
     setDraft({ ...next, Kind: nextKind,
-      IPReference: nextKind === "ip" && !["vpn", "internet"].includes(next.IPReference)
-        ? (canVPN ? "vpn" : "internet") : next.IPReference,
+      IPReference: nextKind === "ip" && next.IPReference !== "gateway" ? "gateway" : next.IPReference,
+      Gateway: (nextKind === "gateway.subnet" || nextKind === "ip") && !gatewayNames.includes(next.Gateway) ? gatewayNames[0] ?? "" : next.Gateway,
       DeviceName: nextKind === "external.link" && !externalNames.includes(next.DeviceName)
         ? externalNames[0] ?? "" : next.DeviceName,
       Access: nextKind === "external.link" ? defaultAccess(topology.externalDevices.find((device) => device.name === (externalNames.includes(next.DeviceName) ? next.DeviceName : externalNames[0]))) : next.Access,
@@ -98,7 +102,17 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
         </button>)}
       </div>
       </div>
-      {draft && (kind === "vpn.subnet" || kind === "internet.subnet" || kind === "ip") && <div className="space-y-3 border-t border-border pt-4">
+      {draft && (kind === "gateway.subnet" || kind === "ip") && <div className="space-y-3 border-t border-border pt-4">
+        {needsGateway && <div>
+          <FieldLabel as="span" id="placeholder-gateway-label" className="mb-1" text={t("admin.exPh.gateway")} required helpText={t("admin.exPh.gatewayHelp")} />
+          <SelectMenu ariaLabel={t("admin.exPh.gateway")} value={draft.Gateway}
+            onChange={(Gateway) => setDraft({ ...draft, Gateway })}
+            options={[
+              ...(draft.Gateway && !gatewayNames.includes(draft.Gateway)
+                ? [{ value: draft.Gateway, label: t("admin.exPh.itemMissing", { name: draft.Gateway }), unavailable: true }] : []),
+              ...topology.gateways.map((gateway) => ({ value: gateway.name, label: gateway.name, description: t(`admin.exPh.gatewayKind.${gateway.kind}`) })),
+            ]} className="w-full" />
+        </div>}
         {kind === "ip" && <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <FieldLabel as="span" id="placeholder-ipref-label" className="mb-1" text={t("admin.exPh.ipref")} required helpText={t("admin.exPh.iprefHelp")} />
@@ -106,8 +120,7 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
               onChange={(IPReference) => setDraft({ ...draft, IPReference })}
               options={[
                 ...(value?.IPReference === "static" ? [{ value: "static", label: t("admin.exPh.ipref.static") }] : []),
-                ...(canVPN ? [{ value: "vpn", label: t("admin.exPh.ipref.vpn") }] : []),
-                ...(canInternet ? [{ value: "internet", label: t("admin.exPh.ipref.internet") }] : []),
+                ...(canGateway || draft.IPReference === "gateway" ? [{ value: "gateway", label: t("admin.exPh.ipref.gateway") }] : []),
               ]} className="w-full" />
           </div>
           <div>
