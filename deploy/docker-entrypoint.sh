@@ -22,6 +22,17 @@ done
 : "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:=}"
 export NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
 
+# Installation settings (all optional, no value = not shown, deploy/cfg-check.sh): URLs are empty or https://. The root layout writes each value
+# into an attribute of <html> and src/styles/cfg.css hides the blocks by it, so every one is exported to be substituted (an empty value is
+# substituted too: the placeholder must not stay).
+. /usr/local/lib/cfg-check.sh
+# The list is a variable, not a `for name in NEXT_PUBLIC_...` line: scripts/test-nginx-tls.sh reads those lines as the REQUIRED values.
+optional_urls="NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL"
+for name in $optional_urls; do
+  cfg_url_check "$name" || exit 1
+  eval "export $name=\"\${$name:-}\""
+done
+
 # One pass: a single sed script with an expression per NEXT_PUBLIC_* variable, run once over each
 # file that holds a placeholder (in parallel: busybox sed is slow on the minified bundles). Only the
 # wrapped token is replaced; the bare name is also an object key and plain text in the bundle.

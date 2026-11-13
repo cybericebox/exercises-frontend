@@ -11,13 +11,14 @@ import { ToastProvider } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { FixtureGate } from "@/components/dev/FixtureGate"
 import { Analytics } from "@/components/consent/Analytics"
+import { settingsAttrs } from "@/lib/settings"
 
 // noindex also as a meta tag: static hosts (GitHub Pages) cannot send X-Robots-Tag.
 export const metadata = { title: t("exercises.meta.title"), description: t("exercises.meta.description"), robots: { index: false, follow: false } }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uk" className={`${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="uk" className={`${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth" {...settingsAttrs()} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_BOOT_SCRIPT }} /><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
       {/* Browser extensions can add attributes to body before React hydrates. */}
       <body className="grid-bg" suppressHydrationWarning>

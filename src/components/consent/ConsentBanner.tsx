@@ -45,9 +45,10 @@ const BOX =
 // 1. Banner: a general line, «Налаштувати» and «Прийняти всі».
 // 2. Panel: categories (Необхідні — always on; Аналітика — off by default),
 //    «Зберегти вибір» and «Прийняти всі».
+// The Cookie Policy link is NEXT_PUBLIC_COOKIES_URL; with it empty the link and the «Докладніше» line are hidden by src/styles/cfg.css.
 // Shown when GA is configured and no choice exists; «Налаштування файлів cookie» opens the panel.
 // Esc never counts as consent: it steps back from the panel, or closes a panel opened from settings.
-export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref: string }) {
+export function ConsentBanner({ gaId }: { gaId?: string }) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   // null = follow the stored choice; "panel" = preferences open.
   const [layer, setLayer] = useState<"banner" | "panel" | null>(null)
@@ -88,11 +89,11 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
   const policyLink = (
     // New tab; the click must not reach any outer handler, so the banner/panel and its toggles stay.
     <a
-      href={policyHref}
+      href={process.env.NEXT_PUBLIC_COOKIES_URL}
       {...POLICY_LINK_ATTRS}
       aria-label={t("consent.policyLinkNewTab")}
       onClick={(e) => e.stopPropagation()}
-      className="text-foreground underline underline-offset-[3px]"
+      className="cfg-cookies text-foreground underline underline-offset-[3px]"
     >
       {t("consent.policyLink")}
     </a>
@@ -154,7 +155,7 @@ export function ConsentBanner({ gaId, policyHref }: { gaId?: string; policyHref:
           </li>
         ))}
       </ul>
-      <p className="border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
+      <p className="cfg-cookies border-t border-border pt-3 text-xs">{withLink("consent.policy", policyLink)}</p>
       <div className="mt-4 flex items-center justify-end gap-2">
         <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => choose({ analytics })}>
           {t("consent.saveChoice")}

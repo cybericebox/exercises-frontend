@@ -10,6 +10,7 @@
     "dev": "next dev -p 3005",
     "dev:fixtures": "NEXT_PUBLIC_EDITOR_FIXTURES=1 NEXT_PUBLIC_DOMAIN=localhost NEXT_PUBLIC_SUPPORT_EMAIL=dev@example.test next dev -p 3005",
     "build": "next build",
+    "check:cfg": "node scripts/check-cfg.mjs",
     "start": "next start -p 3005",
     "lint": "eslint .",
     "sync:errors": "node scripts/sync-error-catalog.mjs",

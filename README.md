@@ -34,6 +34,10 @@ Production builds are a **static export** (`output: "export"`, written to `out/`
 | `NEXT_PUBLIC_DOMAIN` | yes | The one base domain, a bare lowercase host name (no scheme, port or path). Every host derives from it: `<DOMAIN>` (landing), `api.`, `id.`, `admin.`, `exercises.<DOMAIN>`, event sites `<tag>.<DOMAIN>`, the shared theme and consent cookies on `.<DOMAIN>`. There are no per-host settings. |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
+| `NEXT_PUBLIC_MAIN_SITE_URL` | no | `https://` URL of the main site. Set: the logo and the «home» button of the no-access screen lead there; empty: the logo leads to `/` of this site and there is no «home» button. |
+| `NEXT_PUBLIC_COOKIES_URL` | no | `https://` URL of the Cookie Policy. Empty: no link in the cookie banner. |
+
+The installation settings (`MAIN_SITE_URL`, `COOKIES_URL`) are optional and mean "no value = not shown": a third-party installation says nothing in our name. A URL is empty or `https://host[:port][/path][?query]` (no spaces, quotes, `<`, `>`, `\`, `#` or userinfo). A bad value fails the build, the container start and the Pages workflow. Each value is written into an attribute of `<html>` (`data-cfg-*`, `src/lib/settings.ts`) and `src/styles/cfg.css` hides the blocks that need it, so the same markup works in the image (placeholders substituted at start) and in a build with real values. The root domain keeps its roles (allowed origins, hint cookie, return URLs); the settings do not change them. `npm run check:cfg` builds the way the Dockerfile does and checks that every placeholder survives in the bundle. `deploy/cfg-check.sh` and `tests/cfg-vectors.json` are copies kept identical in every frontend repository.
 
 ## i18n
 

@@ -1,5 +1,5 @@
 // «Налаштування файлів cookie» in the account menu: always shown (no GA needed), a link to the
-// main-site cookie policy that opens the consent panel instead of navigating.
+// cookie policy (NEXT_PUBLIC_COOKIES_URL) that opens the consent panel instead of navigating.
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { CONSENT_OPEN_EVENT } from "@/lib/consent"
@@ -10,7 +10,7 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { FirstName: "Ada", Last
 vi.mock("./AccessContext", () => ({ useExerciseAccess: () => ({ access: { IsAdmin: false } }) }))
 vi.mock("./InboxButton", () => ({ InboxButton: () => null }))
 vi.mock("./RunningTestsMenu", () => ({ RunningTestsMenu: () => null }))
-vi.mock("@/lib/origins", async (orig) => ({ ...(await orig<typeof import("@/lib/origins")>()), idOrigin: "https://id.x", adminOrigin: "https://admin.x", mainOrigin: "https://x" }))
+vi.mock("@/lib/origins", async (orig) => ({ ...(await orig<typeof import("@/lib/origins")>()), idOrigin: "https://id.x", adminOrigin: "https://admin.x" }))
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
 describe("TopBar cookie settings", () => {
@@ -30,7 +30,7 @@ describe("TopBar cookie settings", () => {
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
     const item = screen.getByRole("menuitem", { name: "consent.settings" })
     expect(item.tagName).toBe("A")
-    expect(item).toHaveAttribute("href", "https://x/cookies")
+    expect(item).toHaveAttribute("href", "https://example.test/cookies")
     expect(fireEvent.click(item)).toBe(false) // navigation cancelled
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument()
     // opens after the menu hands focus back to its trigger
