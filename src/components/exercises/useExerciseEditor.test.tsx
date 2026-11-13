@@ -316,6 +316,38 @@ describe("useExerciseEditor", () => {
     expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error).toBeUndefined()
   })
 
+  it("after a refused save the next save sends every unchanged value unchanged and keeps an untouched secret blank", async () => {
+    const env = [
+      { Name: "APP_MODE", Value: "ctf", Secret: false, HasValue: false },
+      { Name: "FLAG", Value: "{{task.secret}}", Secret: false, HasValue: false },
+      { Name: "LICENSE_KEY", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
+    ]
+    const withEnv: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology, Devices: [
+      normalizedDevice({ ID: "d1", Name: "db", Type: "node", Bootstrap: { Timeout: "", Env: env, Files: [], Script: "", Interpreter: "" } }),
+    ] } }] }
+    mockGetDraft.mockResolvedValue(withEnv)
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "db:1", field: "device" } } }, "m", undefined, 23202))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db:1"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.saveErrorIssues()).toHaveLength(1)
+    // the refused save changed no value in the form
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env").map((entry) => entry.Value)).toEqual(["ctf", "{{task.secret}}", ""])
+    mockSaveDraft.mockResolvedValue(withEnv)
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db2"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    const sent = mockSaveDraft.mock.calls.at(-1)![1].Variants[0].Topology.Devices?.[0]
+    expect(sent?.Name).toBe("db2")
+    expect(sent?.Bootstrap?.Env).toEqual([
+      { Name: "APP_MODE", Value: "ctf", Secret: false },
+      { Name: "FLAG", Value: "{{task.secret}}", Secret: false },
+      { Name: "LICENSE_KEY", Value: "", Secret: true },
+    ])
+  })
+
   it("creates the exercise once the name is valid, then saves the working copy", async () => {
     const onCreated = vi.fn()
     render(<Harness onCreated={onCreated} />)
