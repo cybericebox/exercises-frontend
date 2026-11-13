@@ -392,7 +392,7 @@
   "ed.c.remove.deviceGone": "The device «{name}» will be removed from the schema.",
   "ed.c.remove.gateway": "Remove gateway",
   "ed.c.remove.gatewayGone": "The gateway «{name}» will be removed from the schema.",
-  "ed.c.remove.gatewayPlaceholders": "Placeholders of the tasks that use this gateway: {n}; the gateway must be chosen again in them.",
+  "ed.c.remove.gatewayPlaceholders": "Task placeholders that use this gateway stay, but the gateway must be chosen again in them (count: {n}).",
   "ed.c.remove.gatewayRefs": "The addresses, gateways and routes that refer to it will be cleared: {addresses} addresses and gateways, {routes} routes.",
   "ed.c.remove.noConnections": "It has no connections.",
   "ed.c.remove.titleDevice": "Remove the device «{name}»?",

@@ -170,3 +170,12 @@ describe("TasksView: devices in the picker of conditions are node devices", () =
     expect(screen.getByTestId("check-section")).toBeInTheDocument()
   })
 })
+
+describe("TasksView: errors of the placeholders", () => {
+  it("lists them under the description, since a placeholder is a chip and not a control", async () => {
+    const { handles } = renderInEditor(<TasksView />, { variants: [{ tasks: [flagTask("task_1", "First")] }] })
+    await act(async () => { handles.form.setError("Variants.0.Tasks.0.Placeholders.0.Gateway", { type: "custom", message: "ed.b.val.placeholderGateway" }) })
+    const alert = screen.getByText("ed.b.val.placeholderGateway")
+    expect(alert.closest("p")).toHaveAttribute("role", "alert")
+  })
+})

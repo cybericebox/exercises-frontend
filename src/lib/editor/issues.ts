@@ -30,6 +30,7 @@ function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
     parts.push(t("ed.shell.issue.task", { n: path[3] + 1 }))
     if (path[4] === "Check" && path[5] === "State" && path[6] === "Conditions" && typeof path[7] === "number") parts.push(t("ed.shell.issue.condition", { n: path[7] + 1 }))
     if (path[4] === "Hints" && typeof path[5] === "number") parts.push(t("ed.shell.issue.hint", { n: path[5] + 1 }))
+    if (path[4] === "Placeholders" && typeof path[5] === "number") parts.push(t("ed.shell.issue.placeholder"))
   }
   if (path[2] === "Topology") {
     if (path[3] === "Devices" && typeof path[4] === "number") {
