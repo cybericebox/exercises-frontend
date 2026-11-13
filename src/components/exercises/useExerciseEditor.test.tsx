@@ -43,7 +43,7 @@ const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
     Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } }, Attachments: [], Placeholders: [], Hints: [] }],
-    Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 
 let latest: ExerciseEditor

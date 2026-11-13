@@ -16,6 +16,7 @@ import {
   MAX_ACCESS_ENTRIES, MAX_BOOTSTRAP_CONTENT_BYTES, MAX_BOOTSTRAP_ENV, MAX_BOOTSTRAP_FILES, MAX_BOOTSTRAP_SCRIPT_BYTES, MAX_DEVICE_ARGS, MAX_DEVICE_COMMAND,
   MAX_VARIABLES, MAX_VARIABLE_VALUE_BYTES, TASK_KEY_RE, type AccessKind, type AccessProtocol, type BootstrapDTO, type EnvVarDTO, type VariableDTO,
 } from "@/api/exercises/model"
+import { isGatewayType, type GatewayDeviceType } from "@/api/exercises/versions"
 import type {
   ConnectionDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, TopologyDTO,
 } from "@/api/exercises/versions"
@@ -36,6 +37,8 @@ export function containerNameError(name: string): string | null {
   if (name.length > MAX_DEVICE_NAME_LEN) return t("admin.ex.val.deviceNameTooLong", { max: MAX_DEVICE_NAME_LEN })
   return DNS_LABEL_RE.test(name) ? null : t("admin.ex.val.deviceName")
 }
+/** Inline error for the name of a gateway (a device of its own kind: the device rule, no reserved names), or null. */
+export const gatewayNameError = containerNameError
 /** Interface name: filled in, at most 15 characters, letters, digits and . _ -, unique on the device. Empty string = valid. */
 export function interfaceNameError(name: string, others: string[]): string {
   if (name === "") return t("ed.c.val.ifaceRequired")
@@ -120,32 +123,8 @@ export const MAX_ENV_VARS = MAX_BOOTSTRAP_ENV
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
-const networkSchema = z.object({
-  Enabled: z.boolean(), DHCP: z.boolean(),
-  DHCPRanges: z.array(z.object({ Start: z.number().int(), End: z.number().int() })).optional(),
-  DNS: z.string().optional(),
-  ReverseConnections: z.boolean().optional(),
-}).superRefine((network, ctx) => {
-  if (network.Enabled && network.DHCP && !network.DHCPRanges?.length) {
-    ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangesRequired") })
-  }
-  const used = new Set<number>()
-  network.DHCPRanges?.forEach((range) => {
-    if (range.Start < 2 || range.End > 254 || range.Start > range.End) {
-      ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRange") })
-      return
-    }
-    for (let host = range.Start; host <= range.End; host += 1) {
-      if (used.has(host)) {
-        ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangeOverlap") })
-        break
-      }
-      used.add(host)
-    }
-  })
-})
-const networkIPRefSchema = z.object({ Network: z.enum(["vpn", "internet"]), Host: z.number().int() })
-const networkSubnetRefSchema = z.object({ Network: z.enum(["vpn", "internet"]) })
+const networkIPRefSchema = z.object({ Gateway: z.string(), Host: z.number().int() })
+const networkSubnetRefSchema = z.object({ Gateway: z.string() })
 
 const ipConfigSchema = z
   .object({
@@ -293,7 +272,7 @@ const deviceSchema = z
   .object({
     ID: z.string(),
     Name: z.string(),
-    Type: z.enum(["node", "unmanaged-switch", "hub"]),
+    Type: z.enum(["node", "unmanaged-switch", "hub", "vpn_gateway", "internet_gateway"]),
     Profile: z.enum(["container", "microvm", "vm"]),
     SecurityPreset: z.enum(["", "standard", "extended"]),
     Image: z.string(),
@@ -307,11 +286,37 @@ const deviceSchema = z
     Bootstrap: bootstrapSchema,
     Persistence: z.object({ Enabled: z.boolean(), Debounce: z.string() }).optional(),
     WaitReadyFile: z.boolean().optional(),
+    DHCP: z.boolean(),
+    DHCPRanges: z.array(z.object({ Start: z.number().int(), End: z.number().int() })),
+    DNS: z.string(),
+    ReverseConnections: z.boolean(),
   })
   .superRefine((d, ctx) => {
     const node = d.Type === "node"
-    const nameError = node ? containerNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
+    const gateway = isGatewayType(d.Type)
+    const nameError = node ? containerNameError(d.Name) : gateway ? gatewayNameError(d.Name) : d.Name.trim() ? null : t("admin.ex.val.deviceDisplayName")
     if (nameError) ctx.addIssue({ code: "custom", path: ["Name"], message: nameError })
+    if (gateway) {
+      if (d.DHCP && d.DHCPRanges.length === 0) ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangesRequired") })
+      const used = new Set<number>()
+      d.DHCPRanges.forEach((range) => {
+        if (range.Start < 2 || range.End > 254 || range.Start > range.End) {
+          ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRange") })
+          return
+        }
+        for (let host = range.Start; host <= range.End; host += 1) {
+          if (used.has(host)) {
+            ctx.addIssue({ code: "custom", path: ["DHCPRanges"], message: t("admin.ex.val.dhcpRangeOverlap") })
+            break
+          }
+          used.add(host)
+        }
+      })
+      if (d.DNS && (d.Type !== "internet_gateway" || ipFamily(d.DNS) !== "ipv4")) ctx.addIssue({ code: "custom", path: ["DNS"], message: t("admin.ex.val.internetDns") })
+      if (d.ReverseConnections && d.Type !== "vpn_gateway") ctx.addIssue({ code: "custom", path: ["ReverseConnections"], message: t("ed.c.val.reverseNeedsVpn") })
+    } else if (d.DHCP || d.DHCPRanges.length > 0 || d.DNS !== "" || d.ReverseConnections) {
+      ctx.addIssue({ code: "custom", path: ["Type"], message: t("ed.c.val.gatewayKeysOnly") })
+    }
     if (!node && (d.Image !== "" || d.Interfaces.length > 0 || d.Access.length > 0 || d.Command.length > 0 || d.Args.length > 0 || hasBootstrap(d.Bootstrap) || d.Persistence?.Enabled || d.WaitReadyFile || d.SecurityPreset !== "" || d.ResourcePreset !== "")) {
       ctx.addIssue({ code: "custom", path: ["Type"], message: t("admin.ex.val.forwardingBare") })
     }
@@ -337,21 +342,12 @@ const deviceSchema = z
 
 const endpointSchema = z
   .object({
-    Kind: z.enum(["device", "vpn", "internet"]),
+    Kind: z.literal("device"),
     DeviceID: z.string(),
     Interface: z.string(),
   })
   .superRefine((ep, ctx) => {
-    if (ep.Kind === "device") {
-      if (ep.DeviceID === "") {
-        ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
-      }
-    } else {
-      // VPN and Internet expose exactly one logical port.
-      if (ep.DeviceID !== "" || ep.Interface !== GATEWAY_PORT) {
-        ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointGateway") })
-      }
-    }
+    if (ep.DeviceID === "") ctx.addIssue({ code: "custom", path: ["DeviceID"], message: t("admin.ex.val.endpointDevice") })
   })
 
 const connectionSchema = z.object({
@@ -372,25 +368,11 @@ const variableSchema = z.object({
 export const topologySchema = z
   .object({
     Variables: z.array(variableSchema).max(MAX_VARIABLES, t("ed.c.val.variablesMax", { max: MAX_VARIABLES })),
-    VPN: networkSchema,
-    Internet: networkSchema,
     Devices: z.array(deviceSchema),
     Connections: z.array(connectionSchema),
     VisualRender: z.custom<Record<string, unknown> | null>((value) => value === null || (typeof value === "object" && !Array.isArray(value))),
   })
   .superRefine((topology, ctx) => {
-    if (topology.VPN.DNS) {
-      ctx.addIssue({ code: "custom", path: ["VPN", "DNS"], message: t("admin.ex.val.internetDns") })
-    }
-    if (topology.Internet.DNS && ipFamily(topology.Internet.DNS) !== "ipv4") {
-      ctx.addIssue({ code: "custom", path: ["Internet", "DNS"], message: t("admin.ex.val.internetDns") })
-    }
-    if (topology.VPN.ReverseConnections && !topology.VPN.Enabled) {
-      ctx.addIssue({ code: "custom", path: ["VPN", "ReverseConnections"], message: t("ed.c.val.reverseNeedsVpn") })
-    }
-    if (topology.Internet.ReverseConnections) {
-      ctx.addIssue({ code: "custom", path: ["Internet", "ReverseConnections"], message: t("ed.c.val.reverseNeedsVpn") })
-    }
     const deviceNames = new Set<string>()
     topology.Devices.forEach((device, index) => {
       if (device.Name && deviceNames.has(device.Name)) ctx.addIssue({ code: "custom", path: ["Devices", index, "Name"], message: t("ed.c.val.deviceNameDuplicate") })
@@ -401,21 +383,6 @@ export const topologySchema = z
       if (variable.Name && names.has(variable.Name)) ctx.addIssue({ code: "custom", path: ["Variables", index, "Name"], message: t("ed.c.val.variableDuplicate") })
       names.add(variable.Name)
     })
-    // The backend exposes VPN/Internet as singleton gateways: each may occur
-    // in at most one connection, even when both endpoints are in the same row.
-    const usedGateways = new Set<string>()
-    topology.Connections.forEach((connection, ci) => connection.Endpoints.forEach((ep, side) => {
-      if (ep.Kind !== "vpn" && ep.Kind !== "internet") return
-      const enabled = ep.Kind === "vpn" ? topology.VPN.Enabled : topology.Internet.Enabled
-      if (!enabled || usedGateways.has(ep.Kind)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["Connections", ci, "Endpoints", side],
-          message: t(!enabled ? "admin.ex.val.gatewayDisabled" : "admin.ex.val.gatewayAlreadyConnected"),
-        })
-      }
-      usedGateways.add(ep.Kind)
-    }))
     // Device endpoints must resolve to a declared node interface or a
     // fixed logical forwarding port, occupied by at most one connection.
     const usedPorts = new Set<string>()
@@ -432,7 +399,9 @@ export const topologySchema = z
           return
         }
         const forwarding = device.Type === "unmanaged-switch" || device.Type === "hub"
-        if (forwarding ? !isForwardingPort(ep.Interface) : !device.Interfaces.some((iface) => iface.Name === ep.Interface)) {
+        // A gateway has one implicit port, eth0; a switch or hub its fixed logical ports; a node its declared interfaces.
+        const portKnown = isGatewayType(device.Type) ? ep.Interface === GATEWAY_PORT : forwarding ? isForwardingPort(ep.Interface) : device.Interfaces.some((iface) => iface.Name === ep.Interface)
+        if (!portKnown) {
           ctx.addIssue({
             code: "custom",
             path: ["Connections", ci, "Endpoints", side, "Interface"],
@@ -451,29 +420,30 @@ export const topologySchema = z
         usedPorts.add(key)
       })
     })
+    // At most one gateway per network: the second gateway of one broadcast domain is refused on its own connection.
+    const taken = gatewayNetworkConflicts(topology)
+    taken.forEach(({ connection, side, other }) => ctx.addIssue({
+      code: "custom",
+      path: ["Connections", connection, "Endpoints", side, "DeviceID"],
+      message: t("ed.c.val.gatewayNetworkTaken", { name: other }),
+    }))
+    const gatewayNames = new Set(topology.Devices.filter((device) => isGatewayType(device.Type)).map((device) => device.Name))
+    const unknownGateway = (path: (string | number)[], name: string) => ctx.addIssue({ code: "custom", path, message: t("ed.c.val.gatewayRefUnknown", { name: name || "—" }) })
     const usedAddresses = new Set<string>()
-    const sourceEnabled = (network: "vpn" | "internet") => network === "vpn" ? topology.VPN.Enabled : topology.Internet.Enabled
     topology.Devices.forEach((device, di) => device.Interfaces.forEach((iface, ii) => {
       const ip = iface.IP
       const path = ["Devices", di, "Interfaces", ii, "IP"]
       if (ip.AddressRef) {
-        const { Network, Host } = ip.AddressRef
-        const key = `${Network}:${Host}`
-        if (!sourceEnabled(Network) || usedAddresses.has(key)) {
-          ctx.addIssue({ code: "custom", path: [...path, "AddressRef"], message: t("admin.ex.val.addressRefSource") })
-        }
+        const { Gateway, Host } = ip.AddressRef
+        const key = `${Gateway}:${Host}`
+        if (!gatewayNames.has(Gateway)) unknownGateway([...path, "AddressRef"], Gateway)
+        else if (usedAddresses.has(key)) ctx.addIssue({ code: "custom", path: [...path, "AddressRef"], message: t("admin.ex.val.addressRefSource") })
         usedAddresses.add(key)
       }
-      if (ip.GatewayRef && !sourceEnabled(ip.GatewayRef.Network)) {
-        ctx.addIssue({ code: "custom", path: [...path, "GatewayRef"], message: t("admin.ex.val.addressRefSource") })
-      }
+      if (ip.GatewayRef && !gatewayNames.has(ip.GatewayRef.Gateway)) unknownGateway([...path, "GatewayRef"], ip.GatewayRef.Gateway)
       ip.Routes.forEach((route, ri) => {
-        if (route.DstRef && !sourceEnabled(route.DstRef.Network)) {
-          ctx.addIssue({ code: "custom", path: [...path, "Routes", ri, "DstRef"], message: t("admin.ex.val.addressRefSource") })
-        }
-        if (route.ViaRef && !sourceEnabled(route.ViaRef.Network)) {
-          ctx.addIssue({ code: "custom", path: [...path, "Routes", ri, "ViaRef"], message: t("admin.ex.val.addressRefSource") })
-        }
+        if (route.DstRef && !gatewayNames.has(route.DstRef.Gateway)) unknownGateway([...path, "Routes", ri, "DstRef"], route.DstRef.Gateway)
+        if (route.ViaRef && !gatewayNames.has(route.ViaRef.Gateway)) unknownGateway([...path, "Routes", ri, "ViaRef"], route.ViaRef.Gateway)
       })
     }))
   })
@@ -520,14 +490,23 @@ export function emptyDevice(): DeviceFormValues {
     Bootstrap: emptyBootstrap(),
     Persistence: { Enabled: false, Debounce: "" },
     WaitReadyFile: false,
+    DHCP: false,
+    DHCPRanges: [],
+    DNS: "",
+    ReverseConnections: false,
   }
 }
+
+/** A new gateway: no interfaces (its one port eth0 is implicit), DHCP on with the whole range, no DNS, no reverse connections. */
+export function emptyGateway(type: GatewayDeviceType, name: string): DeviceFormValues {
+  return { ...emptyDevice(), Name: name, Type: type, Interfaces: [], Persistence: undefined, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] }
+}
+
+export const isGateway = (device: { Type: string }): boolean => isGatewayType(device.Type)
 
 export function emptyTopology(): TopologyFormValues {
   return {
     Variables: [],
-    VPN: { Enabled: false, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] },
-    Internet: { Enabled: false, DHCP: true, DHCPRanges: [{ Start: 2, End: 254 }] },
     Devices: [],
     Connections: [],
     VisualRender: null,
@@ -556,8 +535,6 @@ export function topologyToForm(topology: NormalizedTopology): TopologyFormValues
     Variables: topology.Variables.map((variable) => variable.Template !== undefined && variable.Template !== ""
       ? { Name: variable.Name, Kind: "template", Text: variable.Template }
       : { Name: variable.Name, Kind: "value", Text: variable.Value ?? "" }),
-    VPN: topology.VPN,
-    Internet: topology.Internet,
     Devices: topology.Devices.map(deviceToForm),
     Connections: topology.Connections,
     VisualRender: topology.VisualRender,
@@ -614,6 +591,16 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
   // The device ID ALWAYS goes out (client-side uuid for new devices): Connections
   // and the conditions of a state check reference it.
   const base: DeviceDTO = { ID: d.ID, Name: d.Name, Type: d.Type }
+  if (isGatewayType(d.Type)) {
+    // A gateway has only its own keys: DHCP (always), the ranges with it, DNS on an Internet gateway, reverse connections on a VPN gateway.
+    return {
+      ...base,
+      DHCP: d.DHCP,
+      ...(d.DHCP && d.DHCPRanges.length ? { DHCPRanges: d.DHCPRanges.map(({ Start, End }) => ({ Start, End })) } : {}),
+      ...(d.Type === "internet_gateway" && d.DNS ? { DNS: d.DNS } : {}),
+      ...(d.Type === "vpn_gateway" && d.ReverseConnections ? { ReverseConnections: true } : {}),
+    }
+  }
   if (d.Type !== "node") return base // switch/hub is "bare"
   const bootstrap = bootstrapToDTO(d.Bootstrap)
   return {
@@ -640,34 +627,102 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
   }
 }
 
-function networkToDTO(network: TopologyFormValues["VPN"], gateway: "vpn" | "internet"): TopologyDTO["VPN"] {
-  return {
-    Enabled: network.Enabled,
-    DHCP: network.DHCP,
-    ...(network.Enabled && network.DHCP ? { DHCPRanges: network.DHCPRanges } : {}),
-    ...(network.DNS ? { DNS: network.DNS } : {}),
-    ...(gateway === "vpn" && network.Enabled && network.ReverseConnections ? { ReverseConnections: true } : {}),
-  }
-}
-
 function variablesToDTO(variables: VariableFormValues[]): VariableDTO[] {
   return variables.map((variable) => variable.Kind === "template" ? { Name: variable.Name, Template: variable.Text } : { Name: variable.Name, Value: variable.Text })
 }
 
 export function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
   const connections: ConnectionDTO[] = topology.Connections.map((c) => ({
-    Endpoints: c.Endpoints.map((ep) =>
-      ep.Kind === "device"
-        ? { Kind: ep.Kind, DeviceID: ep.DeviceID, ...(ep.Interface ? { Interface: ep.Interface } : {}) }
-        : { Kind: ep.Kind, Interface: GATEWAY_PORT },
-    ),
+    Endpoints: c.Endpoints.map((ep) => ({ Kind: ep.Kind, DeviceID: ep.DeviceID, ...(ep.Interface ? { Interface: ep.Interface } : {}) })),
   }))
   return {
     ...(topology.Variables.length ? { Variables: variablesToDTO(topology.Variables) } : {}),
-    VPN: networkToDTO(topology.VPN, "vpn"),
-    Internet: networkToDTO(topology.Internet, "internet"),
     Devices: topology.Devices.map(deviceToDTO),
     Connections: connections,
     ...(topology.VisualRender ? { VisualRender: topology.VisualRender } : {}),
   }
+}
+
+// ── Gateways and networks ─────────────────────────────────────────────────────
+
+type PortEnd = { DeviceID: string; Interface: string }
+
+/** The vertex of an endpoint in the broadcast-domain graph: a switch or hub joins all its ports, any other port is its own. */
+function domainVertex(devices: { ID: string; Type: string }[], end: PortEnd): string {
+  const device = devices.find((candidate) => candidate.ID === end.DeviceID)
+  return device && (device.Type === "unmanaged-switch" || device.Type === "hub") ? `dev:${end.DeviceID}` : `port:${end.DeviceID}:${end.Interface}`
+}
+
+/** Union-find over the connections: the broadcast domains of the topology ("networks"). */
+function networkRoots(topology: Pick<TopologyFormValues, "Devices" | "Connections">, extra?: [PortEnd, PortEnd]): (end: PortEnd) => string {
+  const parent = new Map<string, string>()
+  const find = (v: string): string => {
+    let root = v
+    while ((parent.get(root) ?? root) !== root) root = parent.get(root) as string
+    parent.set(v, root)
+    return root
+  }
+  const join = (a: PortEnd, b: PortEnd) => {
+    const ra = find(domainVertex(topology.Devices, a))
+    const rb = find(domainVertex(topology.Devices, b))
+    if (ra !== rb) parent.set(ra, rb)
+  }
+  topology.Connections.forEach((connection) => {
+    const [a, b] = connection.Endpoints
+    if (a && b) join(a, b)
+  })
+  if (extra) join(extra[0], extra[1])
+  return (end) => find(domainVertex(topology.Devices, end))
+}
+
+export type GatewayNetworkConflict = { connection: number; side: number; other: string }
+
+/**
+ * Gateways that share a network with another gateway: at most one gateway per network. Each conflict is reported on the
+ * connection endpoint of the later gateway, naming the gateway that came first.
+ */
+export function gatewayNetworkConflicts(topology: Pick<TopologyFormValues, "Devices" | "Connections">): GatewayNetworkConflict[] {
+  const rootOf = networkRoots(topology)
+  const first = new Map<string, string>()
+  const conflicts: GatewayNetworkConflict[] = []
+  topology.Connections.forEach((connection, ci) => connection.Endpoints.forEach((ep, side) => {
+    const device = topology.Devices.find((candidate) => candidate.ID === ep.DeviceID)
+    if (!device || !isGatewayType(device.Type)) return
+    const root = rootOf({ DeviceID: ep.DeviceID, Interface: GATEWAY_PORT })
+    const owner = first.get(root)
+    if (owner === undefined) first.set(root, device.ID)
+    else if (owner !== device.ID) conflicts.push({ connection: ci, side, other: topology.Devices.find((candidate) => candidate.ID === owner)?.Name ?? "" })
+  }))
+  return conflicts
+}
+
+/**
+ * The name of the gateway that would share a network with another one if `a` and `b` were connected (the connect mode and
+ * the connection dropdowns refuse such a link), or null when the link is fine.
+ */
+export function gatewayClashOfLink(topology: Pick<TopologyFormValues, "Devices" | "Connections">, a: PortEnd, b: PortEnd): string | null {
+  const rootOf = networkRoots(topology, [a, b])
+  const owners = new Map<string, string>()
+  for (const device of topology.Devices) {
+    if (!isGatewayType(device.Type)) continue
+    const connected = topology.Connections.some((connection) => connection.Endpoints.some((ep) => ep.DeviceID === device.ID)) || a.DeviceID === device.ID || b.DeviceID === device.ID
+    if (!connected) continue
+    const root = rootOf({ DeviceID: device.ID, Interface: GATEWAY_PORT })
+    const other = owners.get(root)
+    if (other !== undefined) return other
+    owners.set(root, device.Name)
+  }
+  return null
+}
+
+/** Gateways beyond `max` (in device order): the indices to flag when a lab holds more than the platform allows. */
+export function gatewaysOverLimit(devices: { Type: string }[], max: number): number[] {
+  const over: number[] = []
+  let count = 0
+  devices.forEach((device, index) => {
+    if (!isGatewayType(device.Type)) return
+    count += 1
+    if (count > max) over.push(index)
+  })
+  return over
 }

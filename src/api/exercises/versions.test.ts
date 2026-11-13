@@ -29,6 +29,7 @@ const mockKeepalive = vi.mocked(client.apiKeepalive)
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const VER_ID = 'ffffffff-0000-1111-2222-333333333333'
 const DEV_ID = '99999999-8888-7777-6666-555555555555'
+const GW_ID = '99999999-8888-7777-6666-555555555556'
 
 const rawVersion = {
   ID: VER_ID,
@@ -125,10 +126,8 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [{ Name: 'Find the flag', Difficulty: 'easy' }],
       Topology: {
-        VPN: { Enabled: true, DHCP: true },
-        Internet: { Enabled: false, DHCP: false },
-        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'node' }],
-        Connections: [{ Endpoints: [{ Kind: 'vpn', Interface: 'eth0' }, { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' }] }],
+        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'node' }, { ID: GW_ID, Name: 'attack', Type: 'vpn_gateway', DHCP: true, DHCPRanges: [{ Start: 100, End: 200 }] }],
+        Connections: [{ Endpoints: [{ Kind: 'device', DeviceID: GW_ID, Interface: 'eth0' }, { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' }] }],
       },
     }
     const v = normalizeVariant(raw)
@@ -152,9 +151,10 @@ describe('normalizeVariant', () => {
       SecurityPreset: '',
       Image: '', ResourcePreset: '',
       Interfaces: [],
-      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false,
+      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false, DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
     })
-    expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'vpn', DeviceID: '', Interface: 'eth0' })
+    expect(v.Topology.Devices[1]).toMatchObject({ ID: GW_ID, Name: 'attack', Type: 'vpn_gateway', Interfaces: [], DHCP: true, DHCPRanges: [{ Start: 100, End: 200 }], DNS: '', ReverseConnections: false })
+    expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'device', DeviceID: GW_ID, Interface: 'eth0' })
     expect(v.Topology.Connections[0].Endpoints[1]).toEqual({ Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' })
   })
 
@@ -163,8 +163,6 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [],
       Topology: {
-        VPN: { Enabled: false, DHCP: false },
-        Internet: { Enabled: false, DHCP: false },
         Devices: [{
           ID: DEV_ID, Name: 'db', Type: 'node',
           Bootstrap: { Env: [{ Name: 'DB_PASS', Secret: true, HasValue: true }] },
@@ -181,8 +179,6 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [],
       Topology: {
-        VPN: { Enabled: false, DHCP: false },
-        Internet: { Enabled: false, DHCP: false },
         Devices: [
           { ID: DEV_ID, Name: 'web', Type: 'node', WaitReadyFile: true },
           { ID: DEV_ID, Name: 'old', Type: 'node' },

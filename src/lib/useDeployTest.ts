@@ -50,7 +50,7 @@ export type DeployTestState = {
 }
 
 /** What a static test shows before (and without) any status answer. */
-const STATIC_READY: DeployStatus = { Phase: "Ready", Ready: true }
+const STATIC_READY: DeployStatus = { Phase: "Ready", Ready: true, Gateways: [] }
 
 const IDLE: DeployTestState = { deployId: null, status: null, error: null, errorCause: null, tasks: [], kind: "lab", gone: false, busy: false, link: "idle", linkKey: null, linkError: null }
 

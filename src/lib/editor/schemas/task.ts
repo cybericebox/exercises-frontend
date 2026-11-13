@@ -75,6 +75,8 @@ export type PlaceholderFormValues = {
   Key: string
   Kind: PlaceholderKind
   IPReference: string
+  /** gateway.subnet, and ip with IPReference "gateway": the name of the gateway ("" = not chosen yet). */
+  Gateway: string
   Octets1to3: string
   LastOctet: number
   ShowMask: boolean
@@ -117,8 +119,9 @@ const hasRef = (value: string) => value.includes("{{")
 const placeholderSchema = z
   .object({
     Key: z.string().min(1),
-    Kind: z.enum(["vpn.subnet", "internet.subnet", "ip", "external.link"]),
+    Kind: z.enum(["gateway.subnet", "ip", "external.link"]),
     IPReference: z.string(),
+    Gateway: z.string(),
     Octets1to3: z.string(),
     LastOctet: z.number().int().min(0, t("admin.ex.val.lastOctet")).max(255, t("admin.ex.val.lastOctet")),
     ShowMask: z.boolean(),
@@ -144,8 +147,11 @@ const placeholderSchema = z
         ctx.addIssue({ code: "custom", path: ["ShowMask"], message: t("admin.ex.val.placeholderLinkMask") })
       }
     }
-    if (p.Kind === "ip" && !["vpn", "internet", "static"].includes(p.IPReference)) {
+    if (p.Kind === "ip" && !["gateway", "static"].includes(p.IPReference)) {
       ctx.addIssue({ code: "custom", path: ["IPReference"], message: t("admin.ex.val.placeholderIPRef") })
+    }
+    if ((p.Kind === "gateway.subnet" || (p.Kind === "ip" && p.IPReference === "gateway")) && p.Gateway === "") {
+      ctx.addIssue({ code: "custom", path: ["Gateway"], message: t("ed.b.val.placeholderGateway") })
     }
     if (p.Kind === "external.link" && p.DeviceName === "") {
       ctx.addIssue({ code: "custom", path: ["DeviceName"], message: t("admin.ex.val.placeholderDevice") })
@@ -423,7 +429,7 @@ export function emptyTask(key = ""): TaskFormValues {
 }
 
 export function emptyPlaceholder(): PlaceholderFormValues {
-  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "", AsLink: false, Scheme: "http", PortText: "", Path: "" }
+  return { Key: `ph_${crypto.randomUUID().replaceAll("-", "")}`, Kind: "ip", IPReference: "static", Gateway: "", Octets1to3: "", LastOctet: 0, ShowMask: false, DeviceName: "", AsLink: false, Scheme: "http", PortText: "", Path: "" }
 }
 
 // ── Wire -> form ──────────────────────────────────────────────────────────────
@@ -463,6 +469,7 @@ export function placeholderToForm(p: PlaceholderDTO, fallbackKey: string): Place
     Key: p.Key || fallbackKey,
     Kind: p.Kind,
     IPReference: p.IPReference ?? "",
+    Gateway: p.Gateway ?? "",
     Octets1to3: p.Octets1to3 ?? "",
     LastOctet: p.LastOctet ?? 0,
     ShowMask: p.ShowMask ?? false,
@@ -492,6 +499,7 @@ export function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
         Key: p.Key,
         Kind: p.Kind,
         IPReference: p.IPReference,
+        ...(p.IPReference === "gateway" ? { Gateway: p.Gateway } : {}),
         LastOctet: p.LastOctet,
         ShowMask: p.AsLink ? false : p.ShowMask,
         ...(p.IPReference === "static" ? { Octets1to3: p.Octets1to3 } : {}),
@@ -505,8 +513,8 @@ export function placeholderToDTO(p: PlaceholderFormValues): PlaceholderDTO {
     case "external.link":
       return { Key: p.Key, Kind: p.Kind, DeviceName: p.DeviceName, ...(p.Access && p.Access !== "http" ? { Access: p.Access } : {}) }
     default:
-      // Both subnet kinds can be rendered as an address or as a CIDR.
-      return { Key: p.Key, Kind: p.Kind, ...(p.ShowMask ? { ShowMask: true } : {}) }
+      // gateway.subnet: the subnet of one gateway, named.
+      return { Key: p.Key, Kind: p.Kind, Gateway: p.Gateway, ...(p.ShowMask ? { ShowMask: true } : {}) }
   }
 }
 

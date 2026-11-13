@@ -3,7 +3,6 @@
   "ed.shell.issue.connection": "connection",
   "ed.shell.issue.device": "device {name}",
   "ed.shell.issue.hint": "hint {n}",
-  "ed.shell.issue.network": "network",
   "ed.shell.issue.task": "subtask {n}",
   "ed.shell.issue.variable": "schema variable",
   "ed.shell.issue.variant": "Variant {n}",

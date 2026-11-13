@@ -3,7 +3,6 @@
   "ed.shell.issue.connection": "зʼєднання",
   "ed.shell.issue.device": "пристрій {name}",
   "ed.shell.issue.hint": "підказка {n}",
-  "ed.shell.issue.network": "мережа",
   "ed.shell.issue.task": "підзавдання {n}",
   "ed.shell.issue.variable": "змінна схеми",
   "ed.shell.issue.variant": "Варіант {n}",

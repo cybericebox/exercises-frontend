@@ -41,14 +41,14 @@ describe("deviceStage", () => {
   })
 
   it("a hub or a switch the lab does not list is ready with the lab", () => {
-    expect(stageFor({ Name: "hub1", Type: "hub" }, { Phase: "Ready", Ready: true }).kind).toBe("ready")
-    expect(stageFor({ Name: "hub1", Type: "hub" }, { Phase: "Provisioning", Ready: false }).kind).toBe("waiting")
-    expect(stageFor({ Name: "srv", Type: "node" }, { Phase: "Provisioning", Ready: false }).kind).toBe("waiting")
+    expect(stageFor({ Name: "hub1", Type: "hub" }, { Phase: "Ready", Ready: true, Gateways: [] }).kind).toBe("ready")
+    expect(stageFor({ Name: "hub1", Type: "hub" }, { Phase: "Provisioning", Ready: false, Gateways: [] }).kind).toBe("waiting")
+    expect(stageFor({ Name: "srv", Type: "node" }, { Phase: "Provisioning", Ready: false, Gateways: [] }).kind).toBe("waiting")
   })
 })
 
 describe("labChip", () => {
-  const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, ...extra })
+  const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, Gateways: [], ...extra })
 
   it("counts every device of the schema when the topology is given, hub and switch included", () => {
     const topology: Pick<NormalizedDevice, "Name" | "Type">[] = [{ Name: "a", Type: "node" }, { Name: "b", Type: "node" }, { Name: "sw", Type: "unmanaged-switch" }]
@@ -68,15 +68,15 @@ describe("labChip", () => {
   })
 
   it("names the devices that failed after the lab is ready", () => {
-    const chip = labChip(status({ Phase: "Ready", Ready: true, Devices: [device({ Name: "a", Ready: true }), device({ Name: "b", Ready: true, Bootstrap: boot("failed", 3, "x") })] }))
+    const chip = labChip(status({ Phase: "Ready", Ready: true, Gateways: [], Devices: [device({ Name: "a", Ready: true }), device({ Name: "b", Ready: true, Bootstrap: boot("failed", 3, "x") })] }))
     expect(chip).toMatchObject({ kind: "deviceFailed", failed: ["b"] })
-    expect(labChip(status({ Phase: "Ready", Ready: true, Devices: [device({ Ready: true })] })).kind).toBe("ready")
+    expect(labChip(status({ Phase: "Ready", Ready: true, Gateways: [], Devices: [device({ Ready: true })] })).kind).toBe("ready")
   })
 
   it("failed, expired and removing win over the devices", () => {
     expect(labChip(status({ Phase: "Failed" })).kind).toBe("failed")
     expect(labChip(null, true).kind).toBe("failed")
-    expect(labChip(status({ Phase: "Ready", Ready: true, Expired: true })).kind).toBe("expired")
+    expect(labChip(status({ Phase: "Ready", Ready: true, Gateways: [], Expired: true })).kind).toBe("expired")
     expect(labChip(status({ Phase: "Removing", Removing: true })).kind).toBe("removing")
   })
 })
@@ -84,14 +84,14 @@ describe("labChip", () => {
 describe("vpnView", () => {
   it("is pending until the lab is ready and has a configuration", () => {
     expect(vpnView(null)).toEqual({ ready: false, connected: null, state: "pending" })
-    expect(vpnView({ Phase: "Ready", Ready: true }).ready).toBe(false)
-    expect(vpnView({ Phase: "Ready", Ready: true, VPNConfig: "x", Expired: true }).ready).toBe(false)
+    expect(vpnView({ Phase: "Ready", Ready: true, Gateways: [] }).ready).toBe(false)
+    expect(vpnView({ Phase: "Ready", Ready: true, Gateways: [], VPNConfig: "x", Expired: true }).ready).toBe(false)
   })
 
   it("available, connected and unknown", () => {
-    expect(vpnView({ Phase: "Ready", Ready: true, VPNConfig: "x", VPNConnected: false })).toEqual({ ready: true, connected: false, state: "available" })
-    expect(vpnView({ Phase: "Ready", Ready: true, VPNConfig: "x", VPNConnected: true })).toEqual({ ready: true, connected: true, state: "connected" })
-    expect(vpnView({ Phase: "Ready", Ready: true, VPNConfig: "x" })).toEqual({ ready: true, connected: null, state: "available" })
+    expect(vpnView({ Phase: "Ready", Ready: true, Gateways: [], VPNConfig: "x", VPNConnected: false })).toEqual({ ready: true, connected: false, state: "available" })
+    expect(vpnView({ Phase: "Ready", Ready: true, Gateways: [], VPNConfig: "x", VPNConnected: true })).toEqual({ ready: true, connected: true, state: "connected" })
+    expect(vpnView({ Phase: "Ready", Ready: true, Gateways: [], VPNConfig: "x" })).toEqual({ ready: true, connected: null, state: "available" })
   })
 })
 
@@ -129,7 +129,7 @@ describe("stateTaskView", () => {
   })
 
   it("lists the devices of the task that are not ready", () => {
-    const status: DeployStatus = { Phase: "Ready", Ready: true, Devices: [{ Name: "r1", Ready: true }, { Name: "r2", Ready: false }] }
+    const status: DeployStatus = { Phase: "Ready", Ready: true, Gateways: [], Devices: [{ Name: "r1", Ready: true }, { Name: "r2", Ready: false }] }
     expect(stateTaskView(task, undefined, devices, status).blockedBy).toEqual(["r2"])
   })
 })

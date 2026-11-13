@@ -438,6 +438,7 @@
   "ed.b.val.pathAbsolute": "The path starts with «/»",
   "ed.b.val.pathRequired": "Enter a path starting with «/»",
   "ed.b.val.permissionAction": "Choose at least one action: read, write or execute",
+  "ed.b.val.placeholderGateway": "Choose a gateway.",
   "ed.b.val.portRange": "The port is 1 to 65535",
   "ed.b.val.portRequired": "Enter a port from 1 to 65535",
   "ed.b.val.processNameNoPath": "A process name has no path",

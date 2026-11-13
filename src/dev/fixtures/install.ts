@@ -8,7 +8,8 @@
  *   ?labs=all|some|none|unknown|mixed   what the labs can run (LabCapabilities), default mixed
  *   ?deploy=ok|fail|retry|expired|ending|devfail  a test lab that comes up / ends in Failed / retries an initialization / is out of time / is about to end
  *   ?console=ok|none|fail               the console link: a frame page / 404 (no console in the lab) / a server error
- *   ?vpnReverse=blocked|allowed|not_enforced  what is in force for connections the lab starts to the VPN clients
+ *   ?vpnReverse=blocked|allowed|not_enforced  what is in force for connections the lab starts to the VPN clients (the VPN gateway of the status)
+ *   ?maxGateways=N                      the platform limit of gateways per lab (capabilities.MaxLabGateways, default 10)
  *   ?age=N                             a test lab starts N seconds old
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
  *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
@@ -44,7 +45,7 @@ const SERVER_ERRORS = {
 type ServerErrorKind = keyof typeof SERVER_ERRORS
 
 type DeployMode = "ok" | "fail" | "retry" | "expired" | "ending" | "devfail"
-type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
+type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; maxGateways: number; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
 
 function switches(): Switches {
   let saved: Partial<Switches> = {}
@@ -61,12 +62,14 @@ function switches(): Switches {
   if (consoleMode === "ok" || consoleMode === "none" || consoleMode === "fail") saved.console = consoleMode
   const reverse = query.get("vpnReverse")
   if (reverse === "blocked" || reverse === "allowed" || reverse === "not_enforced") saved.vpnReverse = reverse
+  const maxGateways = Number(query.get("maxGateways"))
+  if (Number.isInteger(maxGateways) && maxGateways >= 1) saved.maxGateways = maxGateways
   const serverError = query.get("serverError")
   if (serverError !== null) saved.serverError = serverError in SERVER_ERRORS ? serverError as ServerErrorKind : ""
   const serverErrorAt = query.get("serverErrorAt")
   if (serverErrorAt === "save" || serverErrorAt === "publish") saved.serverErrorAt = serverErrorAt
   try { sessionStorage.setItem(KEY, JSON.stringify(saved)) } catch { /* private window */ }
-  return { labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", shape: saved.shape ?? "rich", serverError: saved.serverError ?? "", serverErrorAt: saved.serverErrorAt ?? "publish" }
+  return { labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", maxGateways: saved.maxGateways ?? 10, shape: saved.shape ?? "rich", serverError: saved.serverError ?? "", serverErrorAt: saved.serverErrorAt ?? "publish" }
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify({ Status: { Code: 0, Message: "OK" }, Data: data }), { status, headers: { "Content-Type": "application/json" } })
@@ -119,7 +122,7 @@ export function installFixtures(): void {
 
     if (path === "/api/auth/me") return json(FIXTURE_ME)
     if (path === "/api/exercises/access") return json(FIXTURE_ACCESS)
-    if (path === "/api/exercises/capabilities") return json(buildCapabilities(sw.labs))
+    if (path === "/api/exercises/capabilities") return json(buildCapabilities(sw.labs, sw.maxGateways))
     if (path === "/api/exercises/flag-policy") return json({ RandomHexLength: 16, RandomBits: 64, WarningBits: 24 })
     if (path === "/api/exercises/test-runs/lengths") return json({ AllowedMinutes: [30, 60, 120], DefaultMinutes: 60 })
     if (path === "/api/exercises/preferences/catalog-columns") return json(method === "PUT" ? body : [])
@@ -266,7 +269,10 @@ function deployStatus(startedAt: number, sw: Switches) {
   if (sw.deploy === "devfail" && status.Ready) return { ...status, Devices: (status.Devices ?? []).map((entry) => entry.Name === "srv" ? { ...entry, Bootstrap: { Phase: "failed", Attempts: 3, Reason: "script exited with 1" } } : entry) }
   if (sw.deploy === "expired" && status.Ready) return { ...status, Expired: true, ExpiresAt: new Date(now - 1000).toISOString() }
   if (sw.deploy === "ending" && status.Ready) return { ...status, ExpiresAt: new Date(now + 4 * 60_000).toISOString(), EndingAt: new Date(now + 4 * 60_000).toISOString() }
-  if (status.Ready) return { ...status, VPNReverse: sw.vpnReverse, ReverseConnections: sw.vpnReverse === "allowed" }
+  if (status.Ready) {
+    const gateways = (status.Gateways as { Kind: string }[]).map((gateway) => gateway.Kind === "vpn" ? { ...gateway, Reverse: sw.vpnReverse, ReverseConnections: sw.vpnReverse === "allowed" } : gateway)
+    return { ...status, Gateways: gateways }
+  }
   return status
 }
 

@@ -57,7 +57,7 @@ const version: Version = {
   ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z", Resources: null, Elevation: null,
   Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } },
     Attachments: [], Placeholders: [], Hints: [] }],
-  Topology: { Variables: [], VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+  Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 const managerAccess: ExerciseAccess = {
   IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: true, CanImport: true,
@@ -233,7 +233,7 @@ describe("new exercise — W4 owner", () => {
 const withPublishedProperties = (network: boolean, heavy: boolean): Version => {
   const totals = { Devices:network ? 1 : 0, Blocks:1, CPUMillicores:1000, MemoryBytes:1073741824 }
   return { ...version, Resources:{ Min:totals, Max:totals, Variants:[], SpreadPercent:0, VariantsDiffer:false, Outside:[], ResourceHeavy:heavy },
-    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"node", Profile:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], Access:[], Command:[], Args:[], System:"linux", Hardware:"fast", Bootstrap:{ Timeout:"", Env:[], Files:[], Script:"", Interpreter:"" } }] : [] } }],
+    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"node", Profile:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], Access:[], Command:[], Args:[], System:"linux", Hardware:"fast", Bootstrap:{ Timeout:"", Env:[], Files:[], Script:"", Interpreter:"" }, DHCP:false, DHCPRanges:[], DNS:"", ReverseConnections:false }] : [] } }],
   }
 }
 

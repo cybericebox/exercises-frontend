@@ -32,13 +32,22 @@ const BASE = "/api/exercises"
 
 export type VersionStatus = "draft" | "published" | "unpublished" | "checkpoint"
 export type Difficulty = "elementary" | "trivial" | "easy" | "medium" | "hard" | "insane"
-/** "node" is a device with an image; the former value "container" is read as a node with the container profile. */
-export type DeviceType = "node" | "unmanaged-switch" | "hub"
+/**
+ * "node" is a device with an image; the former value "container" is read as a node with the container profile.
+ * A VPN or an Internet gateway is a device of its own kind: one implicit port (eth0) and its own small settings.
+ */
+export type DeviceType = "node" | "unmanaged-switch" | "hub" | "vpn_gateway" | "internet_gateway"
+export type GatewayDeviceType = "vpn_gateway" | "internet_gateway"
+export const isGatewayType = (type: string): type is GatewayDeviceType => type === "vpn_gateway" || type === "internet_gateway"
+/** A gateway is a VPN or an Internet exit; the kind of the lab status and of the pictograms. */
+export type GatewayKind = "vpn" | "internet"
+export const gatewayKindOf = (type: GatewayDeviceType): GatewayKind => type === "vpn_gateway" ? "vpn" : "internet"
 export type IPType = "static" | "dhcp" | "dhcp-preset" | "none"
 export type SecurityPreset = "" | "standard" | "extended"
-export type EndpointKind = "device" | "vpn" | "internet"
+/** Only devices are endpoints now: a gateway is a device. */
+export type EndpointKind = "device"
 export type Protocol = "http" | "https"
-export type PlaceholderKind = "vpn.subnet" | "internet.subnet" | "ip" | "external.link"
+export type PlaceholderKind = "gateway.subnet" | "ip" | "external.link"
 export type PlaceholderAccess = "http" | "terminal" | "vnc" | "rdp"
 
 /** Lexical JSON (json.RawMessage on the backend) — opaque object. */
@@ -54,7 +63,9 @@ export type AttachmentDTO = {
 export type PlaceholderDTO = {
   Key?: string // stable reference for inline description tokens
   Kind: PlaceholderKind
-  IPReference?: string // "vpn" | "internet" | "static" (only when Kind === "ip")
+  IPReference?: string // "gateway" | "static" (only when Kind === "ip")
+  /** gateway.subnet, and ip with IPReference "gateway": the name of a gateway device of the lab. */
+  Gateway?: string
   Octets1to3?: string // only when IPReference === "static"
   LastOctet?: number // 0..255
   ShowMask?: boolean
@@ -68,8 +79,9 @@ export type PlaceholderDTO = {
 }
 
 
-export type NetworkIPRefDTO = { Network: "vpn" | "internet"; Host: number }
-export type NetworkSubnetRefDTO = { Network: "vpn" | "internet" }
+/** An address taken from the network of a gateway (by the gateway's name) and a host number. */
+export type NetworkIPRefDTO = { Gateway: string; Host: number }
+export type NetworkSubnetRefDTO = { Gateway: string }
 
 export type IPConfigDTO = {
   Type: IPType
@@ -124,25 +136,21 @@ export type DeviceDTO = {
   Persistence?: PersistenceDTO
   /** The device counts as ready only once the app creates /run/ready. Absent = off (exercises saved before it). */
   WaitReadyFile?: boolean
+  /** Gateways only (vpn_gateway, internet_gateway); any of these keys on another device is an error. */
+  DHCP?: boolean
+  DHCPRanges?: DHCPRangeDTO[]
+  /** Internet gateway only: one IPv4. */
+  DNS?: string
+  /** VPN gateway only: devices of the lab may start connections to the participants' machines. Default false. */
+  ReverseConnections?: boolean
 }
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
 export type ConnectionDTO = { Endpoints: EndpointDTO[] } // exactly 2
 export type DHCPRangeDTO = { Start: number; End: number }
-export type NetworkDTO = {
-  Enabled: boolean
-  DHCP: boolean
-  DHCPRanges?: DHCPRangeDTO[]
-  DNS?: string
-  /** VPN gateway only, needs Enabled: devices of the lab may start connections to the participants' machines. Default false. */
-  ReverseConnections?: boolean
-}
-
 export type TopologyDTO = {
   /** Variables of the infrastructure ({{var.<Name>}}): exactly one of Value and Template each. */
   Variables?: VariableDTO[]
-  VPN: NetworkDTO
-  Internet: NetworkDTO
   Devices?: DeviceDTO[]
   Connections?: ConnectionDTO[]
   VisualRender?: Record<string, unknown>
@@ -262,6 +270,11 @@ export type NormalizedDevice = {
   Bootstrap: NormalizedBootstrap
   Persistence?: PersistenceDTO | null
   WaitReadyFile?: boolean
+  /** Gateways only; every device carries them filled (false / [] / ""), a non-gateway never sends them. */
+  DHCP: boolean
+  DHCPRanges: DHCPRangeDTO[]
+  DNS: string
+  ReverseConnections: boolean
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
@@ -269,8 +282,6 @@ export type NormalizedConnection = { Endpoints: NormalizedEndpoint[] }
 
 export type NormalizedTopology = {
   Variables: VariableDTO[]
-  VPN: NetworkDTO
-  Internet: NetworkDTO
   Devices: NormalizedDevice[]
   Connections: NormalizedConnection[]
   VisualRender: Record<string, unknown> | null
@@ -409,14 +420,16 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     },
     Persistence: raw.Persistence?.Enabled ? { Enabled: true, Debounce: raw.Persistence.Debounce ?? "" } : null,
     WaitReadyFile: raw.WaitReadyFile ?? false,
+    DHCP: raw.DHCP ?? false,
+    DHCPRanges: (raw.DHCPRanges ?? []).map(({ Start, End }) => ({ Start, End })),
+    DNS: raw.DNS ?? "",
+    ReverseConnections: raw.ReverseConnections ?? false,
   }
 }
 
 export function normalizeTopology(raw: TopologyDTO | null | undefined): NormalizedTopology {
   return {
     Variables: (raw?.Variables ?? []).map((variable) => ({ Name: variable.Name, ...(variable.Template ? { Template: variable.Template } : { Value: variable.Value ?? "" }) })),
-    VPN: raw?.VPN ?? { Enabled: false, DHCP: false },
-    Internet: raw?.Internet ?? { Enabled: false, DHCP: false },
     Devices: (raw?.Devices ?? []).map(normalizeDevice),
     Connections: (raw?.Connections ?? []).map((c) => ({
       Endpoints: (c.Endpoints ?? []).map((ep) => ({

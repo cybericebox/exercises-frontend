@@ -17,7 +17,7 @@ describe("useDeployTest", () => {
 
   it("starts a deploy and reflects a Ready status", async () => {
     mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
-    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, VPNCIDR: "10.128.1.0/24" })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [{ Name: "attack", Kind: "vpn", CIDR: "10.128.1.0/24", Ready: true }] })
 
     const { result } = renderHook(() => useDeployTest())
     await act(async () => {
@@ -31,7 +31,7 @@ describe("useDeployTest", () => {
   })
 
   it("attaches to a running deploy without creating another", async () => {
-    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [] })
     const { result } = renderHook(() => useDeployTest())
     act(() => result.current.attach("g9", [{ TaskID: "t", Name: "Login" }]))
 
@@ -57,7 +57,7 @@ describe("useDeployTest", () => {
 
   it("tears the deploy down on close", async () => {
     mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
-    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [] })
     mocked.destroyDeploy.mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useDeployTest())
@@ -106,7 +106,7 @@ describe("useDeployTest", () => {
 
   it("keeps a known deploy running when the screen is left, so the author can come back", async () => {
     mocked.deployVariant.mockResolvedValue({ DeployID: "kept", Lab: "lab" })
-    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [] })
     const { result, unmount } = renderHook(() => useDeployTest())
     await act(async () => { await result.current.start("ex", "ver", "var") })
     await waitFor(() => expect(result.current.status?.Ready).toBe(true))
@@ -116,7 +116,7 @@ describe("useDeployTest", () => {
   })
 
   it("stops polling on a terminal Error phase like on Failed", async () => {
-    mocked.deployStatus.mockResolvedValue({ Phase: "Error", Ready: false })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Error", Ready: false, Gateways: [] })
     const { result } = renderHook(() => useDeployTest())
     act(() => result.current.attach("g5", []))
     await waitFor(() => expect(result.current.status?.Phase).toBe("Error"))
@@ -127,7 +127,7 @@ describe("useDeployTest", () => {
     mocked.deployVariant
       .mockResolvedValueOnce({ DeployID: "first-deploy", Lab: "lab" })
       .mockResolvedValueOnce({ DeployID: "second-deploy", Lab: "lab" })
-    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+    mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [] })
 
     const { result } = renderHook(() => useDeployTest())
     await act(async () => { await result.current.start("ex", "ver", "first") })
@@ -138,7 +138,7 @@ describe("useDeployTest", () => {
   })
 
   describe("web links", () => {
-    const web = { Phase: "Ready", Ready: true, Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
+    const web = { Phase: "Ready", Ready: true, Gateways: [], Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
     let tab: { location: { href: string }; close: ReturnType<typeof vi.fn>; opener: unknown }
     let windowOpen: ReturnType<typeof vi.fn>
 
@@ -236,7 +236,7 @@ describe("useDeployTest", () => {
     })
 
     it("stops polling and reports gone on a 404", async () => {
-      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true }).mockRejectedValue(new ApiError(404, "Test deployment not found"))
+      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true, Gateways: [] }).mockRejectedValue(new ApiError(404, "Test deployment not found"))
       const { result } = renderHook(() => useDeployTest())
       act(() => result.current.attach("g1", []))
       await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
@@ -247,7 +247,7 @@ describe("useDeployTest", () => {
     })
 
     it("backs off while a ready lab keeps failing", async () => {
-      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true }).mockRejectedValue(new Error("boom"))
+      mocked.deployStatus.mockResolvedValueOnce({ Phase: "Ready", Ready: true, Gateways: [] }).mockRejectedValue(new Error("boom"))
       const { result } = renderHook(() => useDeployTest())
       act(() => result.current.attach("g1", []))
       await act(async () => { await vi.advanceTimersByTimeAsync(0) })
@@ -258,7 +258,7 @@ describe("useDeployTest", () => {
     })
 
     it("pauses while the tab is hidden and resumes when it is shown", async () => {
-      mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true })
+      mocked.deployStatus.mockResolvedValue({ Phase: "Ready", Ready: true, Gateways: [] })
       const { result } = renderHook(() => useDeployTest())
       act(() => result.current.attach("g1", []))
       await act(async () => { await vi.advanceTimersByTimeAsync(0) })
@@ -274,8 +274,8 @@ describe("useDeployTest", () => {
 
     it("static attach polls slowly and merges Expired", async () => {
       mocked.deployStatus
-        .mockResolvedValueOnce({ Phase: "", Ready: true })
-        .mockResolvedValue({ Phase: "", Ready: true, Expired: true, SolvedTaskIDs: ["t1"] })
+        .mockResolvedValueOnce({ Phase: "", Ready: true, Gateways: [] })
+        .mockResolvedValue({ Phase: "", Ready: true, Gateways: [], Expired: true, SolvedTaskIDs: ["t1"] })
       const { result } = renderHook(() => useDeployTest())
       act(() => result.current.attach("s1", [{ TaskID: "t1", Name: "A" }], "static"))
       expect(result.current.status?.Ready).toBe(true)

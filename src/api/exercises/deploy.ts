@@ -135,11 +135,23 @@ export type DeployStateTask = {
 /** What is in force for connections the lab starts to the VPN clients; `not_enforced` is a warning, never «blocked». */
 export type VPNReverseState = "blocked" | "allowed" | "not_enforced"
 
+/** One gateway of the lab (VPN or Internet), in the order of the lab spec; empty array for a lab without gateways. */
+export type DeployGateway = {
+  Name: string
+  Kind: "vpn" | "internet"
+  CIDR: string
+  Ready: boolean
+  /** VPN gateway only: devices of the lab may start connections to the participants (false: forbidden). */
+  ReverseConnections?: boolean
+  /** What is in force; absent when unknown and for an Internet gateway. */
+  Reverse?: VPNReverseState | string
+}
+
 export type DeployStatus = {
   Phase: DeployPhase | string
   Ready: boolean
-  VPNCIDR?: string
-  InternetCIDR?: string
+  /** Always present; the address of a gateway comes from here by its name. */
+  Gateways: DeployGateway[]
   VPNConfig?: string
   Devices?: DeployDeviceStatus[]
   Access?: DeployAccess[]
@@ -152,10 +164,6 @@ export type DeployStatus = {
   SolvedTaskIDs?: string[]
   /** Tasks checked by the state of the lab (author only); absent for a variant without such tasks. */
   StateTasks?: DeployStateTask[]
-  /** The exercise lets devices start connections to the VPN clients (false: forbidden). */
-  ReverseConnections?: boolean
-  /** What is in force; absent for a lab without a VPN. */
-  VPNReverse?: VPNReverseState | string
   /** The lab is being removed (Phase is "Removing"). */
   Removing?: boolean
   /** Set while the lab waits in the launch queue. */

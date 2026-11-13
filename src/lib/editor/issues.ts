@@ -37,7 +37,6 @@ function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
       parts.push(t("ed.shell.issue.device", { name: device?.Name || String(path[4] + 1) }))
     } else if (path[3] === "Variables") parts.push(t("ed.shell.issue.variable"))
     else if (path[3] === "Connections") parts.push(t("ed.shell.issue.connection"))
-    else if (path[3] === "VPN" || path[3] === "Internet") parts.push(t("ed.shell.issue.network"))
   }
   return parts
 }

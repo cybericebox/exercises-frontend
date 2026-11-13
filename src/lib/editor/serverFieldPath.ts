@@ -5,8 +5,9 @@
  * `field` is relative to what the error names:
  *   task:    check.answer.values · check.answer.input_hint · check.state.interval ·
  *            check.state.conditions[2].port.port · check.state.conditions[0].observation · requires[1]
- *   device:  bootstrap.env[2].name · bootstrap.files[0].source · bootstrap.script · access[1].port · command · args · image
- *   variant: variables[1].name · topology.vpn.reverse_connections
+ *   device:  bootstrap.env[2].name · bootstrap.files[0].source · bootstrap.script · access[1].port · command · args · image ·
+ *            (a gateway is a device) dhcp · dhcp_ranges · dns · reverse_connections
+ *   variant: variables[1].name
  * Only a reliably identified field gets a path; an unknown shape gives null (the error stays a form-level one).
  */
 
@@ -80,6 +81,10 @@ export function deviceFieldPath(field: string): Segment[] | null {
     return key === undefined ? ["Access", index] : ["Access", index, pascal(String(key))]
   }
   if (["command", "args", "image", "name", "system", "hardware", "profile", "persistence"].includes(String(head))) return [pascal(String(head))]
+  if (head === "dhcp") return ["DHCP"]
+  if (head === "dhcp_ranges") return ["DHCPRanges"]
+  if (head === "dns") return ["DNS"]
+  if (head === "reverse_connections") return ["ReverseConnections"]
   return null
 }
 
@@ -93,7 +98,6 @@ export function variantFieldPath(field: string): Segment[] | null {
     if (typeof index !== "number") return ["Topology", "Variables"]
     return key === undefined ? ["Topology", "Variables", index] : ["Topology", "Variables", index, pascal(String(key))]
   }
-  if (head === "topology" && rest[0] === "vpn" && rest[1] === "reverse_connections") return ["Topology", "VPN", "ReverseConnections"]
   return null
 }
 
