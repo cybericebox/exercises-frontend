@@ -46,6 +46,10 @@ describe("serverFieldTargets", () => {
     // The reverse-connections error names the gateway (a device) it is on.
     const withGateway = draft([{ devices: ["web", "attack"] }])
     expect(serverFieldTargets(fail(23520, { device: "attack", field: "reverse_connections" }), withGateway)).toEqual([["Variants", 0, "Topology", "Devices", 1, "ReverseConnections"]])
+    // The gateway limit (23522) names the first gateway over it: the error sits at that gateway's name.
+    expect(serverFieldTargets(fail(23522, { device: "attack", limit: "2" }), withGateway)).toEqual([["Variants", 0, "Topology", "Devices", 1, "Name"]])
+    // "A network can have only one gateway" (23523) names two devices and no field: it stays a form-level error.
+    expect(serverFieldTargets(fail(23523, { device: "attack", other_device: "out" }), withGateway)).toBeNull()
   })
 
   it("answers may be in any variant, the structure only in the variants that own it: one candidate is placed", () => {
