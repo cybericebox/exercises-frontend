@@ -33,6 +33,22 @@ describe("access list", () => {
 })
 
 describe("secrets of the environment", () => {
+  it("keeps a new secret row without a value in the draft (the backend stores it blank) and asks for its value at publish", () => {
+    const env = [
+      { Name: "KEPT", Value: "", Secret: true, HasValue: true },
+      { Name: "NEW_EMPTY", Value: "", Secret: true, HasValue: false },
+    ]
+    // sent on save, so the row survives a reload; the server keeps a blank secret blank
+    expect(bootstrapToDTO({ ...emptyBootstrap(), Env: env })?.Env).toEqual([
+      { Name: "KEPT", Value: "", Secret: true },
+      { Name: "NEW_EMPTY", Value: "", Secret: true },
+    ])
+    // the publish check refuses it at the field; the stored secret (HasValue) is fine
+    const found = messages({ ...emptyTopology(), Devices: [device({ Bootstrap: { ...emptyBootstrap(), Env: env } })] })
+    expect(found).toContain("Devices.0.Bootstrap.Env.1.Value: admin.ex.val.secretValue")
+    expect(found.some((line) => line.startsWith("Devices.0.Bootstrap.Env.0.Value"))).toBe(false)
+  })
+
   it("sends a saved secret with an empty value: the server keeps what it stores", () => {
     const dto = bootstrapToDTO({ ...emptyBootstrap(), Env: [{ Name: "DB_PASS", Value: "", Secret: true, HasValue: true }] })
     expect(dto?.Env).toEqual([{ Name: "DB_PASS", Value: "", Secret: true }])
