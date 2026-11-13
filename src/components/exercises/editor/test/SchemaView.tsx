@@ -59,12 +59,11 @@ function NodeCard({ topology, status, nodeKey, actions, onClose }: {
   const info = labNodeInfo(topology, nodeKey, status)
   if (!info) return null
   if (info.kind !== "device") {
-    const title = t(info.kind === "vpn" ? "admin.exTopo.vpn" : "admin.exTopo.internet")
     const rows: SummaryRow[] = [{ key: "subnet", label: t("admin.exTest.card.subnet"), value: <span className="font-mono">{info.subnet ?? "—"}</span> },
       { key: "dhcp", label: t("admin.exTest.card.dhcpLabel"), value: t(info.dhcp ? "admin.exTest.card.yes" : "admin.exTest.card.no") }]
-    // What is in force for connections the lab starts to the VPN clients (absent for a lab without a VPN).
-    if (info.kind === "vpn" && status?.VPNReverse) rows.push({ key: "reverse", label: t("ed.d.schema.reverse"), value: t(`ed.d.schema.reverse.${status.VPNReverse}`) })
-    return <SidePanel title={title} onClose={onClose}><SummaryList rows={rows} /></SidePanel>
+    // What is in force for connections the lab starts to the clients of this VPN gateway (absent for an Internet gateway and while unknown).
+    if (info.kind === "vpn" && info.reverse) rows.push({ key: "reverse", label: t("ed.d.schema.reverse"), value: t(`ed.d.schema.reverse.${info.reverse}`) })
+    return <SidePanel title={info.name} subtitle={t(info.kind === "vpn" ? "ed.d.dev.kind.vpnGateway" : "ed.d.dev.kind.internetGateway")} onClose={onClose}><SummaryList rows={rows} /></SidePanel>
   }
   const device = topology.Devices.find((candidate) => candidate.ID === nodeKey)!
   const live = status?.Devices?.find((entry) => entry.Name === device.Name)

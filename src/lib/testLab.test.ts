@@ -47,6 +47,16 @@ describe("deviceStage", () => {
   })
 })
 
+describe("stageFor a gateway", () => {
+  const gateway = { Name: "attack", Type: "vpn_gateway" as const }
+  it("is told by the gateway list: ready once listed and ready, waiting before that, never by the lab flag", () => {
+    expect(stageFor(gateway, { Phase: "Ready", Ready: true, Gateways: [] }).kind).toBe("waiting")
+    expect(stageFor(gateway, { Phase: "Provisioning", Ready: false, Gateways: [{ Name: "attack", Kind: "vpn", CIDR: "10.0.0.0/24", Ready: false }] }).kind).toBe("waiting")
+    expect(stageFor(gateway, { Phase: "Provisioning", Ready: false, Gateways: [{ Name: "attack", Kind: "vpn", CIDR: "10.0.0.0/24", Ready: true }] }).kind).toBe("ready")
+    expect(stageFor({ Name: "out", Type: "internet_gateway" }, { Phase: "Ready", Ready: true, Gateways: [{ Name: "attack", Kind: "vpn", CIDR: "10.0.0.0/24", Ready: true }] }).kind).toBe("waiting")
+  })
+})
+
 describe("labChip", () => {
   const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, Gateways: [], ...extra })
 

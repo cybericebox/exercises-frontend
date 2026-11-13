@@ -8,7 +8,7 @@
  */
 import type { DeployDeviceStatus, DeployStateTask, DeployStatus } from "@/api/exercises/deploy"
 import { OBSERVATION_KINDS, OBSERVATION_WIRE_KEY, type ConditionDTO, type ObservationKind } from "@/api/exercises/model"
-import type { NormalizedDevice, NormalizedTask } from "@/api/exercises/versions"
+import { isGatewayType, type NormalizedDevice, type NormalizedTask } from "@/api/exercises/versions"
 
 /** How many tries the laboratory gives a device initialization before it reports a failure. */
 export const BOOTSTRAP_MAX_ATTEMPTS = 3
@@ -53,6 +53,11 @@ export function deviceStage(device: DeployDeviceStatus | undefined, labPhase: st
  * is ready. A node the lab does not list yet is waiting.
  */
 export function stageFor(device: Pick<NormalizedDevice, "Name" | "Type">, status: DeployStatus | null | undefined): DeviceStage {
+  // A gateway is told by the lab's gateway list, not by the lab as a whole: ready once it is listed and ready, waiting before that.
+  if (isGatewayType(device.Type)) {
+    const ready = Boolean(status?.Gateways?.find((entry) => entry.Name === device.Name)?.Ready)
+    return { kind: ready ? "ready" : "waiting", attempt: 0, reason: "", step: ready ? 2 : 0, steps: 3, hasInit: false }
+  }
   const live = status?.Devices?.find((entry) => entry.Name === device.Name)
   if (!live && device.Type !== "node") return { kind: status?.Ready ? "ready" : "waiting", attempt: 0, reason: "", step: status?.Ready ? 2 : 0, steps: 3, hasInit: false }
   return deviceStage(live, status?.Phase)

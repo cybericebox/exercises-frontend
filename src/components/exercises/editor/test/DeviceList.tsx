@@ -91,7 +91,8 @@ export type DeviceActions = {
 }
 
 /** The kind of a device in words: a node is «вузол», a hub «концентратор», a switch «комутатор». */
-export const deviceKindText = (device: NormalizedDevice) => t(`ed.d.dev.kind.${device.Type === "node" ? "node" : device.Type === "hub" ? "hub" : "switch"}`)
+const DEVICE_KIND_KEY: Record<NormalizedDevice["Type"], string> = { node: "node", hub: "hub", "unmanaged-switch": "switch", vpn_gateway: "vpnGateway", internet_gateway: "internetGateway" }
+export const deviceKindText = (device: NormalizedDevice) => t(`ed.d.dev.kind.${DEVICE_KIND_KEY[device.Type]}`)
 
 function DeviceRow({ device, live, status, topology, expanded, onToggle, actions, deployId, author }: {
   device: NormalizedDevice

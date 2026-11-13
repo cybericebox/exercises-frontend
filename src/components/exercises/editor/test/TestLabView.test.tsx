@@ -10,7 +10,7 @@ vi.mock("@/components/exercises/TopologyDiagram", () => ({ TopologyDiagram: () =
 vi.mock("./ConsolePanel", () => ({ ConsolePanel: ({ device }: { device: string }) => <div data-testid="console">{device}</div> }))
 vi.mock("@/components/exercises/AttachmentDownload", () => ({ AttachmentDownload: () => null }))
 vi.mock("@/api/exercises/catalog", () => ({ getExercise: vi.fn() }))
-vi.mock("@/api/exercises/versions", () => ({ getVersion: vi.fn() }))
+vi.mock("@/api/exercises/versions", async (original) => ({ ...(await original<object>()), getVersion: vi.fn() }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn() }))
 vi.mock("@/api/exercises/deploy", () => ({
   listDeploys: vi.fn(), deployStatus: vi.fn(), deployVariant: vi.fn(), destroyDeploy: vi.fn(), extendDeploy: vi.fn(), openDeployLink: vi.fn(),
@@ -35,11 +35,12 @@ const variant = {
     { ID: "t2", Key: "ospf", Name: "Налаштуйте OSPF", Difficulty: "medium", Requires: ["theory"], Description: null, Attachments: [], Placeholders: [], Hints: [],
       Check: { State: { Mode: "once", Interval: "30s", Manual: true, Conditions: [{ DeviceID: "d1", Process: { Name: "ospfd" } }, { DeviceID: "d1", Port: { Port: 2604 } }] } } },
   ],
-  Topology: { Variables: [], VPN: { Enabled: true, DHCP: false }, Internet: { Enabled: false, DHCP: false }, Devices: [device("d1", "r1"), device("d2", "srv")], Connections: [], VisualRender: null },
+  Topology: { Variables: [], Devices: [device("d1", "r1"), device("d2", "srv"), device("g1", "attack", { Type: "vpn_gateway", DHCP: true, DHCPRanges: [], Interfaces: [], Access: [] })], Connections: [], VisualRender: null },
 }
 const item: DeployListItem = { DeployID: "d1", Lab: "", ExerciseID: "ex1", VersionID: "v1", VariantID: "var1", CreatedAt: "2026-11-12T10:00:00Z", ExpiresAt: new Date(Date.now() + 3_600_000).toISOString(), Tasks: [] }
-const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, ExpiresAt: item.ExpiresAt, ...extra })
+const status = (extra: Partial<DeployStatus>): DeployStatus => ({ Phase: "Provisioning", Ready: false, Gateways: [], ExpiresAt: item.ExpiresAt, ...extra })
 const ready = (extra: Partial<DeployStatus> = {}) => status({ Phase: "Ready", Ready: true, VPNConfig: "x", VPNConnected: false,
+  Gateways: [{ Name: "attack", Kind: "vpn" as const, CIDR: "10.128.1.0/24", Ready: true }],
   Devices: [{ Name: "r1", Ready: true }, { Name: "srv", Ready: true }], ...extra })
 
 function open(initial = { deploy: "d1" as string | null, version: null as string | null, variant: null as string | null, minutes: null as number | null }) {
@@ -71,8 +72,22 @@ describe("TestLabView", () => {
     vi.mocked(deployStatus).mockResolvedValue(status({ Devices: [{ Name: "r1", Ready: true }, { Name: "srv", Ready: false, Bootstrap: { Phase: "pending", Attempts: 2, Reason: "" } }] }))
     open()
     expect(await screen.findByText(t("ed.d.dev.initializing", { n: 2, max: 3 }))).toBeTruthy()
-    expect(screen.getByRole("status", { name: t("ed.d.chip.starting", { ready: 1, total: 2 }) })).toBeTruthy()
+    expect(screen.getByRole("status", { name: t("ed.d.chip.starting", { ready: 1, total: 3 }) })).toBeTruthy()
     expect(screen.getByText(t("ed.d.dock.elapsed", { time: "00:00" }))).toBeTruthy()
+  })
+
+  it("a lab without a VPN gateway has no VPN button, one with a VPN gateway has it before the status arrives", async () => {
+    const noGateway = { ...variant, Topology: { ...variant.Topology, Devices: variant.Topology.Devices.filter((entry) => entry.Type === "node") } }
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [noGateway], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValue(ready({ Gateways: [] }))
+    const first = open()
+    expect(await screen.findByRole("status", { name: t("ed.d.chip.ready") })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /VPN/ })).toBeNull()
+    first.unmount()
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [variant], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValue(status({ Phase: "Queued", Devices: [], Gateways: [] }))
+    open()
+    expect(await screen.findByRole("button", { name: t("ed.d.vpn.header.pending") })).toBeTruthy()
   })
 
   it("ready: chip, VPN icon button without a caption, the participant's answer field", async () => {
