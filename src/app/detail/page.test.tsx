@@ -212,6 +212,19 @@ describe("exercise page — publishing and history", () => {
     expect(within(dialog).getByRole("button", { name: "ed.shell.issues.go" })).toBeInTheDocument()
   })
 
+  it("keeps the generic «not saved» message when the failed save has no field", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(saveDraft).mockRejectedValue(new Error("offline"))
+    writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, toDraftFormValues({ ...withDevice, AdminNote: "edited" }))
+    render(<Page />)
+    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled(), { timeout: 3000 })
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.saveFailed"))
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(screen.queryByRole("dialog", { name: "ed.shell.issues.titlePublish" })).not.toBeInTheDocument()
+  })
+
   it("keeps a publish error without a place as a toast", async () => {
     vi.mocked(publishDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 73509, Message: "m", Context: { features: "guest_agent" } } }, "m", undefined, 73509))
     render(<Page />)
