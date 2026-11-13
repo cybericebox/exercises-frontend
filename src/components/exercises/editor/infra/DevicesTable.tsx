@@ -60,12 +60,12 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
   return <Table label={t("ed.c.devices.title")} className="min-w-[44rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
     <thead>
       <tr className={TABLE_HEAD_ROW}>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[20%]")}><TableHeadHelp text={t("ed.c.devices.device")} help={{ intro: t("ed.c.th.device") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[22%]")}><TableHeadHelp text={t("ed.c.devices.type")} help={{ intro: t("ed.c.th.type"), items: [{ term: t("ed.c.th.typeNode"), text: t("ed.c.th.typeNodeText") }, { term: t("ed.c.th.typeNet"), text: t("ed.c.th.typeNetText") }] }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[15%]")}><TableHeadHelp text={t("ed.c.devices.image")} help={{ intro: t("ed.c.th.image") }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[19%]")}><TableHeadHelp text={t("ed.c.devices.device")} help={{ intro: t("ed.c.th.device") }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[23%]")}><TableHeadHelp text={t("ed.c.devices.type")} help={{ intro: t("ed.c.th.type"), items: [{ term: t("ed.c.th.typeNode"), text: t("ed.c.th.typeNodeText") }, { term: t("ed.c.th.typeNet"), text: t("ed.c.th.typeNetText") }] }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[17%]")}><TableHeadHelp text={t("ed.c.devices.image")} help={{ intro: t("ed.c.th.image") }} /></th>
         <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[12%]")}><TableHeadHelp text={t("ed.c.devices.links")} help={{ intro: t("ed.c.th.links") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[14%]")}><TableHeadHelp text={t("ed.c.devices.tasks")} help={{ intro: t("ed.c.th.tasks") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[14%]")}><TableHeadHelp text={t("ed.c.devices.access")} help={{ intro: t("ed.c.th.access"), items: [{ term: t("ed.c.th.accessWeb"), text: t("ed.c.th.accessWebText") }, { term: t("ed.c.th.accessTerminal"), text: t("ed.c.th.accessTerminalText") }] }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}><TableHeadHelp text={t("ed.c.devices.tasks")} help={{ intro: t("ed.c.th.tasks") }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}><TableHeadHelp text={t("ed.c.devices.access")} help={{ intro: t("ed.c.th.access"), items: [{ term: t("ed.c.th.accessWeb"), text: t("ed.c.th.accessWebText") }, { term: t("ed.c.th.accessTerminal"), text: t("ed.c.th.accessTerminalText") }] }} /></th>
         <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[6.5rem] px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
       </tr>
     </thead>
