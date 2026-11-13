@@ -106,7 +106,7 @@ export const ERR_GATEWAY_LIMIT = 23522
 
 /**
  * Daemon error 23202 (ErrNameHasSeparator): a device name or a variable name has ':'. `field` is "device" (the name of `device`)
- * or "env" (a variable of `device`; the daemon does not say which one, see serverErrorTarget).
+ * or "env[M].name" (variable M of `device`, counted from 1; the context also has `name`).
  */
 export const ERR_NAME_SEPARATOR = 23202
 
@@ -121,7 +121,7 @@ export function deviceErrorPath(code: number, field: string): Segment[] | null {
   if (code === ERR_NODE_PROFILE_PERSISTENCE) return ["Profile"]
   // 23522 (ErrGatewayLimit): `device` is the first gateway over the limit, so the error sits at its name.
   if (code === ERR_GATEWAY_LIMIT) return ["Name"]
-  // 23202 with field "device": the name of the device itself ("env" is placed by serverErrorTarget).
-  if (code === ERR_NAME_SEPARATOR && field === "device") return ["Name"]
+  // 23202: field "device" is the name of the device itself, "env[M].name" is a variable of its environment (`bootstrap.` is left out on the wire).
+  if (code === ERR_NAME_SEPARATOR) return field === "device" ? ["Name"] : deviceFieldPath(`bootstrap.${field}`)
   return deviceFieldPath(field)
 }

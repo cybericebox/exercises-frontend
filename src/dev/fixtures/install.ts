@@ -37,7 +37,7 @@ const SERVER_ERRORS = {
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
   separator: { code: 23202, context: { variant: 1, device: "srv", field: "device" } },
-  separatorEnv: { code: 23202, context: { variant: 1, device: "srv", field: "env" } },
+  separatorEnv: { code: 23202, context: { variant: 1, device: "srv", field: "env[1].name", name: "A:B" } },
   variable: { code: 23507, context: { field: "variables[1].name" } },
   unplaced: { code: 73509, context: { features: "guest_agent" } },
   // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
