@@ -80,7 +80,7 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
           </button>
           {row.limitError && <FieldError path={`${row.key}-limit`} message={row.limitError} className="mt-0.5" />}
         </td>
-        <td className={cn(TABLE_CELL, "truncate text-muted-foreground")}>{row.type}</td>
+        <td className={cn(TABLE_CELL, "whitespace-normal break-words text-muted-foreground")}>{row.type}</td>
         <td className={cn(TABLE_CELL, "truncate font-mono text-[13px]")}>{row.image ? (parsePlatformRef(row.image)?.name ?? row.image) : "—"}</td>
         <td className={cn(TABLE_CELL, "tabular-nums")}>{row.links}</td>
         <td className={cn(TABLE_CELL, "tabular-nums")}>{row.tasks ?? "—"}</td>
