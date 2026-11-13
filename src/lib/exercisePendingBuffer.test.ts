@@ -101,6 +101,19 @@ describe("exercise pending buffer", () => {
     expect(merged[2]).toMatchObject({ Secret: true, HasValue: true })
   })
 
+  it("restores a new secret row typed but never saved as a row without a value (the field then asks for it at publish)", () => {
+    const key = pendingBufferKey("u1", "e1")
+    const server = emptyDraft()
+    server.Variants[0].ID = "v1"
+    server.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Bootstrap: emptyBootstrap() }]
+    const typed = structuredClone(server)
+    typed.Variants[0].Topology.Devices[0].Bootstrap.Env = [{ Name: "API_KEY", Value: "typed-secret", Secret: true, HasValue: false }]
+    writePendingChanges(key, identity, typed)
+    expect(storage.get(key)).not.toContain("typed-secret")
+    const merged = mergePendingDraft(server, readPendingChanges(key)!.draft).Variants[0].Topology.Devices[0].Bootstrap.Env
+    expect(merged).toEqual([{ Name: "API_KEY", Value: "", Secret: true, HasValue: false }])
+  })
+
   it("clears an entry", () => {
     const key = pendingBufferKey("u1", "e1")
     writePendingChanges(key, identity, emptyDraft())
