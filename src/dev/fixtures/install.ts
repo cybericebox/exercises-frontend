@@ -12,7 +12,7 @@
  *   ?maxGateways=N                      the platform limit of gateways per lab (capabilities.MaxLabGateways, default 10)
  *   ?age=N                             a test lab starts N seconds old
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
- *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
+ *   ?serverError=device|variables|access|profile|separator|separatorEnv|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
  *   ?fx=reset                           forget the switches
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
@@ -36,6 +36,8 @@ const SERVER_ERRORS = {
   hint: { code: 23519, context: { task: "ospf", task_name: "Налаштуйте OSPF", variant: 1, field: "hints[2].text" } },
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
+  separator: { code: 23202, context: { variant: 1, device: "srv", field: "device" } },
+  separatorEnv: { code: 23202, context: { variant: 1, device: "srv", field: "env" } },
   variable: { code: 23507, context: { field: "variables[1].name" } },
   unplaced: { code: 73509, context: { features: "guest_agent" } },
   // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
