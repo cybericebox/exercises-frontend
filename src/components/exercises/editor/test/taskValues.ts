@@ -7,9 +7,9 @@ import { taskValues, UNRESOLVED, type TaskValues } from "@/lib/placeholderResolv
 export const CONSOLE_PORT = 0
 
 /** What a lab with no values yet resolves against: every address reads as a dash. */
-export const PENDING_STATUS: DeployStatus = { Phase: "Pending", Ready: false }
+export const PENDING_STATUS: DeployStatus = { Phase: "Pending", Ready: false, Gateways: [] }
 /** What a static test (no lab) resolves against: only fixed values resolve, lab-bound ones stay a dash. */
-export const STATIC_STATUS: DeployStatus = { Phase: "Ready", Ready: true }
+export const STATIC_STATUS: DeployStatus = { Phase: "Ready", Ready: true, Gateways: [] }
 
 /**
  * The values a participant sees in a task of this lab. On top of the shared resolver: a placeholder link to the console

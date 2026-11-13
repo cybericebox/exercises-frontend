@@ -192,6 +192,8 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   const labState = useMemo(() => labChip(status, startFailed, devices), [status, startFailed, devices])
   // The end stays in view as the mockup has it: the chip and the panel say «Завершуємо тест» until the page leaves.
   const chip = ending || ended ? { ...labState, kind: "removing" as const } : labState
+  // The VPN button belongs to a lab with a VPN gateway: the status says so, the schema says so until the status arrives.
+  const hasVpnGateway = Boolean(status?.Gateways?.some((gateway) => gateway.Kind === "vpn") || devices?.some((device) => device.Type === "vpn_gateway"))
   const vpn = useMemo(() => vpnView(status), [status])
 
   const expiresAt = status?.ExpiresAt ?? item?.ExpiresAt ?? null
@@ -327,7 +329,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   return <div className="flex h-dvh flex-col bg-background" onKeyDown={(event) => { if (event.key === "Escape" && sheetOpen && !wide) setSheetOpen(false) }}>
     <LabHeader title={load.meta.exercise.Name} subtitle={t("ed.d.header.subtitle", { variant: t("admin.exDraft.variantN", { n: load.meta.variantNumber }) })} backHref={exerciseHref(exerciseId)}
       progress={{ done: tasks.filter((entry) => solvedIds.has(entry.ID)).length, total: tasks.length }} chip={isStatic ? null : chip} isStatic={isStatic} left={left}
-      vpn={isStatic ? null : vpn} onVpn={() => setVpnOpen(true)} authorShown={authorShown} onToggleAuthor={() => setAuthorShown(!authorShown)}
+      vpn={isStatic || !hasVpnGateway ? null : vpn} onVpn={() => setVpnOpen(true)} authorShown={authorShown} onToggleAuthor={() => setAuthorShown(!authorShown)}
       dockShown={dockOpen} onToggleDock={toggleDock} canExtend={!isStatic && ready && !expired && Boolean(deploy.deployId)} onExtend={() => void extend()} canEnd={canEnd} endBusy={ending || ended} onEnd={askEnd} panel={showDock} />
 
     <div className="relative flex min-h-0 flex-1 flex-col">
