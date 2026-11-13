@@ -169,7 +169,8 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const goToField = useCallback((path: PropertyKey[]) => {
     if (permissions.write) setMode("edit")
     setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), path))
-    focusField(path)
+    // A placeholder is a chip in the text, not a control: the error sits under the description, which takes the focus.
+    focusField(path[2] === "Tasks" && path[4] === "Placeholders" ? path.slice(0, 4).concat("Description") : path)
   }, [permissions.write, editor.draftForm, focusField])
 
   const positionKey = userId && exercise ? editorPositionStorageKey(userId, exercise.ID) : null

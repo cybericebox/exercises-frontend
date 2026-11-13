@@ -889,6 +889,8 @@
   "admin.exPh.kind.gatewaySubnetNamed": "Subnet of gateway “{gateway}”",
   "admin.exPh.gateway": "Gateway",
   "admin.exPh.gatewayHelp": "The gateway of the lab whose subnet is used.\nOnly the gateways of this variant are listed.",
+  "admin.exPh.gatewayRequired": "Choose a gateway.",
+  "admin.exPh.gatewayMissing": "The gateway “{name}” does not exist in this variant. Choose another.",
   "admin.exPh.gatewayKind.vpn": "VPN gateway",
   "admin.exPh.gatewayKind.internet": "Internet gateway",
   "admin.exPh.kind.ip": "IP address",

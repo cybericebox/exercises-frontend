@@ -31,7 +31,8 @@ describe('PlaceholderDialog', () => {
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={null}
       topology={{ ...unavailable, gateways: [attack] }} onSave={save} />)
     fireEvent.click(screen.getByRole('button', { name: /^IP-адреса/ }))
-    expect(screen.getByRole('button', { name: 'Джерело IP' })).toHaveTextContent('Підмережа шлюзу')
+    // The gateway is the only source of an address here: no dropdown for a choice of one.
+    expect(screen.queryByRole('button', { name: 'Джерело IP' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Шлюз' })).toHaveTextContent('attack')
     expect(screen.getByRole('spinbutton', { name: /^Останній октет/ })).toBeInTheDocument()
     expect(screen.queryByText('Октети 1–3')).not.toBeInTheDocument()
@@ -59,8 +60,31 @@ describe('PlaceholderDialog', () => {
     const trigger = screen.getByRole('button', { name: 'Шлюз' })
     expect(trigger.querySelector('span')).toHaveClass('text-destructive')
     expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
+    // The reason is written beside the select and tied to it.
+    expect(trigger).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Шлюзу «old-gw» немає в цьому варіанті')
+    expect((trigger.getAttribute('aria-describedby') ?? '').split(' ')).toContain(screen.getByRole('alert').id)
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     expect(screen.getByRole('menuitemradio', { name: /old-gw.*джерело недоступне/ })).toHaveClass('text-destructive')
+  })
+
+  it('says «Оберіть шлюз» beside the select when the placeholder has no gateway (a removed one is cleared)', () => {
+    const existing: PlaceholderFormValues = { Key: 'ph_empty', Kind: 'gateway.subnet', IPReference: '', Gateway: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: '' }
+    render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing} topology={{ ...unavailable, gateways: [attack] }} onSave={vi.fn()} />)
+    const trigger = screen.getByRole('button', { name: 'Шлюз' })
+    expect(trigger).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Оберіть шлюз.')
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /attack/ }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Зберегти' })).toBeEnabled()
+  })
+
+  it('keeps the address source dropdown while an existing placeholder still has the static octets to choose', () => {
+    const existing: PlaceholderFormValues = { Key: 'ph_static', Kind: 'ip', IPReference: 'static', Gateway: '', Octets1to3: '10.0.0', LastOctet: 5, ShowMask: false, DeviceName: '' }
+    render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing} topology={{ ...unavailable, gateways: [attack] }} onSave={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Джерело IP' })).toHaveTextContent('Статичні октети')
   })
 
   it('offers mask control for a gateway subnet and keeps that choice in the saved definition', () => {

@@ -67,6 +67,14 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
   const ipSourceAvailable = draft?.IPReference === "gateway" ? gatewayChosen : draft?.IPReference === "static" && Boolean(value)
   // The gateway dropdown belongs to a gateway subnet and to an address taken from a gateway.
   const needsGateway = kind === "gateway.subnet" || (kind === "ip" && draft?.IPReference === "gateway")
+  // A source of an address: a gateway, and (only for an existing placeholder) the static octets. One source is no choice: no dropdown.
+  const ipSources = [
+    ...(value?.IPReference === "static" ? [{ value: "static", label: t("admin.exPh.ipref.static") }] : []),
+    ...(canGateway || draft?.IPReference === "gateway" ? [{ value: "gateway", label: t("admin.exPh.ipref.gateway") }] : []),
+  ]
+  // The dialog says why the gateway is not usable: none chosen, or the one named is gone from the variant.
+  const gatewayError = needsGateway && !gatewayChosen
+    ? (draft?.Gateway ? t("admin.exPh.gatewayMissing", { name: draft.Gateway }) : t("admin.exPh.gatewayRequired")) : ""
   const asLink = kind === "ip" && Boolean(draft?.AsLink)
   const portError = asLink && !isValidLinkPort(draft?.PortText ?? "") ? t("admin.ex.val.placeholderPort") : ""
   const pathError = asLink && !isValidLinkPath(draft?.Path ?? "") ? t("admin.ex.val.placeholderPath") : ""
@@ -105,24 +113,22 @@ function PlaceholderDialogContent({ value, topology, onSave, onOpenChange }: Omi
       {draft && (kind === "gateway.subnet" || kind === "ip") && <div className="space-y-3 border-t border-border pt-4">
         {needsGateway && <div>
           <FieldLabel as="span" id="placeholder-gateway-label" className="mb-1" text={t("admin.exPh.gateway")} required helpText={t("admin.exPh.gatewayHelp")} />
-          <SelectMenu ariaLabel={t("admin.exPh.gateway")} value={draft.Gateway}
+          <SelectMenu ariaLabel={t("admin.exPh.gateway")} value={draft.Gateway} aria-invalid={gatewayError ? true : undefined} aria-describedby={gatewayError ? "placeholder-gateway-error" : undefined}
             onChange={(Gateway) => setDraft({ ...draft, Gateway })}
             options={[
               ...(draft.Gateway && !gatewayNames.includes(draft.Gateway)
                 ? [{ value: draft.Gateway, label: t("admin.exPh.itemMissing", { name: draft.Gateway }), unavailable: true }] : []),
               ...topology.gateways.map((gateway) => ({ value: gateway.name, label: gateway.name, description: t(`admin.exPh.gatewayKind.${gateway.kind}`) })),
             ]} className="w-full" />
+          {gatewayError && <p id="placeholder-gateway-error" role="alert" className="mt-1 text-xs text-destructive">{gatewayError}</p>}
         </div>}
         {kind === "ip" && <div className="grid gap-3 sm:grid-cols-2">
-          <div>
+          {ipSources.length > 1 && <div>
             <FieldLabel as="span" id="placeholder-ipref-label" className="mb-1" text={t("admin.exPh.ipref")} required helpText={t("admin.exPh.iprefHelp")} />
             <SelectMenu ariaLabel={t("admin.exPh.ipref")} value={draft.IPReference}
               onChange={(IPReference) => setDraft({ ...draft, IPReference })}
-              options={[
-                ...(value?.IPReference === "static" ? [{ value: "static", label: t("admin.exPh.ipref.static") }] : []),
-                ...(canGateway || draft.IPReference === "gateway" ? [{ value: "gateway", label: t("admin.exPh.ipref.gateway") }] : []),
-              ]} className="w-full" />
-          </div>
+              options={ipSources} className="w-full" />
+          </div>}
           <div>
             <FieldLabel htmlFor="placeholder-last-octet" className="mb-1" text={t("admin.exPh.lastOctet")} required helpText={t("admin.exPh.lastOctetHelp")} />
             <Input id="placeholder-last-octet" type="number" min={0} max={255} value={draft.LastOctet}

@@ -889,6 +889,8 @@
   "admin.exPh.kind.gatewaySubnetNamed": "Підмережа шлюзу «{gateway}»",
   "admin.exPh.gateway": "Шлюз",
   "admin.exPh.gatewayHelp": "Шлюз лабораторії, чия підмережа використовується.\nУ списку лише шлюзи цього варіанта.",
+  "admin.exPh.gatewayRequired": "Оберіть шлюз.",
+  "admin.exPh.gatewayMissing": "Шлюзу «{name}» немає в цьому варіанті. Оберіть інший.",
   "admin.exPh.gatewayKind.vpn": "VPN-шлюз",
   "admin.exPh.gatewayKind.internet": "Інтернет-шлюз",
   "admin.exPh.kind.ip": "IP-адреса",

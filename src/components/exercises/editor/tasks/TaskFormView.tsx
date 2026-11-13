@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, type DragEvent } from "react"
-import { Controller, useFormContext, useWatch } from "react-hook-form"
+import { Controller, get, useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { Separator } from "./Separator"
 import RichTextEditor from "@/components/editor/RichTextEditor"
@@ -12,14 +12,27 @@ import { AttachmentList, type AttachmentListHandle } from "../../AttachmentList"
 import { HintsEditor } from "../../HintsEditor"
 import { FieldLabel } from "@/components/ui/field-label"
 import { useEditor } from "../context"
-import { FieldError, fieldId, useFieldError } from "../fieldErrors"
+import { FieldError, fieldId, useErrorsAt, useFieldError } from "../fieldErrors"
 import { CheckSection } from "./CheckSection"
 import { RequiresSection } from "./RequiresSection"
 import { ChoiceControl, Field, TextControl } from "./fields"
 import { setSharedTaskValue } from "./taskShared"
 import { useTextEditor } from "./useTextEditor"
 
-const DIFFICULTIES = ["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
+/** The distinct messages of the errors below a path (an array of objects of fields), in order. */
+function placeholderMessages(errors: object, path: string): string[] {
+  const found: string[] = []
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== "object") return
+    const message = (node as { message?: unknown }).message
+    if (typeof message === "string" && message && !found.includes(message)) found.push(message)
+    for (const value of Object.values(node)) if (value && typeof value === "object") walk(value)
+  }
+  walk(get(errors, path))
+  return found
+}
+
+const DIFFICULTIES =["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
 
 /**
  * The form of the selected subtask, in the order of D2: Назва + Складність; Опис; Файли для учасників; Перевірка;
@@ -38,6 +51,10 @@ export function TaskFormView({ variantIndex, taskIndex }: { variantIndex: number
   const { config, dialog } = useTextEditor(variantIndex, taskIndex)
   const descriptionPath = `${base}.Description`
   const descriptionError = useFieldError(descriptionPath)
+  // A placeholder is a chip in the texts, not a control: its errors (a gateway that is gone, none chosen) are listed under the description.
+  const placeholderPath = `${base}.Placeholders`
+  const placeholderErrors = placeholderMessages(useErrorsAt(placeholderPath), placeholderPath)
+  const placeholderError = placeholderErrors.join(" ")
   const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files")
 
   return <div data-testid="task-drop-zone" className="subtask-form"
@@ -62,11 +79,12 @@ export function TaskFormView({ variantIndex, taskIndex }: { variantIndex: number
         <FieldLabel as="span" id={`${base}-description-label`} text={t("admin.exTask.description")} required help={{ intro: t("ed.b.description.help"), default: t("ed.b.description.default") }} />
         {/* Lexical is the one controlled exception: JSON state lives in the form field via Controller. */}
         <Controller control={control} name={`${base}.Description`} render={({ field, fieldState }) => (
-          <RichTextEditor {...config} fieldName={field.name} invalid={Boolean(fieldState.error)} ariaLabel={t("admin.exTask.description")}
-            ariaDescribedBy={descriptionError ? `${fieldId(descriptionPath)}-error` : undefined} value={field.value}
+          <RichTextEditor {...config} fieldName={field.name} invalid={Boolean(fieldState.error) || Boolean(placeholderError)} ariaLabel={t("admin.exTask.description")}
+            ariaDescribedBy={[descriptionError ? `${fieldId(descriptionPath)}-error` : "", placeholderError ? `${fieldId(placeholderPath)}-error` : ""].filter(Boolean).join(" ") || undefined} value={field.value}
             onChange={(value) => { field.onChange(value); if (fieldState.error && richTextHasContent(value)) clearErrors(`${base}.Description`) }} disabled={lock} />
         )} />
         <FieldError path={descriptionPath} />
+        {placeholderError && <FieldError path={placeholderPath} message={placeholderError} />}
       </div>
     </section>
     {(!disabled || files.length > 0) && <><Separator /><AttachmentList ref={attachments} variantIndex={variantIndex} taskIndex={taskIndex} disabled={disabled} /></>}
