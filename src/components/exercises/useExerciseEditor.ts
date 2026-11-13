@@ -1,6 +1,7 @@
 "use client"
 
 import { forgetServerErrors, placeServerFieldError, registerServerErrorMemory, settleChangedServerErrors, withServerErrors, type ServerErrorMemory } from "@/lib/editor/serverErrorTarget"
+import type { EditorIssue } from "@/lib/editor/issues"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useForm, type Resolver, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -68,8 +69,8 @@ export type ExerciseEditor = {
   identityForm: UseFormReturn<IdentityFormValues>
   draftForm: UseFormReturn<DraftFormValues>
   autosave: ExerciseAutosave
-  /** A failed save put its error beside a field (the generic "not saved" toast is then not needed). */
-  saveErrorPlaced: () => boolean
+  /** The problems a failed save put beside their fields (empty when the last save went through or its error has no place). */
+  saveErrorIssues: () => EditorIssue[]
   getDraftVersionId: () => string
   reloadWorkingCopy: () => Promise<void>
   /** Replaces the latest elevation request shown for the working copy (after a request is sent). */
@@ -144,6 +145,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const suppressRef = useRef(false)
   const lastSignatureRef = useRef("")
   const placedErrorsRef = useRef<string[]>([])
+  const placedIssuesRef = useRef<EditorIssue[]>([])
   const lastSaveErrorRef = useRef<string | null>(null)
   const loadStartedRef = useRef(false)
   // Runs the change check a burst of edits is still waiting for (see the watch effect below).
@@ -263,7 +265,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       }
       lastSaveErrorRef.current = null
       // A save that went through settles the field errors the server put on the document earlier.
-      if (placedErrorsRef.current.length > 0) { draftForm.clearErrors(placedErrorsRef.current as never[]); placedErrorsRef.current = []; forgetServerErrors(draftForm) }
+      if (placedErrorsRef.current.length > 0) { draftForm.clearErrors(placedErrorsRef.current as never[]); placedErrorsRef.current = []; placedIssuesRef.current = []; forgetServerErrors(draftForm) }
       if (identityRejected) throw new IdentityRejectedError()
       return true
     } catch (error) {
@@ -281,7 +283,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       }
       // A document error that names its field (23506, 23519 …) sits beside it, like the identity ones; the save stays failed.
       const placed = placeServerFieldError(error, draftForm)
-      if (placed) { placedErrorsRef.current = placed.map((issue) => issue.path.join(".")); throw error }
+      if (placed) { placedErrorsRef.current = placed.map((issue) => issue.path.join(".")); placedIssuesRef.current = placed; throw error }
       if (lastSaveErrorRef.current !== message) {
         toast.error(message)
         lastSaveErrorRef.current = message
@@ -593,6 +595,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
 
   return {
     replacementActive, replacementRecovery, prepareImportReplacement, cancelImportReplacement, recordImportDispatch, reconcileImportReplacement,
-    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, saveErrorPlaced: () => placedErrorsRef.current.length > 0, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
+    loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, saveErrorIssues: () => placedIssuesRef.current, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
   }
 }

@@ -307,7 +307,7 @@ describe("useExerciseEditor", () => {
     act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db:1"))
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error?.type).toBe("server")
-    expect(latest.saveErrorPlaced()).toBe(true)
+    expect(latest.saveErrorIssues()).toHaveLength(1)
     expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Name")).toBe("db:1")
     expect(toast.error).not.toHaveBeenCalled()
     // the author edits the field: the server's error leaves it at once, without a blur or a publish check
