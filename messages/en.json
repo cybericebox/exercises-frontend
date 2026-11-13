@@ -758,7 +758,7 @@
   "admin.exTopo.connections": "Connections",
   "admin.exTopo.endpoint.first": "First endpoint",
   "admin.exTopo.endpoint.second": "Second endpoint",
-  "admin.exTopo.endpoint.help": "Choose a device and interface or an available gateway.",
+  "admin.exTopo.endpoint.help": "Choose a device and its interface (a gateway is a device too).",
   "admin.exTopo.addConnection": "Add connection",
   "admin.ex.val.gatewayAlreadyConnected": "VPN and Internet gateways can each have only one connection.",
   "admin.ex.val.gatewayDisabled": "Enable this gateway before connecting it.",
