@@ -294,6 +294,28 @@ describe("useExerciseEditor", () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it("puts a refused ':' (23202) of a save on the device name, with no toast, and drops it when the field changes", async () => {
+    const withDevice: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology, Devices: [
+      normalizedDevice({ ID: "d1", Name: "db", Type: "node" }),
+    ] } }] }
+    mockGetDraft.mockResolvedValue(withDevice)
+    mockSaveDraft.mockRejectedValue(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "db:1", field: "device" } } }, "m", undefined, 23202))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db:1"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error?.type).toBe("server")
+    expect(latest.saveErrorPlaced()).toBe(true)
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Name")).toBe("db:1")
+    expect(toast.error).not.toHaveBeenCalled()
+    // the author edits the field: the server's error leaves it at once, without a blur or a publish check
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db"))
+    await act(async () => {})
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error).toBeUndefined()
+  })
+
   it("creates the exercise once the name is valid, then saves the working copy", async () => {
     const onCreated = vi.fn()
     render(<Harness onCreated={onCreated} />)

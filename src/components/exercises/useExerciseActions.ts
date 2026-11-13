@@ -94,7 +94,8 @@ export function useExerciseActions({
       return false
     }
     const ok = await editor.autosave.flush()
-    if (!ok) report(t("admin.exPage.toast.saveFailed"))
+    // A failed save whose error sits beside its field (placed by the editor) has said what is wrong: no second generic toast.
+    if (!ok && (inline || !editor.saveErrorPlaced())) report(t("admin.exPage.toast.saveFailed"))
     return ok
   }
 

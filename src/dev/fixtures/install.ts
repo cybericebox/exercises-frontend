@@ -12,7 +12,7 @@
  *   ?maxGateways=N                      the platform limit of gateways per lab (capabilities.MaxLabGateways, default 10)
  *   ?age=N                             a test lab starts N seconds old
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
- *   ?serverError=device|variables|access|profile|separator|separatorEnv|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
+ *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
  *   ?fx=reset                           forget the switches
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
@@ -36,8 +36,6 @@ const SERVER_ERRORS = {
   hint: { code: 23519, context: { task: "ospf", task_name: "Налаштуйте OSPF", variant: 1, field: "hints[2].text" } },
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
-  separator: { code: 23202, context: { variant: 1, device: "srv", field: "device" } },
-  separatorEnv: { code: 23202, context: { variant: 1, device: "srv", field: "env[1].name", name: "A:B" } },
   variable: { code: 23507, context: { field: "variables[1].name" } },
   unplaced: { code: 73509, context: { features: "guest_agent" } },
   // An answer can be in the base and in the linked variant: ambiguous without `variant`, so form-level (a toast); with it, placed.
@@ -45,6 +43,24 @@ const SERVER_ERRORS = {
   variant: { code: 23504, context: { task: "secret", field: "check.answer.values", variant: 2 } },
 } as const
 type ServerErrorKind = keyof typeof SERVER_ERRORS
+
+type NodeDTO = { Name?: string; Type?: string; Bootstrap?: { Env?: { Name?: string }[] } }
+
+/** The daemon's check for ':' (error 23202): public context of the first node name or node variable name that holds it. */
+function firstColonName(variants: unknown): Record<string, string | number> | null {
+  if (!Array.isArray(variants)) return null
+  for (const [vi, variant] of variants.entries()) {
+    const devices: NodeDTO[] = (variant as { Topology?: { Devices?: NodeDTO[] } }).Topology?.Devices ?? []
+    for (const device of devices) {
+      if (device.Type !== "node") continue
+      if ((device.Name ?? "").includes(":")) return { variant: vi + 1, device: device.Name ?? "", field: "device" }
+      const vars = device.Bootstrap?.Env ?? []
+      const at = vars.findIndex((entry) => (entry.Name ?? "").includes(":"))
+      if (at >= 0) return { variant: vi + 1, device: device.Name ?? "", field: `env[${at + 1}].name`, name: vars[at]?.Name ?? "" }
+    }
+  }
+  return null
+}
 
 type DeployMode = "ok" | "fail" | "retry" | "expired" | "ending" | "devfail"
 type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; maxGateways: number; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
@@ -148,6 +164,9 @@ export function installFixtures(): void {
     }
     if (path === `${ex}/draft`) {
       if (method === "PUT") {
+        // Like the daemon: a draft with ':' in a node name or in a variable name of a node is refused (23202), the first one found.
+        const colon = firstColonName(b.Variants)
+        if (colon) return fail(400, 23202, (errorsEn as Record<string, string>)["23202"], colon)
         const sent = b as { AdminNote?: string; Variants?: unknown[] }
         if (typeof sent.AdminNote === "string") draft.AdminNote = sent.AdminNote
         if (Array.isArray(sent.Variants)) draft.Variants = sent.Variants as typeof draft.Variants

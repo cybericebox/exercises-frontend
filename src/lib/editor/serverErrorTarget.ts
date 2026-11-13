@@ -118,6 +118,24 @@ export function forgetServerErrors(form: { control?: object }): void {
   if (form.control) memories.get(form.control)?.clear()
 }
 
+/**
+ * Settles the server errors whose field changed: the error leaves the field the moment its value is no longer the one the
+ * server refused (react-hook-form with mode onBlur would keep it until the next blur). Returns the paths it cleared.
+ */
+export function settleChangedServerErrors(form: Pick<UseFormReturn<DraftFormValues>, "getValues" | "clearErrors"> & { control?: object }): string[] {
+  const memory = form.control ? memories.get(form.control) : undefined
+  if (!memory || memory.size === 0) return []
+  const values = form.getValues()
+  const cleared: string[] = []
+  for (const [path, entry] of [...memory]) {
+    if (snapshot(get(values, path)) === entry.value) continue
+    memory.delete(path)
+    form.clearErrors(path as never)
+    cleared.push(path)
+  }
+  return cleared
+}
+
 /** Makes a resolver put the remembered server errors back on the fields it validates (blur/change), while their value is unchanged. */
 export function withServerErrors<T extends Record<string, unknown>>(resolver: Resolver<T>, memory: ServerErrorMemory): Resolver<T> {
   return async (values, context, options) => {
