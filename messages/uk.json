@@ -758,7 +758,7 @@
   "admin.exTopo.connections": "Зʼєднання",
   "admin.exTopo.endpoint.first": "Перший кінець",
   "admin.exTopo.endpoint.second": "Другий кінець",
-  "admin.exTopo.endpoint.help": "Оберіть пристрій та його інтерфейс або доступний шлюз.",
+  "admin.exTopo.endpoint.help": "Оберіть пристрій та його інтерфейс (шлюз теж пристрій).",
   "admin.exTopo.addConnection": "Додати зʼєднання",
   "admin.ex.val.gatewayAlreadyConnected": "Шлюзи VPN та інтернету можуть мати лише по одному зʼєднанню.",
   "admin.ex.val.gatewayDisabled": "Увімкніть цей шлюз, перш ніж підʼєднувати його.",
