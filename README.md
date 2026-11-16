@@ -1,89 +1,97 @@
 # exercises-frontend
 
-The exercise catalog and editor of Cyber ICE Box, including the author test labs where an exercise can be deployed and tried before publishing.
+The task catalog of Cyber&nbsp;ICE&nbsp;Box. People browse tasks, authors write and edit them, and staff review
+proposals. Authors can also deploy a task in a test lab and try it before it is published.
 
-## Stack
+## Where it sits
 
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Radix UI, react-hook-form with Zod, Lexical editor. Tests: Vitest with Testing Library. Lint: ESLint 10.
+| Question | Answer |
+|---|---|
+| Who uses it | Task authors, reviewers and platform staff |
+| Backend | The platform API at `api.<DOMAIN>`. Sign-in goes through the ID site (`id.<DOMAIN>`) |
+| Build output | Static export in `out/`, served by nginx. No Node server at runtime |
+| Dev port | 3005 |
 
-## Prerequisites
+## What it does
 
-Node.js 26 or newer (see `.nvmrc`).
+| Route | Page |
+|---|---|
+| `/` | Catalog of tasks |
+| `/detail` | One task, its versions and variants |
+| `/new` | Editor for a new task, with a local draft that survives a reload |
+| `/proposals` | Review proposals: approve or reject |
+| `/test` | Deploy a task in a test lab and try it |
+| `/guide`, `/guide/<slug>` | Guide to writing tasks |
 
-## Commands
+Text is Ukrainian by default, with English available. The guide pages keep their long-form text in Ukrainian content
+modules.
+
+## Run it locally
+
+Node.js 26 or newer (see `.nvmrc`). You need a running platform backend; the site derives its API host from the base
+domain.
 
 ```bash
 npm install
-npm run dev          # dev server on http://localhost:3005
-npm run build        # production build (static export to out/)
-npm run lint
-npm run typecheck
-npm test             # Vitest
+cp .env.example .env.local   # then fill in the values
+npm run dev                  # http://localhost:3005
 ```
 
-## Static export
+`npm run dev:fixtures` starts the dev server with editor fixtures switched on, for working on the editor without a
+backend.
 
-Production builds are a **static export** (`output: "export"`, written to `out/`) and need no Node server at runtime; `npm run dev` runs the regular Next.js dev server. `npm start` is `next start` and is only meaningful outside the static build.
+## Configure
 
-## Configuration
+`NEXT_PUBLIC_*` values are inlined at build time. The container image substitutes them at start, so one image serves
+any environment. A missing required value fails the build or the container start; there are no fallbacks.
 
-`NEXT_PUBLIC_*` values are inlined at build time; the container image substitutes them at start-up, so one image serves any environment. A missing required host fails the build and the container start; there are no fallbacks. `DEV_ALLOWED_ORIGINS` (comma list, optional) adds hosts to Next's dev-only allowed origins.
+- `.env.example` is the template. Required: the base domain and the support mailbox.
+- `NEXT_PUBLIC_DOMAIN` is the only host input. The API, the other sites and the shared cookies derive from it.
+- `npm run check:cfg` builds the way the Dockerfile does and checks that every placeholder survives in the bundle.
+- Optional installation values mean "no value, not shown":
 
 | Variable | Required | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_DOMAIN` | yes | The one base domain, a bare lowercase host name (no scheme, port or path). Every host derives from it: `<DOMAIN>` (landing), `api.`, `id.`, `admin.`, `exercises.<DOMAIN>`, event sites `<tag>.<DOMAIN>`, the shared theme and consent cookies on `.<DOMAIN>`. There are no per-host settings. |
-| `NEXT_PUBLIC_SUPPORT_EMAIL` | yes | Support mailbox of the «Send feedback» `mailto:` link shown on every page (the subject carries the app and page path only). |
-| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 measurement id. Analytics is off when unset. |
-| `NEXT_PUBLIC_MAIN_SITE_URL` | no | `https://` URL of the main site. Set: the logo and the «home» button of the no-access screen lead there; empty: the logo leads to `/` of this site and there is no «home» button. |
+|---|---|---|
+| `NEXT_PUBLIC_MAIN_SITE_URL` | no | `https://` URL of the main site. Set: the logo leads there. Empty: the logo leads to `/` of this site. |
 | `NEXT_PUBLIC_COOKIES_URL` | no | `https://` URL of the Cookie Policy. Empty: no link in the cookie banner. |
+| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 id. Analytics is off when unset. |
+| `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of extra hosts allowed by `next dev`. |
 
-The installation settings (`MAIN_SITE_URL`, `COOKIES_URL`) are optional and mean "no value = not shown": a third-party installation says nothing in our name. A URL is empty or `https://host[:port][/path][?query]` (no spaces, quotes, `<`, `>`, `\`, `#` or userinfo). A bad value fails the build, the container start and the Pages workflow. Each value is written into an attribute of `<html>` (`data-cfg-*`, `src/lib/settings.ts`) and `src/styles/cfg.css` hides the blocks that need it, so the same markup works in the image (placeholders substituted at start) and in a build with real values. The root domain keeps its roles (allowed origins, hint cookie, return URLs); the settings do not change them. `npm run check:cfg` builds the way the Dockerfile does and checks that every placeholder survives in the bundle. `deploy/cfg-check.sh` and `tests/cfg-vectors.json` are copies kept identical in every frontend repository.
+## Development commands
 
-## i18n
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run dev:fixtures` | Dev server with editor fixtures |
+| `npm run build` | Production build, static export to `out/` |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit tests (Vitest with Testing Library) |
+| `npm run check:cfg` | Checks that config placeholders survive the build |
+| `npm run check:ds` | Fails if a copied design-system file was edited by hand |
+| `npm run sync:errors` | Adds new backend error codes to `messages/errors.*.json` (needs a `daemon` checkout at `../daemon`) |
 
-All user-facing text lives in `messages/uk.json` and `messages/en.json` and is rendered through the translate function `t("key", { vars })`. Ukrainian is the default language. Every key must exist in both files.
+`scripts/test-nginx-tls.sh` checks the container's TLS and client-certificate modes (needs Docker).
 
-## Listeners and TLS (container)
+## Rules for changes
 
-The nginx image needs no listener settings: the defaults below are baked in and every one can be overridden by env. The entrypoint (`deploy/nginx-entrypoint.sh`) reads the env at container start. The nginx config is in files under `deploy/nginx/` (`nginx.conf`, `server.conf`, and the snippets `listen-http.conf`, `listen-https.conf`, `client-auth.conf`, `health.conf`); the entrypoint only validates the env, renders the active snippets with `envsubst` into `/tmp/nginx-gen` (an empty file for each inactive one), and runs `nginx -t`, so a bad combination stops the container at start.
+- Every user-visible string goes through `messages/uk.json` and `messages/en.json` and `t("key", { vars })`. Add each
+  key to both files.
+- Confirmations use the shared `ConfirmDialog`; destructive ones use the danger tone.
+- Saves never disable other controls and show the user's choice before the server answers.
 
-By default: the plain listener is on `8080`, the health listener on `8081`, TLS turns on by itself when `/tls/tls.crt` and `/tls/tls.key` exist (mount the Secret at `/tls`), and client certificates are required when `/aop/ca.crt` also exists (mount the CA at `/aop`). With no files the service runs plain HTTP only. Explicitly set `TLS_CERT_FILE`/`TLS_KEY_FILE` that do not exist, or `TLS_CLIENT_AUTH=optional|require` without the CA file, stop the container at start. The entrypoint logs the active mode at start: `mode: http`, `mode: https` or `mode: https+client-auth`.
+## Container
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `HTTP_PORT` | `8080` | Plain HTTP listener. Set but empty turns it off. |
-| `HTTPS_PORT` | `8443` | TLS listener (HTTP/2); on only when TLS is on. |
-| `TLS_CERT_FILE`, `TLS_KEY_FILE` | `/tls/tls.crt`, `/tls/tls.key` | PEM server certificate chain and key. TLS is on when both default files exist. Set explicitly: both must be set and readable; exactly one set = start error. |
-| `TLS_MIN_VERSION` | `1.2` | `1.2` or `1.3`. |
-| `TLS_CLIENT_CA_FILE` | `/aop/ca.crt` | PEM bundle of the root (and intermediate) CAs that signed the client certificates. |
-| `TLS_CLIENT_AUTH` | `require` when TLS is on and the CA file exists, else `off` | `off`, `optional` (verify when presented, the result is `$ssl_client_verify`) or `require`. `optional` and `require` need the CA file and TLS, else start error. A missing or invalid certificate gets the connection dropped (nginx 444). |
-| `HEALTH_PORT` | `8081` | An extra plain-HTTP listener on `HEALTH_BIND` (default `0.0.0.0`) that serves only `/healthz` (everything else 404), for kubelet probes that cannot present a client certificate. Set but empty turns it off. |
-| `TLS_RELOAD_INTERVAL` | `60` | Seconds between checksum checks of the certificate, key and CA files. A change runs `nginx -t` and `nginx -s reload`, no restart; a config that fails the test keeps the running one and logs it. It polls (no inotify) because Kubernetes swaps a Secret mount through the `..data` symlink. |
+The image serves the export with nginx: plain HTTP on 8080, a health listener on 8081 (`/healthz` only), and TLS on
+8443 when `/tls/tls.crt` and `/tls/tls.key` are mounted. Client certificates are required when `/aop/ca.crt` is
+mounted. The config is in `deploy/nginx/`; `deploy/nginx-entrypoint.sh` validates the environment and fails the start
+on a bad combination. At start, `deploy/csp.sh` hashes the inline scripts and writes the Content Security Policy
+header.
 
-`HTTP_PORT` empty with no TLS is a start error. With TLS on, the plain listener stays on unless `HTTP_PORT` is set empty; with client auth `require` the entrypoint warns about it, because the plain port is not protected by client certificates: set `HTTP_PORT=` and use the health port for probes. `scripts/test-nginx-tls.sh` (Docker) tests the whole matrix, including the baked defaults and a live certificate replacement.
+## Releases and contributing
 
-## Content Security Policy
-
-The site sends a strict CSP: scripts only from the site itself (no inline script without a hash), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. `frame-src` allows the labs domain `https://*.labs.<NEXT_PUBLIC_DOMAIN>` (derived, no setting; a CSP cannot narrow it to one label, so `isConsoleFrameUrl` in `src/lib/consoleFrame.ts` decides what is framed: https, no port, no userinfo, exactly one label under `labs.<domain>`; the kind of the link comes from the platform API, not from the host name), nothing else. `connect-src` allows the API host (`api.<NEXT_PUBLIC_DOMAIN>`) plus the vendors the app is configured for: Google Analytics when `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` is set. `style-src` keeps `'unsafe-inline'` (React style attributes cannot be hashed).
-
-The export is static, so a per-request nonce is not possible. Instead, at container start `deploy/csp.sh` (runs after the env substitution) hashes every inline `<script>` in the exported pages, plus the scripts the client creates at runtime (the Google Analytics boot; `scripts/csp-inline.mjs` writes its text at build time), and writes the header to `/tmp/nginx-gen/csp.conf`. `deploy/nginx/server.conf` includes that file in the server block and in every location that sets its own `add_header` (nginx does not inherit `add_header` into a location that defines one). A new inline script needs no manual step; a new runtime-created inline script must be added to `scripts/csp-inline.mjs`.
-
-`next dev` sends the same policy from `headers()` in `next.config.ts`, only when `NODE_ENV=development`, with `'unsafe-inline'` and `'unsafe-eval'` for scripts and websockets for HMR. Check the browser console for `Content Security Policy` violations after adding a script, an iframe or a new external host.
-
-## Deployment
-
-Deployment and cluster configuration: see the infrastructure repository.
+Branches, pull requests and releases: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
-
-Copyright 2026 CyberICEBox
-
-### One base domain
-
-`NEXT_PUBLIC_DOMAIN` is the only host input and every host derives from it: main = `DOMAIN`, `api.DOMAIN`, `id.DOMAIN`, `admin.DOMAIN`, `exercises.DOMAIN`, event sites `<tag>.DOMAIN`, the cookie domain = `DOMAIN`. The code reads the derived hosts through one helper (`src/**/hosts.ts`); `deploy/base-domain.sh` (sourced by the container entrypoint and the Pages workflow) and the domain check in `next.config` reject an unset or malformed domain. `tests/base-domain-vectors.json` holds the shared test vectors that `tests/base-domain.test.ts` runs against all three; `deploy/base-domain.sh` and the vector file are copies kept identical in every frontend repository (the daemon and infrastructure have the same rule and the same vector file).
-
-## Error catalog sync
-
-`messages/errors.en.json` and `messages/errors.uk.json` mirror the backend error catalog (`daemon/error-catalog/`). After the backend adds error codes, run `npm run sync:errors` (daemon checkout expected at `../daemon`, or pass `-- --daemon <path>`). It adds the codes the app does not have yet and keeps the app's existing texts; `-- --check` only lists what is missing (exit 1), `-- --overwrite` also replaces existing texts. Commit the result.
+Apache License 2.0. See [LICENSE](LICENSE).
