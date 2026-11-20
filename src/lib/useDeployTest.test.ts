@@ -227,13 +227,13 @@ describe("useDeployTest", () => {
 
     it("closes the tab and posts nothing when the grant is missing or the endpoint is not a plain http(s) URL", async () => {
       const { result } = await readyDeploy()
-      for (const link of [{ URL: "https://web-1x.example.com/_auth", Grant: "" }, { URL: "javascript:alert(1)", Grant: "g" }, { URL: "https://u:p@web-1x.example.com/_auth", Grant: "g" }]) {
+      for (const link of [{ URL: "https://web-1x.example.com/_auth", Grant: "" }, { URL: "javascript:alert(1)", Grant: "g" }, { URL: "https://u:p@web-1x.example.com/_auth", Grant: "g" }, { URL: "http://web-1x.example.com/_auth", Grant: "g" }, { URL: "https://web-1x.example.com/other", Grant: "g" }]) {
         mocked.openDeployLink.mockResolvedValueOnce({ ...link, ExpiresAt: "x" })
         act(() => result.current.openLink("web", 443))
         await waitFor(() => expect(result.current.link).toBe("error"))
       }
       expect(submitted).toHaveLength(0)
-      expect(tab.close).toHaveBeenCalledTimes(3)
+      expect(tab.close).toHaveBeenCalledTimes(5)
     })
 
     it("closes the blank tab, keeps the error and retries on demand", async () => {

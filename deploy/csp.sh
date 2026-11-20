@@ -117,6 +117,12 @@ frame_src="https://*.$(base_domain_host labs)"
 # and form-action also covers the redirect that follows. Allowed: our own labs.<domain> plus the optional comma list
 # NEXT_PUBLIC_LAB_DOMAINS (agents with another lab domain). An entry that is not a plain domain name is dropped with a
 # warning, so the value cannot add a scheme, port, path or another directive.
+# NEXT_PUBLIC_DOMAIN went through base_domain_check above (a bare lowercase host name); it is checked once more here
+# because it is interpolated into the header.
+if ! printf '%s' "$NEXT_PUBLIC_DOMAIN" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'; then
+  echo "[csp] NEXT_PUBLIC_DOMAIN must be a bare lowercase domain name (no scheme, port, path or quotes)." >&2
+  exit 1
+fi
 form_action="'self' https://*.labs.$NEXT_PUBLIC_DOMAIN"
 set -f # the entries are split by the shell: no file name expansion of a "*" in them
 for entry in $(printf '%s' "${NEXT_PUBLIC_LAB_DOMAINS:-}" | tr ',' ' ' | tr 'A-Z' 'a-z'); do

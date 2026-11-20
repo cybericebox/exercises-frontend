@@ -10,10 +10,13 @@ export function newGrantTabName(): string {
     return `cib-lab-${random}`;
 }
 
-// The form action is the grant endpoint itself: an absolute http(s) URL with nothing after the path.
+// The form action is the grant endpoint itself: https only, exactly the path /_auth, nothing after it and no
+// credentials. Anything else (another scheme or path, a query, a fragment) is refused, so a grant is never posted
+// to a page that is not a lab host's /_auth. Local development runs its lab hosts over https too, so there is no
+// plain-http exception.
 function grantEndpoint(raw: string): string {
     const url = new URL(raw);
-    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password || url.search || url.hash) throw new Error("Invalid grant endpoint");
+    if (url.protocol !== "https:" || url.pathname !== "/_auth" || /[?#]/.test(raw) || url.username || url.password) throw new Error("Invalid grant endpoint");
     return url.href;
 }
 
