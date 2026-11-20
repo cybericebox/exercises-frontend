@@ -54,6 +54,7 @@ any environment. A missing required value fails the build or the container start
 |---|---|---|
 | `NEXT_PUBLIC_MAIN_SITE_URL` | no | `https://` URL of the main site. Set: the logo leads there. Empty: the logo leads to `/` of this site. |
 | `NEXT_PUBLIC_COOKIES_URL` | no | `https://` URL of the Cookie Policy. Empty: no link in the cookie banner. |
+| `NEXT_PUBLIC_LAB_DOMAINS` | no | Comma list of extra lab base domains (agents with another lab domain), for example `labs.other.example`. The test lab is opened by posting a grant form to `<device>-<code>.<lab domain>`, so the CSP `form-action` allows `https://*.labs.<DOMAIN>` and `https://*.<each entry>`. Entries that are not plain domain names are ignored. Read by `deploy/csp.sh` at container start. |
 | `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | no | Google Analytics 4 id. Analytics is off when unset. |
 | `DEV_ALLOWED_ORIGINS` | no | Dev only: comma list of extra hosts allowed by `next dev`. |
 

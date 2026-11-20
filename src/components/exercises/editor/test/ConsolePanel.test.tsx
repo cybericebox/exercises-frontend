@@ -9,10 +9,19 @@ import { t } from "@/i18n/t"
 import { CONSOLE_FRAME_TIMEOUT_MS, ConsolePanel } from "./ConsolePanel"
 
 const props = { deployId: "d1", device: "r1", allowed: true, reason: "", onClose: vi.fn() }
-const link = { URL: "https://r1-ab1t.labs.localhost/_auth?t=x", ExpiresAt: "2026-11-12T10:00:00Z" }
+const link = { URL: "https://r1-ab1t.labs.localhost/_auth", Grant: "g.r.t", ExpiresAt: "2026-11-12T10:00:00Z" }
+// Every form the page submits, read at submit time (the form is removed right after).
+type Posted = { action: string; target: string; fields: Record<string, string> }
+let posted: Posted[]
 
 describe("ConsolePanel", () => {
-  beforeEach(() => { vi.mocked(openDeployLink).mockReset(); props.onClose.mockReset() })
+  beforeEach(() => {
+    vi.mocked(openDeployLink).mockReset(); props.onClose.mockReset()
+    posted = []
+    vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(function (this: HTMLFormElement) {
+      posted.push({ action: this.action, target: this.target, fields: Object.fromEntries([...new FormData(this).entries()].map(([name, value]) => [name, String(value)])) })
+    })
+  })
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
   it("asks for the console link of the device and embeds the page the lab serves", async () => {
@@ -20,7 +29,10 @@ describe("ConsolePanel", () => {
     render(<ConsolePanel {...props} />)
     const frame = await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
     expect(openDeployLink).toHaveBeenCalledWith("d1", "r1", 0, "terminal")
-    expect(frame.getAttribute("src")).toBe(link.URL)
+    // The grant is posted into the named frame; the frame's own address never carries it.
+    expect(frame.getAttribute("src")).toBeNull()
+    expect(frame.getAttribute("name")).toMatch(/^cib-console-./)
+    expect(posted).toEqual([{ action: link.URL, target: frame.getAttribute("name"), fields: { grant: "g.r.t", next: "/" } }])
     // The lab decides by the origin in the Referer, so the referrer is never dropped.
     expect(frame.getAttribute("referrerpolicy")).toBe("origin")
     // Least privilege: no top navigation, popups or modals.
@@ -47,7 +59,11 @@ describe("ConsolePanel", () => {
     render(<ConsolePanel {...props} />)
     await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
     fireEvent.click(screen.getAllByRole("button", { name: t("ed.d.console.newTab") })[0])
-    await waitFor(() => expect(tab.location.href).toBe(link.URL))
+    await waitFor(() => expect(posted).toHaveLength(2))
+    // The new tab got its own name, a form posted the grant into it, and its location was never set to a link.
+    expect(posted[1]).toEqual({ action: link.URL, target: vi.mocked(window.open).mock.calls[0][1], fields: { grant: "g.r.t", next: "/" } })
+    expect(posted[1].target).toMatch(/^cib-lab-./)
+    expect(tab.location.href).toBe("")
     expect(tab.opener).toBeNull()
     expect(openDeployLink).toHaveBeenCalledTimes(2)
   })
@@ -135,7 +151,10 @@ describe("ConsolePanel", () => {
     it("the accepted origin is framed", async () => {
       vi.mocked(openDeployLink).mockResolvedValue(link)
       render(<ConsolePanel {...props} />)
-      expect((await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))).getAttribute("src")).toBe(link.URL)
+      const frame = await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
+      expect(posted).toHaveLength(1)
+      expect(posted[0].target).toBe(frame.getAttribute("name"))
+      expect(posted[0].action).toBe(link.URL)
     })
 
     it("the new tab opens an https link only", async () => {

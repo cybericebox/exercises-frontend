@@ -55,6 +55,11 @@ function devContentSecurityPolicy(): string {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")
   }
+  // The grant form of the test lab posts to the lab hosts: labs.<domain> plus the optional NEXT_PUBLIC_LAB_DOMAINS (same rule as deploy/csp.sh).
+  const labDomains = [`labs.${DOMAIN}`, ...(process.env.NEXT_PUBLIC_LAB_DOMAINS ?? "").split(",")]
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => d.length <= 253 && /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$/.test(d))
+  const formAction = ["'self'", ...[...new Set(labDomains)].map((d) => `https://*.${d}`)]
   return [
     "default-src 'self'",
     `script-src ${script.join(" ")}`,
@@ -66,7 +71,7 @@ function devContentSecurityPolicy(): string {
     `frame-src ${devFrameSrc(DOMAIN, Boolean(process.env.NEXT_PUBLIC_EDITOR_FIXTURES))}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action ${formAction.join(" ")}`,
     "frame-ancestors 'none'",
   ].join("; ")
 }

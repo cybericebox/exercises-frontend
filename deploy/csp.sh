@@ -14,7 +14,8 @@
 # and the header snippet interpolates it. frame-ancestors is only honoured as an HTTP header. server.conf includes it in the server block and in every location that sets
 # its own add_header (add_header is not inherited once a location defines one).
 #
-# Operator values come from env: NEXT_PUBLIC_DOMAIN (connect-src is api.<domain>). Vendor sources are added only
+# Operator values come from env: NEXT_PUBLIC_DOMAIN (connect-src is api.<domain>, form-action allows the lab hosts labs.<domain>
+# and the optional NEXT_PUBLIC_LAB_DOMAINS). Vendor sources are added only
 # when the app is configured to use them: Google Analytics (NEXT_PUBLIC_GOOGLE_ANALYTICS_ID). Google sign-in is a top-level navigation through the
 # API, so it needs no source here.
 set -e
@@ -112,6 +113,21 @@ connect_src="'self' https://$host"
 # the whole labs domain; src/lib/consoleFrame.ts (isConsoleFrameUrl) is the guard that decides what is framed. No http.
 frame_src="https://*.$(base_domain_host labs)"
 
+# The author's test lab is opened by posting a grant form into a new tab on the lab host (<device>-<code>.<lab base domain>),
+# and form-action also covers the redirect that follows. Allowed: our own labs.<domain> plus the optional comma list
+# NEXT_PUBLIC_LAB_DOMAINS (agents with another lab domain). An entry that is not a plain domain name is dropped with a
+# warning, so the value cannot add a scheme, port, path or another directive.
+form_action="'self' https://*.labs.$NEXT_PUBLIC_DOMAIN"
+set -f # the entries are split by the shell: no file name expansion of a "*" in them
+for entry in $(printf '%s' "${NEXT_PUBLIC_LAB_DOMAINS:-}" | tr ',' ' ' | tr 'A-Z' 'a-z'); do
+  if printf '%s' "$entry" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$' && [ "${#entry}" -le 253 ]; then
+    case " $form_action " in *" https://"'*'".$entry "*) ;; *) form_action="$form_action https://*.$entry" ;; esac
+  else
+    echo "[csp] NEXT_PUBLIC_LAB_DOMAINS: ignoring an entry that is not a domain name." >&2
+  fi
+done
+set +f
+
 if [ -n "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}" ]; then
   script_src="$script_src https://www.googletagmanager.com"
   connect_src="$connect_src https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com/ccm/ https://*.doubleclick.net"
@@ -120,7 +136,7 @@ fi
 # style-src keeps 'unsafe-inline': React inline style attributes and Next's <style> tags cannot be
 # hashed. Scripts, the risky part, stay strict. img-src allows https: because pictures (avatars,
 # event logos) come from the API/media hosts and Google profile photos.
-policy="default-src 'self'; script-src $script_src; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src $connect_src; frame-src $frame_src; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+policy="default-src 'self'; script-src $script_src; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src $connect_src; frame-src $frame_src; object-src 'none'; base-uri 'self'; form-action $form_action; frame-ancestors 'none'"
 
 mkdir -p "$(dirname "$OUT")" "$(dirname "$MAP")"
 cp "$tmp/map" "$MAP"
