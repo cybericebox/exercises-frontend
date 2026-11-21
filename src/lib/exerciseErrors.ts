@@ -18,6 +18,10 @@ export const ERR_EXERCISE_EXISTS = 40903
 export const ERR_EXERCISE_MODIFIED = 70904
 export const ERR_NO_DRAFT = 70905
 export const ERR_DRAFT_ALREADY_EXISTS = 70906
+/** The working copy was saved, created or discarded by someone else since the editor loaded it (context: revision, savedBy, savedAt). */
+export const ERR_DRAFT_MODIFIED = 70922
+/** The revision sent back is not one the server issued. */
+export const ERR_DRAFT_REVISION_INVALID = 20923
 export const ERR_EXERCISE_ARCHIVED = 70948
 export const ERR_EXERCISE_IN_USE = 70949
 export const ERR_HINTS_INVALID = 20950
@@ -169,6 +173,16 @@ export function errorContext(e: unknown): Record<string, string> {
     }
   }
   return out
+}
+
+/** Who changed the working copy meanwhile, from a 70922: savedBy / savedAt are "" when the server named none. */
+export type DraftConflict = { revision: string; savedBy: string; savedAt: string }
+
+/** The facts of a 70922 (the working copy changed under the editor), or null for any other error. */
+export function draftConflictOf(e: unknown): DraftConflict | null {
+  if (exerciseErrorCode(e) !== ERR_DRAFT_MODIFIED) return null
+  const c = errorContext(e)
+  return { revision: c.revision ?? c.Revision ?? "", savedBy: c.savedBy ?? c.SavedBy ?? "", savedAt: c.savedAt ?? c.SavedAt ?? "" }
 }
 
 /**

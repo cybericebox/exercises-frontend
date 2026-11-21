@@ -26,7 +26,7 @@ import { DevicePersistenceProvider } from "@/components/exercises/DevicePersiste
 import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
 import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
-import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
+import { ArchivedBanner, DraftConflictBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
 import { type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
 import { TopologyResourcesButton } from "@/components/exercises/TopologyResourcesPanel"
 import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
@@ -45,6 +45,7 @@ import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
+import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoutes"
 import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
@@ -61,7 +62,7 @@ import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import" | "test"
+type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import" | "test" | "reload"
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -106,6 +107,9 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [publishedVersions, setPublishedVersions] = useState<Partial<Record<string, Version>>>({})
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
+  // Reloading the working copy after someone else changed it: the confirmation's busy state and inline error.
+  const [reloading, setReloading] = useState(false)
+  const [reloadError, setReloadError] = useState("")
   const { formRef, focusField } = useEditorValidationFocus()
   // The editor's api for what lives above its provider (the publish check opens the issues list).
   const editorApi = useRef<EditorApi | null>(null)
@@ -386,6 +390,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         busy={actions.busy}
         onBack={() => void actions.openVersion(null)}
         onRestore={() => { actions.clearConfirmError(); setDialog("restore") }} />}
+      {!isVersion && editor.conflict && <DraftConflictBanner conflict={editor.conflict} onReload={() => { setReloadError(""); setDialog("reload") }} />}
       {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} unarchiving={actions.running === "unarchive"} onUnarchive={() => void actions.unarchive()} />}
       <Form {...editor.draftForm}>
         {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
@@ -429,6 +434,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
+    <ConfirmDialog open={dialog === "reload"} busy={reloading} error={reloadError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+      title={t("admin.exPage.conflict.confirmTitle")} description={t("admin.exPage.conflict.confirmDescription")}
+      confirmLabel={t("admin.exPage.conflict.reload")} busyLabel={t("admin.exPage.conflict.reloading")}
+      onCancel={() => setDialog(null)}
+      onConfirm={() => {
+        setReloading(true)
+        setReloadError("")
+        void editor.reloadAfterConflict()
+          .then(() => setDialog(null), (cause: unknown) => setReloadError(exerciseErrorMessage(cause)))
+          .finally(() => setReloading(false))
+      }} />
     <ConfirmDialog open={cancelNewAsk} tone="danger" onCancel={() => setCancelNewAsk(false)}
       title={t("admin.ex.cancelNew.title")} description={t("admin.ex.cancelNew.description")}
       confirmLabel={t("admin.ex.cancelNew.confirm")}

@@ -86,7 +86,7 @@ describe("new exercise page", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(createExercise).toHaveBeenCalledWith({ Name: "Buffer overflow", Description: "", Tags: [] })
     expect(replaceState).toHaveBeenCalledWith(null, "", "/detail?id=new-exercise")
-    expect(saveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ Variants: expect.any(Array) }))
+    expect(saveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ Variants: expect.any(Array) }), "")
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.created")
     expect(screen.getByRole("heading", { name: "Buffer overflow" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.save.saved")).toBeInTheDocument()
