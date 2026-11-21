@@ -48,7 +48,7 @@
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.88.0",
     "tailwind-merge": "^3.7.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.20.8",
