@@ -1,10 +1,10 @@
 import { exercisePositionKey } from "@/lib/storageKeys"
 
-/** The four views of the editor: one tab row, the variant dropdown sits between «Загальне» and the two variant tabs. */
+/** The four views of the editor: one tab row, the variant dropdown sits between “General” and the two variant tabs. */
 export type EditorTab = "general" | "variants" | "tasks" | "infrastructure"
-/** Sub-views of «Інфраструктура». */
+/** Sub-views of “Infrastructure”. */
 export type InfraView = "diagram" | "devices" | "connections" | "vars"
-/** Sections of the device editor dialog: Основне · Мережа · Ініціалізація · Сервіс · Доступ. */
+/** Sections of the device editor dialog: Basic · Network · Initialization · Service · Access. */
 export type DeviceSection = "main" | "network" | "init" | "service" | "access"
 
 /** Where the editor was: tab, variant, task, infrastructure sub-view and device panel. Stored per user and exercise. */

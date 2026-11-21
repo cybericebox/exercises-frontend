@@ -22,7 +22,7 @@ function renderMain(overrides: Partial<DeviceFormValues> = {}, props: { disabled
   </ResourcesConfigProvider>)
 }
 
-describe("«Основне»", () => {
+describe("Basic", () => {
   it("edits the name and lets the profile be chosen from a dropdown with an explanation each", () => {
     renderMain()
     fireEvent.change(screen.getByRole("textbox", { name: /ed.c.main.name/ }), { target: { value: "api" } })
@@ -81,7 +81,7 @@ function renderInit(overrides: Partial<DeviceFormValues> = {}, disabled = false)
   </FormHarness>)
 }
 
-describe("«Ініціалізація»", () => {
+describe("Initialization", () => {
   it("shows no «no files» text and adds a text file with the path, owner, group and mode", () => {
     renderInit()
     expect(screen.queryByText(/ed.c.init.empty/)).not.toBeInTheDocument()

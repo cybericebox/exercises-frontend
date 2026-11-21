@@ -43,7 +43,7 @@ describe("environment variables", () => {
     expect(readValues()).toMatchObject([{ Name: "APP_MODE", Value: "training", Secret: false }])
   })
 
-  it("shows a saved secret as «Значення збережено» with a replace icon, and locks the toggle until a new value is typed", () => {
+  it(`shows a saved secret as "Value is stored" with a replace icon, and locks the toggle until a new value is typed`, () => {
     renderService(withEnv(env("DB_PASS", "", { Secret: true, HasValue: true })))
     expect(screen.getByText("ed.c.env.stored")).toBeInTheDocument()
     const lock = screen.getByRole("button", { name: "ed.c.env.secretN 1" })

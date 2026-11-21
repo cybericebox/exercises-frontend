@@ -12,7 +12,7 @@ import { useBackLink } from "@/lib/useBackLink"
 import { useExerciseAccess } from "./AccessContext"
 import { BookingsMenu } from "./BookingsMenu"
 
-/** onBookings: the phone menu opens «Бронювання» itself (after it closes); without it the dialog lives here. */
+/** onBookings: the phone menu opens “Bookings” itself (after it closes); without it the dialog lives here. */
 export function Sidebar({ onNavigate, onClose, onBookings }: { onNavigate?: () => void; onClose?: () => void; onBookings?: () => void }) {
   const pathname = usePathname()
   const { access } = useExerciseAccess()

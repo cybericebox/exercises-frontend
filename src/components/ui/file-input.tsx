@@ -9,7 +9,7 @@ import { cn } from "@/utils/cn"
 type FileInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
   file: File | null
   onFile: (file: File | null) => void
-  /** The button's text (default «Вибрати файл»). */
+  /** The button's text (default “Choose file”). */
   chooseLabel?: string
   /** Only the button: the chosen name is shown elsewhere (a file bar). */
   buttonOnly?: boolean

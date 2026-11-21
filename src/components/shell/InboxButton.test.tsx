@@ -92,7 +92,7 @@ describe("top-bar inbox", () => {
     expect(plain.className).not.toContain("cursor-pointer")
   })
 
-  it("«Вирішено» sits above the card link and resolves without following it", async () => {
+  it(`"Resolved" sits above the card link and resolves without following it`, async () => {
     mockInbox([{ ID: "1", Title: "Збій", Body: "", Link: "https://spring.example.org/manage/", ActionRequired: true, Resolvable: true, ReadAt: null, CreatedAt: "2026-09-24T12:00:00Z" }])
     api.post.mockResolvedValue(undefined)
     render(<InboxButton />)
@@ -328,7 +328,7 @@ describe("top-bar inbox", () => {
       })
     }
 
-    it("opens on «Запити» when requests are open, lists open ones first and counts per tab", async () => {
+    it(`opens on "Requests" when requests are open, lists open ones first and counts per tab`, async () => {
       mockCategories()
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні: запитів у роботі 1, непрочитаних 2" }))
@@ -341,7 +341,7 @@ describe("top-bar inbox", () => {
       expect(api.get).toHaveBeenCalledWith("/api/notifications/inbox?site=exercises&category=requests")
     })
 
-    it("opens on «Усі» without open requests and marks only the current tab read", async () => {
+    it(`opens on "All" without open requests and marks only the current tab read`, async () => {
       mockCategories({ All: 1, Requests: 0, Personal: 1, Activity: 0 })
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
@@ -352,7 +352,7 @@ describe("top-bar inbox", () => {
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/notifications/inbox/read-all?site=exercises&category=personal", {}))
     })
 
-    it("resolves an open «Лабораторія впала» request and shows why a resolve failed", async () => {
+    it(`resolves an open "Lab crashed" request and shows why a resolve failed`, async () => {
       mockCategories()
       const { ApiError } = await import("@/api/client")
       api.post.mockRejectedValueOnce(new ApiError(409, {}, "already", undefined, 70219)).mockResolvedValueOnce(undefined)
@@ -385,7 +385,7 @@ describe("top-bar inbox", () => {
       await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/notifications/inbox/lab2/resolve", {}))
     })
 
-    it("shows only «Усі» when the backend sends no Counts", async () => {
+    it(`shows only "All" when the backend sends no Counts`, async () => {
       render(<InboxButton defaultTab="requestsIfOpen" />)
       fireEvent.click(await screen.findByRole("button", { name: "Вхідні, непрочитані: 1" }))
       await screen.findByText("Запрошення")

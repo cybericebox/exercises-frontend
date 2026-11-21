@@ -33,7 +33,7 @@ export type UseExerciseActionsOptions = {
   focusField: (path: PropertyKey[]) => void
   /** Lets the next programmatic navigation past the leave guard. */
   allowNavigation: () => void
-  /** The publish check found invalid fields: the page shows the list «Перед публікацією виправте». */
+  /** The publish check found invalid fields: the page shows the list “Fix before publishing”. */
   onIssues?: (issues: EditorIssue[]) => void
 }
 
@@ -42,7 +42,7 @@ export function useExerciseActions({
 }: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
-  // Which action keeps it busy, so that action's button can name it («Публікуємо…»).
+  // Which action keeps it busy, so that action's button can name it (“Publishing”).
   const [running, setRunning] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState("")
   const [usage, setUsage] = useState<{ exerciseId: string; events: ExerciseUsageEvent[] } | null>(null)

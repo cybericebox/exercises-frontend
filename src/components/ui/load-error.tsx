@@ -16,7 +16,7 @@ export function errorCode(error: unknown): number | undefined {
 
 /**
  * The only load-error state inside a page or block: the ErrorScreen warning mark at block
- * scale, a title (the context message), one line of help and «Спробувати ще раз» (compact too). Same
+ * scale, a title (the context message), one line of help and “Try again” (compact too). Same
  * size and centering as EmptyState / LoadingArea, so loading → error never jumps. The
  * error code shows when `error` carries one. A dead route uses ErrorScreen instead.
  */
@@ -30,7 +30,7 @@ export function LoadError({ message = t("error.load.title"), help, onRetry, erro
   error?: unknown
   compact?: boolean
   className?: string
-  /** Extra buttons next to «Спробувати ще раз» (a way around the failure). */
+  /** Extra buttons next to “Try again” (a way around the failure). */
   actions?: React.ReactNode
   /** What exactly failed, under the title (e.g. the images a deploy could not pull). */
   details?: React.ReactNode

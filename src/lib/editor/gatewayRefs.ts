@@ -3,8 +3,8 @@
  * by interface addresses and default gateways (`AddressRef`, `GatewayRef`), by route destinations and next hops
  * (`DstRef`, `ViaRef`) of the devices of the variant, and by the placeholders of its tasks (`Placeholders[].Gateway`).
  *   rename: every such name follows the new one;
- *   remove: address, gateway and route references are cleared (the field goes back to «Вручну», empty), and a placeholder
- *           that named it keeps its kind but loses the gateway («не обрано»), so the task shows an error beside the picker.
+ *   remove: address, gateway and route references are cleared (the field goes back to “Manual”, empty), and a placeholder
+ *           that named it keeps its kind but loses the gateway ("not selected"), so the task shows an error beside the picker.
  */
 import type { UseFormReturn } from "react-hook-form"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"

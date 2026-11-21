@@ -1,4 +1,4 @@
-/* The editor: a full-width screen — one header row, one tab row («Загальне» | variant numbers), the open tab. */
+/* The editor: a full-width screen — one header row, one tab row (“General” | variant numbers), the open tab. */
 /* Fills the main area (its padding stays outside) and grows with long content, which then scrolls the main area. */
 .exercise-general-screen { --ctl:36px; display:flex; flex:1 0 auto; flex-direction:column; gap:12px; min-width:0; container:task-screen / inline-size; }
 @media(pointer:coarse){ .exercise-general-screen { --ctl:44px; } }
@@ -16,7 +16,7 @@
 .general-running-test { flex-basis:100%; order:5; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ib-dim); }
 .editor-form { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
 /* The tab strip: one control height (36px, 44px on touch). Its bottom divider is a line drawn under the tabs; the
-   active tab's 2px bar sits exactly on it, as wide as the tab's label padding. Every tab (Загальне, the variant
+   active tab's 2px bar sits exactly on it, as wide as the tab's label padding. Every tab (General, the variant
    numbers, the table icon) has the same states: hover darkens the text, focus-visible draws a ring. */
 .editor-tabs { position:relative; display:flex; align-items:stretch; gap:4px; height:var(--ctl); }
 .editor-tabs::after { content:""; position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--ib-line); pointer-events:none; }
@@ -93,7 +93,7 @@
   .general-field input,.general-field textarea { font-size:16px; min-height:44px; }
 }
 
-/* «Загальне»: the fields in one column, the task's facts in a card beside them. */
+/* “General”: the fields in one column, the task's facts in a card beside them. */
 .exercise-general-fields { display:flex; flex-direction:column; gap:16px; max-width:860px; }
 .exercise-general-fields .general-field { max-width:none; margin:0; gap:6px; }
 .exercise-general-fields .general-editor { height:auto; min-height:0; max-height:none; resize:vertical; }
@@ -158,7 +158,7 @@
 @media (pointer:coarse) { .hint-row-head,.hint-row-toggle { min-height:44px; } }
 @media (prefers-reduced-motion:reduce) { .hint-row-chevron,.hint-row-actions { transition:none; } }
 .hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:12px; border-top:1px solid var(--ib-line); }
-/* A section's «+ Додати …» sits at the right end of its header. */
+/* A section's "+ Add …" sits at the right end of its header. */
 .subtask-section-action { margin-left:auto; }
 .subtask-filebar { display:flex; flex-wrap:wrap; align-items:center; min-width:0; font-size:13.5px; }
 .subtask-filebar>:first-child { flex:1; min-width:0; }
@@ -181,7 +181,7 @@ button.subtask-drop:hover { border-color:var(--ib-action); color:var(--ib-ink); 
 button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .subtask-flag-box { display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
 .subtask-flag-delivery { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
-/* «Заданий» / «Шаблон»: a segment attached to the left of the flag field, its full height; the field's border and
+/* “Fixed” / “Template”: a segment attached to the left of the flag field, its full height; the field's border and
    6px radius round its outer corners, the inner side is square with a divider before the input. */
 .flag-mode-switch { display:inline-flex; flex:none; height:100%; border-right:1px solid var(--ib-line); background:var(--ib-hero); }
 .flag-mode-switch>* { height:100%; }

@@ -55,7 +55,7 @@ function refWords(ref: NetworkIPRefDTO | null | undefined, text: string): string
 
 const GRID = "grid min-w-0 text-sm grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-4 @lg:grid-cols-[minmax(6.75rem,0.8fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)]"
 
-/** «Мережа»: interfaces as rows. A closed row is a plain text summary, an open row is the form; one is open at a time. */
+/** “Network”: interfaces as rows. A closed row is a plain text summary, an open row is the form; one is open at a time. */
 export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionProps) {
   const { control, getValues } = useFormContext<DraftFormValues>()
   const base = `Variants.${variantIndex}.Topology.Devices.${deviceIndex}` as const

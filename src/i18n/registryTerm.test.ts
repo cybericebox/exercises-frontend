@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import uk from "../../messages/uk.json"
 import errorsUk from "../../messages/errors.uk.json"
 
-// The image registry is «реєстр образів»; «сховище» stays only for other meanings (files, secrets, physical storage).
+// The image registry is "image registry" (reiestr obraziv); "storage" (skhovyshche) stays only for other meanings (files, secrets, physical storage).
 describe("image registry wording", () => {
   const texts = [...Object.values(uk), ...Object.values(errorsUk)] as string[]
 

@@ -45,7 +45,7 @@ export type ExerciseOwnership = {
   Infrastructure: boolean
   /** Some device of the published version has a browser console (access kind «terminal»): not meant for events. */
   UsesConsole: boolean
-  /** An approved resource elevation: the task is marked «ресурсоємне». */
+  /** An approved resource elevation: the task is marked “Resource-heavy”. */
   ResourceHeavy: boolean
   PendingProposalID: string | null
   /** null when the server sent none (older API) — callers fall back to RBAC. */

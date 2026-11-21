@@ -1,4 +1,4 @@
-// «Налаштування файлів cookie» in the account menu: always shown (no GA needed), a link to the
+// “Cookie settings” in the account menu: always shown (no GA needed), a link to the
 // cookie policy (NEXT_PUBLIC_COOKIES_URL) that opens the consent panel instead of navigating.
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"

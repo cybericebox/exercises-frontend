@@ -241,7 +241,7 @@ describe("DeviceImageField", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("exercises.image.err.invalidConfig"))
   })
 
-  it("«Замінити» on a platform image takes a new archive", async () => {
+  it(`"Replace" on a platform image takes a new archive`, async () => {
     h.uploadImage.mockResolvedValue(`platform:web@sha256:${"9".repeat(64)}`)
     render(<Harness image={REF} />)
     fireEvent.click(screen.getByRole("button", { name: "exercises.image.replaceTip" }))
@@ -350,7 +350,7 @@ describe("DeviceImageField", () => {
     expect(signal.aborted).toBe(true)
   })
 
-  it("«Скасувати» stops the upload", async () => {
+  it(`"Cancel" stops the upload`, async () => {
     h.uploadImage.mockImplementation(() => new Promise<string>(() => undefined))
     render(<Collapsible />)
     drop(archive())

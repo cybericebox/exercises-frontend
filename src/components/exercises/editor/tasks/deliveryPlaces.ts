@@ -5,7 +5,7 @@ import type { DeviceSection } from "@/lib/editorPosition"
 /**
  * A place where the answer of a task reaches a device, with what the editor needs to open it: the form path of the exact
  * row (variable value, file content, script) and the section of the device dialog that holds it. A variable is edited in
- * «Сервіс»; a file and the script in «Ініціалізація».
+ * “Service”; a file and the script in “Initialization”.
  */
 export type DeliveryPlace = {
   kind: "env" | "file" | "script"

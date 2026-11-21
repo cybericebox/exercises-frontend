@@ -1,5 +1,5 @@
 /**
- * password-input.test.tsx — the «Показати» / «Сховати» button reveals / hides the value,
+ * password-input.test.tsx — the “Show” / “Hide” button reveals / hides the value,
  * can share its state with another field, and is hidden while disabled.
  */
 import { describe, it, expect, vi } from 'vitest'

@@ -27,7 +27,7 @@ describe("error messages follow the daemon catalog", () => {
     expect(Object.keys(uk).sort()).toEqual(Object.keys(en).sort())
   })
 
-  it("uses the app's terms in the new texts (no bootstrap, no «наприклад»)", () => {
+  it(`uses the app's terms in the new texts (no bootstrap, no "for example" (napryklad))`, () => {
     for (const code of DAEMON_CODES) expect(uk[String(code)]).not.toMatch(/bootstrap|наприклад/i)
   })
 })

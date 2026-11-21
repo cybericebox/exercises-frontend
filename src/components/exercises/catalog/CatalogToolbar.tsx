@@ -54,7 +54,7 @@ export type ToolbarProps = {
   onChange: (patch: Partial<CatalogFilters>) => void
   columns: ColumnSetting[]
   onColumns: (columns: ColumnSetting[]) => void
-  /** The layout is the default (no «Скинути» in the columns menu). */
+  /** The layout is the default (no “Reset” in the columns menu). */
   columnsDefault: boolean
   /** Default order, visibility and widths. */
   onColumnsReset: () => void
@@ -70,7 +70,7 @@ export type ToolbarProps = {
 }
 
 /**
- * The one row over the catalog table: search, a chip per filter (status, author, tags; more through «Фільтр»),
+ * The one row over the catalog table: search, a chip per filter (status, author, tags; more through “Filter”),
  * then the columns, import, guide and create actions as icons. On a phone: search, filters (a sheet), more, create.
  */
 export function CatalogToolbar(props: ToolbarProps) {

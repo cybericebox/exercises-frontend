@@ -27,8 +27,8 @@ import { focusFieldSoon } from "./focus"
 const REPORT_MS = 8000
 
 /**
- * «Змінні»: the variables of the schema. A row is plain text when closed (the value masked with an eye) and editable only
- * when opened; one is open at a time. «Де використовується» has one chip per place; it opens that exact row.
+ * “Variables”: the variables of the schema. A row is plain text when closed (the value masked with an eye) and editable only
+ * when opened; one is open at a time. “Used in” has one chip per place; it opens that exact row.
  */
 export function VariablesTable({ variantIndex, disabled, onOpenUse }: { variantIndex: number; disabled: boolean; onOpenUse: (use: VariableUse) => void }) {
   const { control, getValues } = useFormContext<DraftFormValues>()

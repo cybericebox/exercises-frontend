@@ -2,8 +2,8 @@ import { t } from "@/i18n/t"
 import { findRefs } from "@/lib/editor/refs"
 
 /**
- * The text the author sees for a substitution: `{{task.web}}` is shown as `{{відповідь: <task name>}}` and `{{var.pw}}` as
- * `{{змінна: pw}}`, so the task key is never shown. The form keeps the raw token; these two functions convert at the edge of
+ * The text the author sees for a substitution: `{{task.web}}` is shown as `{{answer: <task name>}}` and `{{var.pw}}` as
+ * `{{variable: pw}}`, so the task key is never shown. The form keeps the raw token; these two functions convert at the edge of
  * the field. A text that matches no task name stays as typed.
  */
 export type RefTask = { Key: string; Name: string }

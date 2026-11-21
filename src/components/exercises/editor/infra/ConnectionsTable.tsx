@@ -31,8 +31,8 @@ export function decodeEndpoint(value: string): NormalizedEndpoint {
 }
 
 /**
- * «Зʼєднання»: pairs of endpoints (device and port, the VPN gateway, the Internet). A row opens by its chevron or a click
- * (no pencil) into two dropdowns; the row actions are «показати на схемі» and the trash.
+ * “Connections”: pairs of endpoints (device and port, the VPN gateway, the Internet). A row opens by its chevron or a click
+ * (no pencil) into two dropdowns; the row actions are “Show on the schema” and the trash.
  */
 export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpand, selectedIndex, onShow, onAdded }: {
   variantIndex: number

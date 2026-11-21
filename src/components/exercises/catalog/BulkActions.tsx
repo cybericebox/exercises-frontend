@@ -40,7 +40,7 @@ const canEdit = (item: ExerciseListItem) => Boolean(item.Permissions?.CanEdit)
 const canManageAccess = (item: ExerciseListItem) => Boolean(item.Permissions?.CanManageAccess)
 
 /**
- * The bar over the catalog table for the selected tasks: export, «Змінити доступ», «Архівувати», «Розархівувати».
+ * The bar over the catalog table for the selected tasks: export, “Change access”, “Archive”, “Unarchive”.
  * An action shows only when the user may perform it for at least one selected task and runs on those tasks only (the
  * rest are reported as skipped); the server checks every task again by the single-task rule and skips the refused
  * ones, which the summary lists with the reasons.

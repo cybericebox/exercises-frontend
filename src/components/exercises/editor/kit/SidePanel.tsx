@@ -10,7 +10,7 @@ import { cn } from "@/utils/cn"
 /**
  * H10 — the one side panel for every node kind (device, network, gateway): a read-only summary, no editable
  * fields. The header holds the name and the close cross only; the footer is pinned to the bottom and holds the actions
- * («Налаштувати», the trash «Видалити»). The panel spans the full height of its area (H5), rows at the top.
+ * (“Configure”, the trash “Delete”). The panel spans the full height of its area (H5), rows at the top.
  */
 export function SidePanel({ title, subtitle, onClose, footer, children, className }: {
   title: string
@@ -39,7 +39,7 @@ export function SidePanel({ title, subtitle, onClose, footer, children, classNam
 export type SummaryRow = {
   key: string
   label: string
-  /** Plain words; on/off is «Увімкнено» / «Вимкнено», never a switch. */
+  /** Plain words; on/off is “Enabled” / “Off”, never a switch. */
   value: ReactNode
   /** A click opens the editor on the section that holds this fact. */
   onSelect?: () => void

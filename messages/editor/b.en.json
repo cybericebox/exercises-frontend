@@ -111,7 +111,7 @@
   "ed.b.cond.file.checksum": "Checksum sha256",
   "ed.b.cond.file.checksum.def": "64 hexadecimal characters.",
   "ed.b.cond.file.checksum.help": "The checksum of the content of the file.",
-  "ed.b.cond.file.checksum.ph": "64 шістнадцяткові символи",
+  "ed.b.cond.file.checksum.ph": "64 hexadecimal characters",
   "ed.b.cond.file.contains": "Contains",
   "ed.b.cond.file.contains.def": "An answer of a subtask or a schema variable can be inserted.",
   "ed.b.cond.file.contains.help": "Text the file must contain.",

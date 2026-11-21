@@ -30,7 +30,7 @@ const filled = (kind: ObservationKind, patch: Record<string, unknown>): Conditio
 }
 
 describe("validation of the eight condition kinds", () => {
-  it("file: an absolute path; «Відсутній» stands alone; checksum, mode and content rules", () => {
+  it(`file: an absolute path; "Absent" stands alone; checksum, mode and content rules`, () => {
     expect(issues(filled("file", { Path: "/etc/x" }))).toEqual([])
     expect(issues(filled("file", { Path: "etc/x" }))).toEqual(["Check.State.Conditions.0.File.Path: ed.b.val.pathAbsolute"])
     expect(issues(filled("file", { Path: "" }))).toEqual(["Check.State.Conditions.0.File.Path: ed.b.val.pathRequired"])
@@ -62,7 +62,7 @@ describe("validation of the eight condition kinds", () => {
     expect(issues(filled("port", { Port: "70000" }))).toEqual(["Check.State.Conditions.0.Port.Port: ed.b.val.portRange"])
   })
 
-  it("kernel parameter: a name and «Дорівнює» or a pattern", () => {
+  it(`kernel parameter: a name and "Equals" or a pattern`, () => {
     expect(issues(filled("kernelParam", { Name: "net.ipv4.ip_forward", Equals: "1" }))).toEqual([])
     expect(issues(filled("kernelParam", { Name: "", Equals: "1" }))).toEqual(["Check.State.Conditions.0.KernelParam.Name: ed.b.val.kernelName"])
     expect(issues(filled("kernelParam", { Name: "x" }))).toEqual(["Check.State.Conditions.0.KernelParam.Equals: ed.b.val.kernelValue"])

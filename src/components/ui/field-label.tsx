@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn"
 import { FieldHelp } from "@/components/ui/field-help"
 import type { HelpContent } from "@/components/ui/help-content"
 
-/** Splits the text before its last word: `["Назва великого ", "поля"]`. */
+/** Splits the text before its last word: `["A long field ", "name"]`. */
 function splitLast(text: string): [string, string] {
   const match = /^([\s\S]*?)(\S+)$/.exec(text)
   return match ? [match[1], match[2]] : ["", text]

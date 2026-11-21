@@ -247,7 +247,7 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
     const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
     expect(publishDraft).not.toHaveBeenCalled()
-    // «Перейти» opens the subtask and closes the list.
+    // “Go to” opens the subtask and closes the list.
     fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
     expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()

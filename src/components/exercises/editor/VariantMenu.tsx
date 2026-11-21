@@ -31,8 +31,8 @@ function rowsOf(variants: { ID: string; LinkedTo: string; Weight: number }[]): R
 }
 
 /**
- * The variant dropdown of the tab row (B2, B3): «Варіант N ▾», its menu lists the variants (one of many: a dot in the
- * reserved left column, the weight on the right), then «Додати варіант» and «Усі варіанти».
+ * The variant dropdown of the tab row (B2, B3): "Variant N ▾", its menu lists the variants (one of many: a dot in the
+ * reserved left column, the weight on the right), then “Add a variant” and “All variants”.
  */
 export function VariantMenu() {
   const { form, variantIndex, selectVariant, goTo, openWizard, disabled } = useEditor()

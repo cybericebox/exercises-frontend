@@ -34,7 +34,7 @@ describe("column widths", () => {
     expect(columns.slice(0, 4)).toEqual([{ key: "author", visible: true, width: MIN_WIDTH }, { key: "status", visible: true, width: MAX_WIDTH }, { key: "access", visible: true }, { key: "tags", visible: false }])
   })
 
-  it("stores the «Назва» width on a name entry and reads it back", () => {
+  it(`stores the "Name" width on a name entry and reads it back`, () => {
     const layout = withWidth(withWidth({ columns: DEFAULT_COLUMNS }, NAME_COLUMN, 150), "author", 222)
     expect(layout.nameWidth).toBe(NAME_MIN_WIDTH)
     const stored = layoutToStored(layout)

@@ -16,7 +16,7 @@ const placeText = (place: DeliveryPlace): string => {
 }
 
 /**
- * «Куди передається відповідь» (D7) — read-only. Lists every place of the variant where `{{task.<key>}}` reaches a device
+ * “Where the answer goes” (D7) — read-only. Lists every place of the variant where `{{task.<key>}}` reaches a device
  * (a variable, a file, the script) as links that open the device's section on the exact row. The link to the infrastructure
  * is NOT edited here: the answer is placed in the device's own settings.
  */

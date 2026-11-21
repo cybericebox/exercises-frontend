@@ -191,7 +191,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   const labFailed = !expired && (startFailed || status?.Phase === "Failed" || status?.Phase === "Error")
   const ready = isStatic || (status?.Ready ?? false)
   const labState = useMemo(() => labChip(status, startFailed, devices), [status, startFailed, devices])
-  // The end stays in view as the mockup has it: the chip and the panel say «Завершуємо тест» until the page leaves.
+  // The end stays in view as the mockup has it: the chip and the panel say “Ending the test” until the page leaves.
   const chip = ending || ended ? { ...labState, kind: "removing" as const } : labState
   // The VPN button belongs to a lab with a VPN gateway: the status says so, the schema says so until the status arrives.
   const hasVpnGateway = Boolean(status?.Gateways?.some((gateway) => gateway.Kind === "vpn") || devices?.some((device) => device.Type === "vpn_gateway"))

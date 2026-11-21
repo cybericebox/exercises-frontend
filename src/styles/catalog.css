@@ -3,7 +3,7 @@
 .catalog-screen{--ctl:36px;display:flex;flex:1 1 auto;min-width:0;min-height:0;flex-direction:column;gap:12px}
 @media(pointer:coarse){.catalog-screen{--ctl:44px}}
 
-/* Toolbar: search, filter chips, then icon tools and «Створити». The bulk bar takes its place at the same height. */
+/* Toolbar: search, filter chips, then icon tools and “Create”. The bulk bar takes its place at the same height. */
 .catalog-toolbar,.catalog-bulkbar{display:flex;flex:none;align-items:center;gap:8px;min-height:var(--ctl)}
 .catalog-toolbar{align-items:flex-start}
 .catalog-chips{display:flex;flex:1;min-width:0;flex-wrap:wrap;align-items:center;gap:8px}

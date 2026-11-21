@@ -17,8 +17,8 @@ import { Field, TextControl } from "./fields"
 import { checkChoiceOf, setCheckChoice, type CheckChoice } from "./taskShared"
 
 /**
- * «Перевірка» (D7, D8) — one control, Прапор | Текст | Стан. Flag and text: «Значення» and «Підказка в полі вводу» side by
- * side, and the read-only block «Куди передається відповідь» under them. State: mode, interval, manual run and the
+ * “Check” (D7, D8) — one control, Flag | Text | State. Flag and text: “value” and “Hint in the input field” side by
+ * side, and the read-only block “Where the answer goes” under them. State: mode, interval, manual run and the
  * conditions. The kind of check is the same in every variant.
  */
 export function CheckSection({ variantIndex, taskIndex }: { variantIndex: number; taskIndex: number }) {

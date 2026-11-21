@@ -49,7 +49,7 @@ export function registryAccessDeniedText(error: unknown, isAdmin: boolean): stri
 
 /**
  * The help line under a failed registry request: a configuration or access problem (72801, 72832) is fixed by an
- * administrator in «Панель платформи», not by checking the connection; null keeps the general line.
+ * administrator in “Platform panel”, not by checking the connection; null keeps the general line.
  */
 export function registryErrorHelp(error: unknown): string | null {
   const code = error instanceof ApiError ? error.code : undefined

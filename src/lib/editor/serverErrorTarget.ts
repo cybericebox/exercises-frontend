@@ -70,7 +70,7 @@ export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, 
 
 /**
  * Puts a document error beside its field: `setError` on the one target, and returns the line for the problems dialog
- * («Перейти»). Null: the error is not placeable, the caller keeps it form-level.
+ * (“Go to”). Null: the error is not placeable, the caller keeps it form-level.
  */
 export function placeServerFieldError(error: unknown, form: Pick<UseFormReturn<DraftFormValues>, "setError" | "getValues"> & { control?: object }): EditorIssue[] | null {
   const targets = serverFieldTargets(error, form.getValues())

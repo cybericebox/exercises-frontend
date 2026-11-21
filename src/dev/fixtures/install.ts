@@ -32,8 +32,8 @@ const SERVER_ERRORS = {
   variables: { code: 23506, context: { device: "srv", field: "bootstrap.env[1].name" } },
   access: { code: 23506, context: { device: "r1", field: "access[1].command" } },
   profile: { code: 23105, context: { device: "r2", field: "persistence" } },
-  description: { code: 23519, context: { task: "secret", task_name: "Знайдіть прапор", variant: 1, field: "description" } },
-  hint: { code: 23519, context: { task: "ospf", task_name: "Налаштуйте OSPF", variant: 1, field: "hints[2].text" } },
+  description: { code: 23519, context: { task: "secret", task_name: "Find the flag", variant: 1, field: "description" } },
+  hint: { code: 23519, context: { task: "ospf", task_name: "Configure OSPF", variant: 1, field: "hints[2].text" } },
   answer: { code: 23504, context: { task: "theory", field: "check.answer.values", variant: 1 } },
   state: { code: 23505, context: { task: "ospf", field: "check.state.conditions[2].file.path" } },
   variable: { code: 23507, context: { field: "variables[1].name" } },
@@ -298,7 +298,7 @@ function deployStatus(startedAt: number, sw: Switches, gateways: FixtureGateway[
   return status
 }
 
-/** A small YAML writer for the «Документ» dialog (the real one is the daemon's). */
+/** A small YAML writer for the “Document” dialog (the real one is the daemon's). */
 async function documentYaml(draft: ReturnType<typeof buildDraft>): Promise<string> {
   const scalar = (value: unknown): string => typeof value === "string" ? (/^[\w./:-]+$/.test(value) && value !== "" ? value : JSON.stringify(value)) : String(value)
   const dump = (value: unknown, indent: number): string => {

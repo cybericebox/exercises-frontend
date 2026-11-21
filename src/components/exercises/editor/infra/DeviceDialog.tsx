@@ -26,7 +26,7 @@ export const DEVICE_SECTIONS: { id: DeviceSection; label: string }[] = [
 
 /**
  * The device editor (E5): a wide dialog, the section list on the left (wrapping on a phone), one section on the right.
- * Everything saves as it is typed (the form is the draft); «Готово» only closes. In a linked variant only the image is
+ * Everything saves as it is typed (the form is the draft); “Done” only closes. In a linked variant only the image is
  * editable and the dialog says so.
  */
 export function DeviceDialog({ variantIndex, deviceIndex, section, onSection, onClose, readOnly, linkedBaseIndex, imageEditable, onOpenVariables }: {

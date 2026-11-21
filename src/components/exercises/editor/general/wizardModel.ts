@@ -49,7 +49,7 @@ export function defaultPreset(base: VariantFormValues): PresetId {
   return info.files.length > 0 ? "files" : info.free.length > 0 ? "answers" : "image"
 }
 
-/** «Інші відповіді» with every answer delivered into the lab: variants are not needed. */
+/** “Other answers” with every answer delivered into the lab: variants are not needed. */
 export function presetBlocked(preset: PresetId, base: VariantFormValues): boolean {
   return preset === "answers" && baseInfo(base).free.length === 0
 }

@@ -14,7 +14,7 @@ import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { clockTime, durationSeconds, type StateTaskView } from "@/lib/testLab"
 import type { NormalizedTask } from "@/api/exercises/versions"
 
-/** «30 с», «5 хв», «2 год»: an interval as the participant reads it. */
+/** "30 s", "5 min", "2 h": an interval as the participant reads it. */
 export function intervalText(seconds: number): string {
   if (seconds % 3600 === 0) return t("ed.d.unit.hours", { n: seconds / 3600 })
   if (seconds % 60 === 0) return t("ed.d.unit.minutes", { n: seconds / 60 })
@@ -23,7 +23,7 @@ export function intervalText(seconds: number): string {
 
 /**
  * The check of a task that the laboratory makes by itself. The participant sees only the verdict, when it was reached and
- * «Перевірити зараз» (when the task allows it, at most 3 a minute: the next ask answers 429 and the button waits). The
+ * “Check now” (when the task allows it, at most 3 a minute: the next ask answers 429 and the button waits). The
  * definition of the check, what it observed and the laboratory's own words stay in the author's panel.
  */
 export function StateCheck({ deployId, task, view }: { deployId: string; task: NormalizedTask; view: StateTaskView }) {

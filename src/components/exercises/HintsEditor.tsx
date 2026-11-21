@@ -46,7 +46,7 @@ function HintTextEditor({ text, onChange, disabled, invalid, ariaLabel, describe
 
 /**
  * HintsEditor — a task's hints, as expandable rows (the same affordance as every other expandable row, H13: a chevron in
- * its own column, or a click on the row) that show «1. Натяк  text» and open to edit the level and the text. Count, order
+ * its own column, or a click on the row) that show "1. Hint  text" and open to edit the level and the text. Count, order
  * and level are shared by every variant (changes apply to all of them); the text is edited per variant. Every row shows
  * its level, open or closed. The text editor is the task description's. A row with an error opens by itself.
  */

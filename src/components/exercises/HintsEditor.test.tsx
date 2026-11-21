@@ -97,7 +97,7 @@ describe("HintsEditor", () => {
   })
 })
 
-it("has one «Додати підказку» action; the empty state is compact", () => {
+it(`has one "Add hint" action; the empty state is compact`, () => {
  render(<Harness />)
  expect(screen.getAllByRole("button", { name: "exercises.hints.add" })).toHaveLength(1)
  // A compact empty state.

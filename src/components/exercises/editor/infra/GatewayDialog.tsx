@@ -35,7 +35,7 @@ function nextFreeRange(ranges: DHCPRangeDTO[]): DHCPRangeDTO | null {
 
 /**
  * The small settings dialog of a gateway device (H10): its name, DHCP with its ranges, the DNS of an Internet gateway, and
- * for a VPN gateway the switch «Дозволити зворотні зʼєднання». Same shell as the device editor, small. A new name applies
+ * for a VPN gateway the switch “Allow reverse connections”. Same shell as the device editor, small. A new name applies
  * at once with every reference to the gateway; a name that does not pass stays a draft with its error beside the field.
  */
 export function GatewayDialog({ variantIndex, deviceIndex, disabled, onClose }: {

@@ -47,9 +47,9 @@ const DEVICE_OPTIONS: { type: DeviceType; label: string; prefix: string }[] = [
 const PANEL_WIDTH = "xl:w-[23.75rem]"
 
 /**
- * «Інфраструктура» of one variant: the sub-view row (Схема, Пристрої, Зʼєднання, Змінні), the schema canvas with the one
+ * “Infrastructure” of one variant: the sub-view row (Diagram, Devices, Connections, Variables), the schema canvas with the one
  * side panel, the tables, and the dialogs of the nodes. The form owns the topology; only the view, the selection and
- * transient actions live here (the opened node and its section are the editor's position, so «Перейти» can open them).
+ * transient actions live here (the opened node and its section are the editor's position, so “Go to” can open them).
  */
 export function InfraWorkspace() {
   const { variantIndex, disabled, resources, goTo } = useEditor()

@@ -9,7 +9,7 @@ export type HelpContent = {
   intro: string | string[]
   /** One line per value or mode: «term — text». */
   items?: { term: string; text: string }[]
-  /** The default or the empty meaning («Типово вимкнено.»). */
+  /** The default or the empty meaning (“Off by default”). */
   default?: string
 }
 

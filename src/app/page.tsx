@@ -144,7 +144,7 @@ export default function Page() {
     return event ? event.Name || event.Tag : undefined
   }
   const writableEventIds = writableEvents(access).map((event) => event.ID)
-  // The one writable event the filter names: where «Створити» and «Імпорт» start.
+  // The one writable event the filter names: where “Create” and “Import” start.
   const [onlyEvent] = filters.events
   const filteredEvent = filters.events.length === 1 && writableEventIds.includes(onlyEvent) ? onlyEvent : null
 

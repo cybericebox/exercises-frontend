@@ -7,10 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { t } from "@/i18n/t"
 
 // ds-v2 confirm dialog: a question as the title, one or two lines about the
-// consequence, «Скасувати» + the action. tone="danger" makes the action the
-// solid danger button. Focus starts on «Скасувати»; Esc and the backdrop
+// consequence, “Cancel” + the action. tone="danger" makes the action the
+// solid danger button. Focus starts on “Cancel”; Esc and the backdrop
 // cancel unless the action is running. Errors stay inside the dialog. While busy the action
-// shows the crest and busyLabel («Видаляємо…»), so the operation is named.
+// shows the crest and busyLabel (“Deleting”), so the operation is named.
 export function ConfirmDialog({ open, onCancel, title, description, confirmLabel, busyLabel, cancelLabel, tone = "default", busy = false, disabled = false, error, onConfirm, onCloseAutoFocus, surfaceClassName, bodyClassName, children }: {
   open: boolean
   onCancel: () => void

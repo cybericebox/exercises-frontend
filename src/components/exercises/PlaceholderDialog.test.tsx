@@ -68,7 +68,7 @@ describe('PlaceholderDialog', () => {
     expect(screen.getByRole('menuitemradio', { name: /old-gw.*джерело недоступне/ })).toHaveClass('text-destructive')
   })
 
-  it('says «Оберіть шлюз» beside the select when the placeholder has no gateway (a removed one is cleared)', () => {
+  it('says "Select a gateway" beside the select when the placeholder has no gateway (a removed one is cleared)', () => {
     const existing: PlaceholderFormValues = { Key: 'ph_empty', Kind: 'gateway.subnet', IPReference: '', Gateway: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: '' }
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing} topology={{ ...unavailable, gateways: [attack] }} onSave={vi.fn()} />)
     const trigger = screen.getByRole('button', { name: 'Шлюз' })
@@ -213,7 +213,7 @@ describe('PlaceholderDialog', () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ Kind: 'external.link', DeviceName: 'web', Access: 'terminal' }))
   })
 
-  it('an access kind switched off in the device later disables «Вставити»', () => {
+  it('an access kind switched off in the device later disables "Insert"', () => {
     const existing: PlaceholderFormValues = { Key: 'ph_x', Kind: 'external.link', IPReference: '', Gateway: '', Octets1to3: '', LastOctet: 0, ShowMask: false, DeviceName: 'web', Access: 'terminal' }
     render(<PlaceholderDialog open onOpenChange={vi.fn()} value={existing}
       topology={{ ...unavailable, externalDevices: [{ name: 'web', access: ['http'] }] }} onSave={vi.fn()} />)

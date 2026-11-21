@@ -15,7 +15,7 @@ type RefFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onCh
   /** The raw text (with `{{task.<key>}}` and `{{var.<name>}}` tokens). */
   value: string
   onValueChange: (raw: string) => void
-  /** Show the «Вставити значення» button. */
+  /** Show the “Insert a value” button. */
   picker?: boolean
   mono?: boolean
   /** A text area (a script, the content of a file) instead of a line. */
@@ -23,7 +23,7 @@ type RefFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onCh
   rows?: number
   /** A plain typed value is shown as dots with an eye; a value that holds a reference is shown as it is. */
   mask?: boolean
-  /** Offers «Нова змінна схеми» in the picker: create the variable, then call `insert(name)` to put its token in. */
+  /** Offers “New schema variable” in the picker: create the variable, then call `insert(name)` to put its token in. */
   onNewVariable?: (insert: (name: string) => void) => void
   /** More tools at the right end of the field (a button that opens a larger editor). */
   expandTool?: ReactNode
@@ -36,7 +36,7 @@ type Piece = { text: string; kind: "plain" | "task" | "var" | "unknown" }
 
 const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-/** The substitutions as the author sees them (`{{відповідь: Вхід}}`, `{{змінна: pw}}`). */
+/** The substitutions as the author sees them (`{{answer: Entry}}`, `{{variable: pw}}`). */
 function tokenRe(): RegExp {
   return new RegExp(`\\{\\{\\s*(${escapeRe(t("ed.ui.ref.tagAnswer"))}|${escapeRe(t("ed.ui.ref.tagVar"))}):\\s*(.+?)\\s*\\}\\}`, "g")
 }
@@ -68,10 +68,10 @@ const TOKEN_CLASS = {
 
 /**
  * RefField — a text field for a value that may hold references to answers and schema variables. ONE notation: the
- * highlighted brace token in the code font (`{{відповідь: Вхід}}`, `{{змінна: pw}}`), atomic (one Backspace removes it
+ * highlighted brace token in the code font (`{{answer: Entry}}`, `{{variable: pw}}`), atomic (one Backspace removes it
  * whole), an unknown reference underlined. The form keeps the raw token (`{{task.<key>}}`, `{{var.<name>}}`); the field
  * shows names and inserts a picked answer or variable at the caret. Optional: several lines, a masked plain value with an
- * eye, «Нова змінна схеми» in the picker, an expand tool. The ref is the input (or the text area).
+ * eye, “New schema variable” in the picker, an expand tool. The ref is the input (or the text area).
  */
 export const RefField = forwardRef<HTMLInputElement & HTMLTextAreaElement, RefFieldProps>(function RefField({
   variantIndex, value, onValueChange, picker = true, mono = true, multiline = false, rows = 4, mask = false, onNewVariable, expandTool, excludeTaskKey,

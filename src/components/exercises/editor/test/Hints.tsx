@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 
-/** Hints of a task in catalog order, each collapsed as «Підказка N · level» with an eye button that shows it. */
+/** Hints of a task in catalog order, each collapsed as "Hint N · level" with an eye button that shows it. */
 export function HintList({ hints, revealed, onReveal, render }: {
   hints: { hint: NormalizedHint; index: number }[]
   revealed: ReadonlySet<string>

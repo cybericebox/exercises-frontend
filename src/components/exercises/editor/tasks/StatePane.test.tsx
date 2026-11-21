@@ -34,7 +34,7 @@ function chooseKind(kind: ObservationKind, n = 1) {
 beforeEach(() => { vi.clearAllMocks() })
 
 describe("StatePane: mode, interval and manual run", () => {
-  it("shows mode, «Інтервал перевірки» and the manual switch in one row and writes them", () => {
+  it(`shows mode, "Check interval" and the manual switch in one row and writes them`, () => {
     const { values } = renderState()
     const pane = screen.getByTestId("state-pane")
     expect(within(pane).getByText("ed.b.state.interval")).toBeInTheDocument()
@@ -183,7 +183,7 @@ describe("condition kinds: behaviour", () => {
     return result
   }
 
-  it("file: «Відсутній» hides and drops every other expectation", () => {
+  it(`file: "Absent" hides and drops every other expectation`, () => {
     const c = emptyCondition("file", "d1")
     c.File = { ...c.File, Path: "/etc/x", Exists: true, Mode: "0640", Contains: "root" }
     const { values } = renderState([c])
@@ -217,7 +217,7 @@ describe("condition kinds: behaviour", () => {
     expect(conditions(values)[0].Request).toMatchObject({ Protocol: "tcp", Path: "", Status: "" })
   })
 
-  it("permission: each action is «Не перевіряти / Дозволено / Заборонено»; at least one is required", async () => {
+  it(`permission: each action is "Do not check / Allowed / Forbidden"; at least one is required`, async () => {
     const { values, handles } = open("permission")
     fireEvent.change(screen.getByLabelText("ed.b.cond.permission.user"), { target: { value: "www-data" } })
     fireEvent.change(screen.getByLabelText("ed.b.cond.permission.path"), { target: { value: "/etc/shadow" } })
@@ -346,7 +346,7 @@ describe("what the laboratories can run", () => {
     expect(conditions(values)[0].File.Type).toBe("")
   })
 
-  it("without laboratory support for state checks the kind «Стан» says why and does not switch", () => {
+  it(`without laboratory support for state checks the kind "State" says why and does not switch`, () => {
     const { values } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { caps: { ...caps, Checks: "none" }, variants: [{ tasks: [task("task_1", "T")], devices: devices() }] })
     expect(screen.getByRole("status")).toHaveTextContent("ed.ui.lab.none")
     fireEvent.click(screen.getByRole("radio", { name: "ed.b.kind.state" }))

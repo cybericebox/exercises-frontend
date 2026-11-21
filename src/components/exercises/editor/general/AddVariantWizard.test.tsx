@@ -31,7 +31,7 @@ describe("AddVariantWizard", () => {
     expect(screen.getByRole("button", { name: "ed.a.wizard.next" })).toBeInTheDocument()
   })
 
-  it("shows the base, count and weight under a linked preset, and «Варіант для копіювання» under the copy", () => {
+  it(`shows the base, count and weight under a linked preset, and "Variant to copy" under the copy`, () => {
     setup()
     expect(screen.getByLabelText(/ed\.a\.wizard\.count/)).toHaveValue(1)
     expect(screen.getByLabelText(/ed\.a\.wizard\.weight/)).toHaveValue(1)
@@ -42,7 +42,7 @@ describe("AddVariantWizard", () => {
     expect(screen.getByRole("button", { name: "ed.a.wizard.create" })).toBeInTheDocument()
   })
 
-  it("«Інші відповіді»: step 2 has a ticked row with a generated flag, and Create adds a linked variant", async () => {
+  it(`"Other answers": step 2 has a ticked row with a generated flag, and Create adds a linked variant`, async () => {
     const ref = setup()
     await press("ed.a.wizard.next")
     const input = screen.getByRole("textbox", { name: /ed\.a\.wizard\.newAnswer/ })
@@ -111,7 +111,7 @@ describe("AddVariantWizard", () => {
     expect(ref.closed).toBe(1)
   })
 
-  it("«Інший образ»: refuses the base image and writes the own image to the variant", async () => {
+  it(`"Other image": refuses the base image and writes the own image to the variant`, async () => {
     const ref = setup()
     fireEvent.click(preset("image"))
     await press("ed.a.wizard.next")
@@ -125,7 +125,7 @@ describe("AddVariantWizard", () => {
     expect(variants[1].ImageOverrides).toEqual([{ DeviceID: "d1", Image: "img:2" }])
   })
 
-  it("«Інші файли та відповіді»: needs a file, uploads it and keeps it on the new variant", async () => {
+  it(`"Other files and answers": needs a file, uploads it and keeps it on the new variant`, async () => {
     upload.mockResolvedValue({ FileID: "up1", Name: "new.zip", Size: 3 })
     const a = baseVariant()
     a.Tasks[1].Attachments = [{ FileID: "f", Name: "old.zip" }]
@@ -144,7 +144,7 @@ describe("AddVariantWizard", () => {
     expect(upload).toHaveBeenCalled()
   })
 
-  it("«Копія варіанта» copies the chosen variant without a second step", async () => {
+  it(`"Copy of a variant" copies the chosen variant without a second step`, async () => {
     const a = baseVariant()
     const ref = setup([a, linkedVariant("b", "a", a, { first: ["ICE{bbbb}"] })])
     fireEvent.click(preset("copy"))
@@ -155,7 +155,7 @@ describe("AddVariantWizard", () => {
     expect(ref.closed).toBe(1)
   })
 
-  it("«Порожній варіант» appends an empty variant", async () => {
+  it(`"Empty variant" appends an empty variant`, async () => {
     const ref = setup()
     fireEvent.click(preset("empty"))
     await press("ed.a.wizard.create")

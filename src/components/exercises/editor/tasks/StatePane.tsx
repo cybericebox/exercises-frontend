@@ -24,7 +24,7 @@ import { useLabSupport } from "../labCapabilities"
 import { firstNodeDeviceId, lowerFirst } from "./taskShared"
 
 /**
- * «Стан» — the lab checks the devices itself, the participant types nothing. Mode, «Інтервал перевірки» and the manual run
+ * “State” — the lab checks the devices itself, the participant types nothing. Mode, “Check interval” and the manual run
  * in one compact row; the conditions below, numbered, collapsed to one line each, open to edit (no pencil, H13).
  */
 export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex: number; taskIndex: number; disabled: boolean }) {
@@ -35,7 +35,7 @@ export function StatePane({ variantIndex, taskIndex, disabled }: { variantIndex:
   const manual = useWatch({ control, name: `${base}.Manual` as `Variants.${number}.Tasks.${number}.Check.State.Manual` })
   const interval = useWatch({ control, name: `${base}.Interval` as `Variants.${number}.Tasks.${number}.Check.State.Interval` })
   const mode = useWatch({ control, name: `${base}.Mode` as `Variants.${number}.Tasks.${number}.Check.State.Mode` })
-  // «Перейти» to a field of a condition lands with that condition expanded (the position holds its index).
+  // “Go to” to a field of a condition lands with that condition expanded (the position holds its index).
   const [positionCondition, setPositionCondition] = useEditorPosition("condition")
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set(state.length === 1 ? [0] : []))
 

@@ -42,7 +42,7 @@ type Submission = { deviceId: string; variantId: string; file: File; isAdmin: bo
 
 /**
  * The image uploads of one editor, keyed by the stable device id. It lives above the device cards, so collapsing
- * a section or switching panels or devices never stops an upload; only «Скасувати» or leaving the editor does.
+ * a section or switching panels or devices never stops an upload; only “Cancel” or leaving the editor does.
  */
 export class ImageUploadStore {
   private states = new Map<string, DeviceImageUpload>()
@@ -170,7 +170,7 @@ export class ImageUploadStore {
     }
   }
 
-  /** «Скасувати»: stops the device's upload; the uploaded chunks stay and a new drop of the archive resumes. */
+  /** “Cancel”: stops the device's upload; the uploaded chunks stay and a new drop of the archive resumes. */
   cancel(deviceId: string) {
     this.controllers.get(deviceId)?.abort()
     this.controllers.delete(deviceId)
@@ -200,7 +200,7 @@ function locateDevice(variants: DraftFormValues["Variants"], deviceId: string, v
 
 type ImageUploadsValue = { store: ImageUploadStore; canWrite: boolean; focusName: () => void }
 
-/** Default for «Ввести назву»: the name field is on the page. */
+/** Default for “Enter the name”: the name field is on the page. */
 function focusNameField() {
   document.getElementById("exercise-name")?.focus()
 }
@@ -212,7 +212,7 @@ export function ImageUploadsProvider({ canWrite, flush, onNeedName, children }: 
   canWrite: boolean
   /** Saves the working copy (creates the task once its name is valid). */
   flush?: () => Promise<boolean>
-  /** «Ввести назву»: shows the tab with the task name and focuses it. */
+  /** “Enter the name”: shows the tab with the task name and focuses it. */
   onNeedName?: () => void
   children: React.ReactNode
 }) {

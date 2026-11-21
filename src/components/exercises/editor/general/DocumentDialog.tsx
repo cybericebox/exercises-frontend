@@ -17,7 +17,7 @@ import { useReturnFocus } from "./useReturnFocus"
 const BLOCK = "h-[min(60dvh,32rem)]"
 
 /**
- * «Документ»: the working copy as the exercise document (YAML, schema cib-exercise/1.0), read-only. The server builds
+ * “Document”: the working copy as the exercise document (YAML, schema cib-exercise/1.0), read-only. The server builds
  * it (`GET /exercises/{id}/draft/document`); it never holds secret values, and a reader who may not see answers gets it
  * without them.
  */

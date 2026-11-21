@@ -10,7 +10,7 @@ import { OptionSearch, OptionsBlock, useLoadedOptions, type ChoiceOption } from 
 
 const TAG_LIMIT = 50
 
-/** The words of a tag filter: «web і pcap, без crypto». */
+/** The words of a tag filter: "web and pcap, without crypto". */
 export function tagSummary(tags: string[], mode: TagMode, notTags: string[]): string {
   const parts: string[] = []
   if (tags.length) parts.push(tags.join(t(mode === "all" ? "exercises.filter.tags.and" : "exercises.filter.tags.or")))
@@ -19,8 +19,8 @@ export function tagSummary(tags: string[], mode: TagMode, notTags: string[]): st
 }
 
 /**
- * The tag filter: every tag can be required (+) or excluded (−); the required ones combine as «усі вибрані» (AND)
- * or «хоча б один» (OR), the excluded ones always leave a task out (NOT).
+ * The tag filter: every tag can be required (+) or excluded (−); the required ones combine as “all chosen” (AND)
+ * or “at least one” (OR), the excluded ones always leave a task out (NOT).
  */
 export function TagFilter({ tags, mode, notTags, active, onChange, searchAutoFocus = true }: {
   tags: string[]

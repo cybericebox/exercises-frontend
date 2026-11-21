@@ -109,7 +109,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const { formRef, focusField } = useEditorValidationFocus()
   // The editor's api for what lives above its provider (the publish check opens the issues list).
   const editorApi = useRef<EditorApi | null>(null)
-  // «Ввести назву» under the image field: the General tab, with the cursor in the name.
+  // “Enter the name” under the image field: the General tab, with the cursor in the name.
   const showNameField = () => {
     updatePosition("tab", "general")
     window.setTimeout(() => document.getElementById("exercise-name")?.focus(), 0)
@@ -165,7 +165,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     allowNavigation: leave.allowNavigation,
     onIssues: (issues) => editorApi.current?.showIssues(issues, "publish"),
   })
-  // «Перейти»: the tab, variant and sub-view that hold the field at a form path, then the field itself.
+  // “Go to”: the tab, variant and sub-view that hold the field at a form path, then the field itself.
   const goToField = useCallback((path: PropertyKey[]) => {
     if (permissions.write) setMode("edit")
     setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), path))

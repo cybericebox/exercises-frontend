@@ -135,8 +135,8 @@ export function bulkInitialAccess(items: Pick<ExerciseOwnership, "AccessLevel" |
 }
 
 /**
- * The catalog table's «Змінити доступ»: the same dialog for every selected task (PUT bulk/access). apply runs the
- * selection and reports the progress; the dialog shows it on the button («Змінюємо доступ… 3/10»).
+ * The catalog table's “Change access”: the same dialog for every selected task (PUT bulk/access). apply runs the
+ * selection and reports the progress; the dialog shows it on the button ("Changing access… 3/10").
  */
 export function BulkAccessDialog({ items, progress, onApply, onClose }: {
   items: (Pick<ExerciseOwnership, "AccessLevel" | "OriginEventID" | "AccessEvents">)[]

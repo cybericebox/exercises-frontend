@@ -16,7 +16,7 @@ import { BookingFormDialog } from "./BookingFormDialog"
 /**
  * The test deploy was refused with 409 72509: no free resources now. Says when the nearest
  * window starts and offers to book it; the nearest window comes from the error, else from
- * GET /test-labs/room. «Спробувати ще раз» starts the test again.
+ * GET /test-labs/room. “Try again” starts the test again.
  */
 export function NoRoomPanel({ error, variant, resources, onRetry, className }: {
   error: unknown

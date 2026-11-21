@@ -7,9 +7,9 @@ import { pluralKey } from "@/lib/presetLabels"
 import { t } from "@/i18n/t"
 
 /**
- * The phone filter panel, as in the prototype: a sheet from the bottom over the catalog titled «Фільтри й
- * сортування» with «Скинути», the filters applied as they change (the list behind updates), and «Показати N
- * завдань» that closes it. Esc or a tap outside closes it too. A window grown past the phone width closes it: the
+ * The phone filter panel, as in the prototype: a sheet from the bottom over the catalog titled "Filters and
+ * sorting" with “Reset”, the filters applied as they change (the list behind updates), and "Show N
+ * tasks" that closes it. Esc or a tap outside closes it too. A window grown past the phone width closes it: the
  * filters are inline there.
  */
 export function FiltersSheet({ open, onOpenChange, active, total, onReset, children }: {

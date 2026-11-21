@@ -5,7 +5,7 @@ import type { BootstrapFormValues, DeviceFormValues } from "@/lib/editor/schemas
 /**
  * Where the editor must be to show the field at a form path (`Variants.2.Tasks.1.Check.State.Conditions.0.Port.Port`):
  * the tab, the variant, the task, the infrastructure sub-view and the device dialog section. Used by the publish check,
- * the issues dialog («Перейти») and the server errors that carry a `field`.
+ * the issues dialog (“Go to”) and the server errors that carry a `field`.
  */
 /**
  * Which section of the device dialog holds each field of the device form model. `Record<keyof …>` makes a new field a
@@ -21,7 +21,7 @@ export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection>
   DHCP: "main", DHCPRanges: "main", DNS: "main", ReverseConnections: "main",
 }
 
-/** Environment variables are in «Сервіс»; files, the script, its interpreter and the timeout are in «Ініціалізація». */
+/** Environment variables are in “Service”; files, the script, its interpreter and the timeout are in “Initialization”. */
 export const BOOTSTRAP_FIELD_SECTION: Record<keyof BootstrapFormValues, DeviceSection> = {
   Env: "service", Files: "init", Script: "init", Interpreter: "init", Timeout: "init",
 }

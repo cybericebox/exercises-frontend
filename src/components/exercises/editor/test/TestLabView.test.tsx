@@ -139,7 +139,7 @@ describe("TestLabView", () => {
     expect(screen.getByText(t("ed.d.dev.initFailedAttempt", { n: 3, max: 3 }))).toBeTruthy()
   })
 
-  it("deploy failure: the app's error state with the reasons and «Спробувати ще раз», which starts again", async () => {
+  it(`deploy failure: the app's error state with the reasons and "Try again", which starts again`, async () => {
     vi.mocked(deployStatus).mockResolvedValue(status({ Phase: "Failed", Devices: [{ Name: "srv", Ready: false, Bootstrap: { Phase: "failed", Attempts: 3, Reason: "script exited with 1" } }] }))
     vi.mocked(deployVariant).mockResolvedValue({ DeployID: "d2", Lab: "" })
     open()

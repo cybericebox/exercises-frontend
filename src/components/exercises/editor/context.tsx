@@ -20,7 +20,7 @@ export type EditorTarget =
 /** Dialogs the editor area hosts (inside the form, so they can read it). The exercise-level ones live in ExercisePage. */
 export type EditorDialogName = "wizard" | "document" | "issues"
 
-/** What the «Загальне» view needs from the page (the identity form is separate from the draft form). */
+/** What the “General” view needs from the page (the identity form is separate from the draft form). */
 export type EditorPageData = {
   identityForm: UseFormReturn<IdentityFormValues>
   exercise: Exercise | null
@@ -64,7 +64,7 @@ export type EditorApi = {
   openWizard: () => void
   /** The list of invalid fields behind the issues dialog. */
   issues: IssuesState | null
-  /** Opens «Перед публікацією виправте» (publish) or «Тест може не запуститися» (test; `onRunAnyway` starts it anyway). */
+  /** Opens “Fix before publishing” (publish) or “The test may not start” (test; `onRunAnyway` starts it anyway). */
   showIssues: (issues: EditorIssue[], mode?: IssuesMode, onRunAnyway?: () => void) => void
 }
 

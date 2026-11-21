@@ -83,15 +83,15 @@ function tasks(second: boolean) {
   const own = (answer: string, file: string) => ({ Check: { Answer: { Type: "flag", Values: [answer] } }, Attachments: [{ FileID: `f-${file}`, Name: "notes.txt", ContentHash: file }] })
   return [
     {
-      ID: T(1), Key: "theory", Name: "Протокол маршрутизації", Difficulty: "elementary", Requires: [],
-      Description: lexical("Який протокол стану каналу використовує алгоритм Дейкстри?"),
-      Check: { Answer: { Type: "text", Values: [second ? "OSPFv2" : "OSPF"], IgnoreCase: true, InputHint: "Назва протоколу" } },
+      ID: T(1), Key: "theory", Name: "Routing protocol", Difficulty: "elementary", Requires: [],
+      Description: lexical("Which link-state protocol uses Dijkstra's algorithm?"),
+      Check: { Answer: { Type: "text", Values: [second ? "OSPFv2" : "OSPF"], IgnoreCase: true, InputHint: "Protocol name" } },
       Attachments: [], Placeholders: [],
-      Hints: [{ ID: "h1", Text: "Назва протоколу починається на O і розшифровується як Open Shortest Path First.", Level: "direction" }],
+      Hints: [{ ID: "h1", Text: "The protocol name starts with O and stands for Open Shortest Path First.", Level: "direction" }],
     },
     {
-      ID: T(2), Key: "ospf", Name: "Налаштуйте OSPF", Difficulty: "medium", Requires: ["theory"],
-      Description: lexical("Налаштуйте OSPF на маршрутизаторі r1 так, щоб він встановив сусідство з r2.\nВикористайте область 0 і збережіть конфігурацію."),
+      ID: T(2), Key: "ospf", Name: "Configure OSPF", Difficulty: "medium", Requires: ["theory"],
+      Description: lexical("Configure OSPF on router r1 so that it forms an adjacency with r2.\nUse area 0 and save the configuration."),
       Check: {
         State: {
           Mode: "once", Interval: "30s", Manual: true,
@@ -106,13 +106,13 @@ function tasks(second: boolean) {
       },
       Attachments: [], Placeholders: [],
       Hints: [
-        { ID: "h2", Text: "Команди конфігурації вводяться через vtysh.", Level: "nudge" },
-        { ID: "h3", Text: "Увімкніть процес командою router ospf, потім додайте мережу з областю 0.", Level: "steps" },
+        { ID: "h2", Text: "Configuration commands are entered through vtysh.", Level: "nudge" },
+        { ID: "h3", Text: "Enable the process with the router ospf command, then add the network with area 0.", Level: "steps" },
       ],
     },
     {
-      ID: T(3), Key: "secret", Name: "Знайдіть прапор", Difficulty: "easy", Requires: ["ospf"],
-      Description: lexical("Після налаштування мережі сервіс на {{ph_srv}} стане доступним. Знайдіть прапор."),
+      ID: T(3), Key: "secret", Name: "Find the flag", Difficulty: "easy", Requires: ["ospf"],
+      Description: lexical("Once the network is configured, the service at {{ph_srv}} becomes reachable. Find the flag."),
       Check: second ? own("ICE{b7d2e4f19a03c58d}", "b").Check : { Answer: { Type: "flag", Values: ["template:ICE{[a-f0-9]{16}}"], InputHint: "ICE{…}" } },
       Attachments: second ? own("", "b").Attachments : [{ FileID: "f-a", Name: "notes.txt", ContentHash: "a" }],
       Placeholders: [
@@ -139,26 +139,26 @@ export function buildDraft(shape: DraftShape = "rich") {
   const stateOnly = (list: ReturnType<typeof tasks>) => { if (shape === "needless") list[0].Check = { State: { Mode: "once", Interval: "", Manual: false, Conditions: [] } } as unknown as typeof list[0]["Check"]; return list }
   return {
     ID: FIXTURE_DRAFT_ID, ExerciseID: FIXTURE_EXERCISE_ID, Status: "draft", Label: "",
-    Name: "Маршрутизація і сервіс", Description: "Налаштування динамічної маршрутизації між двома маршрутизаторами та пошук прихованого сервісу за ними.", Tags: ["network", "academy"],
-    AdminNote: "Образ frr зібрано з FRR 9.1. Перевірити ліміт часу скрипта на r2 перед публікацією.",
+    Name: "Routing and service", Description: "Set up dynamic routing between two routers and find the hidden service behind them.", Tags: ["network", "academy"],
+    AdminNote: "The frr image is built from FRR 9.1. Check the script time limit on r2 before publishing.",
     Variants: [
-      { ID: V1, Index: 1, Note: "Основний варіант", Weight: 2, Tasks: stateOnly(first), Topology: topology() },
-      { ID: V2, Index: 2, Note: "Варіант Б: інший прапор і файл", Weight: 1, LinkedTo: V1, Tasks: stateOnly(variantTwo(shape)), Topology: topology() },
+      { ID: V1, Index: 1, Note: "Main variant", Weight: 2, Tasks: stateOnly(first), Topology: topology() },
+      { ID: V2, Index: 2, Note: "Variant B: another flag and file", Weight: 1, LinkedTo: V1, Tasks: stateOnly(variantTwo(shape)), Topology: topology() },
     ],
     Resources: {
       Min: { CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 }, Max: { CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 },
       Variants: [{ VariantID: V1, CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 }, { VariantID: V2, CPUMillicores: 750, MemoryBytes: 805306368, Devices: 3, Blocks: 3 }],
       SpreadPercent: 0, VariantsDiffer: false, Outside: [], ResourceHeavy: false,
     },
-    Elevation: null, CreatedAt: NOW, CreatedBy: "u-fixture", AuthorName: "Тест Автор", PublishedAt: null,
+    Elevation: null, CreatedAt: NOW, CreatedBy: "u-fixture", AuthorName: "Test Author", PublishedAt: null,
   }
 }
 
 export function buildExercise() {
   return {
-    ID: FIXTURE_EXERCISE_ID, Name: "Маршрутизація і сервіс", Description: "Налаштування динамічної маршрутизації між двома маршрутизаторами та пошук прихованого сервісу за ними.",
+    ID: FIXTURE_EXERCISE_ID, Name: "Routing and service", Description: "Set up dynamic routing between two routers and find the hidden service behind them.",
     Tags: ["network", "academy"], DraftVersionID: FIXTURE_DRAFT_ID, PublishedVersionID: null, ArchivedAt: null, HasChanges: true,
-    CreatedAt: NOW, CreatedBy: "u-fixture", AuthorName: "Тест Автор", UpdatedAt: NOW, UpdatedBy: "u-fixture", UpdatedByName: "Тест Автор",
+    CreatedAt: NOW, CreatedBy: "u-fixture", AuthorName: "Test Author", UpdatedAt: NOW, UpdatedBy: "u-fixture", UpdatedByName: "Test Author",
     Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEvent: null, AccessLevel: "all", AccessEventIDs: [], AccessEvents: [],
     OriginEventID: null, ForkedFrom: null, Infrastructure: true, UsesConsole: true, ResourceHeavy: false, PendingProposalID: null,
     Permissions: { CanRead: true, CanEdit: true, CanPublish: true, CanDelete: true, CanManageAccess: true, CanPropose: false, CanExport: true },
@@ -170,11 +170,11 @@ export function buildListItem() {
   return { ...e, HasDraft: true, Status: "draft_only", AvgDifficulty: 3, TaskCount: 3, TaskNames: tasks(false).map((task) => task.Name), VariantCount: 2 }
 }
 
-export const FIXTURE_ME = { ID: "u-fixture", FirstName: "Тест", LastName: "Автор", Email: "author@example.test", Role: "super_admin", Permissions: ["*"] }
+export const FIXTURE_ME = { ID: "u-fixture", FirstName: "Test", LastName: "Author", Email: "author@example.test", Role: "super_admin", Permissions: ["*"] }
 
 export const FIXTURE_ACCESS = {
   IsAdmin: true, CanCreateCatalog: true, CanPublish: true, CanDelete: true, CanExport: true, CanImport: true,
-  Events: [{ ID: FIXTURE_EVENT_ID, Name: "Весняний захід", Tag: "spring", CanWrite: true, InfrastructureAllowed: true }],
+  Events: [{ ID: FIXTURE_EVENT_ID, Name: "Spring event", Tag: "spring", CanWrite: true, InfrastructureAllowed: true }],
 }
 
 /** The lab states the page can be started in: `?labs=all|some|none|unknown|mixed` (default mixed). */
@@ -236,18 +236,18 @@ export function buildImportPreview(kind: ImportKind = "update") {
     item.ReplacesDraft = false
     item.Report = {
       Diff: { Variants: [
-        { Status: "added", Position: 1, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Протокол маршрутизації", Key: "theory" }, { Name: "Налаштуйте OSPF", Key: "ospf" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "r1" }, { Name: "r2" }], Removed: [] } },
-        { Status: "added", Position: 2, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Знайдіть прапор", Key: "secret" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "srv" }], Removed: [] } },
+        { Status: "added", Position: 1, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Routing protocol", Key: "theory" }, { Name: "Configure OSPF", Key: "ospf" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "r1" }, { Name: "r2" }], Removed: [] } },
+        { Status: "added", Position: 2, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Find the flag", Key: "secret" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "srv" }], Removed: [] } },
       ] },
       Issues: [], Publishable: true, Warnings: [{ Code: "no_exercise_id" }], Usage: { Events: [], TestDeploys: 0 },
     } as unknown as typeof item.Report
   }
   if (kind === "blocked") {
     item.Report.Usage = { Events: [
-      { EventID: FIXTURE_EVENT_ID, Name: "Весняний захід", Archived: false, VersionPublished: true, RunningLabs: 2, Removed: [{ Name: "Налаштуйте OSPF", Attempts: 12, Solves: 4 }], Added: [], VariantMissing: false, Blocked: true },
-      { EventID: "44444444-4444-4444-8444-444444444444", Name: "Минулорічний захід", Archived: true, VersionPublished: false, RunningLabs: 0, Removed: [], Added: [], VariantMissing: true, Blocked: true },
+      { EventID: FIXTURE_EVENT_ID, Name: "Spring event", Archived: false, VersionPublished: true, RunningLabs: 2, Removed: [{ Name: "Configure OSPF", Attempts: 12, Solves: 4 }], Added: [], VariantMissing: false, Blocked: true },
+      { EventID: "44444444-4444-4444-8444-444444444444", Name: "Last year's event", Archived: true, VersionPublished: false, RunningLabs: 0, Removed: [], Added: [], VariantMissing: true, Blocked: true },
     ], TestDeploys: 0 } as unknown as typeof item.Report.Usage
-    item.Report.Warnings = [{ Code: "removed_task_has_attempts", Context: { event: "Весняний захід", task: "Налаштуйте OSPF", attempts: 12, solves: 4 } }, { Code: "used_by_events", Context: { events: 2 } }] as unknown as typeof item.Report.Warnings
+    item.Report.Warnings = [{ Code: "removed_task_has_attempts", Context: { event: "Spring event", task: "Configure OSPF", attempts: 12, solves: 4 } }, { Code: "used_by_events", Context: { events: 2 } }] as unknown as typeof item.Report.Warnings
   }
   return preview
 }
@@ -255,22 +255,22 @@ export function buildImportPreview(kind: ImportKind = "update") {
 function buildUpdatePreview() {
   return {
     Items: [{
-      ItemKey: "item-1", SourceExerciseID: FIXTURE_EXERCISE_ID, Name: "Маршрутизація і сервіс", SourceVersion: { Position: 1, Status: "published" },
+      ItemKey: "item-1", SourceExerciseID: FIXTURE_EXERCISE_ID, Name: "Routing and service", SourceVersion: { Position: 1, Status: "published" },
       SuggestedTarget: { ItemKey: "item-1", Mode: "update", ExerciseID: FIXTURE_EXERCISE_ID }, Target: { ItemKey: "item-1", Mode: "update", ExerciseID: FIXTURE_EXERCISE_ID },
-      TargetExercise: { ID: FIXTURE_EXERCISE_ID, Name: "Маршрутизація і сервіс", Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEventTag: "", HasDraft: true },
+      TargetExercise: { ID: FIXTURE_EXERCISE_ID, Name: "Routing and service", Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEventTag: "", HasDraft: true },
       SourceIDMismatch: false, ConfirmationRevision: "rev-1", ReplacesDraft: true,
       Summary: { Variants: { Added: 1, Removed: 0, Changed: 1 }, Subtasks: { Before: 3, After: 4 }, FlagsChanged: 1, Files: { Added: 1, Removed: 0 }, Images: { New: 0, Reused: 3 }, MetadataChanged: true },
       Report: {
         Diff: {
           Variants: [
-            { Status: "kept", Position: 1, StoredPosition: 1, MatchedBy: "id", Tasks: { Kept: [{ Name: "Налаштуйте OSPF", Key: "ospf", MatchedBy: "key" }], Added: [{ Name: "Нове підзавдання", Key: "extra" }], Removed: [] }, Devices: { Kept: [{ Name: "r1" }, { Name: "r2" }], Added: [{ Name: "srv2" }], Removed: [] } },
-            { Status: "added", Position: 3, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Знайдіть прапор", Key: "secret" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "srv" }], Removed: [] } },
+            { Status: "kept", Position: 1, StoredPosition: 1, MatchedBy: "id", Tasks: { Kept: [{ Name: "Configure OSPF", Key: "ospf", MatchedBy: "key" }], Added: [{ Name: "New subtask", Key: "extra" }], Removed: [] }, Devices: { Kept: [{ Name: "r1" }, { Name: "r2" }], Added: [{ Name: "srv2" }], Removed: [] } },
+            { Status: "added", Position: 3, StoredPosition: 0, Tasks: { Kept: [], Added: [{ Name: "Find the flag", Key: "secret" }], Removed: [] }, Devices: { Kept: [], Added: [{ Name: "srv" }], Removed: [] } },
           ],
         },
         Issues: [{ Code: 23513, Message: "state check in an event exercise", Path: "versions[0].variants[0].tasks[1].check" }],
         Publishable: false,
         Warnings: [{ Code: "used_by_events", Context: { events: 1 } }, { Code: "running_labs", Context: { labs: 2 } }],
-        Usage: { Events: [{ EventID: FIXTURE_EVENT_ID, Name: "Весняний захід", Archived: false, VersionPublished: true, RunningLabs: 2, Removed: [], Added: [{ Name: "Нове підзавдання" }], VariantMissing: false, Blocked: false }], TestDeploys: 1 },
+        Usage: { Events: [{ EventID: FIXTURE_EVENT_ID, Name: "Spring event", Archived: false, VersionPublished: true, RunningLabs: 2, Removed: [], Added: [{ Name: "New subtask" }], VariantMissing: false, Blocked: false }], TestDeploys: 1 },
       },
     }],
   }

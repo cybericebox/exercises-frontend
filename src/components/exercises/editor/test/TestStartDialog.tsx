@@ -33,7 +33,7 @@ export function initialLength(lengths: TestRunLengths): number {
 type Lengths = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; lengths: TestRunLengths }
 
 /**
- * The start of a test lab: the variant (one of many: the dot mark) and how long the lab lives. «Тестувати» opens this only
+ * The start of a test lab: the variant (one of many: the dot mark) and how long the lab lives. “Test” opens this only
  * when no lab of the exercise is running; a running one opens its test view directly.
  */
 export function TestStartDialog({ variants, busy, onStart, onClose }: TestStartDialogProps) {

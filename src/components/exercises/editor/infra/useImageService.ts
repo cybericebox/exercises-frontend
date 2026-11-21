@@ -15,7 +15,7 @@ export function resetImageServiceCache(): void {
 }
 
 /**
- * What the image itself runs (entrypoint, command, user): the default the «Сервіс» section shows. null while unknown:
+ * What the image itself runs (entrypoint, command, user): the default the “Service” section shows. null while unknown:
  * no image, an unsaved exercise (nothing to ask), the request is running or failed. `Known: false` is an answer too.
  */
 export function useImageService(image: string): ImageService | null {

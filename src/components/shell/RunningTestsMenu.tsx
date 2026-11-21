@@ -12,7 +12,7 @@ import { useActiveDeploys } from "@/lib/useActiveDeploys"
 export { timeLeft }
 
 /**
- * The navbar's indicator of the user's running test labs: «Запущено лабораторій: N», which
+ * The navbar's indicator of the user's running test labs: "Running labs: N", which
  * opens a modal listing each lab to open or end. Hidden with none; a refresh keeps the
  * previous list, so it never flickers.
  */

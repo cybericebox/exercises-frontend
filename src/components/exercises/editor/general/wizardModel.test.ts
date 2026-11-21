@@ -35,7 +35,7 @@ describe("wizardModel", () => {
     expect(defaultPreset(noFree)).toBe("image")
   })
 
-  it("blocks «Інші відповіді» when every answer reaches the lab", () => {
+  it(`blocks "Other answers" when every answer reaches the lab`, () => {
     const only = deliveredBase()
     only.Tasks.splice(1, 1)
     expect(presetBlocked("answers", only)).toBe(true)

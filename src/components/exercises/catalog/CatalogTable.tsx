@@ -124,7 +124,7 @@ function cell(key: CatalogColumn, item: ExerciseListItem, eventName: (id: string
 export function CatalogTable({ rows, columns, nameWidth, onWidth, selected, selecting, selectable, atLimit, allOnPage, pageSelectable, onToggle, onToggleAll, sortProps, eventName, regionRef, busy, state, footer }: {
   rows: ExerciseListItem[]
   columns: ColumnSetting[]
-  /** The user's width of «Назва»; absent = default. */
+  /** The user's width of “Name”; absent = default. */
   nameWidth?: number
   /** A column's new width, or `undefined` back to the default (saved with the column settings). */
   onWidth: (key: CatalogColumn | typeof NAME_COLUMN, width: number | undefined) => void

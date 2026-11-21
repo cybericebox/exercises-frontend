@@ -1,6 +1,6 @@
 /**
- * issues.ts — the list «Перед публікацією виправте»: every invalid field of the draft as one line
- * («Варіант 2, підзавдання 3, умова 1: Вкажіть порт від 1 до 65535»). The list only navigates; the message itself
+ * issues.ts — the list “Fix before publishing”: every invalid field of the draft as one line
+ * ("Variant 2, subtask 3, condition 1: Enter a port from 1 to 65535"). The list only navigates; the message itself
  * stays beside its field.
  */
 import { t } from "@/i18n/t"
@@ -20,7 +20,7 @@ export type EditorIssue = {
 const lowerFirst = (text: string) => (text ? text.charAt(0).toLowerCase() + text.slice(1) : text)
 const upperFirst = (text: string) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text)
 
-/** «підзавдання 3, умова 1»: where in the variant the path points. */
+/** "subtask 3, condition 1": where in the variant the path points. */
 function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
   const variant = typeof path[1] === "number" ? values.Variants[path[1]] : undefined
   if (!variant) return []
@@ -42,7 +42,7 @@ function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
   return parts
 }
 
-/** One line for a field of the draft: where it is («Варіант 2, підзавдання 3») and what is wrong. */
+/** One line for a field of the draft: where it is ("Variant 2, subtask 3") and what is wrong. */
 export function describeIssue(values: DraftFormValues, path: (string | number)[], message: string): EditorIssue {
   const variant = path[0] === "Variants" && typeof path[1] === "number" ? path[1] : null
   const where = [...(variant !== null && values.Variants.length > 1 ? [t("ed.shell.issue.variant", { n: variant + 1 })] : []), ...placeOf(values, path)]

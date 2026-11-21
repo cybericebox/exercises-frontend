@@ -30,7 +30,7 @@ export function DeviceFailure({ device }: { device: DeployDeviceStatus }) {
 
 /**
  * Live part of a device card: the failure, and for a persistence device the saved state,
- * «Скинути пристрій» and the rescue switch. The switch answers at once and saves through a
+ * “Reset the device” and the rescue switch. The switch answers at once and saves through a
  * queue, so quick changes never race and nothing is disabled while a save is pending.
  */
 export function DeviceLiveInfo({ deployId, device }: { deployId: string; device: DeployDeviceStatus | undefined }) {

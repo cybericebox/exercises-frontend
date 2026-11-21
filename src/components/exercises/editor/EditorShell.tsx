@@ -29,8 +29,8 @@ function moveFocus(event: KeyboardEvent<HTMLElement>) {
 }
 
 /**
- * The editor below the header: ONE tab row — «Загальне · [Варіант N ▾] · Підзавдання · Інфраструктура» (B2) — and the
- * view of the open tab. «Усі варіанти» is a view reached from the dropdown, not a tab. The views are the packages'
+ * The editor below the header: ONE tab row — "General · [Variant N ▾] · Subtasks · Infrastructure" (B2) — and the
+ * view of the open tab. “All variants” is a view reached from the dropdown, not a tab. The views are the packages'
  * (slots.ts); the shell only places them.
  */
 export function EditorShell() {
@@ -58,7 +58,7 @@ export function EditorShell() {
       </div>
     </div>
     {(tab === "tasks" || tab === "infrastructure") && <LinkedBar />}
-    {/* «Загальне» stays mounted: its fields keep their state while another view is open. */}
+    {/* “General” stays mounted: its fields keep their state while another view is open. */}
     <div role="tabpanel" id={`${uid}-general-panel`} aria-labelledby={`${uid}-general`} hidden={tab !== "general"} className="editor-panel"><GeneralView /></div>
     {tab === "variants" && panel("variants", "editor-variant-trigger", <AllVariantsView />)}
     {tab === "tasks" && panel("tasks", `${uid}-tasks`, <TasksView key={variantKey} />)}

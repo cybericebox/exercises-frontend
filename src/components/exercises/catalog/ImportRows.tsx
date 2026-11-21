@@ -16,7 +16,7 @@ import { importStagePercent, importStageText } from "@/lib/importStage"
 /**
  * The background imports as strips between the toolbar and the catalog table, below the unsaved-draft strip and
  * whatever the filters say: one strip per import. A running one is neutral (the draft row is yellow): the crest loader, the stage with
- * its counts and a bar once the total is known. A failed one is red with the error and «Подробиці», which opens the
+ * its counts and a bar once the total is known. A failed one is red with the error and “Details”, which opens the
  * dialog on the error. Nothing here blocks the catalog.
  */
 export function ImportRows({ onDetails }: { onDetails: (jobID: string) => void }) {

@@ -90,7 +90,7 @@ export type DeviceActions = {
   consoleReason: string
 }
 
-/** The kind of a device in words: a node is «вузол», a hub «концентратор», a switch «комутатор». */
+/** The kind of a device in words: a node is “Node”, a hub “hub”, a switch “switch”. */
 const DEVICE_KIND_KEY: Record<NormalizedDevice["Type"], string> = { node: "node", hub: "hub", "unmanaged-switch": "switch", vpn_gateway: "vpnGateway", internet_gateway: "internetGateway" }
 export const deviceKindText = (device: NormalizedDevice) => t(`ed.d.dev.kind.${DEVICE_KIND_KEY[device.Type]}`)
 
@@ -196,7 +196,7 @@ function CreatingBlock({ chip, queueMessage }: { chip: LabChip; queueMessage: st
   </div>
 }
 
-/** The «Пристрої» tab of the lab panel: how far the start is, then every device with its stage and what can be done with it. */
+/** The “Devices” tab of the lab panel: how far the start is, then every device with its stage and what can be done with it. */
 export function DeviceList({ topology, status, chip, deployId, expanded, onToggle, actions, author }: {
   topology: NormalizedTopology
   status: DeployStatus | null

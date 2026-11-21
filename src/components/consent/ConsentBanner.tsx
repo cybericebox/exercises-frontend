@@ -42,11 +42,11 @@ const BOX =
   "fixed inset-x-2 bottom-2 z-(--ib-z-consent) mx-auto rounded-md border border-border bg-card text-sm leading-relaxed text-muted-foreground focus-visible:outline-2 focus-visible:outline-[var(--ib-action)] sm:inset-x-4 sm:bottom-4"
 
 // Cookie consent in two layers, fixed to the bottom, non-blocking.
-// 1. Banner: a general line, «Налаштувати» and «Прийняти всі».
-// 2. Panel: categories (Необхідні — always on; Аналітика — off by default),
-//    «Зберегти вибір» and «Прийняти всі».
-// The Cookie Policy link is NEXT_PUBLIC_COOKIES_URL; with it empty the link and the «Докладніше» line are hidden by src/styles/cfg.css.
-// Shown when GA is configured and no choice exists; «Налаштування файлів cookie» opens the panel.
+// 1. Banner: a general line, “Configure” and “Accept all”.
+// 2. Panel: categories ("Necessary" — always on; "Analytics" — off by default),
+//    “Save choice” and “Accept all”.
+// The Cookie Policy link is NEXT_PUBLIC_COOKIES_URL; with it empty the link and the “Learn more” line are hidden by src/styles/cfg.css.
+// Shown when GA is configured and no choice exists; “Cookie settings” opens the panel.
 // Esc never counts as consent: it steps back from the panel, or closes a panel opened from settings.
 export function ConsentBanner({ gaId }: { gaId?: string }) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot)

@@ -97,7 +97,7 @@ async function openChip(label: string) {
   return screen.findByRole('dialog')
 }
 
-/** Adds a filter through «+ Фільтр» and returns its popover. */
+/** Adds a filter through "+ Filter" and returns its popover. */
 async function addFilter(label: string) {
   fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.add' }))
   fireEvent.click(await screen.findByRole('button', { name: label }))
@@ -159,7 +159,7 @@ describe('catalog columns', () => {
     expect(vi.mocked(saveCatalogColumns).mock.calls[0][0].slice(0, 3)).toEqual([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: true }])
   })
 
-  it('saves a resized column through the queue, keeps it for the next visit, and «Скинути» resets the widths', async () => {
+  it('saves a resized column through the queue, keeps it for the next visit, and "Reset" resets the widths', async () => {
     const { unmount } = render(<Page />)
     await screen.findByText('SQLi basics')
     const handle = () => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === 'admin.ex.col.author')!
@@ -191,7 +191,7 @@ describe('catalog columns', () => {
     expect(handle()).toHaveAttribute('aria-valuenow', '104')
   })
 
-  it('narrows «Назва» by 150px and widens «Теги» by 150px with the mouse; both are saved and come back on the next visit', async () => {
+  it('narrows "Name" by 150px and widens "Tags" by 150px with the mouse; both are saved and come back on the next visit', async () => {
     vi.mocked(getCatalogColumns).mockResolvedValue(null)
     const tagsShown = DEFAULT_COLUMNS.map((column) => column.key === 'tags' ? { ...column, visible: true } : column)
     localStorage.setItem(STORAGE_CATALOG_COLUMNS, JSON.stringify([{ key: 'name', visible: true, width: 360 }, ...tagsShown]))
@@ -209,7 +209,7 @@ describe('catalog columns', () => {
     expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
     drag('admin.ex.col.tags', 150)
     expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '330')
-    // Narrowing «Назва» stays narrow: nothing gives its space back to it.
+    // Narrowing “Name” stays narrow: nothing gives its space back to it.
     expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
     expect(others()).toEqual(before)
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
@@ -653,7 +653,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     window.history.replaceState(null, '', '/')
   })
 
-  it('adds the scope and infrastructure filters through «Фільтр» and removes them with ×', async () => {
+  it('adds the scope and infrastructure filters through "Filter" and removes them with ×', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     let popover = await addFilter('exercises.catalog.storage')

@@ -1,5 +1,5 @@
 // The profile's back arrow: admin, event and catalog sources get a destination tooltip; the
-// landing and unknown sources keep the plain «Назад» (no destination).
+// landing and unknown sources keep the plain “Back” (no destination).
 import { describe, expect, it, vi } from "vitest"
 import { backLabel } from "./backLink"
 import { resolveIdBack } from "./useBackLink"

@@ -16,8 +16,8 @@ import { SchemaTab } from "./SchemaView"
 export type DockTab = "devices" | "schema" | "author"
 
 /**
- * The lab panel at the right: «Пристрої» (how far the start is, every device, its access), «Схема» (the schema with the
- * stage of each device) and «Для автора» (what only the author sees about each task). The panel never shows data the
+ * The lab panel at the right: “Devices” (how far the start is, every device, its access), “Schema” (the schema with the
+ * stage of each device) and “For the author” (what only the author sees about each task). The panel never shows data the
  * participant must have in the task: that stays in the middle.
  */
 export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, currentTaskId, solvedIds, expanded, onToggleDevice, actions, schemaSelected, onSchemaSelect, onFull, author, onClose, sheet }: {
@@ -36,7 +36,7 @@ export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, c
   schemaSelected: string | null
   onSchemaSelect: (key: string | null) => void
   onFull: () => void
-  /** The author's data is shown («Для автора» tab, limits). */
+  /** The author's data is shown (“For the author” tab, limits). */
   author: boolean
   onClose: () => void
   /** Shown as a sheet over the page (narrow screens): the close button is always there. */

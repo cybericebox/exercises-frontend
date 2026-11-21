@@ -10,7 +10,7 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { FieldError } from "../fieldErrors"
 import { eligibleRequires, setSharedTaskValue } from "./taskShared"
 
-/** «Відкривається після» — the tasks that must be solved first; several may be chosen, offered by name. */
+/** “Opens after” — the tasks that must be solved first; several may be chosen, offered by name. */
 export function RequiresSection({ variantIndex, taskIndex, disabled }: { variantIndex: number; taskIndex: number; disabled: boolean }) {
   const form = useFormContext<DraftFormValues>()
   const tasks = useWatch({ control: form.control, name: `Variants.${variantIndex}.Tasks` }) ?? []

@@ -11,7 +11,7 @@ import { cn } from "@/utils/cn"
 import { taskRefOptions } from "./taskRefs"
 
 /**
- * TaskRefPicker — the «Вставити значення» menu of a field that takes expected values: the answers of the variant's tasks
+ * TaskRefPicker — the “Insert a value” menu of a field that takes expected values: the answers of the variant's tasks
  * (by task NAME, never by key) and the variables of the schema. `onPick` gets the raw token (`{{task.<key>}}`,
  * `{{var.<name>}}`) to put into the text. Only tasks with an answer are offered: a state check has no answer to insert.
  * The menu keeps the focus of the field it belongs to, so the caret is not lost.
@@ -23,7 +23,7 @@ export function TaskRefPicker({ variantIndex, onPick, disabled = false, classNam
   className?: string
   /** A task that must not be offered (the task being edited, where it has no sense). */
   excludeTaskKey?: string
-  /** Adds «Нова змінна схеми» to the menu: the owner opens its dialog and inserts the token of the new variable. */
+  /** Adds “New schema variable” to the menu: the owner opens its dialog and inserts the token of the new variable. */
   onNewVariable?: () => void
 }) {
   const { control } = useFormContext<DraftFormValues>()
