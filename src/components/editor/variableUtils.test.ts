@@ -8,6 +8,16 @@ import {
 
 // ── rawToHtml ─────────────────────────────────────────────────────────────────
 
+describe('single-line reading of pasted markup', () => {
+  it('leaves no tag behind nested or unclosed markup', () => {
+    for (const html of ['<<b>script>alert(1)</b>', '<scr<b></b>ipt>x', 'a <img src=x onerror=alert(1)']) {
+      expect(htmlToRawSingleLine(html), html).not.toContain('<')
+    }
+    expect(htmlToRawSingleLine('<<b>script>alert(1)')).toBe('script>alert(1)')
+    expect(htmlToRawSingleLine('1 &lt; 2 &amp;&amp; <b>x</b>')).toBe('1 < 2 && x')
+  })
+})
+
 describe('rawToHtml – bare mode (default)', () => {
   it('wraps a known variable in a var-pill span', () => {
     const result = rawToHtml('Hi {{Name}}', ['Name'])

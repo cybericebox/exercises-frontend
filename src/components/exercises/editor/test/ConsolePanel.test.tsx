@@ -153,7 +153,8 @@ describe("ConsolePanel", () => {
       vi.mocked(openDeployLink).mockResolvedValue(link)
       render(<ConsolePanel {...props} />)
       const frame = await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))
-      expect(posted).toHaveLength(1)
+      // The grant is posted by an effect after the frame is in the page: wait for that, not for the frame alone.
+      await waitFor(() => expect(posted).toHaveLength(1))
       expect(posted[0].target).toBe(frame.getAttribute("name"))
       expect(posted[0].action).toBe(link.URL)
     })
