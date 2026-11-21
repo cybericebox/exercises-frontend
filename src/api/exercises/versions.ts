@@ -1,7 +1,7 @@
 /**
  * versions.ts — exercise versions/lifecycle and draft snapshot types.
  *
- * Routes: GET /api/exercises/:id/versions[/:versionID], GET/PUT :id/draft,
+ * Routes: GET /api/exercises/:id/versions[/:versionID], GET/PUT/DELETE :id/draft,
  *   POST :id/publish, POST :id/checkpoints, POST :id/versions/:versionID/restore.
  *
  * DTO types transcribe the backend's exercise.saveDraftRequest/versionResponse 1:1
@@ -19,7 +19,7 @@
  *    is stored; an empty Value on save means "keep the stored one";
  *  - VisualRender is opaque backend JSON; the editor preserves its canvas layout.
  */
-import { apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
+import { apiDelete, apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
 import { normalizeElevation, type Elevation } from "./elevation"
 import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
@@ -332,6 +332,15 @@ export type Version = {
   CreatedBy: string | null
   AuthorName?: string // first and last name of CreatedBy; "" when unknown
   PublishedAt: string | null
+  /**
+   * Opaque revision of the version (for the working copy: what the next write of it sends back). Never parsed, compared
+   * or reformatted: it is echoed byte for byte. "" when the server sent none.
+   */
+  Revision?: string
+  /** When and by whom the version was last written ("" / null when unknown). */
+  UpdatedAt?: string
+  UpdatedBy?: string | null
+  UpdatedByName?: string
 }
 
 // ── Normalize ──────────────────────────────────────────────────────────────────
@@ -469,6 +478,7 @@ function normalizeVersion(raw: RawVersion): Version {
     Name: raw.Name, Description: raw.Description, Tags: raw.Tags === undefined ? undefined : [...(raw.Tags ?? [])],
     Label: raw.Label ?? "", Variants: (raw.Variants ?? []).map(normalizeVariant),
     Resources: normalizeResources(raw.Resources), Elevation: raw.Elevation ? normalizeElevation(raw.Elevation) : null,
+    Revision: raw.Revision ?? "", UpdatedAt: raw.UpdatedAt ?? "", UpdatedBy: raw.UpdatedBy ?? null, UpdatedByName: raw.UpdatedByName ?? "",
   }
 }
 
@@ -486,9 +496,12 @@ export async function getVersion(exerciseId: string, versionId: string): Promise
   return normalizeVersion(raw)
 }
 
-/** PUT /api/exercises/:id/draft — full snapshot */
-export async function saveDraft(exerciseId: string, input: SaveDraftInput): Promise<Version> {
-  const raw = await apiPut<RawVersion>(`${BASE}/${exerciseId}/draft`, input)
+/**
+ * PUT /api/exercises/:id/draft — full snapshot. `revision` is the revision of the working copy this snapshot was made
+ * from, exactly as the server gave it ("" when there was none); a stale one is refused with 409 (70922).
+ */
+export async function saveDraft(exerciseId: string, input: SaveDraftInput, revision: string): Promise<Version> {
+  const raw = await apiPut<RawVersion>(`${BASE}/${exerciseId}/draft`, { ...input, Revision: revision })
   return normalizeVersion(raw)
 }
 
@@ -510,11 +523,15 @@ export async function getDraft(exerciseId: string): Promise<Version> {
   return normalizeVersion(await apiGet<RawVersion>(`${BASE}/${exerciseId}/draft`))
 }
 
-/** PUT /api/exercises/:id/draft with keepalive — only for pagehide. */
-export function saveDraftKeepalive(exerciseId: string, input: SaveDraftInput): boolean {
-  return apiKeepalive("PUT", `${BASE}/${exerciseId}/draft`, input)
+/** PUT /api/exercises/:id/draft with keepalive — only for pagehide. Carries the revision like saveDraft. */
+export function saveDraftKeepalive(exerciseId: string, input: SaveDraftInput, revision: string): boolean {
+  return apiKeepalive("PUT", `${BASE}/${exerciseId}/draft`, { ...input, Revision: revision })
 }
 
+/** DELETE /api/exercises/:id/draft?revision= — discards the working copy the caller saw at `revision` (409 when it changed). */
+export async function discardDraft(exerciseId: string, revision: string): Promise<void> {
+  await apiDelete<void>(`${BASE}/${exerciseId}/draft?${new URLSearchParams({ revision })}`)
+}
 /** POST /api/exercises/:id/checkpoints — snapshot of the working copy with an optional caption (≤ 500). */
 export async function createCheckpoint(exerciseId: string, note = ""): Promise<Version> {
   const trimmed = note.trim()

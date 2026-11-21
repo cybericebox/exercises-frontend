@@ -13,6 +13,7 @@ import {
   publishDraft,
   getDraft,
   saveDraftKeepalive,
+  discardDraft,
   EMPTY_VERSION_ID,
   isStoredVersionId,
   createCheckpoint,
@@ -25,6 +26,9 @@ const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPut = vi.mocked(client.apiPut)
 const mockKeepalive = vi.mocked(client.apiKeepalive)
+const mockApiDelete = vi.mocked(client.apiDelete)
+// Six fractional digits with trailing zeros: a Date round trip would turn it into ".120Z".
+const REV = '2026-11-21T10:00:00.120000Z'
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const VER_ID = 'ffffffff-0000-1111-2222-333333333333'
@@ -71,14 +75,32 @@ describe('versions API paths', () => {
     expect(result.Variants).toEqual([])
   })
 
-  it('saveDraft PUTs the snapshot to /:id/draft', async () => {
-    mockApiPut.mockResolvedValueOnce(rawVersion)
+  it('saveDraft PUTs the snapshot with the revision it started from to /:id/draft', async () => {
+    mockApiPut.mockResolvedValueOnce({ ...rawVersion, Revision: '2026-11-21T10:00:02.000000Z', UpdatedAt: '2026-11-21T10:00:02Z', UpdatedBy: 'u1', UpdatedByName: 'Olena Koval' })
     const input = { AdminNote: '', Variants: [] }
-    await saveDraft(EX_ID, input)
+    const saved = await saveDraft(EX_ID, input, REV)
     expect(mockApiPut.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
-    expect(mockApiPut.mock.calls[0][1]).toBe(input)
+    expect(mockApiPut.mock.calls[0][1]).toEqual({ AdminNote: '', Variants: [], Revision: REV })
+    expect(saved).toMatchObject({ Revision: '2026-11-21T10:00:02.000000Z', UpdatedBy: 'u1', UpdatedByName: 'Olena Koval' })
   })
 
+  it('keeps the revision byte for byte and fills it when absent', async () => {
+    mockApiGet.mockResolvedValueOnce({ ...rawVersion, Revision: REV })
+    expect((await getDraft(EX_ID)).Revision).toBe(REV)
+    mockApiGet.mockResolvedValueOnce(rawVersion)
+    expect(await getDraft(EX_ID)).toMatchObject({ Revision: '', UpdatedAt: '', UpdatedBy: null, UpdatedByName: '' })
+  })
+
+  it('discardDraft DELETEs /:id/draft with ?revision=', async () => {
+    mockApiDelete.mockResolvedValueOnce(undefined)
+    await discardDraft(EX_ID, REV)
+    const url = new URL(mockApiDelete.mock.calls[0][0] as string, 'https://x')
+    expect(url.pathname).toBe(`/api/exercises/${EX_ID}/draft`)
+    expect(url.searchParams.get('revision')).toBe(REV)
+    mockApiDelete.mockResolvedValueOnce(undefined)
+    await discardDraft(EX_ID, '')
+    expect(new URL(mockApiDelete.mock.calls[1][0] as string, 'https://x').searchParams.get('revision')).toBe('')
+  })
   it('publishDraft POSTs to /:id/publish', async () => {
     mockApiPost.mockResolvedValueOnce(rawVersion)
     await publishDraft(EX_ID)
@@ -115,8 +137,8 @@ describe('versions API paths', () => {
   it('sends the working copy with keepalive on page unload', () => {
     mockKeepalive.mockReturnValueOnce(true)
     const input = { AdminNote: '', Variants: [] }
-    expect(saveDraftKeepalive(EX_ID, input)).toBe(true)
-    expect(mockKeepalive).toHaveBeenCalledWith('PUT', `/api/exercises/${EX_ID}/draft`, input)
+    expect(saveDraftKeepalive(EX_ID, input, REV)).toBe(true)
+    expect(mockKeepalive).toHaveBeenCalledWith('PUT', `/api/exercises/${EX_ID}/draft`, { ...input, Revision: REV })
   })
 })
 

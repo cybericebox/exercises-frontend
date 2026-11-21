@@ -101,7 +101,7 @@ describe("exercise page — modes", () => {
     const name = screen.getByLabelText(/ed.a.general.name.label/)
     expect(name).toBeEnabled()
     fireEvent.change(name, { target: { value: "Web 102" } })
-    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }), { timeout: 2000 })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, ""), { timeout: 2000 })
     expect(await screen.findByText("admin.exPage.save.saved")).toBeInTheDocument()
     expect(saveDraft).not.toHaveBeenCalled() // A name-only edit does not rewrite the unchanged working copy.
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
@@ -146,7 +146,7 @@ describe("exercise page — modes", () => {
     expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
-    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }), { timeout: 2000 })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }, ""), { timeout: 2000 })
   })
 
   it("treats an empty version param as the working copy, not a version view", async () => {
@@ -367,7 +367,7 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.test" }))
     fireEvent.click(await startButton())
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1&minutes=60"))
-    expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] })
+    expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] }, "")
     expect(saveDraft).not.toHaveBeenCalled()
   })
 
@@ -498,3 +498,29 @@ describe("exercise page — archive and delete", () => {
   })
 })
 
+
+describe("exercise page — working copy changed by someone else", () => {
+  it("shows who saved it beside the editor, keeps the edits, and reloads after a confirmation", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Revision: "2026-11-21T10:00:00.100000Z" })
+    vi.mocked(updateExercise).mockRejectedValueOnce(new ApiError(409, { Status: { Code: 70922, Message: "changed", Context: { revision: "2026-11-21T10:00:03.400000Z", savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" } } }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
+    const name = screen.getByLabelText(/ed.a.general.name.label/)
+    fireEvent.change(name, { target: { value: "Web 102" } })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "2026-11-21T10:00:00.100000Z"), { timeout: 2000 })
+    const notice = await screen.findByText("admin.exPage.conflict.byAt")
+    expect(notice.closest("[role=alert]")).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Web 102")
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled()
+
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Name: "Their name", Revision: "2026-11-21T10:00:03.400000Z" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.conflict.reload" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exPage.conflict.confirmDescription")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exPage.conflict.reload" }))
+    await waitFor(() => expect(screen.queryByText("admin.exPage.conflict.byAt")).not.toBeInTheDocument())
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Their name")
+    expect(updateExercise).toHaveBeenCalledTimes(1)
+  })
+})

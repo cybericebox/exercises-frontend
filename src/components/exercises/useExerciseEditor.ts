@@ -10,7 +10,7 @@ import { createExercise, getExercise, updateExercise, updateExerciseKeepalive, t
 import { getDraft, getVersion, isStoredVersionId, saveDraft, saveDraftKeepalive, type Version } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
-import { exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
+import { ERR_EXERCISE_MODIFIED, draftConflictOf, exerciseErrorCode, exerciseErrorMessage, type DraftConflict } from "@/lib/exerciseErrors"
 import {
   draftSchema, emptyDraft, identitySchema, toDraftFormValues, toSaveDraftInput,
   type DraftFormValues, type IdentityFormValues,
@@ -73,6 +73,13 @@ export type ExerciseEditor = {
   saveErrorIssues: () => EditorIssue[]
   getDraftVersionId: () => string
   reloadWorkingCopy: () => Promise<void>
+  /**
+   * Someone else saved, created or discarded the working copy since this editor loaded it (409, 70922): autosave stops,
+   * the unsaved edits stay in the form (and the browser buffer) until the author reloads. null otherwise.
+   */
+  conflict: DraftConflict | null
+  /** Drops the unsaved local edits and loads the current working copy (after a conflict). */
+  reloadAfterConflict: () => Promise<void>
   /** Replaces the latest elevation request shown for the working copy (after a request is sent). */
   setElevation: (elevation: Version["Elevation"]) => void
   /** The published version is shown read-only (no working copy access). */
@@ -103,6 +110,29 @@ function payloadSignature(value: unknown): string {
  */
 class IdentityRejectedError extends Error {
   constructor() { super("identity rejected") }
+}
+
+/** Thrown by save() while a conflict is shown: nothing is sent until the author reloads the working copy. */
+class DraftConflictPendingError extends Error {
+  constructor() { super("working copy changed by someone else") }
+}
+
+/**
+ * A key rotation racing the write answers 70904 (the secrets it was prepared against changed): the same write is sent
+ * once more, silently. A second 70904 is a real failure.
+ */
+async function retryOnceIfModified<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write()
+  } catch (error) {
+    if (exerciseErrorCode(error) !== ERR_EXERCISE_MODIFIED) throw error
+    return write()
+  }
+}
+
+/** The revision a write of the working copy starts from: the loaded draft's, or "" when no working copy is stored. */
+function workingCopyRevision(version: Version): string {
+  return version.Status === "draft" && isStoredVersionId(version.ID) ? version.Revision ?? "" : ""
 }
 
 /** The empty working copy (Variants: []) opens like a new exercise: one empty variant. */
@@ -140,6 +170,10 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const [readOnly, setReadOnly] = useState(false)
   const exerciseIdRef = useRef<string | null>(exerciseId)
   const draftVersionIdRef = useRef("")
+  // The opaque revision of the working copy the next write starts from (the last load or acknowledged write); echoed as is.
+  const revisionRef = useRef("")
+  const conflictRef = useRef<DraftConflict | null>(null)
+  const [conflict, setConflict] = useState<DraftConflict | null>(null)
   const savedIdentityRef = useRef("")
   const savedDraftRef = useRef<string | null>(null)
   const suppressRef = useRef(false)
@@ -194,6 +228,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     const fullIdentity = identitySchema.safeParse(identity)
     let id = exerciseIdRef.current
     let identityRejected = false
+    if (conflictRef.current) throw new DraftConflictPendingError()
     try {
       if (!id) {
         const name = identitySchema.shape.Name.safeParse(identity.Name)
@@ -203,6 +238,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         const createdExercise = await createExercise(owner ? { ...input, OwnerEventID: owner } : input)
         id = createdExercise.ID
         exerciseIdRef.current = id
+        revisionRef.current = createdExercise.DraftRevision ?? ""
         savedIdentityRef.current = JSON.stringify(input)
         if (userId) {
           writePendingChanges(pendingBufferKey(userId, id), identity, draftForm.getValues())
@@ -218,7 +254,9 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         // form; its raw values tell whether it differs from what is persisted.
         if (fullIdentity.success) {
           if (JSON.stringify(fullIdentity.data) !== savedIdentityRef.current) {
-            const updated = await updateExercise(id, fullIdentity.data)
+            const targetId = id
+            const updated = await retryOnceIfModified(() => updateExercise(targetId, fullIdentity.data, revisionRef.current))
+            revisionRef.current = updated.DraftRevision ?? ""
             savedIdentityRef.current = JSON.stringify(fullIdentity.data)
             rememberDraftVersion(updated.DraftVersionID ?? "")
             if (mountedRef.current) {
@@ -238,15 +276,18 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       const input = toSaveDraftInput(payload)
       if (payloadSignature(input) !== savedDraftRef.current) {
         const sent = capturedDraftIds(payload)
-        const saved = await saveDraft(id, input)
+        const targetId = id
+        const saved = await retryOnceIfModified(() => saveDraft(targetId, input, revisionRef.current))
+        revisionRef.current = saved.Revision ?? ""
         // Only an acknowledged server snapshot advances the baseline, never live edits
         // made while this request was pending. Include assigned IDs for subsequent saves.
         savedDraftRef.current = payloadSignature(toSaveDraftInput(toDraftFormValues(saved)))
         rememberDraftVersion(saved.ID)
         authorityRevisionRef.current += 1
-        if (mountedRef.current) setExerciseState((current) => current && { ...current, DraftVersionID: saved.ID, HasChanges: true })
+        const lastSave = { DraftRevision: saved.Revision ?? "", DraftUpdatedAt: saved.UpdatedAt || null, DraftUpdatedBy: saved.UpdatedBy ?? null, DraftUpdatedByName: saved.UpdatedByName ?? "" }
+        if (mountedRef.current) setExerciseState((current) => current && { ...current, DraftVersionID: saved.ID, HasChanges: true, ...lastSave })
         // The server recounts the resources and the elevation state on every save.
-        if (mountedRef.current) setVersion((current) => current && { ...current, ID: saved.ID, Resources: saved.Resources, Elevation: saved.Elevation })
+        if (mountedRef.current) setVersion((current) => current && { ...current, ID: saved.ID, Resources: saved.Resources, Elevation: saved.Elevation, Revision: saved.Revision, UpdatedAt: saved.UpdatedAt, UpdatedBy: saved.UpdatedBy, UpdatedByName: saved.UpdatedByName })
         // Computed before the ids are written: both guard on the variant ids that were sent.
         const secretUpdates = savedSecretUpdates(sent, saved, draftForm.getValues())
         const updates = serverIdUpdates(sent, saved, draftForm.getValues())
@@ -270,6 +311,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       return true
     } catch (error) {
       if (error instanceof IdentityRejectedError) throw error
+      // Someone else changed the working copy: stop here, keep the edits, and say so beside the editor (no toast).
+      const changed = draftConflictOf(error)
+      if (changed) {
+        conflictRef.current = changed
+        if (mountedRef.current) setConflict(changed)
+        throw error
+      }
       // One toast per distinct failure reason, not one per retry: the queue retries the
       // same save on every subsequent markChanged() until it succeeds, and would
       // otherwise spam identical "not saved" toasts for a single ongoing problem
@@ -316,11 +364,12 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     },
     sendKeepalive: () => {
       const id = exerciseIdRef.current
-      if (!id) return
+      // A conflict holds every write back; the browser buffer keeps the edits.
+      if (!id || conflictRef.current) return
       const identity = identitySchema.safeParse(identityForm.getValues())
-      if (identity.success && JSON.stringify(identity.data) !== savedIdentityRef.current) updateExerciseKeepalive(id, identity.data)
+      if (identity.success && JSON.stringify(identity.data) !== savedIdentityRef.current) updateExerciseKeepalive(id, identity.data, revisionRef.current)
       const draft = toSaveDraftInput(draftForm.getValues())
-      if (payloadSignature(draft) !== savedDraftRef.current) saveDraftKeepalive(id, draft)
+      if (payloadSignature(draft) !== savedDraftRef.current) saveDraftKeepalive(id, draft, revisionRef.current)
     },
   })
 
@@ -388,7 +437,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (key && pending && !apply) clearPendingChanges(key)
           setExercise(loaded)
           setVersion(loadedVersion)
-          if (!versionId) rememberDraftVersion(loadedVersion.ID)
+          if (!versionId) { rememberDraftVersion(loadedVersion.ID); revisionRef.current = workingCopyRevision(loadedVersion) }
           savedIdentityRef.current = JSON.stringify(identityOf(loaded, loadedVersion))
           const serverDraft = workingCopyValues(loadedVersion)
           savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
@@ -497,10 +546,28 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     setExercise(loaded)
     setVersion(draft)
     rememberDraftVersion(draft.ID)
+    revisionRef.current = workingCopyRevision(draft)
     savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
     savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
     applyValues(identityOf(loaded, draft), workingCopyValues(draft))
   }, [applyValues, rememberDraftVersion, setExercise])
+
+  const reloadAfterConflict = useCallback(async () => {
+    const id = exerciseIdRef.current
+    if (!id) return
+    // A failed reload leaves the conflict, the queue and the exact edits in place.
+    const [loaded, draft] = await Promise.all([getExercise(id), getDraft(id)])
+    await autosave.discard()
+    authorityRevisionRef.current += 1
+    setExercise(loaded); setVersion(draft); rememberDraftVersion(draft.ID)
+    revisionRef.current = workingCopyRevision(draft)
+    savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
+    savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
+    applyValues(identityOf(loaded, draft), workingCopyValues(draft))
+    lastSaveErrorRef.current = null
+    conflictRef.current = null
+    setConflict(null)
+  }, [autosave, setExercise, rememberDraftVersion, applyValues])
 
   const prepareImportReplacement = useCallback(async () => {
     checkPendingRef.current()
@@ -537,6 +604,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     await autosave.discard()
     authorityRevisionRef.current += 1
     setExercise(loaded); setVersion(draft); rememberDraftVersion(draft.ID)
+    revisionRef.current = workingCopyRevision(draft)
     savedIdentityRef.current = JSON.stringify(identityOf(loaded, draft))
     savedDraftRef.current = isStoredVersionId(draft.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(draft))) : null
     applyValues(identityOf(loaded, draft), workingCopyValues(draft))
@@ -596,5 +664,6 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   return {
     replacementActive, replacementRecovery, prepareImportReplacement, cancelImportReplacement, recordImportDispatch, reconcileImportReplacement,
     loadState, loadError, retryLoad, exercise, setExercise, version, identityForm, draftForm, autosave: editorAutosave, saveErrorIssues: () => placedIssuesRef.current, getDraftVersionId, reloadWorkingCopy, readOnly, setElevation, hasLocalDraft,
+    conflict, reloadAfterConflict,
   }
 }

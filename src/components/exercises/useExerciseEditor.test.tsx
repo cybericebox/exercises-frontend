@@ -141,7 +141,7 @@ describe("useExerciseEditor", () => {
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Newer metadata" } })
     expect(screen.getByLabelText("name")).toBeEnabled()
     await act(async () => { acknowledge({ ...exercise, Name: "First metadata", DraftVersionID: "draft-2" }); await flushed })
-    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] }, "")
     expect(latest.identityForm.getValues("Name")).toBe("Newer metadata")
   })
 
@@ -196,11 +196,11 @@ describe("useExerciseEditor", () => {
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "")
     expect(mockSaveDraft).not.toHaveBeenCalled()
     act(() => latest.draftForm.setValue("AdminNote", "real note"))
     await act(async () => { await latest.autosave.flush() })
-    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "real note" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "real note" }), "")
   })
 
   it("reverts against the acknowledged in-flight draft, not the latest observed local values", async () => {
@@ -215,7 +215,7 @@ describe("useExerciseEditor", () => {
     act(() => latest.draftForm.setValue("AdminNote", ""))
     await act(async () => resolve({ ...serverVersion, AdminNote: "sent note" }))
     expect(mockSaveDraft).toHaveBeenCalledTimes(2)
-    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "" }))
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "" }), "")
     expect(latest.draftForm.getValues("AdminNote")).toBe("")
     expect(latest.autosave.hasUnsaved()).toBe(false)
   })
@@ -230,7 +230,7 @@ describe("useExerciseEditor", () => {
       unmount()
     })
     await act(async () => {})
-    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "last words" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "last words" }), "")
   })
 
   it("uses the same canonical payload for no-op pagehide and subsequent drain", async () => {
@@ -359,7 +359,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockCreate).toHaveBeenCalledWith({ Name: "Buffer overflow", Description: "", Tags: [] })
     expect(onCreated).toHaveBeenCalledWith(created)
-    expect(mockSaveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ AdminNote: "" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ AdminNote: "" }), "")
     expect(screen.getByTestId("status")).toHaveTextContent("saved")
   })
 
@@ -469,10 +469,10 @@ describe("useExerciseEditor", () => {
     // flushing before it would find nothing to send.
     await waitFor(() => expect(latest.autosave.hasUnsaved()).toBe(true))
     await act(async () => { await latest.autosave.flush() })
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }, "")
     expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({
       Variants: [expect.objectContaining({ Tasks: [expect.objectContaining({ Name: "Edited offline", Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } } })] })],
-    }))
+    }), "")
   })
 
   it("turns the empty working copy into one editable variant and never exposes the zero ID", async () => {
@@ -615,7 +615,7 @@ describe("useExerciseEditor", () => {
     fireEvent.change(screen.getByLabelText("name"), { target: { value: " Web 102 " } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockUpdate).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "")
     act(() => { latest.draftForm.setValue("AdminNote", "note") })
     await act(async () => { await latest.autosave.flush() })
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
@@ -686,7 +686,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { resolveCreate(created) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockCreate).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).toHaveBeenCalledWith("new-exercise", { Name: "Buffer overflow 2", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("new-exercise", { Name: "Buffer overflow 2", Description: "", Tags: [] }, "")
   })
 
   it("forgets a /new buffer instead of restoring it without write permission", async () => {
@@ -737,7 +737,7 @@ describe("archive replacement ownership", () => {
   window.dispatchEvent(new Event("pagehide"))
   expect(saveDraftKeepalive).not.toHaveBeenCalled()
   await act(async () => { release({ ...serverVersion, AdminNote: "Local note" }); expect(await preparing).toBe(true) })
-  expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Local edit" }))
+  expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Local edit" }), "")
   mockGetExercise.mockResolvedValue({ ...exercise, Name: "Imported" })
   mockGetDraft.mockResolvedValue({ ...serverVersion, Name: "Imported", AdminNote: "Imported note" })
   await act(async () => { await latest.reconcileImportReplacement() })
@@ -832,6 +832,151 @@ describe("an edit made before the editor subscribes to its form", () => {
     await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("ready"))
     await act(async () => {}) // the passive effect that subscribes (and finds the early edit) has run
     await act(async () => { await latest.autosave.flush() })
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Typed early" }))
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Typed early" }), "")
+  })
+})
+
+
+describe("revision of the working copy", () => {
+  const R1 = "2026-11-21T10:00:00.100000Z"
+  const R2 = "2026-11-21T10:00:01.200000Z"
+  const R3 = "2026-11-21T10:00:02.300000Z"
+  const R4 = "2026-11-21T10:00:03.400000Z"
+  const conflictError = () => new ApiError(409, { Status: { Code: 70922, Message: "The working copy was changed by someone else", Context: { revision: R4, savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" } } })
+  const modifiedError = () => new ApiError(409, { Status: { Code: 70904, Message: "Exercise was modified concurrently" } })
+
+  function NoteHarness() {
+    const editor = useExerciseEditor({ exerciseId: "ex-1", versionId: null, editable: true, canWrite: true, userId: "editor-1", onCreated: vi.fn(), onPendingRestored: vi.fn() })
+    useLayoutEffect(() => { latest = editor })
+    if (editor.loadState !== "ready") return <p>loading</p>
+    return <form>
+      <input aria-label="name" {...editor.identityForm.register("Name")} />
+      <input aria-label="note" {...editor.draftForm.register("AdminNote")} />
+      <span data-testid="status">{editor.autosave.status}</span>
+      {editor.conflict && <p role="alert">{editor.conflict.savedBy} {editor.conflict.savedAt}</p>}
+    </form>
+  }
+
+  beforeEach(() => {
+    mockGetDraft.mockResolvedValue({ ...serverVersion, Revision: R1 })
+  })
+
+  it("sends the revision it started from with every write and takes the new one from each answer", async () => {
+    mockSaveDraft.mockResolvedValueOnce({ ...serverVersion, Revision: R2 }).mockResolvedValueOnce({ ...serverVersion, Revision: R4 })
+    mockUpdate.mockImplementationOnce(async (_id, input) => ({ ...exercise, ...input, DraftRevision: R3 }))
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "first" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "first" }), R1)
+    // One round with both edits: the identity PATCH sends R2, the PUT sends what the PATCH answered (R3).
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "second" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, R2)
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "second" }), R3)
+    expect(latest.version?.Revision).toBe(R4)
+  })
+
+  it("sends the current revision with the keepalive on pagehide", async () => {
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "leaving" } })
+    await act(async () => {})
+    act(() => { window.dispatchEvent(new Event("pagehide")) })
+    expect(saveDraftKeepalive).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "leaving" }), R1)
+  })
+
+  it("stops autosave on 70922, keeps the edits and names who saved; a reload takes the current working copy", async () => {
+    mockSaveDraft.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(latest.conflict).toEqual({ revision: R4, savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" })
+    expect(screen.getByRole("alert")).toHaveTextContent("Olena Koval")
+    expect(toast.error).not.toHaveBeenCalled()
+    // Further edits and flushes send nothing until the author reloads; the edits stay in the form.
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine, more" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    act(() => { window.dispatchEvent(new Event("pagehide")) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+    expect(saveDraftKeepalive).not.toHaveBeenCalled()
+    expect(screen.getByLabelText("note")).toHaveValue("mine, more")
+    expect(latest.autosave.hasUnsaved()).toBe(true)
+
+    mockGetDraft.mockResolvedValue({ ...serverVersion, Revision: R4, AdminNote: "theirs" })
+    await act(async () => { await latest.reloadAfterConflict() })
+    expect(latest.conflict).toBeNull()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("note")).toHaveValue("theirs")
+    expect(latest.autosave.hasUnsaved()).toBe(false)
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "on top of theirs" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "on top of theirs" }), R4)
+  })
+
+  it("keeps the conflict and the edits when the reload fails", async () => {
+    mockSaveDraft.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine" } })
+    await act(async () => { await latest.autosave.flush() })
+    mockGetDraft.mockRejectedValueOnce(new TypeError("offline"))
+    await act(async () => { await expect(latest.reloadAfterConflict()).rejects.toThrow("offline") })
+    expect(latest.conflict).not.toBeNull()
+    expect(screen.getByLabelText("note")).toHaveValue("mine")
+  })
+
+  it("stops on a 70922 answer to the identity PATCH too", async () => {
+    mockUpdate.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(latest.conflict?.savedBy).toBe("Olena Koval")
+    expect(latest.identityForm.getFieldState("Name").error).toBeUndefined()
+    expect(screen.getByLabelText("name")).toHaveValue("Web 102")
+  })
+
+  it("retries a write that raced a key rotation (70904) once, silently", async () => {
+    mockSaveDraft.mockRejectedValueOnce(modifiedError()).mockResolvedValueOnce({ ...serverVersion, Revision: R2 })
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "rotated" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockSaveDraft.mock.calls.map((call) => call[2])).toEqual([R1, R1])
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.getByTestId("status")).toHaveTextContent("saved")
+  })
+
+  it("reports a second 70904 in a row instead of retrying again", async () => {
+    mockSaveDraft.mockRejectedValueOnce(modifiedError()).mockRejectedValueOnce(modifiedError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "rotated" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(toast.error).toHaveBeenCalledTimes(1)
+    expect(latest.conflict).toBeNull()
+  })
+
+  it("keeps another control enabled and editable while a save is pending", async () => {
+    let acknowledge: (value: Version) => void = () => undefined
+    mockSaveDraft.mockReturnValueOnce(new Promise((resolve) => { acknowledge = resolve }))
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "slow" } })
+    let flushed: Promise<boolean> = Promise.resolve(true)
+    act(() => { flushed = latest.autosave.flush() })
+    await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+    expect(screen.getByLabelText("name")).toBeEnabled()
+    expect(screen.getByLabelText("note")).toBeEnabled()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Typed meanwhile" } })
+    expect(screen.getByLabelText("name")).toHaveValue("Typed meanwhile")
+    await act(async () => { acknowledge({ ...serverVersion, AdminNote: "slow", Revision: R2 }); await flushed })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Typed meanwhile", Description: "", Tags: [] }, R2)
   })
 })

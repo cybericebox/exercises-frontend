@@ -3,7 +3,8 @@
  * without a backend and a session. Loaded by components/dev/FixtureGate.tsx only under `next dev` with
  * NEXT_PUBLIC_EDITOR_FIXTURES=1; a production build refuses the flag (next.config.ts) and never contains this code.
  *
- * Keeps the working copy in memory: a save (PUT draft) is kept until the page is reloaded.
+ * Keeps the working copy in memory: a save (PUT draft) is kept until the page is reloaded. Like the daemon, every write of the
+ * working copy must send back its current Revision (the PUT and PATCH body, ?revision= on DELETE): a stale one is a 409 (70922).
  * Query switches on the page URL (kept for the tab in sessionStorage):
  *   ?labs=all|some|none|unknown|mixed   what the labs can run (LabCapabilities), default mixed
  *   ?deploy=ok|fail|retry|expired|ending|devfail  a test lab that comes up / ends in Failed / retries an initialization / is out of time / is about to end
@@ -13,6 +14,7 @@
  *   ?age=N                             a test lab starts N seconds old
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
  *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
+ *   ?conflict=1                         the next draft write (PUT draft, PATCH identity) answers 409 70922, as if another author had saved meanwhile
  *   ?fx=reset                           forget the switches
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
@@ -100,8 +102,26 @@ export function installFixtures(): void {
   if ((window as unknown as Record<string, unknown>)[KEY]) return
   ;(window as unknown as Record<string, unknown>)[KEY] = true
   const original = window.fetch.bind(window)
-  const draft = buildDraft(switches().shape)
-  const exercise = buildExercise()
+  const draft: ReturnType<typeof buildDraft> & { Revision?: string; UpdatedAt?: string; UpdatedBy?: string | null; UpdatedByName?: string } = buildDraft(switches().shape)
+  const exercise: ReturnType<typeof buildExercise> & { DraftRevision?: string; DraftUpdatedAt?: string | null; DraftUpdatedBy?: string | null; DraftUpdatedByName?: string } = buildExercise()
+  // The revision of the working copy: UTC with six fractional digits, like the daemon; each write makes a new one.
+  let micros = 0
+  const stamp = (by: string, name: string) => {
+    const now = new Date()
+    micros = (micros + 1) % 1000
+    const revision = now.toISOString().replace(/Z$/, `${String(micros).padStart(3, "0")}Z`)
+    Object.assign(draft, { Revision: revision, UpdatedAt: now.toISOString(), UpdatedBy: by, UpdatedByName: name })
+    Object.assign(exercise, { DraftRevision: revision, DraftUpdatedAt: now.toISOString(), DraftUpdatedBy: by, DraftUpdatedByName: name })
+  }
+  stamp(FIXTURE_ME.ID, `${FIXTURE_ME.FirstName} ${FIXTURE_ME.LastName}`)
+  let conflictArmed = new URLSearchParams(window.location.search).get("conflict") === "1"
+  // A write that did not start from the current revision is refused with the daemon's context; ?conflict=1 first lets "someone else" save.
+  const staleWrite = (sent: unknown): Response | null => {
+    if (conflictArmed) { conflictArmed = false; stamp("u-other", "Olena Koval") }
+    if (sent === draft.Revision) return null
+    return fail(409, 70922, (errorsEn as Record<string, string>)["70922"], { revision: draft.Revision ?? "", savedBy: draft.UpdatedByName ?? "", savedAt: draft.UpdatedAt ?? "" })
+  }
+  const me = () => stamp(FIXTURE_ME.ID, `${FIXTURE_ME.FirstName} ${FIXTURE_ME.LastName}`)
   const deploys = new Map<string, Deploy>()
   let counter = 0
   const uploadNames = new Map<string, string>()
@@ -159,7 +179,15 @@ export function installFixtures(): void {
       return fail(400, e.code, (errorsEn as Record<string, string>)[String(e.code)] ?? "fixture document error", e.context)
     }
     if (path === ex) {
-      if (method === "PATCH") { Object.assign(exercise, b); draft.Name = exercise.Name; return json(exercise) }
+      if (method === "PATCH") {
+        const stale = staleWrite(b.Revision)
+        if (stale) return stale
+        const { Name, Description, Tags } = b as { Name?: string; Description?: string; Tags?: string[] }
+        Object.assign(exercise, { Name, Description, Tags })
+        Object.assign(draft, { Name, Description, Tags })
+        me()
+        return json(exercise)
+      }
       return json(exercise)
     }
     if (path === `${ex}/draft`) {
@@ -167,10 +195,13 @@ export function installFixtures(): void {
         // Like the daemon: a draft with ':' in a node name or in a variable name of a node is refused (23202), the first one found.
         const colon = firstColonName(b.Variants)
         if (colon) return fail(400, 23202, (errorsEn as Record<string, string>)["23202"], colon)
+        const stale = staleWrite(b.Revision)
+        if (stale) return stale
         const sent = b as { AdminNote?: string; Variants?: unknown[] }
         if (typeof sent.AdminNote === "string") draft.AdminNote = sent.AdminNote
         if (Array.isArray(sent.Variants)) draft.Variants = sent.Variants as typeof draft.Variants
         exercise.HasChanges = true
+        me()
       }
       return json(draft)
     }

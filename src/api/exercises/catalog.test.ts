@@ -165,11 +165,19 @@ describe('createExercise', () => {
 describe('updateExercise', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('PATCHes /:id with the identity body', async () => {
-    mockApiPatch.mockResolvedValueOnce(rawExercise)
-    await updateExercise(EX_ID, { Name: 'New', Description: '', Tags: [] })
+  it('PATCHes /:id with the identity body and the revision the edit started from', async () => {
+    mockApiPatch.mockResolvedValueOnce({ ...rawExercise, DraftRevision: '2026-11-21T10:00:01.000100Z' })
+    const updated = await updateExercise(EX_ID, { Name: 'New', Description: '', Tags: [] }, '2026-11-21T10:00:00.120000Z')
     expect(mockApiPatch.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}`)
-    expect(mockApiPatch.mock.calls[0][1]).toEqual({ Name: 'New', Description: '', Tags: [] })
+    expect(mockApiPatch.mock.calls[0][1]).toEqual({ Name: 'New', Description: '', Tags: [], Revision: '2026-11-21T10:00:00.120000Z' })
+    // The new revision is kept exactly as sent (an opaque string, never a date).
+    expect(updated.DraftRevision).toBe('2026-11-21T10:00:01.000100Z')
+  })
+
+  it('reads a card without a working copy as the empty revision', async () => {
+    mockApiPatch.mockResolvedValueOnce(rawExercise)
+    expect((await updateExercise(EX_ID, { Name: 'New', Description: '', Tags: [] }, '')).DraftRevision).toBe('')
+    expect(mockApiPatch.mock.calls[0][1]).toMatchObject({ Revision: '' })
   })
 })
 
@@ -220,7 +228,7 @@ describe('archive, usage and working-copy status', () => {
 
   it('sends identity edits with keepalive on page unload', () => {
     mockKeepalive.mockReturnValueOnce(true)
-    expect(updateExerciseKeepalive(EX_ID, { Name: 'SQLi', Description: '', Tags: [] })).toBe(true)
-    expect(mockKeepalive).toHaveBeenCalledWith('PATCH', `/api/exercises/${EX_ID}`, { Name: 'SQLi', Description: '', Tags: [] })
+    expect(updateExerciseKeepalive(EX_ID, { Name: 'SQLi', Description: '', Tags: [] }, '2026-11-21T10:00:00.120000Z')).toBe(true)
+    expect(mockKeepalive).toHaveBeenCalledWith('PATCH', `/api/exercises/${EX_ID}`, { Name: 'SQLi', Description: '', Tags: [], Revision: '2026-11-21T10:00:00.120000Z' })
   })
 })
