@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import type { NextConfig } from "next"
-import { devFrameSrc } from "./src/lib/consoleFrame.ts"
+import { devFrameSrc, labDomainList } from "./src/lib/consoleFrame.ts"
 import { urlSettingError } from "./src/lib/settingRules.ts"
 
 // Static export for the exercise catalog.
@@ -55,11 +55,10 @@ function devContentSecurityPolicy(): string {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")
   }
-  // The grant form of the test lab posts to the lab hosts: labs.<domain> plus the optional NEXT_PUBLIC_LAB_DOMAINS (same rule as deploy/csp.sh).
-  const labDomains = [`labs.${DOMAIN}`, ...(process.env.NEXT_PUBLIC_LAB_DOMAINS ?? "").split(",")]
-    .map((d) => d.trim().toLowerCase())
-    .filter((d) => d.length <= 253 && /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$/.test(d))
-  const formAction = ["'self'", ...[...new Set(labDomains)].map((d) => `https://*.${d}`)]
+  // The lab hosts: labs.<domain> plus the optional NEXT_PUBLIC_LAB_DOMAINS (same rule as deploy/csp.sh). The grant form of the test lab
+  // posts to them (form-action) and the console of a device is framed from them (frame-src).
+  const extraLabDomains = labDomainList(process.env.NEXT_PUBLIC_LAB_DOMAINS)
+  const formAction = ["'self'", ...[...new Set([`labs.${DOMAIN}`, ...extraLabDomains])].map((d) => `https://*.${d}`)]
   return [
     "default-src 'self'",
     `script-src ${script.join(" ")}`,
@@ -67,8 +66,8 @@ function devContentSecurityPolicy(): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connect.join(" ")}`,
-    // The labs domain (https://*.labs.<domain>; isConsoleFrameUrl narrows it to one label); the dev fixture mode also frames its canned console page ('self' and blob:).
-    `frame-src ${devFrameSrc(DOMAIN, Boolean(process.env.NEXT_PUBLIC_EDITOR_FIXTURES))}`,
+    // The lab domains (https://*.labs.<domain> and the extra ones; isConsoleFrameUrl narrows each to one label); the dev fixture mode also frames its canned console page ('self' and blob:).
+    `frame-src ${devFrameSrc(DOMAIN, Boolean(process.env.NEXT_PUBLIC_EDITOR_FIXTURES), extraLabDomains)}`,
     "object-src 'none'",
     "base-uri 'self'",
     `form-action ${formAction.join(" ")}`,

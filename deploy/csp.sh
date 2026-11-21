@@ -109,13 +109,14 @@ echo '}' >> "$tmp/map"
 
 script_src="'self'$common \$csp_page_hashes"
 connect_src="'self' https://$host"
-# The only frames the catalog allows: lab hosts, <label>.labs.<domain> (the lab consoles). A CSP cannot say «exactly one label», so this is
-# the whole labs domain; src/lib/consoleFrame.ts (isConsoleFrameUrl) is the guard that decides what is framed. No http.
+# The only frames the catalog allows: lab hosts, <label>.labs.<domain> (the lab consoles) and, below, the same under each extra lab
+# domain of NEXT_PUBLIC_LAB_DOMAINS. A CSP cannot say «exactly one label», so this is the whole labs domain; src/lib/consoleFrame.ts
+# (isConsoleFrameUrl) is the guard that decides what is framed. No http.
 frame_src="https://*.$(base_domain_host labs)"
 
-# The author's test lab is opened by posting a grant form into a new tab on the lab host (<device>-<code>.<lab base domain>),
-# and form-action also covers the redirect that follows. Allowed: our own labs.<domain> plus the optional comma list
-# NEXT_PUBLIC_LAB_DOMAINS (agents with another lab domain). An entry that is not a plain domain name is dropped with a
+# The author's test lab is opened by posting a grant form to the lab host (<device>-<code>.<lab base domain>), into a new tab or
+# into the console frame, and form-action also covers the redirect that follows. Allowed in form-action and in frame-src: our own
+# labs.<domain> plus the optional comma list NEXT_PUBLIC_LAB_DOMAINS (agents with another lab domain). An entry that is not a plain domain name is dropped with a
 # warning, so the value cannot add a scheme, port, path or another directive.
 # NEXT_PUBLIC_DOMAIN went through base_domain_check above (a bare lowercase host name); it is checked once more here
 # because it is interpolated into the header.
@@ -128,6 +129,7 @@ set -f # the entries are split by the shell: no file name expansion of a "*" in 
 for entry in $(printf '%s' "${NEXT_PUBLIC_LAB_DOMAINS:-}" | tr ',' ' ' | tr 'A-Z' 'a-z'); do
   if printf '%s' "$entry" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$' && [ "${#entry}" -le 253 ]; then
     case " $form_action " in *" https://"'*'".$entry "*) ;; *) form_action="$form_action https://*.$entry" ;; esac
+    case " $frame_src " in *" https://"'*'".$entry "*) ;; *) frame_src="$frame_src https://*.$entry" ;; esac
   else
     echo "[csp] NEXT_PUBLIC_LAB_DOMAINS: ignoring an entry that is not a domain name." >&2
   fi

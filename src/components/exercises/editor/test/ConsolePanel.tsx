@@ -11,6 +11,7 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { isConsoleFrameUrl } from "@/lib/consoleFrame"
+import { labDomainsOfPage } from "@/lib/labDomains"
 import { newGrantTabName, submitGrant } from "@/lib/submitGrant"
 
 /** The console page of a lab device did not show within this long: the frame is treated as blocked. */
@@ -36,7 +37,7 @@ function useConsoleLink(deployId: string, device: string, allowed: boolean, atte
     let cancelled = false
     // The port is ignored for the console.
     openDeployLink(deployId, device, 0, "terminal").then(
-      (link) => { if (!cancelled) setResult({ requestId, state: isConsoleFrameUrl(link.URL) ? { kind: "ready", url: link.URL, grant: link.Grant } : { kind: "refused" } }) },
+      (link) => { if (!cancelled) setResult({ requestId, state: isConsoleFrameUrl(link.URL, undefined, labDomainsOfPage()) ? { kind: "ready", url: link.URL, grant: link.Grant } : { kind: "refused" } }) },
       (cause) => {
         if (cancelled) return
         const missing = cause instanceof ApiError && (cause.status === 404 || cause.code === NO_CONSOLE_CODE)

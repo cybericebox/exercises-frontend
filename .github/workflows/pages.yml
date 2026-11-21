@@ -71,6 +71,7 @@ jobs:
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
           NEXT_PUBLIC_MAIN_SITE_URL: ${{ vars.NEXT_PUBLIC_MAIN_SITE_URL }}
           NEXT_PUBLIC_COOKIES_URL: ${{ vars.NEXT_PUBLIC_COOKIES_URL }}
+          NEXT_PUBLIC_LAB_DOMAINS: ${{ vars.NEXT_PUBLIC_LAB_DOMAINS }}
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Upload artifact
