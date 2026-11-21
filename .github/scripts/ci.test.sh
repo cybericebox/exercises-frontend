@@ -90,13 +90,13 @@ case "$(rc_source img1)" in "build: the tree of main differs"*) check "rc_source
 # cleanup deletes the ancestor sha tags and the cache tags, nothing else
 newer=$(git rev-parse develop)
 # shellcheck disable=SC2329
-hub_tags() { printf '%s\n' "sha-${d1:0:7}" "sha-${newer:0:7}" sha-0000000 buildcache-develop buildcache latest v1.0.0 v1.0.0-rc.1 sha-ABCDEF0; }
+hub_tags() { printf '%s\n' "sha-${d1:0:7}" "sha-${newer:0:7}" sha-0000000 buildcache-develop buildcache-release buildcache latest v1.0.0 v1.0.0-rc.1 sha-ABCDEF0; }
 # shellcheck disable=SC2329
 hub_delete() { echo "del $2"; }
-want="del sha-${d1:0:7} del buildcache-develop del buildcache"
+want="del sha-${d1:0:7} del buildcache-develop del buildcache-release del buildcache"
 check "cleanup (release before newer commits)" "$want" "$(cleanup "$release" false img | grep '^del' | tr '\n' ' ' | sed 's/ $//')"
 check "cleanup dry run deletes nothing" "" "$(cleanup "$release" true img | grep '^del')"
-check "cleanup dry run lists the cache tags" 2 "$(cleanup "$release" true img | grep -c '^  buildcache')"
+check "cleanup dry run lists the cache tags" 3 "$(cleanup "$release" true img | grep -c '^  buildcache')"
 
 # retry: a 429 is retried, any other failure is final
 export RETRY_DELAYS="0 0"
