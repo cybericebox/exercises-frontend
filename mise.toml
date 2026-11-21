@@ -1,0 +1,80 @@
+# mise: the pinned tools of this repository and its commands. One entry point for developers, agents and CI.
+#   mise install            install exactly these tool versions (once, and after this file changes)
+#   mise tasks              list the commands
+#   mise run <task> ...     run one; extra arguments go to the command
+# The commands themselves are the npm scripts of package.json; the tasks only give them one entry point.
+
+[tools]
+node = "26.10.0"   # the same as the build image of deploy/Dockerfile
+gh = "2.104.0"     # dev-push
+
+[tasks.cache-guard]
+hide = true
+description = "Local caches stay under a size limit (the workspace script of infrastructure; does nothing in CI or without it)"
+run = 'g="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/../infrastructure/scripts/cache-guard.sh"; if [ -z "${CI:-}" ] && [ -x "$g" ]; then "$g"; fi'
+
+[tasks.install]
+description = "Install the dependencies exactly as package-lock.json pins them"
+depends = ["cache-guard"]
+run = "npm ci"
+
+[tasks.dev]
+description = "npm run dev: next dev -p 3005"
+run = "npm run dev"
+
+[tasks."dev:fixtures"]
+description = "npm run dev:fixtures: NEXT_PUBLIC_EDITOR_FIXTURES=1 NEXT_PUBLIC_DOMAIN=localhost NEXT_PUBLIC_SUPPORT_EMAIL=dev@example.test next dev"
+run = "npm run dev:fixtures"
+
+[tasks.build]
+description = "npm run build: next build"
+run = "npm run build"
+
+[tasks."check:cfg"]
+description = "npm run check:cfg: node scripts/check-cfg.mjs"
+run = "npm run check:cfg"
+
+[tasks.start]
+description = "npm run start: next start -p 3005"
+run = "npm run start"
+
+[tasks.lint]
+description = "npm run lint: eslint ."
+run = "npm run lint"
+
+[tasks."sync:errors"]
+description = "npm run sync:errors: node scripts/sync-error-catalog.mjs"
+run = "npm run sync:errors"
+
+[tasks."sync:ds"]
+description = "npm run sync:ds: node scripts/ds-sync.mjs"
+run = "npm run sync:ds"
+
+[tasks."check:ds"]
+description = "npm run check:ds: node scripts/ds-sync.mjs --check"
+run = "npm run check:ds"
+
+[tasks.typecheck]
+description = "npm run typecheck: tsc --noEmit"
+run = "npm run typecheck"
+
+[tasks.test]
+description = "npm test: vitest run"
+run = "npm test"
+
+[tasks.check]
+description = "Everything the CI check runs: check:ds, lint, typecheck, test, check:cfg"
+run = [{ task = "check:ds" }, { task = "lint" }, { task = "typecheck" }, { task = "test" }, { task = "check:cfg" }]
+
+# Branch cycle (scripts/dev.sh, the same in every repository), see CONTRIBUTING.md.
+[tasks.dev-start]
+description = "feature/<name> from the fresh develop. Usage: mise run dev-start <name>"
+run = "scripts/dev.sh start"
+
+[tasks.dev-push]
+description = "Push, open or update the PR into develop, auto-merge when green (MINOR=1 labels it minor)"
+run = "scripts/dev.sh push"
+
+[tasks.dev-done]
+description = "Back to develop, pull, delete the merged local branch"
+run = "scripts/dev.sh done"

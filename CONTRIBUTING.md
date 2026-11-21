@@ -4,12 +4,12 @@
 
 ## The cycle
 
-1. `make dev-start NAME=<x>`: fetches `develop` and creates `feature/<x>` from it.
+1. `mise run dev-start <x>`: fetches `develop` and creates `feature/<x>` from it.
 2. Work and commit in that branch.
-3. `make dev-push [MINOR=1]`: pushes the branch (it refuses on `develop` and `main` and warns about uncommitted changes), opens a PR into `develop` or updates the open one, labels it `minor` with `MINOR=1`, and turns on auto-merge: the PR merges by itself once every check is green.
-4. After the merge GitHub deletes the remote branch. `make dev-done` switches to `develop`, pulls it and deletes the local branch.
+3. `[MINOR=1] mise run dev-push`: pushes the branch (it refuses on `develop` and `main` and warns about uncommitted changes), opens a PR into `develop` or updates the open one, labels it `minor` with `MINOR=1`, and turns on auto-merge: the PR merges by itself once every check is green.
+4. After the merge GitHub deletes the remote branch. `mise run dev-done` switches to `develop`, pulls it and deletes the local branch.
 
-Both targets use `scripts/dev.sh` and need the `gh` CLI, logged in.
+The tasks use `scripts/dev.sh` and need the `gh` CLI, logged in.
 
 ## Checks and images
 

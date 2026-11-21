@@ -28,7 +28,7 @@ modules.
 
 ## Run it locally
 
-Node.js 26 or newer (see `.nvmrc`). You need a running platform backend; the site derives its API host from the base
+Tools are pinned in `mise.toml`: `mise install` puts Node.js in place, `mise tasks` lists the commands. You need a running platform backend; the site derives its API host from the base
 domain.
 
 ```bash
