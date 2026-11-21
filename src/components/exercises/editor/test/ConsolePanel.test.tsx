@@ -32,6 +32,7 @@ describe("ConsolePanel", () => {
     // The grant is posted into the named frame; the frame's own address never carries it.
     expect(frame.getAttribute("src")).toBeNull()
     expect(frame.getAttribute("name")).toMatch(/^cib-console-./)
+    await waitFor(() => expect(posted).toHaveLength(1))
     expect(posted).toEqual([{ action: link.URL, target: frame.getAttribute("name"), fields: { grant: "g.r.t", next: "/" } }])
     // The lab decides by the origin in the Referer, so the referrer is never dropped.
     expect(frame.getAttribute("referrerpolicy")).toBe("origin")

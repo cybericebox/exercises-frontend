@@ -117,7 +117,8 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   useEffect(() => {
     if (!url || !grant) return
     posted.current = null
-    try { submitGrant(frameName, { url, grant }, "/"); posted.current = url } catch { setFrame({ url, loaded: false, timedOut: true }) }
+    // A refused endpoint posts nothing; the frame then never loads and the timeout below shows the error state.
+    try { submitGrant(frameName, { url, grant }, "/"); posted.current = url } catch { /* shown by the load timeout */ }
   }, [url, grant, frameName])
 
   useEffect(() => {
