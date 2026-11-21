@@ -1,6 +1,8 @@
 name: Test
 
-# The tests of the repository: the PR check and the pre-release run them (workflow_call).
+# The tests of the repository: the PR check runs them (workflow_call). A candidate is not tested again: every commit of a line
+# entered it through a pull request whose check was green.
+# These tests run the code of a pull request, so they hold no secret at all and pull public images anonymously.
 on:
   workflow_call:
 
@@ -8,6 +10,21 @@ permissions:
   contents: read
 
 jobs:
+  scripts:
+    name: Release helpers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned tools (mise.toml)
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - name: Tests of .github/scripts and scripts/dev.sh (mise run test-scripts)
+        run: mise run test-scripts
+      - name: shellcheck of the release helpers and dev.sh (mise run lint:ci)
+        run: mise run lint:ci
+
   test:
     name: Lint, typecheck, test
     runs-on: ubuntu-latest

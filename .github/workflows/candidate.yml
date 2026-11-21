@@ -1,0 +1,148 @@
+name: Candidate
+
+# A push to a release line (release/X.Y: the first one is the cut made by the operator, the others are merged pull requests) builds the
+# next candidate vX.Y.Z-rc.N: the image cybericebox/exercises-frontend and, last, the git tag with a GitHub pre-release. Z is 0 while the line has no final
+# release, otherwise the newest final patch + 1 (after vX.Y.0 is promoted the next merge gives vX.Y.1-rc.1); N counts up from 1
+# (.github/scripts/release_version.py). The platform repositories share X.Y (one line, release/X.Y, in all of them); Z is each one's own.
+#
+# One run per line at a time (the concurrency group): two merges cannot take the same rc number; a merge made while a run is going waits,
+# and of two waiting merges only the newer runs (it contains the older one). The run only builds the head of the line: when a newer commit
+# is already there the run says so and stops (the newer run builds the candidate).
+# The tests are not run again: the pull request that was merged had its required checks green (check.yml).
+# Version tags are immutable (Docker Hub): a re-run finds what is already published, checks that it came from this commit (the
+# org.opencontainers.image.revision label) and carries on; a different commit under the same tag fails.
+# Secrets: the Docker Hub credentials are secrets of the environment "candidate" (deployment branches: release/*), so only a run on a release
+# line can read them. The layer cache of the registry that these builds read is their own (buildcache-release, written only here): pull
+# request checks only read it and write no cache at all.
+# workflow_dispatch: build the candidate of the head of the selected release/X.Y branch (for a run that was dropped or failed for good).
+on:
+  push:
+    branches: [ 'release/*' ]
+  workflow_dispatch:
+
+concurrency:
+  group: candidate-${{ github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.v.outputs.skip }}
+      line: ${{ steps.v.outputs.line }}
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - name: Check repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Next candidate
+        id: v
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          line=$(python3 .github/scripts/release_version.py line-of "$BRANCH")
+          echo "line=$line" >> "$GITHUB_OUTPUT"
+          git fetch --tags --force --quiet
+          git fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+          head=$(git rev-parse "origin/$BRANCH")
+          if [[ "$head" != "$GITHUB_SHA" ]]; then
+            echo "::notice::${GITHUB_SHA:0:7} is not the head of $BRANCH any more (${head:0:7}): the run of the head builds the candidate"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          # A re-run of a commit that already has its candidate tag keeps that tag.
+          # Only a tag the arithmetic itself would give counts (a hand-made v2.20.9-rc.1 on this commit is ignored, never adopted).
+          mapfile -t at < <(git tag --points-at "$GITHUB_SHA")
+          existing=$(git tag --list | python3 .github/scripts/release_version.py existing-rc "$line" "${at[@]}")
+          if [[ -n "$existing" ]]; then
+            echo "commit ${GITHUB_SHA:0:7} already has a candidate: $existing"
+            echo "$existing" >> "$GITHUB_OUTPUT"
+          else
+            git tag --list | python3 .github/scripts/release_version.py next-rc "$line" | tee -a "$GITHUB_OUTPUT"
+          fi
+
+  image:
+    name: Image ${{ matrix.name }}
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    environment: candidate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: exercises-frontend
+            image: cybericebox/exercises-frontend
+    steps:
+      - name: Check repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Login to docker registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Is the image already there (and from this commit)
+        id: state
+        env:
+          IMAGE: ${{ matrix.image }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          state=$(.github/scripts/ci.sh image-state "$IMAGE" "$TAG" "$GITHUB_SHA")
+          echo "$IMAGE:$TAG: $state"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+      - name: Set up QEMU
+        if: steps.state.outputs.state == 'missing'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Build and push the candidate image
+        if: steps.state.outputs.state == 'missing'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=registry,ref=${{ matrix.image }}:buildcache-release
+          cache-to: type=registry,ref=${{ matrix.image }}:buildcache-release,mode=max
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ matrix.image }}:${{ needs.version.outputs.tag }}
+
+  release:
+    name: Tag and pre-release
+    needs: [version, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Last on purpose: a tag exists only for a candidate whose image is published.
+      - name: Create the tag and the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            at=$(git rev-parse "refs/tags/$TAG^{commit}")
+            [[ "$at" == "$GITHUB_SHA" ]] || { echo "::error::$TAG exists at ${at:0:7}, not at ${GITHUB_SHA:0:7}"; exit 1; }
+            echo "pre-release $TAG exists"
+          else
+            gh release create "$TAG" --prerelease --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+          fi

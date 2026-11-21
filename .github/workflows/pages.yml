@@ -1,6 +1,7 @@
 name: Deploy exercises to GitHub Pages
 
-# Static export (out/) → GitHub Pages. Runs only from promote.yml, after the pre-release checks, for the release commit.
+# Static export (out/) → GitHub Pages. Runs only from promote.yml (on main), after the release vX.Y.Z is published, for the released
+# commit. The environment github-pages must allow the branch main (its deployment branch policy).
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
 # The hosts are baked at build: every host derives from the one repository variable NEXT_PUBLIC_DOMAIN.
 on:
