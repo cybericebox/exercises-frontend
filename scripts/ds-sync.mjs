@@ -12,10 +12,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 // The design system sits next to the repositories (docs/design-system); look in every parent, so a worktree finds it too.
 function findDs() {
   for (let dir = root; dir !== path.dirname(dir); dir = path.dirname(dir)) {
-    const candidate = path.join(dir, "docs", "design-system")
+    const candidate = path.join(dir, "docs", "internal-docs", "design-system")
     if (fs.existsSync(path.join(candidate, "tokens.css"))) return candidate
   }
-  return path.join(root, "..", "docs", "design-system")
+  return path.join(root, "..", "..", "docs", "internal-docs", "design-system")
 }
 const dsDir = path.resolve(process.env.DS_DIR ?? findDs())
 const lockFile = path.join(root, "src/styles/ds/manifest.json")
