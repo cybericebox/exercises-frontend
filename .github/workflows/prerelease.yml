@@ -35,7 +35,7 @@ jobs:
       tag: ${{ steps.v.outputs.tag }}
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Next version
@@ -64,7 +64,7 @@ jobs:
       tag: ${{ steps.s.outputs.tag }}
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Docker Buildx
@@ -98,7 +98,7 @@ jobs:
             image: cybericebox/exercises-frontend
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up QEMU
         if: needs.source.outputs.mode != 'retag'
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
@@ -137,7 +137,7 @@ jobs:
       contents: write
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Create the pre-release
         env:
           GH_TOKEN: ${{ github.token }}
