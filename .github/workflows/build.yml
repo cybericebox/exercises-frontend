@@ -1,6 +1,8 @@
 name: Build image
 
-# Builds any commit and publishes sha-<7>. When that image already exists it is not rebuilt.
+# Builds any commit and publishes sha-<7>, for an ad-hoc test (never part of the release path: a release is made from a candidate of a
+# release line). When that image already exists it is not rebuilt. It reads the layer cache of the candidate builds (buildcache-release)
+# and writes none.
 on:
   workflow_dispatch:
     inputs:
@@ -20,6 +22,9 @@ jobs:
   image:
     name: Image ${{ matrix.name }}
     runs-on: ubuntu-latest
+    # The Docker Hub credentials are secrets of the environment "build" (deployment branches: develop and release/*), so no workflow
+    # holds a registry write credential outside an environment. A manual run on any other branch cannot read them.
+    environment: build
     strategy:
       fail-fast: false
       matrix:
@@ -27,21 +32,31 @@ jobs:
           - name: exercises-frontend
             image: cybericebox/exercises-frontend
     steps:
-      - name: Check repository
+      # The scripts that run with the Docker Hub credentials are the ones of the branch the workflow runs on (develop or release/*, the
+      # branches the environment allows), never the ones of the commit that is built: that commit is data for the build.
+      - name: Check repository (the trusted scripts)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the commit to build
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || 'develop' }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+          path: src
+          persist-credentials: false
       - name: Login to docker registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Image tag
         id: meta
         run: |
-          echo "sha=$(.github/scripts/ci.sh sha-tag "$(git rev-parse HEAD)")" >> "$GITHUB_OUTPUT"
+          full=$(git -C src rev-parse HEAD)
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "sha=$(.github/scripts/ci.sh sha-tag "$full")" >> "$GITHUB_OUTPUT"
       - name: Is the image already there
         id: exists
         env:
@@ -59,9 +74,10 @@ jobs:
         if: steps.exists.outputs.found != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: .
-          file: deploy/Dockerfile
+          context: src
+          file: src/deploy/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           cache-from: type=registry,ref=${{ matrix.image }}:buildcache-release
+          labels: org.opencontainers.image.revision=${{ steps.meta.outputs.full }}
           tags: ${{ matrix.image }}:${{ steps.meta.outputs.sha }}

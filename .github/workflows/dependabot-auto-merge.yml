@@ -3,6 +3,8 @@ name: Dependabot auto-merge
 # A Dependabot pull request into develop merges itself once the required checks are green when it updates only patch
 # versions, or (a grouped security pull request, group name ends with -security) patch and minor versions.
 # Other minor updates and every major update wait for the owner.
+# Only develop: a pull request whose base is release/* or main never gets auto-merge from here (the trigger lists develop only, and the
+# job also checks the base); a line is merged by hand.
 # Safety: pull_request event (never pull_request_target), no checkout, no secrets besides GITHUB_TOKEN, the pull request
 # author and the triggering actor must both be Dependabot (a human push to the branch is skipped, and fetch-metadata
 # itself refuses a pull request with non-Dependabot or unverified commits).
@@ -22,7 +24,8 @@ jobs:
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.actor == 'dependabot[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'develop'
     runs-on: ubuntu-latest
     permissions:
       contents: write
