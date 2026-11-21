@@ -8,7 +8,7 @@
 gitleaks = "8.30.1"   # lint:leaks: the secret scan of the whole history (.gitleaks.toml)
 actionlint = "1.7.12"   # lint:leaks: the GitHub workflows
 shellcheck = "0.11.0"   # actionlint checks the run: scripts with it
-node = "26.10.0"   # the same as the build image of deploy/Dockerfile
+node = "26.13.1"   # the same as the build image of deploy/Dockerfile
 gh = "2.104.0"     # dev-push
 "github:mokevnin/heavy" = "0.1.2"   # a machine-wide semaphore: heavy commands of every checkout and agent take turns (heavy --status)
 
