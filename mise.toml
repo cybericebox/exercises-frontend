@@ -7,11 +7,12 @@
 [tools]
 node = "26.10.0"   # the same as the build image of deploy/Dockerfile
 gh = "2.104.0"     # dev-push
+"github:mokevnin/heavy" = "0.1.2"   # a machine-wide semaphore: heavy commands of every checkout and agent take turns (heavy --status)
 
 [tasks.cache-guard]
 hide = true
 description = "Local caches stay under a size limit (the workspace script of infrastructure; does nothing in CI or without it)"
-run = 'g="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/../infrastructure/scripts/cache-guard.sh"; if [ -z "${CI:-}" ] && [ -x "$g" ]; then "$g"; fi'
+run = 'd="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; for up in .. ../..; do g="$d/$up/infrastructure/scripts/cache-guard.sh"; [ -x "$g" ] && break; done; if [ -z "${CI:-}" ] && [ -x "$g" ]; then "$g"; fi'
 
 [tasks.install]
 description = "Install the dependencies exactly as package-lock.json pins them"
@@ -28,11 +29,11 @@ run = "npm run dev:fixtures"
 
 [tasks.build]
 description = "npm run build: next build"
-run = "npm run build"
+run = "heavy -- npm run build"
 
 [tasks."check:cfg"]
 description = "npm run check:cfg: node scripts/check-cfg.mjs"
-run = "npm run check:cfg"
+run = "heavy -- npm run check:cfg"
 
 [tasks.start]
 description = "npm run start: next start -p 3005"
@@ -40,7 +41,7 @@ run = "npm run start"
 
 [tasks.lint]
 description = "npm run lint: eslint ."
-run = "npm run lint"
+run = "heavy -- npm run lint"
 
 [tasks."sync:errors"]
 description = "npm run sync:errors: node scripts/sync-error-catalog.mjs"
@@ -56,11 +57,11 @@ run = "npm run check:ds"
 
 [tasks.typecheck]
 description = "npm run typecheck: tsc --noEmit"
-run = "npm run typecheck"
+run = "heavy -- npm run typecheck"
 
 [tasks.test]
 description = "npm test: vitest run"
-run = "npm test"
+run = "heavy -- npm test"
 
 [tasks.check]
 description = "Everything the CI check runs: check:ds, lint, typecheck, test, check:cfg"
