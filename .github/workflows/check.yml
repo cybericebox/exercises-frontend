@@ -1,7 +1,8 @@
 name: Check
 
 # A PR into develop or main: tests plus the image build. The layers go to the registry cache
-# (<image>:buildcache-develop); nothing is published. A PR from a fork gets no secrets, so it builds without the cache.
+# (<image>:buildcache-develop), which "Build image" and the release workflows read; nothing is published (a merge into develop publishes nothing
+# either). A PR from a fork gets no secrets, so it builds without the cache.
 on:
   pull_request:
     branches: [ develop, main ]

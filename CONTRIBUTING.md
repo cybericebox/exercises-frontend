@@ -13,9 +13,9 @@ The tasks use `scripts/dev.sh` and need the `gh` CLI, logged in.
 
 ## Checks and images
 
-- A PR into `develop` or `main` runs `check.yml`: lint, typecheck and tests, and the Docker build, which writes its layers to the registry cache `cybericebox/exercises-frontend:buildcache-develop` and publishes nothing. A new push cancels the previous run. A PR from a fork builds without the cache. The required check is `Check passed`.
-- A merge into `develop` (`develop.yml`) builds from that cache and publishes `sha-<7 hex of the merge commit>`. There is no moving `develop` tag.
-- `Build image` (`build.yml`, manual) builds any commit, by default the `develop` head, and publishes its `sha-<7>`. When that image exists it is not rebuilt.
+- A PR into `develop` or `main` runs `check.yml`: lint, typecheck and tests, and the Docker build, which writes its layers to the registry cache `cybericebox/exercises-frontend:buildcache-develop` (read by `Build image` and the release workflows) and publishes nothing. A new push cancels the previous run. A PR from a fork builds without the cache. The required check is `Check passed`.
+- A merge into `develop` publishes nothing: no image, no tag. An image of any commit is built on demand with `Build image`.
+- `Build image` (`build.yml`, manual) builds any commit, by default the `develop` head, reading the `buildcache-develop` cache, and publishes its `sha-<7>`. When that image exists it is not rebuilt.
 
 ## Releases
 
