@@ -1,8 +1,8 @@
 name: Check
 
-# A PR into develop or main: tests plus the image build. The layers go to the registry cache
-# (<image>:buildcache-develop), which "Build image" and the release workflows read; nothing is published (a merge into develop publishes nothing
-# either). A PR from a fork gets no secrets, so it builds without the cache.
+# A PR into develop or main: tests plus the image build. Nothing is published and nothing is written to a registry: a check runs
+# the code of the pull request, so it holds no Docker Hub credential (a token in the runner could be read by that code). It reads the
+# layer cache that only the release builds write (<image>:buildcache-release, public).
 on:
   pull_request:
     branches: [ develop, main ]
@@ -71,12 +71,6 @@ jobs:
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Login to docker registry
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build the image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -84,8 +78,7 @@ jobs:
           file: deploy/Dockerfile
           push: false
           platforms: linux/amd64,linux/arm64
-          cache-from: type=registry,ref=${{ matrix.image }}:buildcache-develop
-          cache-to: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' && format('type=registry,ref={0}:buildcache-develop,mode=max', matrix.image) || '' }}
+          cache-from: type=registry,ref=${{ matrix.image }}:buildcache-release
 
   container:
     name: Container tests
