@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { ExternalLink, Terminal, X } from "lucide-react"
 
 import { ApiError } from "@/api/client"
@@ -11,6 +11,8 @@ import { LoadError } from "@/components/ui/load-error"
 import { LoadingArea } from "@/components/ui/spinner"
 import { t } from "@/i18n/t"
 import { isConsoleFrameUrl } from "@/lib/consoleFrame"
+import { labDomainsOfPage } from "@/lib/labDomains"
+import { newGrantTabName, submitGrant } from "@/lib/submitGrant"
 
 /** The console page of a lab device did not show within this long: the frame is treated as blocked. */
 export const CONSOLE_FRAME_TIMEOUT_MS = 15000
@@ -19,13 +21,13 @@ const NO_CONSOLE_CODE = 33518
 
 type LinkState =
   | { kind: "loading" }
-  | { kind: "ready"; url: string }
+  | { kind: "ready"; url: string; grant: string }
   /** The laboratory answered with a link that is not the console origin: never framed. */
   | { kind: "refused" }
   | { kind: "none" }
   | { kind: "failed"; cause: unknown }
 
-/** The console link of one device: a short-lived single-use address of the page the lab serves under its own domain. */
+/** The console access of one device: the /_auth endpoint of the page the lab serves under its own domain, and a short-lived grant for it. */
 function useConsoleLink(deployId: string, device: string, allowed: boolean, attempt: number): LinkState {
   // The answer belongs to the request that asked: another device or attempt reads as loading until its own answer arrives.
   const requestId = `${deployId}|${device}|${attempt}`
@@ -35,7 +37,7 @@ function useConsoleLink(deployId: string, device: string, allowed: boolean, atte
     let cancelled = false
     // The port is ignored for the console.
     openDeployLink(deployId, device, 0, "terminal").then(
-      (link) => { if (!cancelled) setResult({ requestId, state: isConsoleFrameUrl(link.URL) ? { kind: "ready", url: link.URL } : { kind: "refused" } }) },
+      (link) => { if (!cancelled) setResult({ requestId, state: isConsoleFrameUrl(link.URL, undefined, labDomainsOfPage()) ? { kind: "ready", url: link.URL, grant: link.Grant } : { kind: "refused" } }) },
       (cause) => {
         if (cancelled) return
         const missing = cause instanceof ApiError && (cause.status === 404 || cause.code === NO_CONSOLE_CODE)
@@ -48,6 +50,11 @@ function useConsoleLink(deployId: string, device: string, allowed: boolean, atte
   return result?.requestId === requestId ? result.state : { kind: "loading" }
 }
 
+/** The frame still shows its own empty page (before the grant form navigated it); a lab page of another origin cannot be read, so it throws. */
+function isEmptyFrame(frame: HTMLIFrameElement): boolean {
+  try { return frame.contentWindow?.location.href === "about:blank" } catch { return false }
+}
+
 /** An absolute https address. */
 export function isHttpsUrl(link: string): boolean {
   try { return new URL(link).protocol === "https:" } catch { return false }
@@ -58,16 +65,18 @@ export function useOpenConsoleTab(deployId: string) {
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const open = useCallback((device: string) => {
-    const tab = window.open("about:blank", "_blank")
+    const tabName = newGrantTabName()
+    const tab = window.open("about:blank", tabName)
     if (!tab) { setError(new Error("popup")); return }
     tab.opener = null
     setBusy(true)
     setError(null)
     openDeployLink(deployId, device, 0, "terminal").then(
       (link) => {
-        // Only an https link is ever opened: anything else (javascript:, data:, http:) is refused and the blank tab closed.
+        // Only an https /_auth endpoint is ever posted to: anything else (javascript:, data:, http:, another path) is refused
+        // and the blank tab closed. The grant goes in a form body into the named tab, never in a URL.
         if (!isHttpsUrl(link.URL)) { tab.close(); setError(new Error("link")); return }
-        tab.location.href = link.URL
+        try { submitGrant(tabName, { url: link.URL, grant: link.Grant }, "/") } catch { tab.close(); setError(new Error("link")) }
       },
       (cause) => { tab.close(); setError(cause) },
     ).finally(() => setBusy(false))
@@ -96,11 +105,22 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   const link = useConsoleLink(deployId, device, allowed, attempt)
   const tab = useOpenConsoleTab(deployId)
   const url = link.kind === "ready" ? link.url : null
+  const grant = link.kind === "ready" ? link.grant : null
+  const frameName = `cib-console-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`
+  // The grant is posted into the named frame once it is in the page; loads before that are the empty frame's own.
+  const posted = useRef<string | null>(null)
   // What happened to the frame of this address: it loaded, or nothing came within the time.
   const [frame, setFrame] = useState<{ url: string | null; loaded: boolean; timedOut: boolean }>({ url: null, loaded: false, timedOut: false })
   const loaded = frame.url === url && frame.loaded
   const timedOut = frame.url === url && frame.timedOut
   const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!url || !grant) return
+    posted.current = null
+    // A refused endpoint posts nothing; the frame then never loads and the timeout below shows the error state.
+    try { submitGrant(frameName, { url, grant }, "/"); posted.current = url } catch { /* shown by the load timeout */ }
+  }, [url, grant, frameName])
 
   useEffect(() => {
     if (!url) return
@@ -122,11 +142,12 @@ export function ConsolePanel({ deployId, device, allowed, reason, onClose, class
   else body = <>
     {/* sandbox: scripts and the lab's own origin (its cookies) are needed by the console page; forms carry the file upload,
         downloads the file download. No top navigation, no popups, no modals. clipboard-*: copy and paste in the terminal.
-        The referrer carries this site's origin, which the lab checks against its list of allowed ancestors. */}
+        The grant is posted into this named frame by a form (never in the frame's address); the referrer carries this site's
+        origin, which the lab checks against its list of allowed ancestors. */}
     {/* eslint-disable-next-line @eslint-react/dom-no-unsafe-iframe-sandbox -- the console page is served from the labs domain, a
         different origin from this site, so allow-same-origin only keeps its own cookies and storage; it cannot reach this page. */}
-    <iframe title={t("ed.d.console.frame", { device })} src={link.url} sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
-      allow="clipboard-read; clipboard-write" referrerPolicy="origin" onLoad={() => setFrame({ url, loaded: true, timedOut: false })}
+    <iframe title={t("ed.d.console.frame", { device })} name={frameName} sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+      allow="clipboard-read; clipboard-write" referrerPolicy="origin" onLoad={(event) => { if (posted.current === url && !isEmptyFrame(event.currentTarget)) setFrame({ url, loaded: true, timedOut: false }) }}
       className={failedFrame ? "hidden" : "h-full w-full border-0 bg-background"} />
     {!loaded && !timedOut && <LoadingArea className="absolute inset-0 bg-background" label={t("ed.d.console.loading")} message={t("ed.d.console.loading")} />}
     {failedFrame && <LoadError className="h-full" message={t("ed.d.console.blocked", { device })} help={t("ed.d.console.blockedHelp")} onRetry={retry} actions={newTab} />}

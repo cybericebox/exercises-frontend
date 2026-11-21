@@ -141,6 +141,9 @@ describe("useDeployTest", () => {
     const web = { Phase: "Ready", Ready: true, Gateways: [], Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web-1x.example.com" }] }
     let tab: { location: { href: string }; close: ReturnType<typeof vi.fn>; opener: unknown }
     let windowOpen: ReturnType<typeof vi.fn>
+    // Every form the page submits, read at submit time (the form is removed right after).
+    type Submitted = { method: string; action: string; target: string; inDocument: boolean; fields: Record<string, string> }
+    let submitted: Submitted[]
 
     async function readyDeploy() {
       mocked.deployVariant.mockResolvedValue({ DeployID: "g1", Lab: "lab" })
@@ -157,50 +160,84 @@ describe("useDeployTest", () => {
       tab = { location: { href: "about:blank" }, close: vi.fn(), opener: "self" }
       windowOpen = vi.fn(() => tab)
       vi.stubGlobal("open", windowOpen)
+      submitted = []
+      vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(function (this: HTMLFormElement) {
+    submitted.push({ method: this.method, action: this.action, target: this.target, inDocument: this.isConnected, fields: Object.fromEntries([...new FormData(this).entries()].map(([name, value]) => [name, String(value)])) })
+  })
     })
-    afterEach(() => vi.unstubAllGlobals())
+    afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
     it("asks for nothing when the lab becomes ready: links are fetched on click", async () => {
       await readyDeploy()
       expect(mocked.openDeployLink).not.toHaveBeenCalled()
     })
 
-    it("opens the tab in the click, then points it at the fresh link", async () => {
+    it("opens the tab in the click, then posts the fresh grant into it", async () => {
       let resolveLink!: (v: deployApi.DeployLink) => void
       mocked.openDeployLink.mockReturnValue(new Promise((r) => { resolveLink = r }))
       const { result } = await readyDeploy()
 
       act(() => result.current.openLink("web", 443))
-      expect(windowOpen).toHaveBeenCalledWith("about:blank", "_blank")
+      expect(windowOpen).toHaveBeenCalledWith("about:blank", expect.stringMatching(/^cib-lab-./))
+      expect(submitted).toHaveLength(0)
+      const name = windowOpen.mock.calls[0][1]
       expect(tab.opener).toBeNull()
       expect(result.current.link).toBe("opening")
       expect(result.current.linkKey).toBe("web:443")
       expect(mocked.openDeployLink).toHaveBeenCalledWith("g1", "web", 443)
 
-      await act(async () => resolveLink({ URL: "https://web-1x.example.com/_auth?t=x", ExpiresAt: "2026-10-01T00:00:00Z" }))
-      expect(tab.location.href).toBe("https://web-1x.example.com/_auth?t=x")
+      await act(async () => resolveLink({ URL: "https://web-1x.example.com/_auth", Grant: "g", ExpiresAt: "2026-10-01T00:00:00Z" }))
+      // The grant goes in a post body into the named tab; the tab itself is never navigated to a link.
+      expect(submitted).toEqual([{ method: "post", action: "https://web-1x.example.com/_auth", target: name, inDocument: true, fields: { grant: "g", next: "/" } }])
+      expect(tab.location.href).toBe("about:blank")
+      expect(document.querySelector("form")).toBeNull()
       expect(result.current.link).toBe("idle")
     })
 
-    it("navigates to a fresh auth URL carrying the composed destination and retains it on retry", async () => {
+    it("posts a fresh grant carrying the composed destination as next and retains it on retry", async () => {
       mocked.openDeployLink.mockRejectedValueOnce(new Error("retry"))
-        .mockResolvedValueOnce({ URL: "https://fresh-web.lab.test/_auth?t=fresh", ExpiresAt: "x" })
+        .mockResolvedValueOnce({ URL: "https://fresh-web.lab.test/_auth", Grant: "fresh", ExpiresAt: "x" })
       const { result } = await readyDeploy()
       act(() => result.current.openLink("web", 443, "/panel?x=1#details"))
       await waitFor(() => expect(result.current.link).toBe("error"))
       act(() => result.current.retryLink())
       await waitFor(() => expect(result.current.link).toBe("idle"))
-      const actual = new URL(tab.location.href)
+      expect(submitted).toHaveLength(1)
+      const actual = new URL(submitted[0].action)
       expect(actual.origin).toBe("https://fresh-web.lab.test")
       expect(actual.pathname).toBe("/_auth")
-      expect(actual.searchParams.get("t")).toBe("fresh")
-      expect(actual.searchParams.get("next")).toBe("/panel?x=1#details")
-      // This is the destination the proxy's same-origin redirect must navigate to after authentication.
-      expect(new URL(actual.searchParams.get("next")!, actual.origin).href).toBe("https://fresh-web.lab.test/panel?x=1#details")
+      expect(actual.search).toBe("")
+      expect(submitted[0].fields).toEqual({ grant: "fresh", next: "/panel?x=1#details" })
+      expect(tab.location.href).toBe("about:blank")
+    })
+
+    it("uses a different tab name on every click and keeps the grant out of every URL", async () => {
+      mocked.openDeployLink.mockResolvedValue({ URL: "https://web-1x.example.com/_auth", Grant: "secret.jws.value", ExpiresAt: "x" })
+      const { result } = await readyDeploy()
+      act(() => result.current.openLink("web", 443))
+      await waitFor(() => expect(submitted).toHaveLength(1))
+      act(() => result.current.openLink("web", 443))
+      await waitFor(() => expect(submitted).toHaveLength(2))
+      expect(submitted[0].target).not.toBe(submitted[1].target)
+      expect(windowOpen.mock.calls.map((call) => call[1])).toEqual(submitted.map((form) => form.target))
+      expect(submitted.every((form) => form.fields.grant === "secret.jws.value" && !form.action.includes("secret"))).toBe(true)
+      expect(windowOpen.mock.calls.every((call) => !String(call[0]).includes("secret") && !String(call[1]).includes("secret"))).toBe(true)
+      expect(tab.location.href).toBe("about:blank")
+    })
+
+    it("closes the tab and posts nothing when the grant is missing or the endpoint is not a plain http(s) URL", async () => {
+      const { result } = await readyDeploy()
+      for (const link of [{ URL: "https://web-1x.example.com/_auth", Grant: "" }, { URL: "javascript:alert(1)", Grant: "g" }, { URL: "https://u:p@web-1x.example.com/_auth", Grant: "g" }, { URL: "http://web-1x.example.com/_auth", Grant: "g" }, { URL: "https://web-1x.example.com/other", Grant: "g" }]) {
+        mocked.openDeployLink.mockResolvedValueOnce({ ...link, ExpiresAt: "x" })
+        act(() => result.current.openLink("web", 443))
+        await waitFor(() => expect(result.current.link).toBe("error"))
+      }
+      expect(submitted).toHaveLength(0)
+      expect(tab.close).toHaveBeenCalledTimes(5)
     })
 
     it("closes the blank tab, keeps the error and retries on demand", async () => {
-      mocked.openDeployLink.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ URL: "https://web-1x.example.com/_auth?t=y", ExpiresAt: "x" })
+      mocked.openDeployLink.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce({ URL: "https://web-1x.example.com/_auth", Grant: "y", ExpiresAt: "x" })
       const { result } = await readyDeploy()
 
       act(() => result.current.openLink("web", 443))
@@ -211,7 +248,7 @@ describe("useDeployTest", () => {
       act(() => result.current.retryLink())
       await waitFor(() => expect(result.current.link).toBe("idle"))
       expect(mocked.openDeployLink).toHaveBeenCalledTimes(2)
-      expect(tab.location.href).toBe("https://web-1x.example.com/_auth?t=y")
+      expect(submitted).toHaveLength(1)
     })
 
     it("reports a blocked pop-up without asking the server", async () => {

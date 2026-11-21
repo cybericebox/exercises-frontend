@@ -11,7 +11,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { proxyHandoffURL } from "./proxyDestination"
+import { proxyDestinationNext } from "./proxyDestination"
+import { newGrantTabName, submitGrant } from "./submitGrant"
 import { ApiError } from "@/api/client"
 import { isTerminalPhase } from "@/lib/deployStatus"
 import { deployVariant, deployStatus, destroyDeploy, openDeployLink, type DeployTask, type DeployStatus, type DeployKind } from "@/api/exercises/deploy"
@@ -23,7 +24,7 @@ const CONNECTED_POLL_MS = 10000
 /** A failing poll backs off from the normal pace up to this. */
 const MAX_BACKOFF_MS = 60000
 
-/** Opening a web device: the link is fetched on every click, nothing is kept. */
+/** Opening a web device: the grant is fetched on every click, nothing is kept. */
 export type DeployLinkState = "idle" | "opening" | "error"
 
 /** The browser refused the new tab (pop-ups blocked). */
@@ -76,13 +77,15 @@ export function useDeployTest() {
 
   const lastLink = useRef<{ device: string; port: number; destination?: string } | null>(null)
 
-  // The tab is opened synchronously inside the click, before the request, so the
-  // browser treats it as user-initiated; its location is set once the link arrives.
+  // The tab is opened synchronously inside the click, before the request, so the browser treats it as
+  // user-initiated, and gets a unique name; once the grant arrives it is posted into that tab by a form,
+  // never put in a URL.
   const openLink = useCallback((device: string, port: number, destination?: string) => {
     const id = activeId.current
     if (!id) return
     lastLink.current = { device, port, destination }
-    const tab = window.open("about:blank", "_blank")
+    const tabName = newGrantTabName()
+    const tab = window.open("about:blank", tabName)
     if (!tab) {
       setState((p) => ({ ...p, link: "error", linkKey: null, linkError: new PopupBlockedError() }))
       return
@@ -90,7 +93,7 @@ export function useDeployTest() {
     tab.opener = null
     setState((p) => ({ ...p, link: "opening", linkKey: `${device}:${port}`, linkError: null }))
     openDeployLink(id, device, port).then((link) => {
-      tab.location.href = proxyHandoffURL(link.URL, destination)
+      submitGrant(tabName, { url: link.URL, grant: link.Grant }, proxyDestinationNext(link.URL, destination))
       if (activeId.current === id) setState((p) => ({ ...p, link: "idle", linkKey: null }))
     }).catch((error) => {
       tab.close()

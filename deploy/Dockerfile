@@ -17,6 +17,8 @@ ENV NEXT_PUBLIC_GOOGLE_ANALYTICS_ID="__NEXT_PUBLIC_GOOGLE_ANALYTICS_ID__"
 # The optional installation settings (empty or unset = not shown): NEXT_PUBLIC_MAIN_SITE_URL, NEXT_PUBLIC_COOKIES_URL.
 ENV NEXT_PUBLIC_MAIN_SITE_URL="__NEXT_PUBLIC_MAIN_SITE_URL__"
 ENV NEXT_PUBLIC_COOKIES_URL="__NEXT_PUBLIC_COOKIES_URL__"
+# The extra lab base domains (comma list, empty or unset = none): the root layout writes them into <html data-lab-domains>.
+ENV NEXT_PUBLIC_LAB_DOMAINS="__NEXT_PUBLIC_LAB_DOMAINS__"
 RUN npm run build && node scripts/csp-inline.mjs
 
 FROM mirror.gcr.io/library/nginx:1.30.5-alpine-slim@sha256:32463212baf0e7d91aded2e9b843a4f2b9e017804b8c9d5bae7b51dcef64389c AS runner
