@@ -39,7 +39,7 @@ function randomHex(length: number): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length)
 }
 
-/** The first line of the inherited answer of a linked variant: `ICE{…} (+2) · за зразком`. */
+/** The first line of the inherited answer of a linked variant: `ICE{…} (+2) · by template`. */
 function inheritedLine(values: string[]): string {
   if (values.length === 0) return t("ed.b.answer.random")
   const first = values[0].replace(TEMPLATE_PREFIX, "")
@@ -49,8 +49,8 @@ function inheritedLine(values: string[]): string {
 type PasteLine = { line: number; text: string }
 
 /**
- * AnswerValues — «Значення» of an answer check (flag or text). Several values; each is «Фіксоване» (one value for all) or
- * «За зразком» (a new value per participant), chosen in a dropdown at the value. A linked variant inherits the base values
+ * AnswerValues — “value” of an answer check (flag or text). Several values; each is “Fixed” (one value for all) or
+ * “By pattern” (a new value per participant), chosen in a dropdown at the value. A linked variant inherits the base values
  * until it gets its own. Errors sit beside the value they belong to. A pasted list of lines becomes several values.
  */
 export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, baseValues }: {

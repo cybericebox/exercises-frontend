@@ -9,7 +9,7 @@ import { ConsentBanner } from "./ConsentBanner"
 // stored choice before gtag.js runs (see lib/consent). The Cookie Policy link is NEXT_PUBLIC_COOKIES_URL (empty = none).
 // The gtag scripts are rendered only in the browser: the static export is built with the NEXT_PUBLIC_GOOGLE_ANALYTICS_ID placeholder
 // (always non-empty), so a build-time check would put gtag.js into the HTML even when the runtime id is empty.
-// Without a GA id only the consent panel is mounted, so «Налаштування файлів cookie» still works.
+// Without a GA id only the consent panel is mounted, so “Cookie settings” still works.
 const subscribe = () => () => {}
 
 export function Analytics({ gaId }: { gaId?: string }) {

@@ -6,7 +6,7 @@ type Form = UseFormReturn<DraftFormValues>
 
 /**
  * The structure of the tasks is one for every variant: the order, the names, the difficulty, the number and level of hints,
- * the kind of check and «Відкривається після». These helpers write a value into the task at the same position of every
+ * the kind of check and “Opens after”. These helpers write a value into the task at the same position of every
  * variant (linked variants first: a base update fires the live mirror at once, see useLinkedVariantSync).
  */
 export function variantsLinkedFirst(form: Form, except: number | null = null): number[] {

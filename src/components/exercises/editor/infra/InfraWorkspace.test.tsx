@@ -70,7 +70,7 @@ describe("infrastructure workspace", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("keeps «Налаштувати» of a switch disabled with its reason instead of dropping it", () => {
+  it(`keeps "Customize" of a switch disabled with its reason instead of dropping it`, () => {
     renderWorkspace()
     fireEvent.click(screen.getByTestId("node-d2"))
     const settings = within(document.querySelector<HTMLElement>("[data-side-panel]")!).getByRole("button", { name: "ed.c.panel.configure" })
@@ -244,7 +244,7 @@ describe("connect mode and the node panel", () => {
     expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("admin.exTopo.canvasSelectFirst")
   })
 
-  it("closes it for «Зʼєднати» of a node menu as well, and keeps that node as the first of the pair", () => {
+  it(`closes it for "Connect" of a node menu as well, and keeps that node as the first of the pair`, () => {
     renderWorkspace()
     fireEvent.click(screen.getByTestId("node-d1"))
     fireEvent.contextMenu(screen.getByTestId("node-d2"))

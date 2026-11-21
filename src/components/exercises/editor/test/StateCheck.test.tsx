@@ -24,7 +24,7 @@ describe("StateCheck", () => {
     expect(screen.getByText(t("ed.d.state.autoLine", { time: "30 с" }))).toBeTruthy()
   })
 
-  it("«Перевірити зараз» asks the lab, names the operation while it runs and confirms the request", async () => {
+  it(`"Check now" asks the lab, names the operation while it runs and confirms the request`, async () => {
     let finish: (value: { Asked: boolean }) => void = () => {}
     vi.mocked(runDeployChecks).mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     render(<StateCheck deployId="d1" task={task} view={view()} />)

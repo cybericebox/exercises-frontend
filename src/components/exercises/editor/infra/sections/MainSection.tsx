@@ -28,7 +28,7 @@ export type SectionProps = {
 
 const PROFILES: DeviceProfile[] = ["container", "microvm", "vm"]
 
-/** «Основне»: name, profile of launch, image, resource size and security profile. */
+/** “Main”: name, profile of launch, image, resource size and security profile. */
 export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseIndex, imageDisabled }: SectionProps & {
   /** A linked variant: its base's position. */
   linkedBaseIndex?: number

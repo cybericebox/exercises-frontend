@@ -10,7 +10,7 @@ import { MaskedInput } from "@/components/ui/masked-value"
  * SecretInput — write-only secret value.
  * Backend contract: Value is empty in responses, HasValue=true if a value is
  * stored; an empty Value on save means "keep the stored value". Therefore:
- *  - hasValue && value === "" → «Значення збережено» and a replace icon button;
+ *  - hasValue && value === "" → “Value stored” and a replace icon button;
  *  - replace mode / new secret → a masked input with an eye; leaving it empty is fine
  *    (the stored value is left unchanged).
  */

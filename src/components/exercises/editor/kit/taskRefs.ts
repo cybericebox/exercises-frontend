@@ -9,7 +9,7 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 export type TaskRefOption = { key: string; label: string; /** The text inserted into a value: `{{task.<key>}}`. */ ref: string }
 
 /**
- * References offered by task NAME («Відповідь на «Вхід»»), never by key: the key is not shown anywhere in the UI.
+ * References offered by task NAME ("Answer to "Entry""), never by key: the key is not shown anywhere in the UI.
  * Package B owns this file's behaviour (seeded by the foundation); the signatures stay.
  */
 export function taskRefOptions(tasks: { Key: string; Name: string }[]): TaskRefOption[] {

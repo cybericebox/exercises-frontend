@@ -13,7 +13,7 @@ const KIND_ICON = { flag: Flag, text: FileText, state: Activity } as const
 
 export const kindLabel = (choice: CheckChoice) => t(`ed.b.kind.${choice}`)
 
-/** «Прапор · після 1, 2» — the second line of a rail item. */
+/** "Flag · after 1, 2" — the second line of a rail item. */
 export function railMeta(task: TaskFormValues, tasks: TaskFormValues[]): string {
   const after = task.Requires.map((key) => tasks.findIndex((candidate) => candidate.Key === key) + 1).filter((n) => n > 0)
   const kind = kindLabel(checkChoiceOf(task))
@@ -23,7 +23,7 @@ export function railMeta(task: TaskFormValues, tasks: TaskFormValues[]): string 
 const taskName = (task: TaskFormValues, index: number) => task.Name.trim() || t("ed.b.rail.numbered", { n: index + 1 })
 
 /**
- * The rail of the subtasks (D1): number, name (the full name in a tooltip), kind of check and «після N». It does not scroll
+ * The rail of the subtasks (D1): number, name (the full name in a tooltip), kind of check and "after N". It does not scroll
  * with the form. On a phone it is one picker. Actions (order, removal) show on hover or focus.
  */
 export function TaskRail({ rows, selected, onSelect, editable, phone, onAdd, onMove, onRemove }: {

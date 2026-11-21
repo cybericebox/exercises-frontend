@@ -24,7 +24,7 @@ function accessWords(access: DraftFormValues["Variants"][number]["Topology"]["De
   return access.map((entry) => entry.Kind === "http" ? t("ed.c.devices.accessWeb") : entry.Kind === "terminal" ? t("ed.c.devices.accessTerminal") : entry.Kind.toUpperCase()).join(", ")
 }
 
-/** «Пристрої»: every node of the schema in one table; the name shows it on the schema, the row actions open the editor or remove it. */
+/** “Devices”: every node of the schema in one table; the name shows it on the schema, the row actions open the editor or remove it. */
 export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onConfigure, onRemove }: {
   variantIndex: number
   readOnly: boolean

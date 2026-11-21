@@ -42,7 +42,7 @@ describe("ToastProvider", () => {
     }
   })
 
-  it("offers «Спробувати ще раз» on an overload error and runs the retry once", () => {
+  it(`offers "Try again" on an overload error and runs the retry once`, () => {
     const retry = vi.fn()
     render(<ToastProvider><button onClick={() => toastApiError(new ApiError(503, undefined, undefined, undefined, undefined, 1), retry)}>Go</button></ToastProvider>)
     fireEvent.click(screen.getByRole("button", { name: "Go" }))

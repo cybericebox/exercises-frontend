@@ -17,7 +17,7 @@ import type { SectionProps } from "./MainSection"
 const PROTOCOLS: SelectMenuOption[] = [{ value: "http", label: "http" }, { value: "https", label: "https" }]
 
 /**
- * A switch that cannot be turned on at all (VNC, RDP). The row stays visible and focusable: the label «Недоступно» is
+ * A switch that cannot be turned on at all (VNC, RDP). The row stays visible and focusable: the label “Unavailable” is
  * on the row, the full reason is in the tooltip and in the «?».
  */
 function UnavailableRow({ label, reason, help }: { label: string; reason: string; help: HelpContent }) {
@@ -33,7 +33,7 @@ function UnavailableRow({ label, reason, help }: { label: string; reason: string
   </div>
 }
 
-/** «Доступ»: one switch row per kind, at most one entry per kind in `Access`; a present entry is "on". */
+/** “Access”: one switch row per kind, at most one entry per kind in `Access`; a present entry is "on". */
 export function AccessSection({ variantIndex, deviceIndex, disabled }: SectionProps) {
   const { control, setValue } = useFormContext<DraftFormValues>()
   const dp = devicePath(variantIndex, deviceIndex)

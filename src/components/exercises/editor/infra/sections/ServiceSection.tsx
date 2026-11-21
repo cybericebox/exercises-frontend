@@ -59,7 +59,7 @@ function ListTextInput({ list, onList, onBlur, inputRef, disabled, placeholder, 
     onBlur={onBlur} onChange={(event) => { setText(event.target.value); onList(splitArgs(event.target.value)) }} />
 }
 
-/** «Сервіс»: the command of the service, its environment and when the platform counts the device as ready. */
+/** “Service”: the command of the service, its environment and when the platform counts the device as ready. */
 export function ServiceSection({ variantIndex, deviceIndex, disabled, onOpenVariables, requestVariable }: SectionProps & {
   onOpenVariables: () => void
   requestVariable: (insert: (name: string) => void) => void

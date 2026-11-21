@@ -26,8 +26,8 @@ const REPORT_MS = 8000
 type Report = { added: number; updated: number; kept: number; invalid: number; skipped: number }
 
 /**
- * «Змінні середовища» of a device: the variables of the service process. Every typed value is masked with an eye (H12);
- * a saved secret shows «Значення збережено» and a replace button (the server never returns it; an empty value on save
+ * “Environment variables” of a device: the variables of the service process. Every typed value is masked with an eye (H12);
+ * a saved secret shows “Value stored” and a replace button (the server never returns it; an empty value on save
  * means "keep"). Import from a `.env` file by button or by dropping the file on the block.
  */
 export function EnvBlock({ variantIndex, deviceIndex, disabled, onOpenVariables, requestVariable }: SectionProps & {

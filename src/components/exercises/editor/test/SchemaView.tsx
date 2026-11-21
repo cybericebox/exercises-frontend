@@ -120,7 +120,7 @@ export function SchemaFull({ open, onClose, topology, status, actions }: {
   </DialogPrimitive.Root>
 }
 
-/** The «Схема» tab of the lab panel: the canvas with a button that opens it over the whole screen. */
+/** The “Schema” tab of the lab panel: the canvas with a button that opens it over the whole screen. */
 export function SchemaTab({ topology, status, selected, onSelect, onFull }: {
   topology: NormalizedTopology
   status: DeployStatus | null

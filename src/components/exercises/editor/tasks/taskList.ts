@@ -29,7 +29,7 @@ export function useTaskList(variantIndex: number) {
     move(from, to)
   }
 
-  /** Removes the task from every variant and drops it from «Відкривається після» of the others. */
+  /** Removes the task from every variant and drops it from “Opens after” of the others. */
   function removeAt(taskIndex: number): void {
     const key = getValues(`${name}.${taskIndex}.Key`)
     others().forEach((index) => {

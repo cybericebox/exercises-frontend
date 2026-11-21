@@ -3,7 +3,7 @@ import { t } from "@/i18n/t"
 
 type Progress = Pick<ImportJobStatus, "stage" | "imagesDone" | "imagesTotal" | "tasksDone" | "tasksTotal">
 
-/** What a running import is doing: «Завантажуємо образи: 3 з 7». The counts appear once the stage knows its total. */
+/** What a running import is doing: "Uploading images: 3 of 7". The counts appear once the stage knows its total. */
 export function importStageText(job: Progress): string {
   if (job.stage === "images") {
     return job.imagesTotal > 0 ? t("admin.exImport.stage.imagesCount", { done: job.imagesDone, total: job.imagesTotal }) : t("admin.exImport.stage.images")

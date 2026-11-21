@@ -38,7 +38,7 @@ export function failedDevices(devices: DeployDeviceStatus[] | undefined): Deploy
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [["day", 86400], ["hour", 3600], ["minute", 60], ["second", 1]]
 
-/** «5 хвилин тому» in the active language (Ukrainian). */
+/** "5 minutes ago" in the active language. */
 export function agoText(iso: string, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))
   const [unit, size] = UNITS.find(([, size]) => seconds >= size) ?? UNITS[UNITS.length - 1]

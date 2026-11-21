@@ -61,7 +61,7 @@ function WeightField({ index, value, share, disabled }: { index: number; value: 
   </div>
 }
 
-/** The answer of a linked variant's task: «як в основному» until it has its own, then an editable value. */
+/** The answer of a linked variant's task: “as in the base” until it has its own, then an editable value. */
 function OwnAnswer({ variantIndex, position, base, disabled }: { variantIndex: number; position: number; base: VariantFormValues; disabled: boolean }) {
   const { form } = useEditor()
   const path = `Variants.${variantIndex}.Tasks.${position}.Check.Answer.Values`
@@ -98,7 +98,7 @@ function OwnAnswer({ variantIndex, position, base, disabled }: { variantIndex: n
   </div>
 }
 
-/** The own files of a linked variant's task: «файли як в основному» until it has its own. */
+/** The own files of a linked variant's task: "files as in the main one" until it has its own. */
 function OwnFiles({ variantIndex, position, base, disabled }: { variantIndex: number; position: number; base: VariantFormValues; disabled: boolean }) {
   const { form, exerciseId } = useEditor()
   const path = `Variants.${variantIndex}.Tasks.${position}.Attachments` as `Variants.${number}.Tasks.${number}.Attachments`
@@ -241,7 +241,7 @@ function LinkedDetails({ variant, index, baseIndex, disabled }: { variant: Varia
 type Pending = { kind: "detach" | "delete"; index: number } | null
 
 /**
- * «Усі варіанти» (F1..F5): a list, not a matrix. Every row — base and linked alike — starts with the same expand chevron
+ * “All variants” (F1..F5): a list, not a matrix. Every row — base and linked alike — starts with the same expand chevron
  * and expands to its content; the weight is a plain field with its share; detach, duplicate and delete live only in the
  * row's «…» menu. The only «add» action sits in the toolbar.
  */

@@ -6,7 +6,7 @@ import { t } from "@/i18n/t"
 import { cn } from "@/utils/cn"
 
 /**
- * A copy button: copies `text`, then shows «Скопійовано» for two seconds (or «Не вдалося скопіювати»).
+ * A copy button: copies `text`, then shows “Copied” for two seconds (or “Could not copy”).
  * Both labels share one grid cell, so the button keeps its width.
  */
 export function CopyButton({ text, label, icon, ariaLabel, className }: { text: string; label: string; icon?: ReactNode; ariaLabel?: string; className?: string }) {

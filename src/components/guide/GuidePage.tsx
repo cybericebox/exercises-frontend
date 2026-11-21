@@ -9,7 +9,7 @@ import { GuidePager } from "./GuidePager"
 import { GuideProse } from "./GuideProse"
 import "@/styles/guide.css"
 
-/** One guide page inside the catalog shell: the secondary nav and the article. The overview adds «Скопіювати для LLM». */
+/** One guide page inside the catalog shell: the secondary nav and the article. The overview adds “Copy for LLM”. */
 export function GuidePage({ slug, html, lead, llmText }: { slug: GuidePageSlug; html: string; lead: string; llmText?: string }) {
   const overview = slug === "index"
   return <div className="frost-panel flex min-h-full min-w-0 flex-col rounded-lg p-3 sm:p-6">

@@ -103,7 +103,7 @@ function Chips({ items, onAdd }: { items: Chip[]; onAdd: (name: string) => void 
 
 const without = (set: ReadonlySet<string>, key: string) => { const next = new Set(set); next.delete(key); return next }
 
-/** A file: the path, then the expectations the author added. «Відсутній» hides and drops every other expectation. */
+/** A file: the path, then the expectations the author added. “Absent” hides and drops every other expectation. */
 function FileFields({ base, variantIndex, condition, disabled }: { base: string; variantIndex: number; condition: ConditionFormValues; disabled: boolean }) {
   const form = useFormContext<DraftFormValues>()
   const support = useLabSupport()

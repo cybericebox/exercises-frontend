@@ -3,7 +3,7 @@
  * (a variable of the infrastructure). They work in Bootstrap.Env values, Bootstrap.Files content, Bootstrap.Script and
  * in the expectations of state conditions; `\{{` is a literal `{{`. An unresolved reference is an error naming the field.
  *
- * Pure helpers shared by the tasks package (where does the answer go, «Куди передається відповідь») and the
+ * Pure helpers shared by the tasks package (where does the answer go, “Where the answer goes”) and the
  * infrastructure package (the picker lists answers and variables by name, never raw braces).
  */
 import type { TaskFormValues } from "./schemas/task"

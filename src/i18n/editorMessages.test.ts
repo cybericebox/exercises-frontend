@@ -43,7 +43,7 @@ describe("editor message files", () => {
         }
       })
 
-      it("never gives an example with «наприклад»", () => {
+      it(`never gives an example with "for example" (napryklad)`, () => {
         for (const [key, value] of Object.entries(file.uk)) expect(/наприклад/i.test(value), key).toBe(false)
       })
     })

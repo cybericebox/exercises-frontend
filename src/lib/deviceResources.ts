@@ -14,7 +14,7 @@ export type Preset = ResourcesConfig["Presets"][number]
 
 const MIB = 1024 ** 2
 
-// UI numbers, not Kubernetes notation: «0,5 CPU», «512 МіБ», «1,5 ГіБ».
+// UI numbers, not Kubernetes notation: "0.5 CPU", "512 MiB", "1.5 GiB".
 const number = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 3, useGrouping: false })
 
 export function formatCPU(millis: number): string {

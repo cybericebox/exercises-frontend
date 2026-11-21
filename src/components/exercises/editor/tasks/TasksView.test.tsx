@@ -19,7 +19,7 @@ const rail = () => screen.getByTestId("task-rail")
 beforeEach(() => { vi.clearAllMocks() })
 
 describe("TasksView: the rail", () => {
-  it("shows number, name, kind of check and «після N»; never a task key", () => {
+  it(`shows number, name, kind of check and "after N"; never a task key`, () => {
     const third = task("task_3", "Third", { Requires: ["task_1", "task_2"] })
     const { container } = renderInEditor(<TasksView />, { variants: [{ tasks: [flagTask("task_1", "First"), task("task_2", "Second"), third] }] })
     const items = within(rail()).getAllByRole("listitem")
@@ -128,7 +128,7 @@ describe("TasksView: form order and sections", () => {
     expect(text.querySelectorAll("hr")).toHaveLength(4)
   })
 
-  it("«Відкривається після» offers tasks by name, several may be chosen, and none that would make a cycle", () => {
+  it(`"Opens after" offers tasks by name, several may be chosen, and none that would make a cycle`, () => {
     const { values } = renderInEditor(<TasksView />, { variants: [{ tasks: [flagTask("task_1", "First"), flagTask("task_2", "Second"), task("task_3", "Third", { Requires: ["task_2"] })] }] })
     fireEvent.click(within(rail()).getAllByRole("button", { name: /Second/ })[0])
     fireEvent.keyDown(screen.getByRole("button", { name: "ed.b.requires.add" }), { key: "ArrowDown" })

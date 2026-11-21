@@ -15,7 +15,7 @@ import { PlaceholderDialog, type ExternalDevice, type GatewayOption } from "../.
 /**
  * The one configuration of the description editor and every hint editor of a task: the same toolbar, the placeholders the
  * lab can fill (subnets, an address, a link to a device) with their example values, and the constructor dialog that creates
- * or edits a placeholder. «Вставити підстановку» offers ONLY placeholders: the answer of a task and a variable of the schema
+ * or edits a placeholder. “Insert placeholder” offers ONLY placeholders: the answer of a task and a variable of the schema
  * never belong in a text the participant reads (the daemon refuses them, error 23519).
  */
 export function useTextEditor(variantIndex: number, taskIndex: number): { config: DescriptionEditorConfig; dialog: ReactNode } {

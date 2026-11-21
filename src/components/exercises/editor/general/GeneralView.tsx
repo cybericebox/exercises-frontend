@@ -5,7 +5,7 @@ import { ExerciseGeneralFields } from "../../ExerciseGeneralFields"
 import { ExerciseGeneralMetadata } from "../../ExerciseGeneralMetadata"
 import { useEditor } from "../kit"
 
-/** «Загальне» (C1): the fields in one column, the compact facts panel beside them on the same line. */
+/** “General” (C1): the fields in one column, the compact facts panel beside them on the same line. */
 export function GeneralView() {
   const { form, page, disabled, showNotes } = useEditor()
   return <div className="editor-general">

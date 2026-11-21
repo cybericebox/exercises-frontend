@@ -73,7 +73,7 @@ function TaskSection({ task, number, open, onToggle, status, devices, solved }: 
   </section>
 }
 
-/** «Для автора»: what only the author sees about each task: where its answer is placed, and every state check with its conditions. */
+/** “For the author”: what only the author sees about each task: where its answer is placed, and every state check with its conditions. */
 export function AuthorTab({ tasks, currentId, status, devices, solvedIds }: {
   tasks: NormalizedTask[]
   currentId: string | null

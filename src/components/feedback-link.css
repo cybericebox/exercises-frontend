@@ -1,4 +1,4 @@
-/* «Надіслати відгук» outside a footer or menu (the root error screen): a plain centered text link. */
+/* “Send feedback” outside a footer or menu (the root error screen): a plain centered text link. */
 .feedback-link--standalone{display:block;padding:var(--ib-3,12px);text-align:center;color:var(--ib-dim);font-size:var(--ib-fs-13,13px);text-decoration:none}
 .feedback-link--standalone:hover{color:var(--ib-ink)}
 .feedback-link--standalone:focus-visible{outline:2px solid var(--ib-action);outline-offset:2px}

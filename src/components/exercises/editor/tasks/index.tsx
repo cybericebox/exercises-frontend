@@ -16,7 +16,7 @@ import { useTaskList } from "./taskList"
 
 
 /**
- * «Підзавдання» of the current variant: the rail on the left (number, name, kind of check, «після N»; it does not scroll
+ * “Tasks” of the current variant: the rail on the left (number, name, kind of check, "after N"; it does not scroll
  * with the form) and the form of the selected subtask. A linked variant takes the subtasks from its base: no adding,
  * moving or removing here.
  */

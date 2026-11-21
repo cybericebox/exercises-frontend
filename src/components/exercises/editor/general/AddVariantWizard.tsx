@@ -32,8 +32,8 @@ type Upload = { key: string; name: string; percent: number }
 const fieldHelp = (key: string): HelpContent => ({ intro: t(`ed.a.wizard.help.${key}.intro`), default: t(`ed.a.wizard.help.${key}.default`) })
 
 /**
- * «Додати варіант»: at most two steps built on presets (F5, H11). Step 1 picks the preset; «Копія варіанта» and «Порожній
- * варіант» have no second step. For the three presets that differ, step 2 is one list (tasks or devices): a check box per
+ * “Add a variant”: at most two steps built on presets (F5, H11). Step 1 picks the preset; “Copy of a variant” and "Empty
+ * variant" have no second step. For the three presets that differ, step 2 is one list (tasks or devices): a check box per
  * row, and the field for the new value (answer, image) appears in that same row; files expand directly under their row.
  */
 export function AddVariantWizard({ onClose }: { onClose: () => void }) {

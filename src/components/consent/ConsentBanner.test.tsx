@@ -11,7 +11,7 @@ const click = (name: string) => fireEvent.click(screen.getByRole("button", { nam
 describe("ConsentBanner", () => {
   afterEach(clear)
 
-  it("asks with a general line, the policy link, «Налаштувати» and «Прийняти всі»", () => {
+  it(`asks with a general line, the policy link, "Customize" and "Accept all"`, () => {
     render(<ConsentBanner gaId="G-TEST" />)
     expect(banner()).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveAttribute("href", "https://example.test/cookies")
@@ -59,7 +59,7 @@ describe("ConsentBanner", () => {
     expect(document.cookie).toContain("cib_consent=analytics:granted")
   })
 
-  it("the panel has only «Зберегти вибір» and «Прийняти всі»; saving with analytics off drops _ga; Esc steps back without consent", () => {
+  it(`the panel has only "Save choice" and "Accept all"; saving with analytics off drops _ga; Esc steps back without consent`, () => {
     document.cookie = "_ga=GA1.1.1; path=/"
     render(<ConsentBanner gaId="G-TEST" />)
     click("Налаштувати")
@@ -75,7 +75,7 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
-  it("«Налаштування файлів cookie» opens the panel with focus inside; Esc closes it unchanged", () => {
+  it(`"Cookie settings" opens the panel with focus inside; Esc closes it unchanged`, () => {
     document.cookie = "cib_consent=analytics:granted; path=/"
     render(<ConsentBanner gaId="G-TEST" />)
     act(() => openConsentSettings())
@@ -110,7 +110,7 @@ describe("ConsentBanner without GA", () => {
     expect(panel()).toBeInTheDocument()
   })
 
-  it("marks the policy link and the «Докладніше» line as cfg-cookies, so the stylesheet hides them while the setting is empty", () => {
+  it(`marks the policy link and the "Learn more" line as cfg-cookies, so the stylesheet hides them while the setting is empty`, () => {
     render(<ConsentBanner gaId="G-TEST" />)
     expect(screen.getByRole("link", { name: "Політика файлів cookie (відкриється в новій вкладці)" })).toHaveClass("cfg-cookies")
     click("Налаштувати")

@@ -19,7 +19,7 @@ export type RailTask = {
 
 const subtitle = (task: RailTask) => task.waitsFor.length > 0 ? t("ed.d.rail.after", { numbers: task.waitsFor.join(", ") }) : task.kind === "none" ? "" : t(`ed.d.kind.${task.kind}`)
 
-/** The list of tasks at the left (from the medium width up): number, name, kind of check or «після N»; scrolls on its own. */
+/** The list of tasks at the left (from the medium width up): number, name, kind of check or "after N"; scrolls on its own. */
 export function TaskRail({ tasks, selectedId, onSelect }: { tasks: RailTask[]; selectedId: string | null; onSelect: (id: string) => void }) {
   return <aside className="hidden w-60 shrink-0 flex-col overflow-y-auto border-r border-border p-3 md:flex">
     <h2 className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("ed.d.rail.title", { n: tasks.length })}</h2>
@@ -44,7 +44,7 @@ export function TaskRail({ tasks, selectedId, onSelect }: { tasks: RailTask[]; s
   </aside>
 }
 
-/** Below the medium width the rail becomes «1 з 3 · Name» with arrows. */
+/** Below the medium width the rail becomes "1 of 3 · Name" with arrows. */
 export function TaskSwitcher({ tasks, selectedId, onSelect }: { tasks: RailTask[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const index = Math.max(0, tasks.findIndex((task) => task.id === selectedId))
   const task = tasks[index]

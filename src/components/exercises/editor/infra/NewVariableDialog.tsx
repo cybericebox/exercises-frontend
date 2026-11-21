@@ -28,7 +28,7 @@ export function kindOptions() {
 }
 
 /**
- * «Нова змінна схеми» from the picker of a value: created on the spot and inserted into the field. The name follows the
+ * “New schema variable” from the picker of a value: created on the spot and inserted into the field. The name follows the
  * variable name rule and is unique; the value is fixed or a pattern.
  */
 export function NewVariableDialog({ variantIndex, open, onCreate, onClose }: {

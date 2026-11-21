@@ -71,7 +71,7 @@ describe("editor shell", () => {
     expect(screen.getByTestId("pos")).toHaveTextContent("variants:")
   })
 
-  it("shows the issues list and «Перейти» closes it and goes to the field", () => {
+  it(`shows the issues list and "Go to" closes it and goes to the field`, () => {
     const onGoToField = vi.fn()
     let api: EditorApi | undefined
     render(<Harness onGoToField={onGoToField} exposeApi={(value) => { api = value }} />)

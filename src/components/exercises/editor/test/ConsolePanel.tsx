@@ -85,7 +85,7 @@ export function useOpenConsoleTab(deployId: string) {
 }
 
 /**
- * The console of a device inside the page: a frame with a header (device name, «Відкрити в новій вкладці», close). The
+ * The console of a device inside the page: a frame with a header (device name, “Open in a new tab”, close). The
  * console page itself, its terminal and its file upload and download, belong to the laboratory; here it is only embedded.
  * It loads only when the laboratory allows this site as an ancestor of the frame and both share the registrable domain;
  * when it cannot (blocked, no console in the lab, the link refused) the panel says so with a way to the new tab, never a

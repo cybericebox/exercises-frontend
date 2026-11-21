@@ -1,4 +1,4 @@
-/** Package A: «Загальне», «Усі варіанти», the add-variant wizard and the «Документ» dialog (the shell's slots). */
+/** Package A: “General”, “All variants”, the add-variant wizard and the “Document” dialog (the shell's slots). */
 export { GeneralView } from "./GeneralView"
 export { AllVariantsView } from "./AllVariantsView"
 export { AddVariantWizard } from "./AddVariantWizard"

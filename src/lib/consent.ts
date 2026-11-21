@@ -5,7 +5,7 @@ import { hosts } from "@/lib/hosts"
  *
  * COPY-TO-RP-APPS: app-agnostic, static-export-safe, no React.
  *
- * Categories: «Необхідні» (always on, no consent needed) and «Аналітика»
+ * Categories: “Necessary” (always on, no consent needed) and “Analytics”
  * (Google Analytics, off until the user turns it on). Google Consent Mode v2:
  * every signal defaults to `denied` before gtag loads; analytics consent maps
  * to `analytics_storage` only, the ad signals stay denied forever (the
@@ -22,7 +22,7 @@ type ConsentState = Record<"analytics_storage" | "ad_storage" | "ad_user_data" |
 
 export const CONSENT_COOKIE = "cib_consent"
 export const CONSENT_MAX_AGE = 60 * 60 * 24 * 365
-// «Налаштування файлів cookie» fires OPEN to open the preferences panel; saveConsent fires CHANGE.
+// “Cookie settings” fires OPEN to open the preferences panel; saveConsent fires CHANGE.
 export const CONSENT_OPEN_EVENT = "cib:consent-open"
 export const CONSENT_CHANGE_EVENT = "cib:consent-change"
 
@@ -110,17 +110,17 @@ export function saveConsent(prefs: ConsentPrefs): void {
 /**
  * The cookie-policy link inside the banner and panel opens in a new tab, so the
  * panel and its unsaved toggles stay put. Spread onto the <a> with an aria-label
- * that says so («відкриється в новій вкладці»).
+ * that says so ("opens in a new tab").
  */
 export const POLICY_LINK_ATTRS = { target: "_blank", rel: "noopener noreferrer" } as const
 
-/** «Налаштування файлів cookie»: open the preferences panel. */
+/** “Cookie settings”: open the preferences panel. */
 export function openConsentSettings(): void {
   window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))
 }
 
 /**
- * «Налаштування файлів cookie» is always an <a href> to the cookie policy (works without JS
+ * “Cookie settings” is always an <a href> to the cookie policy (works without JS
  * and without GA); with JS the click opens the preferences panel instead of navigating.
  */
 export function interceptSettingsLink(e: { preventDefault(): void }): void {

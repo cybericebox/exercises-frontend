@@ -13,7 +13,7 @@ const valueInputs = () => screen.getAllByTestId("answer-value-row").map((row) =>
 beforeEach(() => { vi.clearAllMocks() })
 
 describe("CheckSection: kind of check", () => {
-  it("switches Прапор / Текст / Стан in every variant and keeps what was typed in the other halves", () => {
+  it("switches Flag / Text / State in every variant and keeps what was typed in the other halves", () => {
     const { values } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, {
       variants: [{ tasks: [flagTask("task_1", "First", ["ICE{one}"])], devices: [node("d1", "web")] }, { tasks: [flagTask("task_1", "First", ["ICE{two}"])], devices: [node("d2", "db")] }],
     })
@@ -28,7 +28,7 @@ describe("CheckSection: kind of check", () => {
     expect(values().Variants[1].Tasks[0].Check.Answer.Values).toEqual(["ICE{two}"])
   })
 
-  it("the help of «Стан» says such tasks are for the Academy and cannot be added to an event", () => {
+  it(`the help of "State" says such tasks are for the Academy and cannot be added to an event`, () => {
     renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />)
     // The mocked translator returns keys: the help is the structured one with the three kinds.
     expect(screen.getByTestId("check-section")).toHaveTextContent("ed.b.check.title")
@@ -43,7 +43,7 @@ describe("CheckSection: kind of check", () => {
 })
 
 describe("CheckSection: answer values", () => {
-  it("a flag task without values says the flag is generated; «Додати значення» adds an ICE{} row and focuses it", async () => {
+  it(`a flag task without values says the flag is generated; "Add value" adds an ICE{} row and focuses it`, async () => {
     const { values } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />)
     expect(screen.getByText("ed.b.answer.random")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "ed.b.answer.add" }))
@@ -51,7 +51,7 @@ describe("CheckSection: answer values", () => {
     await waitFor(() => expect(valueInputs()[0]).toHaveFocus())
   })
 
-  it("«За зразком» turns the value into a template and back, keeping the text", () => {
+  it(`"By template" turns the value into a template and back, keeping the text`, () => {
     const { values } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{abc}"])] }] })
     fireEvent.keyDown(screen.getByRole("button", { name: "ed.b.answer.modeN" + JSON.stringify({ n: 1 }) }), { key: "ArrowDown" })
     fireEvent.click(screen.getByRole("menuitemradio", { name: /ed.b.answer.byPattern/ }))
@@ -86,7 +86,7 @@ describe("CheckSection: answer values", () => {
     expect(values().Variants[0].Tasks[0].Check.Answer.Trim).toBe(false)
   })
 
-  it("«Підказка в полі вводу» sits beside the values and is limited", () => {
+  it(`"Hint in the input field" sits beside the values and is limited`, () => {
     const { values } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />)
     const input = screen.getByLabelText("ed.b.answer.inputHint")
     fireEvent.change(input, { target: { value: "ICE{…}" } })
@@ -115,7 +115,7 @@ describe("CheckSection: answer values", () => {
   })
 })
 
-describe("CheckSection: «Куди передається відповідь»", () => {
+describe(`CheckSection: "Where the answer goes"`, () => {
   const devices = () => [
     node("d1", "web", { Env: [{ Name: "SEED", Value: "x", Secret: false, HasValue: true, ValueGroup: "" } as never, { Name: "FLAG", Value: "{{task.task_1}}", Secret: false, HasValue: true, ValueGroup: "" } as never] }),
     node("d2", "db", { Files: [{ Path: "/srv/flag.txt", From: "text", Content: "{{task.task_1}}\n", Source: null, Owner: "", Group: "", Mode: "" }], Script: "echo {{task.task_1}}" }),
@@ -132,7 +132,7 @@ describe("CheckSection: «Куди передається відповідь»",
     ])
   })
 
-  it("a link opens the exact row of the device: the variable in «Сервіс», the file and the script in «Ініціалізація»", () => {
+  it(`a link opens the exact row of the device: the variable in "Service", the file and the script in "Initialization"`, () => {
     const { handles } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First")], devices: devices() }] })
     const links = within(screen.getByTestId("deliver-block")).getAllByRole("listitem").map((item) => within(item).getByRole("button"))
     fireEvent.click(links[0])
@@ -143,7 +143,7 @@ describe("CheckSection: «Куди передається відповідь»",
     expect(handles.goToField).toHaveBeenLastCalledWith(["Variants", 0, "Topology", "Devices", 1, "Bootstrap", "Script"])
   })
 
-  it("is empty: one quiet line and «Налаштувати в пристрої» with the devices", () => {
+  it(`is empty: one quiet line and "Configure in the device" with the devices`, () => {
     const { handles } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First")], devices: [node("d1", "web"), node("d2", "db")] }] })
     const block = screen.getByTestId("deliver-block")
     expect(block).toHaveTextContent("ed.b.deliver.none")

@@ -42,7 +42,7 @@ export function TopologyResourcesButton({ form, ...panel }: PanelProps & { form:
     cpu: range(resources.Min.CPUMillicores, resources.Max.CPUMillicores, formatCPU),
     memory: range(resources.Min.MemoryBytes, resources.Max.MemoryBytes, formatMemory),
   })
-  // The mockup's form: an icon chip with the numbers only; the accessible name keeps the full «Ресурси: …».
+  // The mockup's form: an icon chip with the numbers only; the accessible name keeps the full "Resources: …".
   const chip = t("ed.ui.res.chip", { cpu: range(resources.Min.CPUMillicores, resources.Max.CPUMillicores, formatCPU), memory: range(resources.Min.MemoryBytes, resources.Max.MemoryBytes, formatMemory) })
   return <Popover>
     <PopoverTrigger asChild>

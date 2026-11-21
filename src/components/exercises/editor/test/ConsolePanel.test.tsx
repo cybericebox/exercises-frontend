@@ -111,7 +111,7 @@ describe("ConsolePanel", () => {
     expect(screen.getAllByRole("button", { name: t("ed.d.console.newTab") }).length).toBeGreaterThan(0)
   })
 
-  it("keeps «Термінал не відображається?» with the new-tab button next to a loaded frame", async () => {
+  it(`keeps "Terminal not showing?" with the new-tab button next to a loaded frame`, async () => {
     vi.mocked(openDeployLink).mockResolvedValue(link)
     render(<ConsolePanel {...props} />)
     await screen.findByTitle(t("ed.d.console.frame", { device: "r1" }))

@@ -5,7 +5,7 @@
 .editor-tab::before { content:attr(data-t); display:block; height:0; overflow:hidden; visibility:hidden; font-weight:600; pointer-events:none; }
 .editor-tab { flex-direction:column; }
 
-/* «Варіант N ▾» and its two tabs: one group, no backing; the grouping is shown only by the divider before it. */
+/* "Variant N ▾" and its two tabs: one group, no backing; the grouping is shown only by the divider before it. */
 .editor-tab-group { display:flex; align-items:stretch; flex:none; }
 .editor-tab-group .editor-tab { --tab-pad:10px; }
 .editor-vsel { position:relative; display:inline-flex; align-items:center; gap:6px; height:100%; padding:0 8px; border:0; border-radius:6px; background:transparent; color:var(--ib-ink); font-size:14px; line-height:20px; white-space:nowrap; flex:none; }

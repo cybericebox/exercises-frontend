@@ -8,7 +8,7 @@
  * - the row of the catalog table (ImportRows) shows each followed import;
  * - done: a toast, the handlers of onImportsDone run (the catalog reloads), the id is forgotten at once;
  * - failed: a toast (when the failure was seen live) and the job stays until dismissImportJob, so the indicator can
- *   offer «Подробиці» and a reload still shows it.
+ *   offer “Details” and a reload still shows it.
  */
 import { useEffect, useSyncExternalStore } from "react"
 import { ApiError } from "@/api/client"

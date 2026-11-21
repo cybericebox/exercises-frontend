@@ -31,7 +31,7 @@ export function timeLeft(expiresAt: string, now: number): string {
 /**
  * The user's running test labs: one row per lab (exercise, variant, time left) with an icon
  * button to open its test page and one to end it (after a danger confirmation). Used by the
- * navbar indicator and by the «Тест» button once the limit of running labs is reached.
+ * navbar indicator and by the "Test" button once the limit of running labs is reached.
  */
 export function RunningLabsDialog({ open, items, description, onClose, onEnded, onExpired }: {
   open: boolean

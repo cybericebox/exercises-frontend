@@ -115,7 +115,7 @@ export const ERR_NODE_PROFILE_PERSISTENCE = 23105
 
 /**
  * Path below a device for an error with a code. Most codes use `field` as is (deviceFieldPath); 23105 names
- * `persistence`, but that switch does not exist for the profile, so the error sits at the «Профіль запуску» field.
+ * `persistence`, but that switch does not exist for the profile, so the error sits at the “Launch profile” field.
  */
 export function deviceErrorPath(code: number, field: string): Segment[] | null {
   if (code === ERR_NODE_PROFILE_PERSISTENCE) return ["Profile"]

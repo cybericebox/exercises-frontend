@@ -25,7 +25,7 @@ const lines = (items: string[]) => <>{items.map((item) => <span key={item} class
 
 /**
  * The one side panel of every node kind (H10): a read-only summary with a header (name, close), a two-column definition
- * list whose rows open the editor on the matching section, and a pinned footer: «Налаштувати» and the trash. A control that
+ * list whose rows open the editor on the matching section, and a pinned footer: “Configure” and the trash. A control that
  * cannot act stays, disabled, with its reason.
  */
 export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onClose, onConfigure, onDelete }: {

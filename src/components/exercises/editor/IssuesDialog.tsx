@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useEditor } from "./context"
 
 /**
- * «Перед публікацією виправте» / «Тест може не запуститися»: one line per invalid field with «Перейти». The list only
+ * “Fix before publishing” / “The test may not start”: one line per invalid field with “Go to”. The list only
  * navigates; each message also sits beside its own field.
  */
 export function IssuesDialog() {

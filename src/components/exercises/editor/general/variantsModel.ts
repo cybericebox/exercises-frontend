@@ -1,5 +1,5 @@
 /**
- * variantsModel.ts — the pure rules of the «Усі варіанти» list: the position of a base, the share of a weight, the
+ * variantsModel.ts — the pure rules of the “All variants” list: the position of a base, the share of a weight, the
  * variants that are not needed, the one-line summary of what a variant has of its own, and the structural edits
  * (duplicate, detach, delete). Nothing here mutates its input.
  */
@@ -48,7 +48,7 @@ export function needlessVariants(variants: VariantFormValues[]): boolean {
   })
 }
 
-/** One line: what the variant has of its own (the «Чим відрізняється» column). */
+/** One line: what the variant has of its own (the “What differs” column). */
 export function variantSummary(variants: VariantFormValues[], index: number, t: Translate): string {
   const variant = variants[index]
   const base = baseIndexOf(variants, index)

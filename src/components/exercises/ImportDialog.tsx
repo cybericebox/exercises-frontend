@@ -294,7 +294,7 @@ export function unchangedUpdate(item: ArchivePreviewItem): boolean {
     && s.Subtasks.Before === s.Subtasks.After && s.Files.Added + s.Files.Removed === 0 && s.Images.New === 0
 }
 
-/** The change chips of an update, each one fact in words: «+1 варіант», «змінено 2 прапори», «1 новий образ». */
+/** The change chips of an update, each one fact in words: "+1 variant", "2 flags changed", "1 new image". */
 function changeChips(summary: ArchiveImportSummary): { key: string; text: string }[] {
   const chips: { key: string; text: string }[] = []
   const add = (key: string, count: number) => { if (count > 0) chips.push({ key, text: t(pluralKey(`admin.exImport.chip.${key}`, count), { count }) }) }
@@ -328,7 +328,7 @@ function ImportRow({ item, fixedExercise, error, onTarget }: { item: ArchivePrev
         {!update ? <span className="exercise-import-chip exercise-import-chip-new">{t("admin.exImport.chip.new")}</span>
           : same ? <span className="exercise-import-chip exercise-import-chip-same"><Check aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.same")}</span>
           : changeChips(item.Summary).map(chip => <span key={chip.key} className="exercise-import-chip">{chip.text}</span>)}
-        {/* «Стане чернеткою» is said once for all rows, in the footer. */}
+        {/* "Will become a draft" is said once for all rows, in the footer. */}
         {update && item.ReplacesDraft && <span className="exercise-import-chip exercise-import-chip-warn"><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.replacesDraft")}</span>}
         {item.Report && <ReportVerdict report={item.Report} />}
         {item.SourceIDMismatch && <HoverTooltip text={t("admin.exImport.update.mismatch")} describe><span className="exercise-import-chip exercise-import-chip-warn" tabIndex={0}><TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />{t("admin.exImport.chip.otherId")}</span></HoverTooltip>}

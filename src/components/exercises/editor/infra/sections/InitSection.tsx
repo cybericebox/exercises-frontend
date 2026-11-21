@@ -27,7 +27,7 @@ const textBytes = (value: string) => new TextEncoder().encode(value).length
 
 type Expanded = { kind: "file"; index: number } | { kind: "script" } | null
 
-/** «Ініціалізація»: what is written to the clean device before the service starts: files and a script. */
+/** “Initialization”: what is written to the clean device before the service starts: files and a script. */
 export function InitSection({ variantIndex, deviceIndex, disabled, requestVariable }: SectionProps & {
   requestVariable: (insert: (name: string) => void) => void
 }) {

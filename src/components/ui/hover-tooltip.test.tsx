@@ -154,7 +154,7 @@ describe("HoverTooltip — contract", () => {
 })
 
 describe("FieldHelp", () => {
-  it("is named «Довідка», describes by the text, toggles on tap and does not open on focus", () => {
+  it(`is named "Help", describes by the text, toggles on tap and does not open on focus`, () => {
     render(<FieldHelp text="Назва, яку бачать учасники." />)
     const button = screen.getByRole("button", { name: "Довідка" })
     expect(button).toHaveAccessibleDescription("Назва, яку бачать учасники.")

@@ -78,7 +78,7 @@ describe("CatalogTable", () => {
     expect(onWidth).toHaveBeenLastCalledWith("status", undefined)
   })
 
-  it("lets «Назва» be resized too, never below its minimum", () => {
+  it(`lets "Name" be resized too, never below its minimum`, () => {
     const onWidth = vi.fn()
     table(undefined, [item], onWidth)
     const name = screen.getAllByRole("separator")[0]
@@ -91,7 +91,7 @@ describe("CatalogTable", () => {
     expect(onWidth).toHaveBeenLastCalledWith("name", 200)
   })
 
-  it("narrows «Назва» by 150px and widens «Теги» by 150px: each changes only itself, nothing is eaten back", () => {
+  it(`narrows "Name" by 150px and widens "Tags" by 150px: each changes only itself, nothing is eaten back`, () => {
     const onWidth = vi.fn()
     const columns = DEFAULT_COLUMNS.map((column) => column.key === "tags" ? { ...column, visible: true } : column)
     const widths = (container: HTMLElement) => [...container.querySelectorAll("col")].map((col) => col.style.width)

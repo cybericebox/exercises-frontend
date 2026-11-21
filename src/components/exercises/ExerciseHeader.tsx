@@ -37,7 +37,7 @@ export type ExerciseHeaderProps = {
   publishBlockedReason?: string
   revertable: boolean
   busy: boolean
-  /** The action that keeps the header busy: its button names it («Публікуємо…»). */
+  /** The action that keeps the header busy: its button names it (“Publishing”). */
   running?: string | null
   testAvailable: boolean
   /** The test action is shown but disabled; the reason (when known) appears in a tooltip. */
@@ -61,7 +61,7 @@ export type ExerciseHeaderProps = {
   onArchive: () => void
   onUnarchive: () => void
   onDelete: () => void
-  /** «Документ»: the document the editor builds from the current state. */
+  /** “Document”: the document the editor builds from the current state. */
   onDocument?: () => void
   /** Admins, catalog exercises: open the access level dialog. */
   onAccess?: () => void

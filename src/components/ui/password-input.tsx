@@ -12,7 +12,7 @@ type PasswordInputProps = Omit<InputProps, "type"> & {
   onShownChange?: (shown: boolean) => void
 }
 
-// ds-v2 .ib-input-wrap--password: input + «Показати» / «Сховати» text button (as in id-frontend).
+// ds-v2 .ib-input-wrap--password: input + “Show” / “Hide” text button (as in id-frontend).
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, shown: shownProp, onShownChange, ...props }, ref) => {
     const [shownState, setShownState] = React.useState(false)

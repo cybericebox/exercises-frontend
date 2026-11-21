@@ -15,7 +15,7 @@ export function HelpLines({ lines }: { lines: string[] }) {
 /**
  * «?» help. `help` is the structured form (intro, a line per value, the default); `text` alone is a one-line tooltip;
  * `lines` render one sentence per line; `content` renders a custom structure (e.g. a list). The button
- * is named «Довідка»; the text lives in aria-describedby, so a long hint never becomes the label.
+ * is named “Help”; the text lives in aria-describedby, so a long hint never becomes the label.
  * A tap or Enter/Space toggles the bubble, hover opens it after a delay, focus alone does not.
  */
 export function FieldHelp({ text, lines, content, help, className }: { text?: string; lines?: string[]; content?: ReactNode; help?: HelpContent; className?: string }) {

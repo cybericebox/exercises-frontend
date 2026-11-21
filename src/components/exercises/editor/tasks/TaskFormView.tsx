@@ -35,8 +35,8 @@ function placeholderMessages(errors: object, path: string): string[] {
 const DIFFICULTIES =["elementary", "trivial", "easy", "medium", "hard", "insane"] as const
 
 /**
- * The form of the selected subtask, in the order of D2: Назва + Складність; Опис; Файли для учасників; Перевірка;
- * Відкривається після; Підказки. Sections are separated by one divider line. A file dropped anywhere on the form is added
+ * The form of the selected subtask, in the order of D2: Name + Difficulty; Description; Files for participants; Check;
+ * Opens after; Hints. Sections are separated by one divider line. A file dropped anywhere on the form is added
  * to the task. A linked variant changes the answer values and the files only; the rest comes from its base.
  */
 export function TaskFormView({ variantIndex, taskIndex }: { variantIndex: number; taskIndex: number }) {

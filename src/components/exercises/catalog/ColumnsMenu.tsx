@@ -11,15 +11,15 @@ import { cn } from "@/utils/cn"
 export const columnLabel = (key: string) => t(`admin.ex.col.${key}`)
 
 /**
- * «Колонки»: show or hide each column and put them in order. A row moves by dragging, by its arrows, or with
+ * “Columns”: show or hide each column and put them in order. A row moves by dragging, by its arrows, or with
  * Alt+↑/↓ while it has focus; the new position is announced. The name column is always first.
  */
 export function ColumnsMenu({ columns, onChange, isDefault, onReset }: {
   columns: ColumnSetting[]
   onChange: (columns: ColumnSetting[]) => void
-  /** The layout (order, visibility, widths) is the default: no «Скинути». */
+  /** The layout (order, visibility, widths) is the default: no “Reset”. */
   isDefault: boolean
-  /** «Скинути»: default order, visibility and widths. */
+  /** “Reset”: default order, visibility and widths. */
   onReset: () => void
 }) {
   const [announcement, setAnnouncement] = useState("")
