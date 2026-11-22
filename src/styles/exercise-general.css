@@ -23,6 +23,11 @@
 .editor-tabs>:not(.editor-tablist) { align-self:center; }
 .editor-tablist { position:relative; z-index:1; display:flex; align-items:stretch; min-width:0; overflow-x:auto; scrollbar-width:none; }
 .editor-tablist::-webkit-scrollbar { display:none; }
+/* The row scrolls with no scrollbar (a phone is narrower than the tabs): the edge where tabs are hidden fades out, so the
+   cut tab reads as "more this way". data-overflow is set by EditorShell from the scroll position. */
+.editor-tablist[data-overflow=end] { mask-image:linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+.editor-tablist[data-overflow=start] { mask-image:linear-gradient(to left, #000 calc(100% - 24px), transparent); }
+.editor-tablist[data-overflow=both] { mask-image:linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .editor-variant-strip,.editor-variant-strip>span,.editor-tablist>span:not(.editor-tabs-divider):not(.editor-tabs-label) { display:flex; align-items:stretch; }
 .editor-tab { --tab-pad:12px; position:relative; display:inline-flex; align-items:center; justify-content:center; height:100%; padding:0 var(--tab-pad); font-size:14px; line-height:20px; color:var(--ib-dim); white-space:nowrap; flex:none; }
 .editor-tab-number { --tab-pad:8px; min-width:34px; font-variant-numeric:tabular-nums; }
