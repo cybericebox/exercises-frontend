@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, ChevronDown, Globe, Maximize, Pencil, Settings2, Trash2, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, Check, ChevronDown, Clock, Globe, Hourglass, Maximize, Pencil, Power, Settings2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react"
+import { cn } from "@/utils/cn"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { MAX_DEVICE_NAME_LEN, type TopologyFormValues } from "@/lib/exerciseSchemas"
+import { gatewayKindOf, isGatewayType } from "@/lib/gatewayTypes"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { topologyIconFor, type TopologyIconKey } from "@/lib/topologyIcons"
-import { gatewayLabelFor } from "@/lib/topologyGatewayLabels"
 import { fitViewport, initialTopologyViewport, pointInWorld, TOPOLOGY_VIEWPORT_DEFAULT, zoomViewportAt, type TopologyViewport } from "@/lib/topologyViewport"
 import { TopologyGlyph, type TopologyGlyphKind } from "./TopologyGlyph"
 import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMenu"
@@ -25,12 +26,19 @@ import { TopologyContextMenu, type TopologyMenuEntry } from "./TopologyContextMe
  * override them. No external graph library or second topology model.
  */
 
+/** The stage of a node in a running lab (the test lab view): shown as an outline and a mark with a title, so it reads without colour. */
+export type TopologyNodeStatus = "pending" | "starting" | "initializing" | "ready" | "failed"
+const STATUS_ICON = { pending: Clock, starting: Power, initializing: Hourglass, ready: Check, failed: X } as const
+const STATUS_OUTLINE: Record<TopologyNodeStatus, string> = {
+  pending: "stroke-[var(--ib-warn)]", starting: "stroke-[var(--ib-warn)]", initializing: "stroke-[var(--ib-warn)]", ready: "stroke-[var(--ib-ok)]", failed: "stroke-destructive",
+}
+
 type NodeKind = "device" | "forwarding" | "vpn" | "internet"
 type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey; external?: boolean }
 type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string }
 type Point = { x: number; y: number }
 type DiagramHint = { text: string; left: number; top: number; below: boolean }
-type AddNodeKind = "container" | "unmanaged-switch" | "hub" | "vpn" | "internet"
+type AddNodeKind = "node" | "unmanaged-switch" | "hub" | "vpn" | "internet"
 type Context = ({ kind: "node"; key: string } | { kind: "edge"; index: number } | { kind: "canvas"; position: Point })
   & { x: number; y: number; trigger: HTMLElement | SVGElement | null }
 
@@ -48,6 +56,9 @@ const GLYPH_BOUNDS: Record<TopologyGlyphKind, { halfX: number; halfY: number; ra
   vpn: { halfX: 8.75 * GLYPH_UNIT, halfY: 10.75 * GLYPH_UNIT },
   internet: { halfX: 9.75 * GLYPH_UNIT, halfY: 9.75 * GLYPH_UNIT, radius: 9.75 * GLYPH_UNIT },
 }
+/** The shield of the VPN pictogram on its 24-unit grid (half width 8, half height 10 around 12,12). */
+const SHIELD_PATH = "M12 2 20 5v6c0 5-3.1 8.3-8 11-4.9-2.7-8-6-8-11V5z"
+const OUTLINE_GAP = 4
 const LABEL_GAP = 17
 const PORT_LABEL_DISTANCE = 32
 const PORT_LABEL_SIDE_GAP = -9
@@ -180,8 +191,8 @@ function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: Labe
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
-  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra }: {
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
+  unavailableConnectionNodes = [], connectionMode = false, toolbarExtra, controlsPosition = "bottom-right", nodeSettingsLabel, nodeSettingsBlocked, nodeStatus, minPortLabelScale }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
   onLabelOffsetChange?: (key: string, offset: Point) => void
@@ -200,12 +211,24 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   onEdgeRemove?: (index: number) => void
   /** Why a new connection cannot start now (fewer than two nodes with free ports); null when it can. */
   linkUnavailableReason?: string | null
+  /** Why another gateway cannot be added (the platform limit); the canvas menu entries are disabled with it. */
+  gatewayAddBlockedReason?: string | null
   selectedNodes?: string[]
   selectedConnectionIndex?: number | null
   unavailableConnectionNodes?: string[]
   connectionMode?: boolean
   /** More buttons at the end of the canvas toolbar. */
   toolbarExtra?: ReactNode
+  /** Where the zoom panel stands in the canvas: the test view keeps the bottom right, the editor puts it at the top right. */
+  controlsPosition?: "bottom-right" | "top-right"
+  /** The text of the settings item of the node menu (the settings, or a view when nothing can be changed). */
+  nodeSettingsLabel?: string
+  /** Why a node has no settings (a switch, a hub); the menu item stays, disabled with this reason. */
+  nodeSettingsBlocked?: (nodeKey: string) => string | null
+  /** The stage of each node (by node key); a node with a status gets a coloured outline and a mark with a title. */
+  nodeStatus?: Record<string, TopologyNodeStatus | undefined>
+  /** Port labels are not drawn while the zoom is below this scale (the editor keeps its own dimming rule). */
+  minPortLabelScale?: number
 }) {
   const [drag, setDrag] = useState<
     | { kind: "node"; key: string; point: Point; start: Point; moved: boolean }
@@ -303,24 +326,24 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     }
   }, [])
   const closeContext = useCallback(() => setContext(null), [])
+  const outlineClass = (key: string) => nodeStatus?.[key] ? STATUS_OUTLINE[nodeStatus[key]!]
+    : selectedNodes.includes(key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"
   const { nodes, edges } = useMemo(() => {
     const nodes: DiagramNode[] = topology.Devices.map((d, index) => ({
       key: d.ID,
       label: d.Name || t("admin.exTopo.unnamedDeviceN", { n: index + 1 }),
-      kind: d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
+      kind: isGatewayType(d.Type) ? gatewayKindOf(d.Type) : d.Type === "unmanaged-switch" || d.Type === "hub" ? "forwarding" : "device",
       icon: topologyIconFor(d, topology.VisualRender),
-      external: Boolean(d.External?.Enabled),
+      external: d.Access.some((entry) => entry.Kind === "http"),
     }))
-    if (topology.VPN.Enabled) nodes.push({ key: "vpn", label: gatewayLabelFor(topology.VisualRender, "vpn", t("admin.exTopo.vpn")), kind: "vpn" })
-    if (topology.Internet.Enabled) nodes.push({ key: "internet", label: gatewayLabelFor(topology.VisualRender, "internet", t("admin.exTopo.internet")), kind: "internet" })
 
     const known = new Set(nodes.map((n) => n.key))
     const edges: DiagramEdge[] = []
     topology.Connections.forEach((c, i) => {
       const [a, b] = c.Endpoints
       if (!a || !b) return
-      const keyA = a.Kind === "device" ? a.DeviceID : a.Kind
-      const keyB = b.Kind === "device" ? b.DeviceID : b.Kind
+      const keyA = a.DeviceID
+      const keyB = b.DeviceID
       if (!known.has(keyA) || !known.has(keyB)) return // unresolvable endpoint — skip
       edges.push({ key: `e${i}`, index: i, a: keyA, b: keyB, labelA: a.Interface, labelB: b.Interface })
     })
@@ -376,6 +399,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       // trackpad scroll pans the view.
       event.preventDefault()
       viewportTouched.current = true
+      // A zoom or a scroll of the canvas closes an open context menu.
+      setContext(null)
       if (!event.ctrlKey && !event.metaKey) {
         const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? VH : 1
         const dx = (event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX) * unit
@@ -451,8 +476,9 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     if (menu.kind === "node") {
       const noPort = unavailableConnectionNodes.includes(menu.key)
       return [
-        ...(onNodeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onNodeSettings(menu.key) }] as const : []),
-        ...(onNodeLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />,
+        ...(onNodeSettings ? [{ kind: "item", key: "settings", label: nodeSettingsLabel ?? t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />,
+          disabled: !!nodeSettingsBlocked?.(menu.key), reason: nodeSettingsBlocked?.(menu.key) ?? undefined, onSelect: () => onNodeSettings(menu.key) }] as const : []),
+        ...(onNodeLinkStart ? [{ kind: "item", key: "link", label: t("ed.c.diagram.connect"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />,
           disabled: noPort || !!linkUnavailableReason, reason: noPort ? t("admin.exTopo.noFreePort") : linkUnavailableReason ?? undefined,
           onSelect: () => onNodeLinkStart(menu.key) }] as const : []),
         ...(onNodeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeDevice"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!(onNodeSettings || onNodeLinkStart),
@@ -471,11 +497,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       ...(addNode ? [
         { kind: "label", key: "add-label", label: t("admin.exTopo.addDevice") } as const,
         ...(([
-          ["container", "admin.exTopo.type.container", "host"], ["unmanaged-switch", "admin.exTopo.type.switch", "switch"],
+          ["node", "admin.exTopo.type.container", "host"], ["unmanaged-switch", "admin.exTopo.type.switch", "switch"],
           ["hub", "admin.exTopo.type.hub", "hub"], ["vpn", "admin.exTopo.vpn", "vpn"], ["internet", "admin.exTopo.internet", "internet"],
         ] as const).map(([kind, label, glyph]) => ({ kind: "item", key: kind, label: t(label),
           icon: <TopologyGlyph kind={glyph} className="h-5 w-5 shrink-0" />,
-          disabled: (kind === "vpn" && topology.VPN.Enabled) || (kind === "internet" && topology.Internet.Enabled),
+          disabled: (kind === "vpn" || kind === "internet") && !!gatewayAddBlockedReason, reason: (kind === "vpn" || kind === "internet") ? gatewayAddBlockedReason ?? undefined : undefined,
           onSelect: () => addNode(kind, menu.position) }) as const)),
       ] : []),
       ...(onCanvasLinkStart ? [{ kind: "item", key: "link", label: t("admin.exTopo.addConnection"), icon: <Cable className="h-5 w-5 shrink-0 p-0.5" />, separated: !!addNode,
@@ -611,7 +637,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
           ? "fill-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
           : "fill-foreground"
         const renderPortLabel = (port: string, nodeKey: string, own: Point, other: Point) => {
-          if (!port) return null
+          if (!port || (minPortLabelScale !== undefined && viewport.scale < minPortLabelScale)) return null
           const key = portLabelKey(nodeKey, port)
           const offset = drag?.kind === "port-label" && drag.key === key
             ? drag.offset : storedPortLabelOffset(topology.VisualRender, key)
@@ -724,7 +750,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
               setHint(null)
               setContext({ kind: "node", key: node.key, x: event.clientX, y: event.clientY, trigger: event.currentTarget })
             }}
-            onDoubleClick={() => { setHint(null); onNodeSettings?.(node.key) }}
+            onDoubleClick={() => { setHint(null); if (!nodeSettingsBlocked?.(node.key)) onNodeSettings?.(node.key) }}
             onKeyDown={(event) => {
               if ((onNodeSettings || onNodeLinkStart || onNodeRemove) && isMenuKey(event)) {
                 event.preventDefault()
@@ -749,19 +775,24 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             </g>}
             <rect data-icon-hitbox x={p.x - ICON_SIZE / 2} y={p.y - ICON_SIZE / 2} width={ICON_SIZE} height={ICON_SIZE}
               fill="transparent" className="stroke-transparent" />
-            {glyphBounds.radius
+            {glyph === "vpn"
+              // The shield is not a rectangle: its outline is the same shield, stood off the pictogram by a few pixels.
+              ? <path data-selection-outline d={SHIELD_PATH} fill="none" strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" className={outlineClass(node.key)}
+                  transform={`translate(${p.x} ${p.y}) scale(${(8 * GLYPH_UNIT + OUTLINE_GAP) / 8} ${(10 * GLYPH_UNIT + OUTLINE_GAP) / 10}) translate(-12 -12)`} />
+              : glyphBounds.radius
               ? <circle data-selection-outline cx={p.x} cy={p.y} r={glyphBounds.radius + 2} fill="none" strokeWidth={1.5}
-                  pointerEvents="none" className={selectedNodes.includes(node.key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"} />
+                  pointerEvents="none" className={outlineClass(node.key)} />
               : <rect data-selection-outline x={p.x - glyphBounds.halfX - 2} y={p.y - glyphBounds.halfY - 2}
                   width={(glyphBounds.halfX + 2) * 2} height={(glyphBounds.halfY + 2) * 2} rx={3} fill="none" strokeWidth={1.5}
-                  pointerEvents="none" className={selectedNodes.includes(node.key) ? "stroke-primary" : "stroke-transparent group-hover:stroke-primary/60 group-focus-visible:stroke-primary"} />}
+                  pointerEvents="none" className={outlineClass(node.key)} />}
+            {nodeStatus?.[node.key] && <StatusMark status={nodeStatus[node.key]!} x={p.x + GLYPH_SIZE / 2 - 2} y={p.y + GLYPH_SIZE / 2 - 2} />}
             {editingLabel?.key === node.key ? <foreignObject data-node-rename
               x={Math.max(8, Math.min(W - 248, labelX - 120))} y={labelY - 22} width={240} height={editingLabel.error ? 64 : 40}
               onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}
               onDoubleClick={(event) => event.stopPropagation()}>
               <div className="rounded-md border border-border bg-background p-1">
                 <Input ref={renameInputRef} aria-label={t("admin.exTopo.deviceName")} aria-invalid={!!editingLabel.error} aria-describedby={editingLabel.error ? `topology-node-${node.key}-error` : undefined}
-                  value={editingLabel.draft} maxLength={node.kind === "device" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
+                  value={editingLabel.draft} maxLength={node.kind !== "forwarding" ? MAX_DEVICE_NAME_LEN : undefined} className="h-8"
                   onChange={(event) => setEditingLabel({ ...editingLabel, draft: event.target.value, error: "" })}
                   onBlur={commitNodeRename}
                   onKeyDown={(event) => {
@@ -829,7 +860,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
-    <div className="topology-zoom absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1" aria-describedby={controlsHelpId}>
+    <div className={cn("topology-zoom absolute right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1", controlsPosition === "top-right" ? "top-3" : "bottom-3")} aria-describedby={controlsHelpId}>
       <HoverTooltip text={t("admin.exTopo.zoomOutTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,
           { x: Math.min(W, size.width) / 2, y: Math.min(H, size.height) / 2 })) }}><ZoomOut className="h-4 w-4" /></Button></HoverTooltip>
@@ -870,4 +901,15 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       style={{ left: hint.left, top: hint.top, transform: `translate(-50%, ${hint.below ? "0" : "-100%"})` }}>{hint.text}</div>, document.body)}
     </div>
   )
+}
+
+/** A small mark at the node's corner: an icon per stage and a title, never colour alone. */
+function StatusMark({ status, x, y }: { status: TopologyNodeStatus; x: number; y: number }) {
+  const Icon = STATUS_ICON[status]
+  const label = t(`ed.c.diagram.status.${status}`)
+  return <g data-node-status={status} role="img" aria-label={label}>
+    <title>{label}</title>
+    <circle cx={x} cy={y} r={8} className="fill-background stroke-border" />
+    <Icon aria-hidden="true" x={x - 6} y={y - 6} width={12} height={12} className={status === "failed" ? "text-destructive" : status === "ready" ? "text-[var(--ib-ok)]" : "text-[var(--ib-warn)]"} />
+  </g>
 }

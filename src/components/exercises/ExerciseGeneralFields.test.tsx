@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { helpButton } from "@/test/help"
-import { useForm } from "react-hook-form"
+import { FormProvider, useForm } from "react-hook-form"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/api/exercises/catalog", () => ({ listExerciseTags: vi.fn().mockResolvedValue([]) }))
@@ -9,23 +8,35 @@ vi.mock("@/api/exercises/catalog", () => ({ listExerciseTags: vi.fn().mockResolv
 import { emptyDraft, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { ExerciseGeneralFields } from "./ExerciseGeneralFields"
 
-function Harness({ disabled, showNotes }: { disabled: boolean; showNotes?: boolean }) {
+function Harness({ disabled, showNotes, nameError }: { disabled: boolean; showNotes?: boolean; nameError?: string }) {
   const identityForm = useForm<IdentityFormValues>({ defaultValues: { Name: "Web 101", Description: "About", Tags: ["web"] } })
   const draftForm = useForm<DraftFormValues>({ defaultValues: { ...emptyDraft(), AdminNote: "Day one" } })
-  return <ExerciseGeneralFields identityForm={identityForm} draftForm={draftForm} disabled={disabled} showNotes={showNotes} />
+  if (nameError && !identityForm.formState.errors.Name) identityForm.setError("Name", { type: "custom", message: nameError })
+  return <FormProvider {...draftForm}><ExerciseGeneralFields identityForm={identityForm} draftForm={draftForm} disabled={disabled} showNotes={showNotes} /></FormProvider>
 }
 
 describe("ExerciseGeneralFields", () => {
-  it("renders the general fields, help only where needed, and no flag-regeneration switch", () => {
+  it("renders the general fields, every one with its own «?»", () => {
     render(<Harness disabled={false} />)
     expect(screen.getByDisplayValue("Web 101")).toBeEnabled()
-    expect(screen.getByLabelText("admin.ex.field.description").tagName).toBe("TEXTAREA")
-    expect(screen.getByRole("textbox", { name: "admin.ex.create.notes" })).toHaveValue("Day one")
-    // «?» only where the field needs explaining: the description and the internal notes.
-    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
-    expect(helpButton("admin.exDraft.adminNoteHelp")).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: "ui.help" })).toHaveLength(2)
+    expect(screen.getByLabelText("ed.a.general.description.label").tagName).toBe("TEXTAREA")
+    expect(screen.getByRole("textbox", { name: "ed.a.general.note.label" })).toHaveValue("Day one")
+    expect(screen.getAllByRole("button", { name: "ui.help" })).toHaveLength(4)
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
+  })
+
+  it("attaches the required asterisk to the name label", () => {
+    render(<Harness disabled={false} />)
+    const label = document.querySelector('label[for="exercise-name"]')
+    expect(label?.textContent).toContain("label*")
+  })
+
+  it("shows a name error beside its field and ties it with aria", () => {
+    render(<Harness disabled={false} nameError="Too short" />)
+    const name = screen.getByDisplayValue("Web 101")
+    expect(name).toHaveAttribute("aria-invalid", "true")
+    expect(name).toHaveAttribute("aria-describedby", "fe-Name-error")
+    expect(screen.getByRole("alert")).toHaveTextContent("Too short")
   })
 
   it("reads natural selectable values without a duplicate Name or disabled form", () => {
@@ -45,23 +56,22 @@ describe("ExerciseGeneralFields", () => {
 
   it.each([true, false])("exposes read sections to heading navigation (private notes=%s)", (showNotes) => {
     render(<Harness disabled showNotes={showNotes} />)
-    const titles = screen.getAllByRole("heading", { level:2 }).map((heading) => heading.textContent)
-    expect(titles).toEqual(["admin.ex.field.description", "admin.ex.field.tags", ...(showNotes ? ["admin.ex.create.notes"] : [])])
-    expect(screen.queryByRole("heading", { name:"admin.ex.field.name" })).not.toBeInTheDocument()
+    const titles = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)
+    expect(titles).toEqual(["ed.a.general.description.label", "ed.a.general.tags.label", ...(showNotes ? ["ed.a.general.note.label"] : [])])
+    expect(screen.queryByRole("heading", { name: "ed.a.general.name.label" })).not.toBeInTheDocument()
   })
 
-  it("retains edit field labels and associations without turning them into section headings", () => {
+  it("keeps the ids other code focuses and the label associations", () => {
     render(<Harness disabled={false} />)
-    expect(screen.queryByRole("heading", { level:2 })).not.toBeInTheDocument()
-    expect(screen.getByLabelText("admin.ex.field.description")).toHaveAttribute("id", "exercise-description")
-    expect(screen.getByLabelText("admin.ex.field.tags")).toHaveAttribute("id", "exercise-tags")
-    expect(screen.getByLabelText("admin.ex.create.notes")).toHaveAttribute("id", "draft-admin-note")
-    expect(helpButton("admin.ex.field.descriptionHelp")).toBeInTheDocument()
+    expect(screen.getByLabelText(/ed\.a\.general\.name\.label/)).toHaveAttribute("id", "exercise-name")
+    expect(screen.getByLabelText("ed.a.general.description.label")).toHaveAttribute("id", "exercise-description")
+    expect(screen.getByLabelText("ed.a.general.tags.label")).toHaveAttribute("id", "exercise-tags")
+    expect(screen.getByLabelText("ed.a.general.note.label")).toHaveAttribute("id", "draft-admin-note")
   })
 
   it("leaves out the internal notes for a reader without full access", () => {
     render(<Harness disabled showNotes={false} />)
-    expect(screen.queryByRole("textbox", { name: "admin.ex.create.notes" })).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name: "ed.a.general.note.label" })).not.toBeInTheDocument()
+    expect(screen.queryByText("ed.a.general.note.label")).not.toBeInTheDocument()
   })
 })

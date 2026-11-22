@@ -10,19 +10,20 @@ export type CatalogColumn = (typeof CATALOG_COLUMNS)[number]
 /** A column: shown or hidden, in the list's order, and its own width in px (absent = the default width). */
 export type ColumnSetting = { key: CatalogColumn; visible: boolean; width?: number }
 
-/** The column layout of the catalog table: the columns and the width the user gave «Назва» (absent = default). */
+/** The column layout of the catalog table: the columns and the width the user gave “Name” (absent = default). */
 export type CatalogLayout = { columns: ColumnSetting[]; nameWidth?: number }
 
-/** «Назва» is not in the list (always first); in the stored list its width rides on an entry with this key. */
+/** “Name” is not in the list (always first); in the stored list its width rides on an entry with this key. */
 export const NAME_COLUMN = "name"
 
 /**
- * Default widths in px. Every column, «Назва» too, has exactly its width (the user's or this one): space the columns
- * leave goes to an empty filler at the end, never to a column, so a narrower column always stays narrower. The
- * defaults of the shown-by-default columns (with the selection box) fill the table block of a 1440px screen.
+ * Default widths in px. Every column has exactly its width (the user's or this one), so a narrower column always
+ * stays narrower. “Name” is the one exception while the user has not set its width: it is at least NAME_WIDTH and
+ * takes the space the other columns leave; once the user sets it, it is exact too and an empty filler takes the rest.
+ * The shown-by-default columns with the selection box add up to 986px, so they fit the table block of a 1280px screen.
  */
-export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 190, status: 128, subtasks: 134, variants: 112, author: 150, updated: 124, difficulty: 160, tags: 200, owner: 190 }
-export const NAME_WIDTH = 268
+export const COLUMN_WIDTH: Record<CatalogColumn, number> = { access: 124, status: 104, subtasks: 150, variants: 120, author: 120, updated: 124, difficulty: 150, tags: 180, owner: 160 }
+export const NAME_WIDTH = 200
 export const NAME_MIN_WIDTH = 200
 export const NAME_MAX_WIDTH = 900
 export const MIN_WIDTH = 80
@@ -85,12 +86,12 @@ export function toggleColumn(columns: ColumnSetting[], key: CatalogColumn): Colu
   return columns.map((column) => (column.key === key ? { ...column, visible: !column.visible } : column))
 }
 
-/** Whether the setting is the default one (the «Скинути» action is offered only otherwise). */
+/** Whether the setting is the default one (the “Reset” action is offered only otherwise). */
 export function isDefaultColumns(columns: ColumnSetting[]): boolean {
   return columns.length === DEFAULT_COLUMNS.length && columns.every((column, index) => column.key === DEFAULT_COLUMNS[index].key && column.visible === DEFAULT_COLUMNS[index].visible)
 }
 
-/** A stored list made whole as a layout: the columns (normalizeColumns) and the «Назва» width of its name entry. */
+/** A stored list made whole as a layout: the columns (normalizeColumns) and the “Name” width of its name entry. */
 export function normalizeLayout(raw: unknown): CatalogLayout {
   const name = Array.isArray(raw) ? raw.find((item) => (item as { key?: unknown } | null)?.key === NAME_COLUMN) as { width?: unknown } | undefined : undefined
   const nameWidth = storedWidth(NAME_COLUMN, name?.width)

@@ -23,12 +23,12 @@ export function helpLines(prefix: string, names: string[]): string[] {
   return names.map((name) => t(`${prefix}.${name}`))
 }
 
-/** The scope tabs: «Усі» is admin-only, broadest to narrowest. */
+/** The scope tabs: “All” is admin-only, broadest to narrowest. */
 export function scopeTabs(isAdmin: boolean): ScopeFilter[] {
   return [...(isAdmin ? [""] as ScopeFilter[] : []), "catalog", "event"]
 }
 
-/** Average difficulty range: two level menus, «Будь-яка» = no bound; a bound never passes the other one. */
+/** Average difficulty range: two level menus, “Any” = no bound; a bound never passes the other one. */
 export function DifficultyRange({ min, max, onChange }: { min: number | null; max: number | null; onChange: (min: number | null, max: number | null) => void }) {
   const fromId = useId()
   const toId = useId()

@@ -1,7 +1,10 @@
-/** Add a relative post-auth destination to a newly minted proxy handoff, preserving its token. */
-export function proxyHandoffURL(handoff: string, destination?: string): string {
-  if (destination === undefined || destination === "/") return handoff
-  const base = new URL(handoff)
+/**
+ * The grant is posted to the device host's /_auth endpoint together with this validated relative path, and the
+ * proxy redirects to it. Returns the path to send as `next` ("/" when there is no destination).
+ */
+export function proxyDestinationNext(authURL: string, destination?: string): string {
+  if (destination === undefined || destination === "/") return "/"
+  const base = new URL(authURL)
   let decoded = destination
   // Defence in depth; the proxy independently validates next before redirecting.
   for (let pass = 0; pass < 4; pass++) {
@@ -12,8 +15,7 @@ export function proxyHandoffURL(handoff: string, destination?: string): string {
     const next = decodeURIComponent(decoded)
     if (next === decoded) {
       const value = new URL(destination, base.origin)
-      base.searchParams.set("next", `${value.pathname}${value.search}${value.hash}`)
-      return base.href
+      return `${value.pathname}${value.search}${value.hash}`
     }
     decoded = next
   }

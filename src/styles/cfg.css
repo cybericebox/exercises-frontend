@@ -1,0 +1,17 @@
+/* Optional installation settings hide the blocks that need them (src/lib/settings.ts writes the values into <html>).
+   Every rule is "hide when"; no rule means shown. An absent attribute and an empty one both mean "empty".
+   The class names are the contract: cfg-<setting> is shown only when the setting has a value, cfg-main-off is the "no value" twin of
+   cfg-main-only (the self link). */
+
+/* a block that needs a value */
+html:not([data-cfg-main-site-url]) .cfg-main-only,
+html[data-cfg-main-site-url=""] .cfg-main-only,
+html:not([data-cfg-cookies-url]) .cfg-cookies,
+html[data-cfg-cookies-url=""] .cfg-cookies {
+  display: none !important;
+}
+
+/* the twin shown only while the value is empty (the logo to this very site) */
+html[data-cfg-main-site-url]:not([data-cfg-main-site-url=""]) .cfg-main-off {
+  display: none !important;
+}

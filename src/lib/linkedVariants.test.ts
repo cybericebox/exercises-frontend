@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 
-import { emptyDevice, emptyTask, emptyVariant, type VariantFormValues } from "./exerciseSchemas"
+import { emptyDevice, emptyVariant, type VariantFormValues } from "./exerciseSchemas"
+import { formTask } from "@/test/editorFixtures"
 import {
   baseCandidates,
   copyVariant,
@@ -16,10 +17,7 @@ import {
 
 function task(id: string, name: string, flag: string[] = [], files: string[] = []) {
   return {
-    ...emptyTask(),
-    ID: id,
-    Name: name,
-    Flag: flag,
+    ...formTask({ ID: id, Name: name, flag }),
     Attachments: files.map((f) => ({ FileID: f, Name: f })),
     Hints: [{ ID: `h-${id}`, Text: `hint ${name}`, Level: "nudge" as const }],
   }
@@ -38,7 +36,7 @@ describe("syncLinkedVariants", () => {
     expect(out[1].Tasks[0].Name).toBe("Base name")
     expect(out[1].Tasks[0].Hints[0].Text).toBe("hint Base name")
     expect(out[1].Topology.Devices[0].Name).toBe("web")
-    expect(out[1].Tasks[0].Flag).toEqual(["ICE{own}"])
+    expect(out[1].Tasks[0].Check.Answer.Values).toEqual(["ICE{own}"])
     expect(out[1].Tasks[0].Attachments[0].FileID).toBe("own.txt")
     expect(out[1].Note).toBe("my note")
     expect(out[1].ID).toBe("l")
@@ -60,8 +58,8 @@ describe("syncLinkedVariants", () => {
     const linked = variant("l", 2, [task("t1", "One", ["f1"]), task("t2", "Two", ["f2"])], "b")
     const out = syncLinkedVariants([base, linked])
     expect(out[1].Tasks.map((x) => x.ID)).toEqual(["t2", "t1"])
-    expect(out[1].Tasks[0].Flag).toEqual(["f2"])
-    expect(out[1].Tasks[1].Flag).toEqual(["f1"])
+    expect(out[1].Tasks[0].Check.Answer.Values).toEqual(["f2"])
+    expect(out[1].Tasks[1].Check.Answer.Values).toEqual(["f1"])
   })
 
   it("drops own parts of a removed base task", () => {
@@ -69,15 +67,15 @@ describe("syncLinkedVariants", () => {
     const linked = variant("l", 2, [task("t1", "One", ["f1"]), task("t2", "Two", ["f2"])], "b")
     const out = syncLinkedVariants([base, linked])
     expect(out[1].Tasks).toHaveLength(1)
-    expect(out[1].Tasks[0].Flag).toEqual(["f1"])
+    expect(out[1].Tasks[0].Check.Answer.Values).toEqual(["f1"])
   })
 
   it("matches by position when an id is empty, and leaves a new base task without own parts", () => {
     const base = variant("b", 1, [task("", "One"), task("t9", "New")])
     const linked = variant("l", 2, [task("", "One", ["f1"])], "b")
     const out = syncLinkedVariants([base, linked])
-    expect(out[1].Tasks[0].Flag).toEqual(["f1"])
-    expect(out[1].Tasks[1].Flag).toEqual([])
+    expect(out[1].Tasks[0].Check.Answer.Values).toEqual(["f1"])
+    expect(out[1].Tasks[1].Check.Answer.Values).toEqual([])
   })
 
   it("unlinks a variant whose base is gone", () => {
@@ -105,7 +103,7 @@ describe("syncLinkedVariants", () => {
     expect(out[1].LinkedTo).toBe("")
     expect(out[0].LinkedTo).toBe("b")
     expect(out[0].Tasks[0].Name).toBe("B")
-    expect(out[0].Tasks[0].Flag).toEqual(["fa"])
+    expect(out[0].Tasks[0].Check.Answer.Values).toEqual(["fa"])
     expect(syncLinkedVariants(out)).toEqual(out)
     expect(syncLinkedVariants(syncLinkedVariants([a, b]))).toEqual(out)
   })
@@ -152,8 +150,8 @@ describe("newLinkedVariant", () => {
     const created = newLinkedVariant(base, 3, {
       Note: "n",
       Tasks: [
-        { Flag: ["a"], Attachments: [{ FileID: "f", Name: "f" }] },
-        { Flag: ["b"], Attachments: [] },
+        { Check: { Answer: { Values: ["a"] } }, Attachments: [{ FileID: "f", Name: "f" }] },
+        { Check: { Answer: { Values: ["b"] } }, Attachments: [] },
       ],
     })
     expect(created.ID).toBe("")
@@ -161,15 +159,15 @@ describe("newLinkedVariant", () => {
     expect(created.LinkedTo).toBe("b")
     expect(created.Note).toBe("n")
     expect(created.Tasks.map((x) => x.Name)).toEqual(["One", "Two"])
-    expect(created.Tasks[0].Flag).toEqual(["a"])
+    expect(created.Tasks[0].Check.Answer.Values).toEqual(["a"])
     expect(created.Tasks[0].Attachments[0].FileID).toBe("f")
-    expect(created.Tasks[1].Flag).toEqual(["b"])
-    expect(base.Tasks[0].Flag).toEqual(["base"])
+    expect(created.Tasks[1].Check.Answer.Values).toEqual(["b"])
+    expect(base.Tasks[0].Check.Answer.Values).toEqual(["base"])
   })
 
   it("starts with weight 1 whatever the base weighs", () => {
     const base = { ...variant("b", 1, [task("t1", "One")]), Weight: 5 }
-    expect(newLinkedVariant(base, 2, { Note: "", Tasks: [{ Flag: [], Attachments: [] }] }).Weight).toBe(1)
+    expect(newLinkedVariant(base, 2, { Note: "", Tasks: [{ Check: { Answer: { Values: [] } }, Attachments: [] }] }).Weight).toBe(1)
   })
 })
 
@@ -247,6 +245,6 @@ describe("own device images of a linked variant", () => {
     const { base, linked } = pair()
     linked.ImageOverrides = [{ DeviceID: "d1", Image: "nginx:1.28" }]
     expect(copyVariant(syncLinkedVariants([base, linked])[1], 3).ImageOverrides).toEqual([])
-    expect(newLinkedVariant(base, 3, { Note: "", Tasks: [{ Flag: [], Attachments: [] }] }).ImageOverrides).toEqual([])
+    expect(newLinkedVariant(base, 3, { Note: "", Tasks: [{ Check: { Answer: { Values: [] } }, Attachments: [] }] }).ImageOverrides).toEqual([])
   })
 })

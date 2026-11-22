@@ -1,6 +1,7 @@
 name: Deploy exercises to GitHub Pages
 
-# Static export (out/) → GitHub Pages. Runs only from promote.yml, after the pre-release checks, for the release commit.
+# Static export (out/) → GitHub Pages. Runs only from promote.yml (on main), after the release vX.Y.Z is published, for the released
+# commit. The environment github-pages must allow the branch main (its deployment branch policy).
 # Custom domain is set in Settings → Pages (Actions deployments ignore a CNAME file).
 # The hosts are baked at build: every host derives from the one repository variable NEXT_PUBLIC_DOMAIN.
 on:
@@ -28,16 +29,18 @@ jobs:
     environment: github-pages
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
-      - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Install the pinned tools (mise.toml)
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - name: npm cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          node-version: 26
-          cache: npm
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies
-        run: npm ci
+        run: mise run install
       - name: Check the variables
         # NEXT_PUBLIC_DOMAIN is the only host input: every host derives from it (deploy/base-domain.sh, the same file the image runs). The other
         # values are per site and have no fallbacks.
@@ -50,20 +53,30 @@ jobs:
             [ -n "$value" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then echo "::error::Set the repository variables:$missing"; exit 1; fi
+          # Installation settings are optional (empty = not shown); a set one must follow the rule (deploy/cfg-check.sh).
+          . ./deploy/cfg-check.sh
+          for name in NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL; do
+            cfg_url_check "$name" || { echo "::error::Fix the repository variable $name"; exit 1; }
+          done
         env:
           NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
+          NEXT_PUBLIC_MAIN_SITE_URL: ${{ vars.NEXT_PUBLIC_MAIN_SITE_URL }}
+          NEXT_PUBLIC_COOKIES_URL: ${{ vars.NEXT_PUBLIC_COOKIES_URL }}
       - name: Build static export
-        run: npm run build
+        run: mise run build
         env:
           # repository / environment variables: the base domain and the per-site values
           NEXT_PUBLIC_DOMAIN: ${{ vars.NEXT_PUBLIC_DOMAIN }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL }}
           NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID }}
+          NEXT_PUBLIC_MAIN_SITE_URL: ${{ vars.NEXT_PUBLIC_MAIN_SITE_URL }}
+          NEXT_PUBLIC_COOKIES_URL: ${{ vars.NEXT_PUBLIC_COOKIES_URL }}
+          NEXT_PUBLIC_LAB_DOMAINS: ${{ vars.NEXT_PUBLIC_LAB_DOMAINS }}
       - name: Configure Pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: out
 
@@ -76,4 +89,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

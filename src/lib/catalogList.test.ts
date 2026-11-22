@@ -181,7 +181,7 @@ describe("mergeCardIntoRow", () => {
 })
 
 describe("tag mode", () => {
-  it("asks for any of the tags in «хоча б один» mode and every one of them otherwise", async () => {
+  it(`asks for any of the tags in "at least one" mode and every one of them otherwise`, async () => {
     const calls: unknown[] = []
     const fetch = async (filter: unknown) => { calls.push(filter); return { Items: [], Total: 0, Page: 1, PageSize: 50 } }
     const base = { ...defaultFilters(true), tags: ["web", "pcap"] }

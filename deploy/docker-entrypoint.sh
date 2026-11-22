@@ -21,6 +21,27 @@ done
 # Analytics is optional; the build folded the placeholder, so empty is set here.
 : "${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:=}"
 export NEXT_PUBLIC_GOOGLE_ANALYTICS_ID
+# The extra lab base domains are optional: a comma list of domain names. The value goes into an attribute of <html>, so anything but
+# letters, digits, dots, hyphens and commas stops the start; deploy/csp.sh and the page then drop entries that are not domain names.
+: "${NEXT_PUBLIC_LAB_DOMAINS:=}"
+case "$NEXT_PUBLIC_LAB_DOMAINS" in
+  *[!A-Za-z0-9.,-]*)
+    echo "NEXT_PUBLIC_LAB_DOMAINS must be a comma list of domain names (letters, digits, dots, hyphens)." >&2
+    exit 1
+    ;;
+esac
+export NEXT_PUBLIC_LAB_DOMAINS
+
+# Installation settings (all optional, no value = not shown, deploy/cfg-check.sh): URLs are empty or https://. The root layout writes each value
+# into an attribute of <html> and src/styles/cfg.css hides the blocks by it, so every one is exported to be substituted (an empty value is
+# substituted too: the placeholder must not stay).
+. /usr/local/lib/cfg-check.sh
+# The list is a variable, not a `for name in NEXT_PUBLIC_...` line: scripts/test-nginx-tls.sh reads those lines as the REQUIRED values.
+optional_urls="NEXT_PUBLIC_MAIN_SITE_URL NEXT_PUBLIC_COOKIES_URL"
+for name in $optional_urls; do
+  cfg_url_check "$name" || exit 1
+  eval "export $name=\"\${$name:-}\""
+done
 
 # One pass: a single sed script with an expression per NEXT_PUBLIC_* variable, run once over each
 # file that holds a placeholder (in parallel: busybox sed is slow on the minified bundles). Only the

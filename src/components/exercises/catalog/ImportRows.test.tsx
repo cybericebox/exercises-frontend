@@ -53,7 +53,7 @@ describe("ImportRows", () => {
     expect(document.querySelectorAll("[data-import-job=running]")).toHaveLength(2)
   })
 
-  it("a failed import keeps its row with the error and «Подробиці»", async () => {
+  it(`a failed import keeps its row with the error and "Details"`, async () => {
     vi.mocked(getImportJob).mockResolvedValue(status({ state: "failed", stage: "failed", error: new ApiError(409, { Status: { Code: 72802 } }, undefined, undefined, 72802) }))
     const onDetails = vi.fn()
     table(<ImportRows onDetails={onDetails} />)

@@ -10,7 +10,9 @@ export function testLabHref(exerciseId: string, deployId: string): string {
   return `/test?${new URLSearchParams({ exercise: exerciseId, deploy: deployId })}`
 }
 
-/** /test?exercise=…&version=…&variant=… — the testing page, which starts the deploy of that variant. */
-export function testLabStartHref(exerciseId: string, versionId: string, variantId: string): string {
-  return `/test?${new URLSearchParams({ exercise: exerciseId, version: versionId, variant: variantId })}`
+/** /test?exercise=…&version=…&variant=…[&minutes=…] — the testing page, which starts the deploy of that variant for the chosen run length. */
+export function testLabStartHref(exerciseId: string, versionId: string, variantId: string, leaseMinutes?: number): string {
+  const params = new URLSearchParams({ exercise: exerciseId, version: versionId, variant: variantId })
+  if (leaseMinutes) params.set("minutes", String(leaseMinutes))
+  return `/test?${params}`
 }

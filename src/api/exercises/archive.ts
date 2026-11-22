@@ -19,6 +19,7 @@ import { SINGLE_REQUEST_MAX } from "@/api/exercises/files"
 import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
+import type { ImportReport } from "@/api/exercises/archiveImport"
 
 const BASE = "/api/exercises"
 
@@ -75,7 +76,7 @@ export async function downloadImportExample(): Promise<ExportedArchive> {
 
 /** What an import start came to: the tasks created at once, or (an archive naming image files) a job to follow. */
 /** «unchanged»: an update the server skipped because the archive brought nothing new. */
-export type ImportResult = { ItemKey: string; Mode: "new" | "update" | "unchanged"; ExerciseID: string }
+export type ImportResult = { ItemKey: string; Mode: "new" | "update" | "unchanged"; ExerciseID: string; Report?: ImportReport }
 export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number; Unchanged?: number }
 export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number; unchanged?: number } | { kind: "job"; jobID: string }
 

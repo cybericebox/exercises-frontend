@@ -6,36 +6,47 @@ import type { DeployStatus } from "@/api/exercises/deploy"
 const status: DeployStatus = {
   Phase: "Ready",
   Ready: true,
-  VPNCIDR: "10.128.1.0/24",
-  InternetCIDR: "10.9.4.0/24",
+  Gateways: [
+    { Name: "attack", Kind: "vpn", CIDR: "10.128.1.0/24", Ready: true },
+    { Name: "out", Kind: "internet", CIDR: "10.9.4.0/24", Ready: true },
+    { Name: "lab2", Kind: "vpn", CIDR: "10.128.7.0/24", Ready: true },
+  ],
   Access: [{ Device: "web", Port: 443, Protocol: "https", URL: "https://web.lab.test" }],
 }
 
 describe("resolvePlaceholder", () => {
-  it("resolves vpn.subnet as a CIDR whatever ShowMask says", () => {
-    expect(resolvePlaceholder({ Kind: "vpn.subnet", ShowMask: true }, status)).toBe("10.128.1.0/24")
-    expect(resolvePlaceholder({ Kind: "vpn.subnet", ShowMask: false }, status)).toBe("10.128.1.0/24")
-    expect(resolvePlaceholder({ Kind: "vpn.subnet" }, status)).toBe("10.128.1.0/24")
+  it("resolves gateway.subnet as the CIDR of the named gateway whatever ShowMask says", () => {
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "attack", ShowMask: true }, status)).toBe("10.128.1.0/24")
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "attack", ShowMask: false }, status)).toBe("10.128.1.0/24")
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "attack" }, status)).toBe("10.128.1.0/24")
   })
 
-  it("resolves internet.subnet as a CIDR", () => {
-    expect(resolvePlaceholder({ Kind: "internet.subnet", ShowMask: true }, status)).toBe("10.9.4.0/24")
-    expect(resolvePlaceholder({ Kind: "internet.subnet" }, status)).toBe("10.9.4.0/24")
+  it("resolves the subnet of an Internet gateway the same way", () => {
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "out", ShowMask: true }, status)).toBe("10.9.4.0/24")
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "out" }, status)).toBe("10.9.4.0/24")
   })
 
-  it("resolves a vpn-relative ip by combining the CIDR network with the last octet", () => {
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, ShowMask: false }, status)).toBe("10.128.1.5")
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, ShowMask: true }, status)).toBe("10.128.1.5/24")
+  it("resolves a gateway-relative ip by combining the CIDR network with the last octet", () => {
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, ShowMask: false }, status)).toBe("10.128.1.5")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, ShowMask: true }, status)).toBe("10.128.1.5/24")
   })
 
-  it("resolves an internet-relative ip", () => {
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "internet", LastOctet: 12 }, status)).toBe("10.9.4.12")
+  it("resolves an ip relative to another gateway by its name", () => {
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "out", LastOctet: 12 }, status)).toBe("10.9.4.12")
+  })
+
+  it("picks the gateway by name when the lab has several of one kind, and resolves to empty for an unknown name", () => {
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "lab2" }, status)).toBe("10.128.7.0/24")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "lab2", LastOctet: 9 }, status)).toBe("10.128.7.9")
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "ghost" }, status)).toBe("")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "ghost", LastOctet: 9 }, status)).toBe("")
   })
 
   it("resolves a static ip straight from the placeholder (no lab data needed)", () => {
     expect(resolvePlaceholder({ Kind: "ip", IPReference: "static", Octets1to3: "192.168.0", LastOctet: 20 }, {
       Phase: "Ready",
       Ready: true,
+      Gateways: [],
     })).toBe("192.168.0.20")
   })
 
@@ -44,34 +55,34 @@ describe("resolvePlaceholder", () => {
   })
 
   it("resolves to empty when the lab has no matching data yet", () => {
-    const empty: DeployStatus = { Phase: "Provisioning", Ready: false }
-    expect(resolvePlaceholder({ Kind: "vpn.subnet" }, empty)).toBe("")
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5 }, empty)).toBe("")
+    const empty: DeployStatus = { Phase: "Provisioning", Ready: false, Gateways: [] }
+    expect(resolvePlaceholder({ Kind: "gateway.subnet", Gateway: "attack" }, empty)).toBe("")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5 }, empty)).toBe("")
     expect(resolvePlaceholder({ Kind: "external.link", DeviceName: "ghost" }, status)).toBe("")
   })
 })
 
 describe("resolvePlaceholder ip link form", () => {
   it("builds scheme://ip[:port][path]", () => {
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "internet", LastOctet: 12, AsLink: true, Scheme: "https", Port: 8443, Path: "/admin" }, status)).toBe("https://10.9.4.12:8443/admin")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "out", LastOctet: 12, AsLink: true, Scheme: "https", Port: 8443, Path: "/admin" }, status)).toBe("https://10.9.4.12:8443/admin")
     expect(resolvePlaceholder({ Kind: "ip", IPReference: "static", Octets1to3: "10.0.0", LastOctet: 7, AsLink: true, Scheme: "http", Path: "/x" }, status)).toBe("http://10.0.0.7/x")
   })
 
   it("never carries the mask into the link", () => {
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, ShowMask: true, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, ShowMask: true, AsLink: true, Scheme: "http" }, status)).toBe("http://10.128.1.5")
   })
 
   it("stays empty while the address cannot be resolved", () => {
-    const empty: DeployStatus = { Phase: "Provisioning", Ready: false }
-    expect(resolvePlaceholder({ Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "http" }, empty)).toBe("")
+    const empty: DeployStatus = { Phase: "Provisioning", Ready: false, Gateways: [] }
+    expect(resolvePlaceholder({ Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, AsLink: true, Scheme: "http" }, empty)).toBe("")
   })
 })
 
 describe("resolvePlaceholders", () => {
   it("resolves positionally so nodes can map by index", () => {
     const list: PlaceholderDTO[] = [
-      { Kind: "vpn.subnet", ShowMask: true },
+      { Kind: "gateway.subnet", Gateway: "attack", ShowMask: true },
       { Kind: "external.link", DeviceName: "web" },
     ]
     expect(resolvePlaceholders(list, status)).toEqual(["10.128.1.0/24", "https://web.lab.test"])
@@ -84,12 +95,12 @@ describe("resolvePlaceholders", () => {
 
 describe("taskValues", () => {
   const list: PlaceholderDTO[] = [
-    { Key: "net", Kind: "vpn.subnet" },
-    { Key: "host", Kind: "ip", IPReference: "vpn", LastOctet: 5 },
-    { Key: "site", Kind: "ip", IPReference: "vpn", LastOctet: 5, AsLink: true, Scheme: "http", Port: 8080, Path: "/x" },
+    { Key: "net", Kind: "gateway.subnet", Gateway: "attack" },
+    { Key: "host", Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5 },
+    { Key: "site", Kind: "ip", IPReference: "gateway", Gateway: "attack", LastOctet: 5, AsLink: true, Scheme: "http", Port: 8080, Path: "/x" },
     { Key: "shop", Kind: "external.link", DeviceName: "web" },
     { Key: "gone", Kind: "external.link", DeviceName: "missing" },
-    { Kind: "vpn.subnet" },
+    { Kind: "gateway.subnet", Gateway: "attack" },
   ]
 
   it("fills text per key, a subnet with its mask", () => {
@@ -121,9 +132,9 @@ describe("taskValues in a static test", () => {
   it("resolves fixed ips and leaves lab-needing placeholders unresolved", () => {
     const values = taskValues([
       { Key: "a", Kind: "ip", IPReference: "static", Octets1to3: "10.0.0", LastOctet: 5 },
-      { Key: "n", Kind: "vpn.subnet" },
+      { Key: "n", Kind: "gateway.subnet", Gateway: "attack" },
       { Key: "w", Kind: "external.link", DeviceName: "web" },
-    ], { Phase: "Ready", Ready: true })
+    ], { Phase: "Ready", Ready: true, Gateways: [] })
     expect(values.variables.a).toBe("10.0.0.5")
     expect(values.variables.n).toBe(UNRESOLVED)
     expect(values.variables.w).toBe(UNRESOLVED)

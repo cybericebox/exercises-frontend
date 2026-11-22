@@ -26,3 +26,20 @@ it("reserves both labels while showing only the current operation to assistive t
  expect(screen.getByRole("button", { name: /Saving a long operation…/ })).toBe(button)
  expect(button.querySelector('[data-busy-size]')).toHaveAttribute("aria-hidden", "true")
 })
+
+describe("Button keeps one size", () => {
+  it("a busy-capable button without an operation label reserves loader + label in both states", () => {
+    const { container, rerender } = render(<Button busy={false}>Continue</Button>)
+    const sizer = container.querySelector("[data-busy-size]")
+    expect(sizer).toHaveTextContent("Continue")
+    expect(sizer?.querySelector(".crest-loader")).toBeInTheDocument()
+    rerender(<Button busy>Continue</Button>)
+    expect(container.querySelector("[data-busy-size]")).toBeInTheDocument()
+    expect(container.querySelectorAll(".crest-loader")).toHaveLength(2)
+  })
+
+  it("a button that is never busy stays plain", () => {
+    const { container } = render(<Button>Continue</Button>)
+    expect(container.querySelector("[data-busy-size]")).not.toBeInTheDocument()
+  })
+})

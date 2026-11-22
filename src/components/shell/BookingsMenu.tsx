@@ -23,7 +23,7 @@ import "@/styles/bookings.css"
 type Load = { state: "loading" } | { state: "error"; cause: unknown } | { state: "ready"; items: Booking[]; room: Room | null; config: ResourcesConfig | null; asOf: number }
 
 /**
- * The sidebar's «Бронювання»: the author's upcoming test lab bookings (cancel, add) and whether
+ * The sidebar's “Bookings”: the author's upcoming test lab bookings (cancel, add) and whether
  * there is room for a test lab right now (the largest a platform device may be is the yardstick).
  */
 export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, onCloseAutoFocus }: {
@@ -47,7 +47,7 @@ export function BookingsMenu({ trigger = true, open: controlled, onOpenChange, o
   const [cancelling, setCancelling] = useState<Booking | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  // The suggested start of a new booking; set when «Нове бронювання» is pressed (null: the form is closed).
+  // The suggested start of a new booking; set when “New booking” is pressed (null: the form is closed).
   const newBookingRef = useRef<HTMLButtonElement>(null)
   const [addStart, setAddStart] = useState<string | null>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { ExerciseAccess } from "@/api/exercises/access"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version } from "@/api/exercises/versions"
@@ -20,14 +20,13 @@ vi.mock("@/components/shell/AccessContext", () => ({ useExerciseAccess: () => ({
 vi.mock("@/components/shell/ReturnContext", () => ({ useReturnContext: () => ({ returnUrl: h.returnUrl, eventId: null }) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
-vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true }) }))
 vi.mock("@/api/exercises/catalog", () => ({
   getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn().mockResolvedValue({ Events: [] }),
   listExerciseTags: vi.fn().mockResolvedValue([]), setExerciseAccess: vi.fn(),
 }))
-vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(),
+vi.mock("@/api/exercises/deploy", () => ({ checkDeployFlag: vi.fn(), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }),
   listDeploys: vi.fn().mockResolvedValue([]), deployVariant: vi.fn(), deployStatus: vi.fn().mockResolvedValue({ Phase: "Provisioning", Ready: false }),
   destroyDeploy: vi.fn().mockResolvedValue(undefined), openDeployLink: vi.fn(),
 }))
@@ -56,9 +55,9 @@ const base: Exercise = {
 }
 const version: Version = {
   ID: "pub-1", ExerciseID: "ex-1", Status: "published", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: "2026-09-20T10:00:00Z", Resources: null, Elevation: null,
-  Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Flag: [], LinkedDeviceID: "",
-    DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
-  Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+  Variants: [{ ID: "v1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "t1", Name: "Find it", Description: null, Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } },
+    Attachments: [], Placeholders: [], Hints: [] }],
+  Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 const managerAccess: ExerciseAccess = {
   IsAdmin: false, CanCreateCatalog: false, CanPublish: false, CanDelete: false, CanExport: true, CanImport: true,
@@ -87,12 +86,12 @@ describe("exercise editor — W4 rights", () => {
     expect(await screen.findByRole("heading", { name:"Selected authored name", level:1 })).toBeInTheDocument()
     expect(screen.queryByText("Public description")).not.toBeInTheDocument()
     expect(screen.queryByText("public")).not.toBeInTheDocument()
-    expect(screen.getByText("admin.exGeneral.noDescription")).toBeInTheDocument()
-    expect(screen.getByText("admin.exGeneral.noTags")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.description.empty")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.tags.empty")).toBeInTheDocument()
     if (!versionId) {
       fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.edit" }))
-      expect(screen.getByLabelText(/admin.ex.field.name/)).toHaveValue("Selected authored name")
-      fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"New local name" } })
+      expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Selected authored name")
+      fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target:{ value:"New local name" } })
       expect(screen.getByRole("heading", { level:1 })).toHaveTextContent("New local name")
     }
   })
@@ -104,7 +103,7 @@ describe("exercise editor — W4 rights", () => {
     expect(await screen.findByRole("heading", { name:"Published authored name" })).toBeInTheDocument()
     expect(screen.getByText("Published text")).toBeInTheDocument()
     expect(screen.queryByText("PRIVATE")).not.toBeInTheDocument()
-    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByText("ed.a.general.note.label")).not.toBeInTheDocument()
     expect(screen.queryByText("admin.exPage.badge.changes")).not.toBeInTheDocument()
   })
 
@@ -160,18 +159,20 @@ describe("exercise editor — W4 rights", () => {
 
   it("disables a device-bearing variant in the test menu with the infrastructure reason when the owner event forbids it", async () => {
     const lab = { ...version.Variants[0], ID: "v2", Index: 2, Topology: { ...version.Variants[0].Topology,
-      Devices: [{ ID: "dev-1", Name: "web", Type: "container", SecurityPreset: "", Image: "i", ResourcePreset: "max", Interfaces: [], EnvVars: [], External: null }] } }
+      Devices: [{ ID: "dev-1", Name: "web", Type: "node", SecurityPreset: "", Image: "i", ResourcePreset: "max", Interfaces: [], Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" } }] } }
     vi.mocked(getDraft).mockResolvedValue({ ...version, ID: "draft-1", Status: "draft", Variants: [version.Variants[0], lab] } as Version)
     vi.mocked(getExercise).mockResolvedValue({ ...base, Scope: "event", OwnerEventID: "ev1", OwnerEventName: "Winter CTF", AccessLevel: "", Permissions: managerRights })
     render(<ExercisePage exerciseId="ex-1" versionId={null} />)
     await waitFor(() => expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument())
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    const items = await screen.findAllByRole("menuitem")
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.test" }))
+    const dialog = await screen.findByRole("dialog")
+    // The variants are one select (the dot mark); the one that cannot start is switched off and carries its reason.
+    fireEvent.pointerDown(within(dialog).getByRole("button", { name: /ed\.d\.start\.variant/ }), { button: 0, ctrlKey: false })
+    const items = await screen.findAllByRole("menuitemradio")
     expect(items).toHaveLength(2)
-    expect(items[0]).not.toHaveAttribute("aria-disabled", "true")
-    expect(items[1]).toHaveAttribute("aria-disabled", "true")
-    fireEvent.focus(items[1])
-    expect(items[1]).toHaveAccessibleDescription("exercises.infra.blocked")
+    expect(items[0]).not.toHaveAttribute("data-disabled")
+    expect(items[1]).toHaveAttribute("data-disabled")
+    expect(within(items[1]).getByText("exercises.infra.blocked")).toBeInTheDocument()
   })
 
   it("shows the author's running test lab and opens its page instead of starting a second", async () => {
@@ -215,7 +216,7 @@ describe("new exercise — W4 owner", () => {
     vi.mocked(saveDraft).mockResolvedValue({ ...version, ID: "draft-1", Status: "draft" })
     render(<ExercisePage exerciseId={null} versionId={null} eventId="ev2" />)
     vi.useFakeTimers()
-    fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target: { value: "Buffer overflow" } })
+    fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(createExercise).toHaveBeenCalledWith({ Name: "Buffer overflow", Description: "", Tags: [], OwnerEventID: "ev2" })
     expect(screen.getByText("exercises.return.created")).toBeInTheDocument()
@@ -224,7 +225,7 @@ describe("new exercise — W4 owner", () => {
   it("makes a manager with several events pick one before editing", () => {
     render(<ExercisePage exerciseId={null} versionId={null} />)
     expect(screen.getByText("exercises.owner.required")).toBeInTheDocument()
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeDisabled()
   })
 })
 
@@ -232,7 +233,7 @@ describe("new exercise — W4 owner", () => {
 const withPublishedProperties = (network: boolean, heavy: boolean): Version => {
   const totals = { Devices:network ? 1 : 0, Blocks:1, CPUMillicores:1000, MemoryBytes:1073741824 }
   return { ...version, Resources:{ Min:totals, Max:totals, Variants:[], SpreadPercent:0, VariantsDiffer:false, Outside:[], ResourceHeavy:heavy },
-    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], EnvVars:[], External:null }] : [] } }],
+    Variants:[{ ...version.Variants[0], Topology:{ ...version.Variants[0].Topology, Devices:network ? [{ ID:"pub-device", Name:"Published server", Type:"node", Profile:"container", SecurityPreset:"", Image:"fixture", ResourcePreset:"", Interfaces:[], Access:[], Command:[], Args:[], System:"linux", Hardware:"fast", Bootstrap:{ Timeout:"", Env:[], Files:[], Script:"", Interpreter:"" }, DHCP:false, DHCPRanges:[], DNS:"", ReverseConnections:false }] : [] } }],
   }
 }
 

@@ -6,10 +6,11 @@ import { ApiError } from "@/api/client"
 import { forgetDownload } from "@/api/exercises/chunkedDownload"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field } from "@/components/ui/form-field"
+import { FieldLabel } from "@/components/ui/field-label"
 import { PasswordInput } from "@/components/ui/password-input"
 import { LoadingArea } from "@/components/ui/spinner"
-import { Switch } from "@/components/ui/switch"
+import { SwitchBlock, SwitchList } from "@/components/ui/switch-block"
+import { TriangleAlert } from "lucide-react"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { downloadBlob } from "@/lib/downloadBlob"
@@ -52,7 +53,11 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
     const mismatch = includeSecrets && !missing && password !== confirm
     setPasswordError(missing ? t("admin.exExport.passwordRequired") : null)
     setConfirmError(mismatch ? t("admin.exExport.mismatch") : null)
-    if (missing || mismatch) return
+    if (missing || mismatch) {
+      // The first wrong field takes focus, so the error is read beside it.
+      window.setTimeout(() => document.getElementById(missing ? "export-password" : "export-confirm")?.focus(), 0)
+      return
+    }
     setBusy(true)
     setProgress(null)
     setError(null)
@@ -84,39 +89,44 @@ export function ExportDialog({ exerciseIds, onClose, onExported }: { exerciseIds
     }
   }
 
+  const passwordId = "export-password"
+  const confirmId = "export-confirm"
   return <Dialog open onOpenChange={(open) => { if (!open && canLeave) leave() }}>
     <DialogContent>
       <form noValidate onSubmit={(event) => void submit(event)} className="space-y-4">
         <DialogHeader>
-          <DialogTitle>{t("admin.exExport.title")}</DialogTitle>
-          <DialogDescription>{t("admin.exExport.description")}</DialogDescription>
+          <DialogTitle>{t("ed.a.export.title")}</DialogTitle>
+          <DialogDescription>{t("ed.a.export.description")}</DialogDescription>
         </DialogHeader>
         <div className="relative space-y-4">
           <div className={working ? "invisible space-y-4" : "space-y-4"}>
           <p className="text-sm text-foreground">{t("admin.exExport.count", { count: exerciseIds.length })}</p>
-          <div className="flex items-start gap-3">
-            <Switch id="export-secrets" checked={includeSecrets} onCheckedChange={setIncludeSecrets} aria-label={t("admin.exExport.secrets")} />
-            <div>
-              <label htmlFor="export-secrets" className="text-sm font-medium text-foreground">{t("admin.exExport.secrets")}</label>
-              <p className="text-xs text-muted-foreground">{t("admin.exExport.secretsHint")}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Switch id="export-images" checked={includeImages} onCheckedChange={setIncludeImages} disabled={busy} aria-label={t("admin.exExport.images")} />
-            <div>
-              <label htmlFor="export-images" className="text-sm font-medium text-foreground">{t("admin.exExport.images")}</label>
-              <p className="text-xs text-muted-foreground">{t("admin.exExport.imagesHint")}</p>
-            </div>
-          </div>
-          {includeSecrets && <div className="space-y-3">
-            <Field label={t("admin.exExport.password")} required error={passwordError}>
-              {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(null) }} />}
-            </Field>
-            <Field label={t("admin.exExport.confirm")} required error={confirmError}>
-              {(control) => <PasswordInput {...control} shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setConfirmError(null) }} />}
-            </Field>
-            <p className="text-xs text-[var(--ib-warn)]">{t("admin.exExport.warning")}</p>
-          </div>}
+          <SwitchList>
+            <SwitchBlock id="export-images" label={t("ed.a.export.images")} checked={includeImages} onCheckedChange={setIncludeImages} disabled={busy}
+              help={{ intro: t("ed.a.export.imagesHelp"), default: t("ed.a.export.defaultOff") }} />
+            <SwitchBlock id="export-secrets" label={t("ed.a.export.secrets")} checked={includeSecrets} onCheckedChange={(next) => { setIncludeSecrets(next); setPasswordError(null); setConfirmError(null) }}
+              help={{ intro: t("ed.a.export.secretsHelp"), default: t("ed.a.export.defaultOff") }}>
+              <div className="space-y-3">
+                <div className="max-w-sm space-y-1.5">
+                  <FieldLabel text={t("admin.exExport.password")} required htmlFor={passwordId} />
+                  <PasswordInput id={passwordId} shown={shown} onShownChange={setShown} autoComplete="new-password" value={password} aria-invalid={passwordError ? true : undefined} aria-describedby={passwordError ? `${passwordId}-error` : undefined}
+                    onChange={(event) => { setPassword(event.target.value); setPasswordError(null) }} />
+                  {passwordError && <p id={`${passwordId}-error`} role="alert" className="text-xs font-medium text-destructive">{passwordError}</p>}
+                </div>
+                <div className="max-w-sm space-y-1.5">
+                  <FieldLabel text={t("admin.exExport.confirm")} required htmlFor={confirmId} />
+                  <PasswordInput id={confirmId} shown={shown} onShownChange={setShown} autoComplete="new-password" value={confirm} aria-invalid={confirmError ? true : undefined} aria-describedby={confirmError ? `${confirmId}-error` : undefined}
+                    onChange={(event) => { setConfirm(event.target.value); setConfirmError(null) }} />
+                  {confirmError && <p id={`${confirmId}-error`} role="alert" className="text-xs font-medium text-destructive">{confirmError}</p>}
+                </div>
+              </div>
+            </SwitchBlock>
+          </SwitchList>
+          {includeSecrets
+            ? <p role="note" className="text-xs text-muted-foreground">{t("ed.a.export.warnOn")}</p>
+            : <div role="note" data-export-warning className="flex items-start gap-2 rounded-md border border-[var(--ib-warn)] bg-[var(--ib-warn-bg)] px-3 py-2 text-sm text-foreground">
+              <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ib-warn)]" /><span>{t("ed.a.export.warnOff")}</span>
+            </div>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           </div>
           {working && <div className="absolute inset-0 flex items-center justify-center"><LoadingArea compact message={t("admin.exExport.working")} /></div>}

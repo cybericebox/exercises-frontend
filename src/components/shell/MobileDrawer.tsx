@@ -8,7 +8,7 @@ import { Sidebar } from "./Sidebar"
 
 // The phone menu (AGENTS «Mobile menu»): an overlay over the page from under the header, which stays in place.
 // Radix keeps it modal: focus is trapped, the page behind does not scroll, Esc / a tap outside / a link close it.
-// «Бронювання» closes the menu first and opens its dialog from here, so two overlays never stack.
+// “Bookings” closes the menu first and opens its dialog from here, so two overlays never stack.
 export function MobileDrawer({ open, onOpenChange, onReturnFocus, anchor }: {
   open: boolean
   onOpenChange: (open: boolean) => void

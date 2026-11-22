@@ -21,7 +21,7 @@ const resources = { Min: { CPUMillicores: 100, MemoryBytes: 128 * MIB, Devices: 
 describe("NoRoomPanel (72509)", () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: config })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: config })
     vi.mocked(listBookings).mockResolvedValue([])
   })
 

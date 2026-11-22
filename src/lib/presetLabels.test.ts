@@ -3,11 +3,11 @@ import { RESOURCES_CONFIG } from "@/test/resourcesConfig"
 import { amountLabel, blockHint, blocksLabel, presetOptionLabel, unitHelp } from "./presetLabels"
 
 describe("presetLabels", () => {
-  it("spells «блок» out and declines it", () => {
+  it(`spells "block" out and declines it`, () => {
     expect([1, 2, 4, 5, 8, 11, 21, 32].map(blocksLabel)).toEqual(["1 блок", "2 блоки", "4 блоки", "5 блоків", "8 блоків", "11 блоків", "21 блок", "32 блоки"])
   })
 
-  it("never writes the abbreviation «бл.»", () => {
+  it(`never writes the abbreviation "bl." (Ukrainian)`, () => {
     for (const preset of RESOURCES_CONFIG.Presets) expect(presetOptionLabel(preset)).not.toMatch(/бл\./)
   })
 

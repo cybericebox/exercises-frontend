@@ -12,7 +12,7 @@ const Context = createContext<AccessState>({ access: null, loading: false })
 
 /**
  * Loads GET /exercises/access once per session (again after an outage). A failure is an error with a retry, never
- * a guess: without its rights an event manager would see «Немає доступу» while the service only did not answer.
+ * a guess: without its rights an event manager would see “No access” while the service only did not answer.
  */
 export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AccessState>({ access: null, loading: true })

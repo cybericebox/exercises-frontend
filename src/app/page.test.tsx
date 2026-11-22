@@ -97,7 +97,16 @@ async function openChip(label: string) {
   return screen.findByRole('dialog')
 }
 
-/** Adds a filter through «+ Фільтр» and returns its popover. */
+/**
+ * Closes the open popover with Escape and lets it finish closing: Radix returns focus to its trigger in a timeout, and a
+ * popover opened before that (the next step, at once) would see focus leave and close itself.
+ */
+async function closePopover() {
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+}
+
+/** Adds a filter through "+ Filter" and returns its popover. */
 async function addFilter(label: string) {
   fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.add' }))
   fireEvent.click(await screen.findByRole('button', { name: label }))
@@ -159,20 +168,20 @@ describe('catalog columns', () => {
     expect(vi.mocked(saveCatalogColumns).mock.calls[0][0].slice(0, 3)).toEqual([{ key: 'author', visible: true }, { key: 'status', visible: true }, { key: 'access', visible: true }])
   })
 
-  it('saves a resized column through the queue, keeps it for the next visit, and «Скинути» resets the widths', async () => {
+  it('saves a resized column through the queue, keeps it for the next visit, and "Reset" resets the widths', async () => {
     const { unmount } = render(<Page />)
     await screen.findByText('SQLi basics')
     const handle = () => screen.getAllByRole('separator').find((node) => node.closest('th')?.getAttribute('aria-label') === 'admin.ex.col.author')!
     fireEvent.keyDown(handle(), { key: 'ArrowRight' })
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0]).toContainEqual({ key: 'author', visible: true, width: 166 })
+    expect(vi.mocked(saveCatalogColumns).mock.calls[0][0]).toContainEqual({ key: 'author', visible: true, width: 136 })
     unmount()
     render(<Page />)
     await screen.findByText('SQLi basics')
-    expect(handle()).toHaveAttribute('aria-valuenow', '166')
+    expect(handle()).toHaveAttribute('aria-valuenow', '136')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
     fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.columnsReset' }))
-    expect(handle()).toHaveAttribute('aria-valuenow', '150')
+    expect(handle()).toHaveAttribute('aria-valuenow', '120')
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
     expect(vi.mocked(saveCatalogColumns).mock.calls[1][0].every((column) => !('width' in column))).toBe(true)
   })
@@ -188,10 +197,10 @@ describe('catalog columns', () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     await waitFor(() => expect(getCatalogColumns).toHaveBeenCalledTimes(2))
-    expect(handle()).toHaveAttribute('aria-valuenow', '134')
+    expect(handle()).toHaveAttribute('aria-valuenow', '104')
   })
 
-  it('narrows «Назва» by 150px and widens «Теги» by 150px with the mouse; both are saved and come back on the next visit', async () => {
+  it('narrows "Name" by 150px and widens "Tags" by 150px with the mouse; both are saved and come back on the next visit', async () => {
     vi.mocked(getCatalogColumns).mockResolvedValue(null)
     const tagsShown = DEFAULT_COLUMNS.map((column) => column.key === 'tags' ? { ...column, visible: true } : column)
     localStorage.setItem(STORAGE_CATALOG_COLUMNS, JSON.stringify([{ key: 'name', visible: true, width: 360 }, ...tagsShown]))
@@ -208,19 +217,19 @@ describe('catalog columns', () => {
     drag('admin.ex.col.name', -150)
     expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
     drag('admin.ex.col.tags', 150)
-    expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '350')
-    // Narrowing «Назва» stays narrow: nothing gives its space back to it.
+    expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '330')
+    // Narrowing “Name” stays narrow: nothing gives its space back to it.
     expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
     expect(others()).toEqual(before)
     await waitFor(() => expect(saveCatalogColumns).toHaveBeenCalledTimes(2))
     const saved = vi.mocked(saveCatalogColumns).mock.calls[1][0]
     expect(saved).toContainEqual({ key: 'name', visible: true, width: 210 })
-    expect(saved).toContainEqual({ key: 'tags', visible: true, width: 350 })
+    expect(saved).toContainEqual({ key: 'tags', visible: true, width: 330 })
     first.unmount()
     vi.mocked(getCatalogColumns).mockResolvedValue(saved)
     render(<Page />)
     await screen.findByText('SQLi basics')
-    await waitFor(() => expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '350'))
+    await waitFor(() => expect(handle('admin.ex.col.tags')).toHaveAttribute('aria-valuenow', '330'))
     expect(handle('admin.ex.col.name')).toHaveAttribute('aria-valuenow', '210')
     expect(others()).toEqual(before)
   })
@@ -589,7 +598,7 @@ describe('exercises catalog — archive, export and import', () => {
     fireEvent.click(within(status).getByRole('checkbox', { name: 'exercises.status.short.changed' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ statuses: ['archived', 'changed'] })))
     expect(window.location.search).toBe('?status=archived&status=changed')
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     expect(toolbar().getByRole('button', { name: /^admin\.ex\.col\.status/ })).toHaveTextContent('exercises.status.short.archived, exercises.status.short.changed')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.filter.clearField' }))
     await waitFor(() => expect(mockList.mock.lastCall?.[0]).not.toHaveProperty('statuses'))
@@ -653,18 +662,18 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     window.history.replaceState(null, '', '/')
   })
 
-  it('adds the scope and infrastructure filters through «Фільтр» and removes them with ×', async () => {
+  it('adds the scope and infrastructure filters through "Filter" and removes them with ×', async () => {
     render(<Page />)
     await screen.findByText('SQLi basics')
     let popover = await addFilter('exercises.catalog.storage')
     expect(within(popover).getAllByRole('radio').map((radio) => radio.closest('label')?.textContent)).toEqual(['exercises.scope.all', 'exercises.scope.catalog', 'exercises.scope.event'])
     fireEvent.click(within(popover).getByRole('radio', { name: 'exercises.scope.catalog' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ scope: 'catalog' })))
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     popover = await addFilter('exercises.filter.infra')
     fireEvent.click(within(popover).getByRole('radio', { name: 'exercises.filter.infraYes' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ infrastructure: 'yes' })))
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     for (const clear of screen.getAllByRole('button', { name: 'exercises.filter.clearField' })) fireEvent.click(clear)
     await waitFor(() => expect(window.location.search).toBe(''))
     expect(screen.queryByRole('button', { name: /^exercises\.filter\.infra/ })).not.toBeInTheDocument()
@@ -755,7 +764,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'exercises.catalog.storage' }))
     expect(await screen.findByRole('radio', { name: 'exercises.scope.catalog' })).toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'exercises.scope.all' })).not.toBeInTheDocument()
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.importTip' }))
     // Only their event as the target, preselected from the events filter.
     expect(screen.getByTestId('import-dialog')).toHaveAttribute('data-targets', 'ev1')
@@ -794,7 +803,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     await screen.findByText('Rated')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.catalog.columns' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'admin.ex.col.difficulty' }))
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     expect(screen.getByText('Ада Лавлейс')).toBeInTheDocument()
     expect(screen.getByLabelText('exercises.difficulty.value')).toHaveTextContent('admin.ex.difficulty.medium3,5')
     expect(screen.getByLabelText('exercises.difficulty.none')).toHaveTextContent('—')
@@ -804,11 +813,33 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     expect(screen.getByLabelText('exercises.subtasks.none')).toHaveTextContent('—')
     fireEvent.click(screen.getByRole('button', { name: 'exercises.subtasks.show' }))
     expect((await screen.findAllByRole('listitem')).map((li) => li.textContent)).toEqual(['One', 'Two', 'Three', 'Four'])
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.difficulty' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'difficulty', sortDir: 'asc' })))
     fireEvent.click(screen.getByRole('button', { name: 'admin.ex.col.author' }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'author', sortDir: 'asc' })))
+  })
+
+  // "+ Filter" closed its menu and opened the new chip on the next frame, while the closing menu returned focus to its
+  // trigger in a timeout of its own. When the frame came first (a loaded CI runner), that focus landed outside the new
+  // chip, which closed at once, and the next step waited 4 s for a menu that never opened. Frames that always come
+  // first make that order certain here; the chip must stay open whatever the order.
+  it('keeps the added filter open when the frame comes before the closing menu returns focus', async () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { queueMicrotask(() => callback(0)); return 0 })
+    render(<Page />)
+    await screen.findByText('SQLi basics')
+    const authors = await openChip('exercises.filter.author.label')
+    fireEvent.click(await within(authors).findByRole('checkbox', { name: /Ада Лавлейс/ }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], page: 1 })))
+    await closePopover()
+    await waitFor(() => expect(screen.getByRole('button', { name: /^exercises\.filter\.author\.label/ })).toHaveTextContent('Ада Лавлейс'))
+    const range = await addFilter('exercises.filter.difficulty.label')
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(range).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(range)
+    fireEvent.keyDown(within(range).getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'admin.ex.difficulty.easy' }))
+    await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], difficultyMin: 3 })))
   })
 
   it('filters by author and difficulty range from the chips', async () => {
@@ -817,7 +848,7 @@ describe('exercises catalog — W4 scope, rights and badges', () => {
     const authors = await openChip('exercises.filter.author.label')
     fireEvent.click(await within(authors).findByRole('checkbox', { name: /Ада Лавлейс/ }))
     await waitFor(() => expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ authors: ['u1'], page: 1 })))
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await closePopover()
     await waitFor(() => expect(screen.getByRole('button', { name: /^exercises\.filter\.author\.label/ })).toHaveTextContent('Ада Лавлейс'))
     const range = await addFilter('exercises.filter.difficulty.label')
     fireEvent.keyDown(within(range).getByRole('button', { name: 'exercises.filter.difficulty.fromLabel' }), { key: 'ArrowDown' })

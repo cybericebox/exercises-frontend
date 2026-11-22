@@ -5,7 +5,7 @@ export type InboxCategory = "requests" | "personal" | "activity"
 export type InboxTab = "all" | InboxCategory
 export const INBOX_TABS: readonly InboxTab[] = ["all", "requests", "personal", "activity"]
 
-/** Default tab per app: a fixed tab, or «Запити» when open requests exist, else «Усі» (admin, exercises). */
+/** Default tab per app: a fixed tab, or “Requests” when open requests exist, else “All” (admin, exercises). */
 export type InboxDefaultTab = InboxTab | "requestsIfOpen"
 
 /** Tab counts: requests = open requests; the others = unread. */
@@ -63,7 +63,7 @@ export function isCategory(value: unknown): value is InboxCategory {
   return value === "requests" || value === "personal" || value === "activity"
 }
 
-/** An open request waits for a decision (§8.3: ActionRequired and not resolved); it counts in «Запити» even when read. */
+/** An open request waits for a decision (§8.3: ActionRequired and not resolved); it counts in “Requests” even when read. */
 export function isOpenRequest(item: InboxMessage): boolean {
   return !!item.ActionRequired && !item.ResolvedAt
 }
@@ -73,12 +73,12 @@ export function isUnread(item: InboxMessage): boolean {
   return !item.ReadAt
 }
 
-/** «Вирішено» is offered only where the server allows it (Resolvable). */
+/** “Resolved” is offered only where the server allows it (Resolvable). */
 export function canResolve(item: InboxMessage): boolean {
   return isOpenRequest(item) && item.Resolvable === true
 }
 
-/** «Потребує дії»: an open request keeps asking for a decision even after it was read. */
+/** “Needs action”: an open request keeps asking for a decision even after it was read. */
 export function needsAction(item: InboxMessage): boolean {
   return isOpenRequest(item)
 }
@@ -94,7 +94,7 @@ export function inTab(item: InboxMessage, tab: InboxTab): boolean {
   return tab === "all" || item.Category === tab
 }
 
-/** «Запити»: open requests first, the rest below; each group keeps the server's newest-first order. */
+/** “Requests”: open requests first, the rest below; each group keeps the server's newest-first order. */
 export function orderForTab(items: InboxMessage[], tab: InboxTab): InboxMessage[] {
   if (tab !== "requests") return items
   return [...items.filter(isOpenRequest), ...items.filter((item) => !isOpenRequest(item))]
@@ -139,13 +139,13 @@ export function countsAfterRead(counts: InboxCounts, item: InboxMessage): InboxC
   return next
 }
 
-/** Optimistic counts after «Вирішено»: the request leaves «Запити» and the bell. */
+/** Optimistic counts after “Resolved”: the request leaves “Requests” and the bell. */
 export function countsAfterResolve(counts: InboxCounts, item: InboxMessage): InboxCounts {
   if (!isOpenRequest(item)) return counts
   return { ...counts, all: Math.max(0, counts.all - 1), requests: Math.max(0, counts.requests - 1) }
 }
 
-/** Optimistic counts after «Позначити прочитаним» on a tab; open requests stay open. */
+/** Optimistic counts after “Mark as read” on a tab; open requests stay open. */
 export function countsAfterReadAll(counts: InboxCounts, tab: InboxTab): InboxCounts {
   if (tab === "all") return { ...counts, all: counts.requests, personal: 0, activity: 0 }
   if (tab === "requests") return counts

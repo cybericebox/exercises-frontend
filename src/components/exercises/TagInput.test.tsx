@@ -20,6 +20,26 @@ describe("TagInput suggestions", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
   })
 
+  it("lists the existing tags when the empty field gets focus, and tells the owner", () => {
+    const onFocusChange = vi.fn()
+    render(<TagInput value={["web"]} onChange={vi.fn()} onFocusChange={onFocusChange}
+      suggestions={[{ Tag: "web", Count: 8 }, { Tag: "network", Count: 3 }]} />)
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    fireEvent.focus(screen.getByRole("combobox"))
+    expect(onFocusChange).toHaveBeenCalledWith(true)
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["network· 3"])
+  })
+
+  it("ends the list with a row that creates the typed tag, only when it is not an existing one", () => {
+    const onChange = vi.fn()
+    const props = { value: [] as string[], onChange, onDraftValueChange: vi.fn(), createLabel: (tag: string) => `create ${tag}`, suggestions: [{ Tag: "web", Count: 8 }] }
+    const { rerender } = render(<TagInput {...props} draftValue="web" />)
+    expect(screen.queryByRole("option", { name: "create web" })).not.toBeInTheDocument()
+    rerender(<TagInput {...props} draftValue="wifi" />)
+    fireEvent.pointerDown(screen.getByRole("option", { name: "create wifi" }))
+    expect(onChange).toHaveBeenCalledWith(["wifi"])
+  })
+
   it("selects a suggestion with Enter instead of committing the typed prefix", () => {
     const onChange = vi.fn()
     render(<TagInput value={[]} onChange={onChange} draftValue="cr" onDraftValueChange={vi.fn()}

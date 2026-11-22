@@ -63,3 +63,33 @@ describe("parseFlagCandidate", () => {
     expect(Number.isFinite(pattern.entropyBits)).toBe(true)
   })
 })
+
+describe("repeat counts in a template", () => {
+  it("repeats the class before `{n}` and counts the combinations", () => {
+    const parsed = parseFlagCandidate("template:ICE{[a-f0-9]{4}}")
+    expect(parsed.kind).toBe("template")
+    expect(parsed.cardinality).toBe(BigInt(16 ** 4))
+    expect(parsed.example).toBe("ICE{aaaa}")
+    expect(parseFlagCandidate(String.raw`template:ICE{x\d{3}}`).cardinality).toBe(BigInt(1000))
+  })
+
+  it("accepts 1 to 64 repeats of a class and nothing else", () => {
+    expect(() => parseFlagCandidate("template:ICE{[a-f]{64}}")).not.toThrow()
+    expect(() => parseFlagCandidate("template:ICE{[a-f]{65}}")).toThrow()
+    expect(() => parseFlagCandidate("template:ICE{[a-f]{0}}")).toThrow()
+    expect(() => parseFlagCandidate("template:ICE{abc{3}}")).toThrow()
+    expect(() => parseFlagCandidate("template:ICE{[a-f]{x}}")).toThrow()
+    expect(() => parseFlagCandidate("template:ICE{[a-f]}}")).toThrow()
+  })
+
+  it("a fixed flag still holds no braces", () => {
+    expect(() => parseFlagCandidate("ICE{a{3}}")).toThrow()
+  })
+
+  it("the repeated template can produce a matching flag and refuses another", () => {
+    const pattern = parseFlagCandidate("template:ICE{[a-f]{3}}")
+    expect(flagTemplateCanProduce(pattern, "ICE{abc}")).toBe(true)
+    expect(flagTemplateCanProduce(pattern, "ICE{abg}")).toBe(false)
+    expect(flagTemplateCanProduce(pattern, "ICE{ab}")).toBe(false)
+  })
+})

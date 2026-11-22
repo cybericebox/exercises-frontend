@@ -42,7 +42,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 describe("ImageAvailability", () => {
-  it("says «Образ недоступний» with the reason for an unavailable image", async () => {
+  it(`says "Image unavailable" with the reason for an unavailable image`, async () => {
     h.checkImages.mockResolvedValue([{ Image: "acme/private:1", Status: "unavailable", Reason: "needs_event_secret" }])
     render(<Harness images={["acme/private:1"]} />)
     await settle()

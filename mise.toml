@@ -1,0 +1,94 @@
+# mise: the pinned tools of this repository and its commands. One entry point for developers, agents and CI.
+#   mise install            install exactly these tool versions (once, and after this file changes)
+#   mise tasks              list the commands
+#   mise run <task> ...     run one; extra arguments go to the command
+# The commands themselves are the npm scripts of package.json; the tasks only give them one entry point.
+
+[tools]
+gitleaks = "8.30.1"   # lint:leaks: the secret scan of the whole history (.gitleaks.toml)
+actionlint = "1.7.12"   # lint:leaks: the GitHub workflows
+shellcheck = "0.11.0"   # actionlint checks the run: scripts with it; lint:ci checks the release helpers and dev.sh
+python = "3.14.10"   # the release helpers of .github/scripts (standard library only; mise run test-scripts)
+node = "26.13.1"   # the same as the build image of deploy/Dockerfile
+gh = "2.104.0"     # dev-push
+"github:mokevnin/heavy" = "0.1.2"   # a machine-wide semaphore: heavy commands of every checkout and agent take turns (heavy --status)
+
+[tasks.cache-guard]
+hide = true
+description = "Local caches stay under a size limit (the workspace script of infrastructure; does nothing in CI or without it)"
+run = 'd="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; for up in .. ../..; do g="$d/$up/infrastructure/scripts/cache-guard.sh"; [ -x "$g" ] && break; done; if [ -z "${CI:-}" ] && [ -x "$g" ]; then "$g"; fi'
+
+[tasks.install]
+description = "Install the dependencies exactly as package-lock.json pins them"
+depends = ["cache-guard"]
+run = "npm ci"
+
+[tasks.dev]
+description = "npm run dev: next dev -p 3005"
+run = "npm run dev"
+
+[tasks."dev:fixtures"]
+description = "npm run dev:fixtures: NEXT_PUBLIC_EDITOR_FIXTURES=1 NEXT_PUBLIC_DOMAIN=localhost NEXT_PUBLIC_SUPPORT_EMAIL=dev@example.test next dev"
+run = "npm run dev:fixtures"
+
+[tasks.build]
+description = "npm run build: next build"
+run = "heavy -- npm run build"
+
+[tasks."check:cfg"]
+description = "npm run check:cfg: node scripts/check-cfg.mjs"
+run = "heavy -- npm run check:cfg"
+
+[tasks.start]
+description = "npm run start: next start -p 3005"
+run = "npm run start"
+
+[tasks."lint:ci"]
+description = "shellcheck: the release helpers (.github/scripts), dev.sh and its test, the file tasks (actionlint runs in lint:leaks)"
+run = "shellcheck -x -P SCRIPTDIR .github/scripts/*.sh scripts/dev.sh scripts/dev.test.sh mise-tasks/test-scripts"
+
+[tasks."lint:leaks"]
+description = "gitleaks over the whole history (.gitleaks.toml) and actionlint over the workflows"
+run = ["gitleaks git --redact --no-banner --log-level warn", "actionlint"]
+
+[tasks.lint]
+description = "npm run lint: eslint ."
+depends = ["lint:leaks", "lint:ci"]
+run = "heavy -- npm run lint"
+
+[tasks."sync:errors"]
+description = "npm run sync:errors: node scripts/sync-error-catalog.mjs"
+run = "npm run sync:errors"
+
+[tasks."sync:ds"]
+description = "npm run sync:ds: node scripts/ds-sync.mjs"
+run = "npm run sync:ds"
+
+[tasks."check:ds"]
+description = "npm run check:ds: node scripts/ds-sync.mjs --check"
+run = "npm run check:ds"
+
+[tasks.typecheck]
+description = "npm run typecheck: tsc --noEmit"
+run = "heavy -- npm run typecheck"
+
+[tasks.test]
+description = "npm test: vitest run"
+run = "heavy -- npm test"
+
+[tasks.check]
+description = "Everything the CI check runs: check:ds, lint, typecheck, test, check:cfg, test-scripts"
+run = [{ task = "check:ds" }, { task = "lint" }, { task = "typecheck" }, { task = "test" }, { task = "check:cfg" }, { task = "test-scripts" }]
+
+# Branch cycle (scripts/dev.sh, the same in every repository), see CONTRIBUTING.md.
+[tasks.dev-start]
+description = "feature/<name> from the fresh develop; with --line X.Y, fix/X.Y/<name> from release/X.Y. Usage: mise run dev-start <name> [--line X.Y]"
+run = "scripts/dev.sh start"
+
+[tasks.dev-push]
+description = "Push, open or update the PR into its base: develop (auto-merge when green) or release/X.Y for a fix branch (merged by hand, no auto-merge)"
+run = "scripts/dev.sh push"
+
+[tasks.dev-done]
+description = "Back to develop, pull, delete the merged local branch"
+run = "scripts/dev.sh done"

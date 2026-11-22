@@ -1,4 +1,4 @@
-/* The editor: a full-width screen — one header row, one tab row («Загальне» | variant numbers), the open tab. */
+/* The editor: a full-width screen — one header row, one tab row (“General” | variant numbers), the open tab. */
 /* Fills the main area (its padding stays outside) and grows with long content, which then scrolls the main area. */
 .exercise-general-screen { --ctl:36px; display:flex; flex:1 0 auto; flex-direction:column; gap:12px; min-width:0; container:task-screen / inline-size; }
 @media(pointer:coarse){ .exercise-general-screen { --ctl:44px; } }
@@ -8,22 +8,26 @@
 .general-back:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .general-identity { display:flex; flex:1; flex-wrap:wrap; align-items:baseline; gap:4px 12px; min-width:0; }
 .general-identity h1 { font-size:20px !important; line-height:1.3; overflow-wrap:anywhere; }
-.general-context { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; }
+.general-context { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
 .general-primary-actions { display:flex; align-items:center; gap:8px; order:3; }
 .general-utilities { display:flex; align-items:center; gap:8px; order:4; }
 .general-utility { width:var(--ctl); height:var(--ctl); min-height:var(--ctl); }
 .general-direct-test { display:inline-flex; }
-.general-phone-test { display:none; }
 .general-running-test { flex-basis:100%; order:5; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ib-dim); }
 .editor-form { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
 /* The tab strip: one control height (36px, 44px on touch). Its bottom divider is a line drawn under the tabs; the
-   active tab's 2px bar sits exactly on it, as wide as the tab's label padding. Every tab (Загальне, the variant
+   active tab's 2px bar sits exactly on it, as wide as the tab's label padding. Every tab (General, the variant
    numbers, the table icon) has the same states: hover darkens the text, focus-visible draws a ring. */
 .editor-tabs { position:relative; display:flex; align-items:stretch; gap:4px; height:var(--ctl); }
 .editor-tabs::after { content:""; position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--ib-line); pointer-events:none; }
 .editor-tabs>:not(.editor-tablist) { align-self:center; }
 .editor-tablist { position:relative; z-index:1; display:flex; align-items:stretch; min-width:0; overflow-x:auto; scrollbar-width:none; }
 .editor-tablist::-webkit-scrollbar { display:none; }
+/* The row scrolls with no scrollbar (a phone is narrower than the tabs): the edge where tabs are hidden fades out, so the
+   cut tab reads as "more this way". data-overflow is set by EditorShell from the scroll position. */
+.editor-tablist[data-overflow=end] { mask-image:linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+.editor-tablist[data-overflow=start] { mask-image:linear-gradient(to left, #000 calc(100% - 24px), transparent); }
+.editor-tablist[data-overflow=both] { mask-image:linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .editor-variant-strip,.editor-variant-strip>span,.editor-tablist>span:not(.editor-tabs-divider):not(.editor-tabs-label) { display:flex; align-items:stretch; }
 .editor-tab { --tab-pad:12px; position:relative; display:inline-flex; align-items:center; justify-content:center; height:100%; padding:0 var(--tab-pad); font-size:14px; line-height:20px; color:var(--ib-dim); white-space:nowrap; flex:none; }
 .editor-tab-number { --tab-pad:8px; min-width:34px; font-variant-numeric:tabular-nums; }
@@ -54,8 +58,11 @@
   .exercise-general-screen:has(.general-primary-actions) { padding-bottom:72px; }
   .general-primary-actions { position:fixed; left:0; right:0; bottom:0; z-index:30; padding:10px 12px max(10px, env(safe-area-inset-bottom)); border-top:1px solid var(--ib-line); background:var(--ib-surface); }
   .general-primary-actions>* { flex:1; }
-  .general-direct-test { display:none; }
-  .general-phone-test { display:block; }
+  /* The test button is an icon beside the main actions on a phone (the label stays for screen readers). */
+  .general-direct-test { flex:none; }
+  .general-direct-test .general-test-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .general-direct-test .general-test-icon { margin-right:0; }
+  .general-direct-test button { width:var(--ctl); padding:0; }
 }
 .general-section-nav { display:flex; align-items:center; min-height:53px; padding-bottom:8px; border-bottom:1px solid var(--ib-line); margin-top:12px; }
 .general-metadata { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; padding:12px 0; border-bottom:1px solid var(--ib-line); margin-bottom:20px; }
@@ -91,7 +98,7 @@
   .general-field input,.general-field textarea { font-size:16px; min-height:44px; }
 }
 
-/* «Загальне»: the fields in one column, the task's facts in a card beside them. */
+/* “General”: the fields in one column, the task's facts in a card beside them. */
 .exercise-general-fields { display:flex; flex-direction:column; gap:16px; max-width:860px; }
 .exercise-general-fields .general-field { max-width:none; margin:0; gap:6px; }
 .exercise-general-fields .general-editor { height:auto; min-height:0; max-height:none; resize:vertical; }
@@ -156,7 +163,7 @@
 @media (pointer:coarse) { .hint-row-head,.hint-row-toggle { min-height:44px; } }
 @media (prefers-reduced-motion:reduce) { .hint-row-chevron,.hint-row-actions { transition:none; } }
 .hint-row-panel { display:flex; flex-direction:column; gap:12px; padding:12px; border-top:1px solid var(--ib-line); }
-/* A section's «+ Додати …» sits at the right end of its header. */
+/* A section's "+ Add …" sits at the right end of its header. */
 .subtask-section-action { margin-left:auto; }
 .subtask-filebar { display:flex; flex-wrap:wrap; align-items:center; min-width:0; font-size:13.5px; }
 .subtask-filebar>:first-child { flex:1; min-width:0; }
@@ -179,7 +186,7 @@ button.subtask-drop:hover { border-color:var(--ib-action); color:var(--ib-ink); 
 button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
 .subtask-flag-box { display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
 .subtask-flag-delivery { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
-/* «Заданий» / «Шаблон»: a segment attached to the left of the flag field, its full height; the field's border and
+/* “Fixed” / “Template”: a segment attached to the left of the flag field, its full height; the field's border and
    6px radius round its outer corners, the inner side is square with a divider before the input. */
 .flag-mode-switch { display:inline-flex; flex:none; height:100%; border-right:1px solid var(--ib-line); background:var(--ib-hero); }
 .flag-mode-switch>* { height:100%; }
@@ -203,50 +210,3 @@ button.subtask-drop:focus-visible { outline:2px solid var(--ib-action); outline-
 .topology-connect-hint { position:absolute; top:12px; left:12px; z-index:15; display:flex; align-items:center; gap:10px; padding:4px 4px 4px 12px; border:1px solid var(--ib-line); border-radius:8px; background:var(--ib-surface); font-size:13px; color:var(--ib-dim); }
 .resources-popover [data-resources-panel] { margin:0; padding:0; border:0; }
 
-/* All variants: one row per variant, a column per subtask; the variant number stays on the left. */
-.all-variants { display:flex; flex:1; flex-direction:column; min-height:0; }
-.all-variants-scroll { flex:1 1 0; min-height:12rem; overflow:auto; border:1px solid var(--ib-line); border-radius:8px; }
-.all-variants-scroll:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; }
-.all-variants-table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:13.5px; }
-.all-variants-table th,.all-variants-table td { height:44px; padding:4px 12px; border-bottom:1px solid var(--ib-line); text-align:left; vertical-align:middle; white-space:nowrap; background:var(--card); }
-.all-variants-table thead th { position:sticky; top:0; z-index:2; background:var(--ib-paper); font-size:12.5px; font-weight:500; color:var(--ib-dim); }
-.all-variants-sticky { position:sticky; left:0; z-index:1; border-right:1px solid var(--ib-line); }
-.all-variants-table thead .all-variants-sticky { z-index:3; }
-.all-variants-subtask { display:inline-block; max-width:200px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; color:var(--ib-ink); }
-.all-variants-open { min-width:28px; height:28px; padding:0 6px; border-radius:4px; font-weight:600; color:var(--ib-action); }
-.all-variants-open:hover { background:var(--ib-soft); }
-.all-variants-open:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
-.all-variants-base { margin-left:4px; font-size:12px; color:var(--ib-dim); }
-.all-variants-cell { display:flex; align-items:center; gap:6px; }
-.all-variants-flag { width:160px; height:36px; padding:0 8px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font:13px/1 var(--font-mono, ui-monospace, monospace); color:var(--ib-ink); }
-@media (pointer:coarse) { .all-variants-flag { height:44px; } }
-.all-variants-flag:focus { outline:none; border-color:var(--ring); box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 40%,transparent); }
-.all-variants-flag[aria-invalid=true] { border-color:var(--ib-danger); }
-.all-variants-flag:disabled { background:var(--ib-paper); color:var(--ib-dim); }
-.all-variants-template,.all-variants-more,.all-variants-files { display:inline-flex; align-items:center; gap:3px; height:22px; padding:0 6px; border-radius:4px; background:var(--ib-hero); font-size:12px; color:var(--ib-dim); }
-.all-variants-template:focus-visible,.all-variants-more:focus-visible,.all-variants-files:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; }
-.all-variants-note { max-width:240px; color:var(--ib-dim); }
-.all-variants-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; min-height:36px; margin-bottom:8px; }
-.all-variants-title { display:flex; align-items:baseline; gap:6px; margin:0; font-size:14px; font-weight:600; color:var(--ib-ink); }
-.all-variants-count { font-size:13px; font-weight:400; color:var(--ib-dim); }
-.all-variants-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-left:auto; }
-.all-variants-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:8px; padding:6px 6px 6px 12px; border:1px solid color-mix(in srgb,var(--ib-warn) 30%,var(--ib-line)); border-radius:8px; background:var(--ib-warn-bg); font-size:13.5px; color:var(--ib-ink); }
-.all-variants-strip > svg { color:var(--ib-warn); }
-.all-variants-strip > p { margin:0; flex:1 1 280px; }
-.all-variants-note-text { display:block; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.all-variants-note-text:focus-visible { outline:2px solid var(--ib-action); outline-offset:1px; border-radius:4px; }
-.all-variants-order { margin:0; font-size:13px; color:var(--ib-dim); }
-.all-variants-order:focus-visible { outline:2px solid var(--ib-action); outline-offset:2px; border-radius:4px; }
-.all-variants-label { display:inline-flex; align-items:center; gap:2px; }
-.all-variants-weight { display:flex; flex-direction:column; gap:2px; }
-.all-variants-weight-input { width:56px; height:36px; padding:0 6px; border:1px solid var(--ib-line); border-radius:6px; background:var(--ib-surface); font-size:13.5px; color:var(--ib-ink); }
-@media (pointer:coarse) { .all-variants-weight-input { height:44px; } }
-.all-variants-weight-input:focus { outline:none; border-color:var(--ring); box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 40%,transparent); }
-.all-variants-weight-input[aria-invalid=true] { border-color:var(--ib-danger); }
-.all-variants-weight-input:disabled { background:var(--ib-paper); color:var(--ib-dim); }
-.all-variants-weight-error { margin:0; max-width:160px; white-space:normal; font-size:12px; line-height:1.3; color:var(--ib-danger); }
-.simplify-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; font-size:14px; }
-.simplify-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1px solid var(--ib-line); border-radius:8px; }
-.simplify-item > svg { margin-top:2px; }
-.simplify-outcome { display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px; font-size:13px; }
-.simplify-figure { font-size:20px; font-weight:600; color:var(--ib-ink); overflow-wrap:anywhere; }

@@ -4,10 +4,10 @@
  * values inline instead of tokens.
  *
  * Placeholder kinds (see PlaceholderDTO):
- *  - vpn.subnet / internet.subnet → the lab's VPN / internet CIDR, always with its mask
+ *  - gateway.subnet → the CIDR of the named gateway of the lab (status.Gateways), always with its mask
  *    (10.128.1.0/24): a subnet without a mask is not a subnet;
- *  - ip → a subnet-relative address: the CIDR's network with the placeholder's
- *    last octet (for vpn/internet references) or the fixed Octets1to3 (static);
+ *  - ip → a subnet-relative address: the CIDR of the named gateway with the placeholder's
+ *    last octet (IPReference "gateway") or the fixed Octets1to3 (static);
  *  - ip with AsLink → the full URL scheme://ip[:port][path] (no mask);
  *  - external.link → the web-access URL of the named device.
  *
@@ -35,6 +35,11 @@ function ipFromCIDR(cidr: string, lastOctet: number, showMask: boolean): string 
   return showMask ? `${ip}/${parsed.mask}` : ip
 }
 
+/** The CIDR of the gateway of this name, "" while the lab has not produced it. */
+export function gatewayCIDR(status: DeployStatus, name: string | undefined): string {
+  return status.Gateways?.find((gateway) => gateway.Name === name)?.CIDR ?? ""
+}
+
 /** Resolve a single placeholder against a deployed lab's status. */
 export function resolvePlaceholder(p: PlaceholderDTO, status: DeployStatus): string {
   if (p.Kind === "ip" && p.AsLink) {
@@ -45,16 +50,14 @@ export function resolvePlaceholder(p: PlaceholderDTO, status: DeployStatus): str
   const showMask = p.ShowMask ?? false
 
   switch (p.Kind) {
-    case "vpn.subnet":
-      return status.VPNCIDR ?? ""
-    case "internet.subnet":
-      return status.InternetCIDR ?? ""
+    case "gateway.subnet":
+      return gatewayCIDR(status, p.Gateway)
     case "ip":
       switch (p.IPReference) {
-        case "vpn":
-          return status.VPNCIDR ? ipFromCIDR(status.VPNCIDR, lastOctet, showMask) : ""
-        case "internet":
-          return status.InternetCIDR ? ipFromCIDR(status.InternetCIDR, lastOctet, showMask) : ""
+        case "gateway": {
+          const cidr = gatewayCIDR(status, p.Gateway)
+          return cidr ? ipFromCIDR(cidr, lastOctet, showMask) : ""
+        }
         case "static":
           return p.Octets1to3 ? `${p.Octets1to3}.${lastOctet}` : ""
         default:

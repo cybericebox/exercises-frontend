@@ -11,9 +11,11 @@ import { t } from "@/i18n/t"
 import type { EditorPosition } from "@/lib/editorPosition"
 import { ERR_EXERCISE_IN_USE, deviceImageErrorTarget, exerciseErrorCode, exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
+import { forgetServerErrors, placeServerFieldError } from "@/lib/editor/serverErrorTarget"
 import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
+import { draftIssues, type EditorIssue } from "@/lib/editor/issues"
 import type { ExerciseEditor } from "./useExerciseEditor"
 
 export type DeployTarget = {
@@ -31,14 +33,16 @@ export type UseExerciseActionsOptions = {
   focusField: (path: PropertyKey[]) => void
   /** Lets the next programmatic navigation past the leave guard. */
   allowNavigation: () => void
+  /** The publish check found invalid fields: the page shows the list “Fix before publishing”. */
+  onIssues?: (issues: EditorIssue[]) => void
 }
 
 export function useExerciseActions({
-  editor, canWrite, canDelete, setMode, setPosition, focusField, allowNavigation,
+  editor, canWrite, canDelete, setMode, setPosition, focusField, allowNavigation, onIssues,
 }: UseExerciseActionsOptions) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
-  // Which action keeps it busy, so that action's button can name it («Публікуємо…»).
+  // Which action keeps it busy, so that action's button can name it (“Publishing”).
   const [running, setRunning] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState("")
   const [usage, setUsage] = useState<{ exerciseId: string; events: ExerciseUsageEvent[] } | null>(null)
@@ -90,22 +94,35 @@ export function useExerciseActions({
       return false
     }
     const ok = await editor.autosave.flush()
-    if (!ok) report(t("admin.exPage.toast.saveFailed"))
-    return ok
+    if (ok) return true
+    // A failed save whose error sits beside its field (placed by the editor) says what is wrong: show where, no generic toast.
+    const placed = editor.saveErrorIssues()
+    if (placed.length === 0 || inline) { report(t("admin.exPage.toast.saveFailed")); return false }
+    if (canWrite) setMode("edit")
+    if (onIssues) onIssues(placed)
+    else { setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), placed[0].path)); focusField(placed[0].path) }
+    return false
   }
 
   async function publish(): Promise<void> {
     if (!exerciseId) return
     await run(async () => {
+      forgetServerErrors(editor.draftForm)
       const valid = await editor.draftForm.trigger()
       const values = editor.draftForm.getValues()
       const missingDescriptions = values.Variants.flatMap((variant, vi) => variant.Tasks.flatMap((task, ti) =>
         richTextHasContent(task.Description) ? [] : [`Variants.${vi}.Tasks.${ti}.Description` as const]))
       for (const path of missingDescriptions) editor.draftForm.setError(path, { type: "required", message: t("admin.ex.err.taskDescriptionRequired") })
       if (!valid || missingDescriptions.length > 0) {
+        if (canWrite) setMode("edit")
+        const issues = draftIssues(values)
+        if (onIssues && issues.length > 0) {
+          // The list only navigates; every message also sits beside its own field.
+          onIssues(issues)
+          return false
+        }
         const parsed = draftSchema.safeParse(values)
         const issue = parsed.success ? missingDescriptions[0] ? { path: missingDescriptions[0].split(".").map((part) => /^\d+$/.test(part) ? Number(part) : part) } : null : parsed.error.issues[0]
-        if (canWrite) setMode("edit")
         setPosition((current) => issue ? positionForDraftIssue(current, values, issue.path) : { ...current, tab: "variants" })
         if (issue) focusField(issue.path)
         toast.error(t("admin.exPage.toast.invalid"))
@@ -114,7 +131,13 @@ export function useExerciseActions({
       try {
         await publishDraft(exerciseId)
       } catch (cause) {
-        if (!showDeviceImageError(cause)) throw cause
+        if (showDeviceImageError(cause)) return false
+        // A document error that names its field (23105, 23506, 23519 …) goes beside that field and into the problems list.
+        const placed = placeServerFieldError(cause, editor.draftForm)
+        if (!placed) throw cause
+        if (canWrite) setMode("edit")
+        if (onIssues) onIssues(placed)
+        else { setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), placed[0].path)); focusField(placed[0].path) }
         return false
       }
       await editor.reloadWorkingCopy()
@@ -133,7 +156,7 @@ export function useExerciseActions({
     const devices = editor.draftForm.getValues(`Variants.${variantIndex}.Topology.Devices`)
     editor.draftForm.setError(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Image`, { type: "server", message: exerciseErrorMessage(cause) })
     if (canWrite) setMode("edit")
-    setPosition((current) => ({ ...current, tab: "variants", variant: variantIndex, section: "topology", topologySection: `device:${devices[deviceIndex].ID}`, devicePanel: "basic" }))
+    setPosition((current) => ({ ...current, tab: "infrastructure", variant: variantIndex, infraView: "diagram", openNode: devices[deviceIndex].ID, deviceSection: "main", topologySection: `device:${devices[deviceIndex].ID}`, devicePanel: "basic" }))
     toast.error(exerciseErrorMessage(cause))
     return true
   }

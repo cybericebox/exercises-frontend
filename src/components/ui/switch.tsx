@@ -34,7 +34,7 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         "disabled:cursor-not-allowed disabled:opacity-50",
         checked
           ? "border-[var(--ib-action)] bg-[var(--ib-action)]"
-          : "border-[var(--ib-control)] bg-[var(--ib-field-bg,var(--ib-surface))] enabled:hover:border-[var(--ib-dim)]",
+          : "border-[var(--ib-control)] bg-[color-mix(in_srgb,var(--ib-control)_22%,var(--ib-field-bg,var(--ib-surface)))] enabled:hover:border-[var(--ib-dim)]",
         className,
       )}
       {...props}

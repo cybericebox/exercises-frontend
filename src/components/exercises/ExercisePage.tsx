@@ -16,30 +16,36 @@ import { ImportDialog } from "./ImportDialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
-import { EditorWorkspace } from "@/components/exercises/EditorWorkspace"
+import { LabCapabilitiesProvider } from "@/components/exercises/editor/labCapabilities"
+import { GatewayLimitProvider } from "@/components/exercises/editor/gatewayLimit"
+import { EditorProvider, type EditorApi } from "@/components/exercises/editor/context"
+import { EditorHeader } from "@/components/exercises/editor/EditorHeader"
+import { EditorShell } from "@/components/exercises/editor/EditorShell"
+import { TestStartDialog } from "@/components/exercises/editor/slots"
 import { DevicePersistenceProvider } from "@/components/exercises/DevicePersistenceContext"
 import { ExerciseIdProvider } from "@/components/exercises/ExerciseIdContext"
 import { ImageUploadsProvider } from "@/components/exercises/ImageUploads"
 import { EditorPositionProvider, useEditorValidationFocus } from "@/components/exercises/EditorPosition"
-import { ArchivedBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
-import { ExerciseGeneralFields } from "@/components/exercises/ExerciseGeneralFields"
-import { ExerciseHeader, type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
+import { ArchivedBanner, DraftConflictBanner, VersionBanner } from "@/components/exercises/ExerciseBanners"
+import { type HeaderBadge, type HeaderMode, type TestVariantOption } from "@/components/exercises/ExerciseHeader"
 import { TopologyResourcesButton } from "@/components/exercises/TopologyResourcesPanel"
 import { ResourcesConfigLoadingProvider, ResourcesConfigProvider } from "@/components/exercises/ResourcesConfigContext"
-import type { ResourcesConfig } from "@/api/exercises/capabilities"
+import type { LabCapabilities, ResourcesConfig } from "@/api/exercises/capabilities"
 import { RunningLabsDialog } from "@/components/exercises/RunningLabsDialog"
 import { ExportDialog } from "@/components/exercises/ExportDialog"
 import { HistoryDialog } from "@/components/exercises/HistoryDialog"
 import { SnapshotDialog } from "@/components/exercises/SnapshotDialog"
 import { useExerciseActions } from "@/components/exercises/useExerciseActions"
 import { useExerciseEditor } from "@/components/exercises/useExerciseEditor"
-import { ExerciseGeneralMetadata } from "./ExerciseGeneralMetadata"
 import "@/styles/exercise-general.css"
+import "@/styles/editor-shell.css"
 import { Form } from "@/components/ui/form"
 import { LoadingArea } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
 import { DEFAULT_EDITOR_POSITION, editorPositionStorageKey, parseEditorPosition, type EditorPosition } from "@/lib/editorPosition"
+import { positionForDraftIssue } from "@/lib/exerciseErrorNavigation"
+import { exerciseErrorMessage } from "@/lib/exerciseErrors"
 import { exerciseHref, testLabHref, testLabStartHref } from "@/lib/exerciseRoutes"
 import { canPublishExercise, exerciseBadgeKind, formatExerciseDate, formatExerciseDateTime } from "@/lib/exerciseStatus"
 import { useExerciseLeaveGuard } from "@/lib/useExerciseLeaveGuard"
@@ -56,7 +62,7 @@ import { NoAccessScreen } from "@/components/shell/NoAccessScreen"
 
 // eventId: owner event of a new exercise (from /new?event=…), used from Phase 2 on.
 type Props = { exerciseId: string | null; versionId: string | null; eventId?: string | null }
-type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import"
+type DialogName = "history" | "snapshot" | "revert" | "restore" | "archive" | "delete" | "export" | "access" | "propose" | "import" | "test" | "reload"
 
 export function ExercisePage(props: Props) {
   const { isLoading } = useRole()
@@ -95,12 +101,19 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [laboratories, setLaboratories] = useState<boolean | null>(null)
   const [devicePersistence, setDevicePersistence] = useState(false)
   const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
+  const [labCapabilities, setLabCapabilities] = useState<LabCapabilities | null>(null)
+  const [maxGateways, setMaxGateways] = useState<number | null>(null)
   const [capabilitiesDone, setCapabilitiesDone] = useState(false)
   const [publishedVersions, setPublishedVersions] = useState<Partial<Record<string, Version>>>({})
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
   const [leaveOffline, setLeaveOffline] = useState(false)
+  // Reloading the working copy after someone else changed it: the confirmation's busy state and inline error.
+  const [reloading, setReloading] = useState(false)
+  const [reloadError, setReloadError] = useState("")
   const { formRef, focusField } = useEditorValidationFocus()
-  // «Ввести назву» under the image field: the General tab, with the cursor in the name.
+  // The editor's api for what lives above its provider (the publish check opens the issues list).
+  const editorApi = useRef<EditorApi | null>(null)
+  // “Enter the name” under the image field: the General tab, with the cursor in the name.
   const showNameField = () => {
     updatePosition("tab", "general")
     window.setTimeout(() => document.getElementById("exercise-name")?.focus(), 0)
@@ -154,7 +167,15 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const actions = useExerciseActions({
     editor, canWrite: permissions.write, canDelete: permissions.delete, setMode, setPosition, focusField,
     allowNavigation: leave.allowNavigation,
+    onIssues: (issues) => editorApi.current?.showIssues(issues, "publish"),
   })
+  // “Go to”: the tab, variant and sub-view that hold the field at a form path, then the field itself.
+  const goToField = useCallback((path: PropertyKey[]) => {
+    if (permissions.write) setMode("edit")
+    setPosition((current) => positionForDraftIssue(current, editor.draftForm.getValues(), path))
+    // A placeholder is a chip in the text, not a control: the error sits under the description, which takes the focus.
+    focusField(path[2] === "Tasks" && path[4] === "Placeholders" ? path.slice(0, 4).concat("Description") : path)
+  }, [permissions.write, editor.draftForm, focusField])
 
   const positionKey = userId && exercise ? editorPositionStorageKey(userId, exercise.ID) : null
   useEffect(() => {
@@ -180,7 +201,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setCapabilitiesDone(true) } })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setMaxGateways(capabilities.MaxLabGateways ?? null); setLabCapabilities(capabilities.LabCapabilities ?? null); setCapabilitiesDone(true) } })
       .catch(() => { if (!cancelled) { setLaboratories(false); setCapabilitiesDone(true) } })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -253,6 +274,22 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }
 
 
+  // The test lab: the draft is saved and checked first, then the page starts the lab for the chosen variant.
+  const startTest = (index: number, leaseMinutes?: number) => {
+    setDialog(null)
+    void actions.test(index).then(async (target) => {
+      if (!target) return
+      // A user runs a limited number of test labs across all exercises: open the running
+      // one (this exercise's, or pick among them) instead of failing.
+      const running = await listDeploys().catch(() => [] as DeployListItem[])
+      const here = running.find((item) => item.ExerciseID === target.exerciseId)
+      if (here) { openTest(here.DeployID); return }
+      if (running.filter((item) => !item.Expired).length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
+      leave.allowNavigation()
+      router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId, leaseMinutes))
+    })
+  }
+
   const owners = access ? ownerOptions(access, t("exercises.owner.catalog")) : []
   if (!exerciseId && !permissions.write) {
     return <NoAccessScreen mode="block" title={t("admin.ex.create.forbidden")} />
@@ -275,9 +312,25 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     ? { kind: "version", label: t("admin.exPage.badge.version", { date: formatExerciseDate(version.PublishedAt ?? version.CreatedAt) }) }
     : exercise ? { kind: exerciseBadgeKind({ ...exercise, HasChanges: !readOnly && unpublishedWork }) } : null
 
+  const resourcesButton = infraAllowed ? <TopologyResourcesButton form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
+    config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
+    flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} /> : undefined
+  const pageData = {
+    identityForm: editor.identityForm, exercise, publishedVersion, publishedAt,
+    eventName: (id: string) => access?.Events.find((event) => event.ID === id)?.Name,
+    status: exercise ? headerStatus({ ...exercise, HasChanges: !readOnly && unpublishedWork }) : "none",
+    resources: editor.version?.Resources ?? null,
+    usageEvents: actions.usageEvents.map((event) => event.Name),
+    autoFocusName: !exerciseId,
+    viewing: !editing && Boolean(exercise),
+  }
+
   return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><ResourcesConfigLoadingProvider value={permissions.write && !isVersion && !capabilitiesDone}><EditorPositionProvider position={position} onChange={updatePosition}>
+    <LabCapabilitiesProvider value={labCapabilities}><GatewayLimitProvider value={maxGateways}>
+    <EditorProvider form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes}
+      resources={resourcesButton} page={pageData} onGoToField={goToField} apiRef={editorApi}>
     <div className="exercise-general-screen">
-      <ExerciseHeader
+      <EditorHeader
         mode={headerMode}
         title={exercise ? selectedName : t("admin.ex.create.title")}
         badge={badge}
@@ -290,7 +343,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         busy={actions.busy || editor.replacementActive}
         running={actions.running}
         testAvailable={permissions.write}
-        getTestVariants={getTestVariants}
         usageEvents={actions.usageEvents.map((event) => event.Name)}
         onRetrySave={() => void editor.autosave.flush()}
         onCancelNew={(event) => {
@@ -301,19 +353,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         }}
         activeTestUntil={activeDeploy?.ExpiresAt ?? null}
         onOpenTest={activeDeploy ? () => openTest() : undefined}
-        onTest={(index) => {
-          void actions.test(index).then(async (target) => {
-            if (!target) return
-            // A user runs a limited number of test labs across all exercises: open the running
-            // one (this exercise's, or pick among them) instead of failing.
-            const running = await listDeploys().catch(() => [] as DeployListItem[])
-            const here = running.find((item) => item.ExerciseID === target.exerciseId)
-            if (here) { openTest(here.DeployID); return }
-            if (running.filter((item) => !item.Expired).length >= maxTests) { setLimitReached({ items: running, at: Date.now() }); return }
-            leave.allowNavigation()
-            router.push(testLabStartHref(target.exerciseId, target.versionId, target.variantId))
-          })
-        }}
+        onTest={() => setDialog("test")}
         onHistory={() => setDialog("history")}
         onEdit={() => setMode("edit")}
         onDone={() => void actions.done()}
@@ -350,28 +390,20 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
         busy={actions.busy}
         onBack={() => void actions.openVersion(null)}
         onRestore={() => { actions.clearConfirmError(); setDialog("restore") }} />}
+      {!isVersion && editor.conflict && <DraftConflictBanner conflict={editor.conflict} onReload={() => { setReloadError(""); setDialog("reload") }} />}
       {!isVersion && archived && <ArchivedBanner canUnarchive={permissions.write} busy={actions.busy} unarchiving={actions.running === "unarchive"} onUnarchive={() => void actions.unarchive()} />}
       <Form {...editor.draftForm}>
         {/* Image uploads live here, above the device cards: collapsing or switching panels never stops one; leaving the editor does. */}
         <ImageUploadsProvider canWrite={permissions.write && !readOnly} flush={() => editor.autosave.flush()} onNeedName={showNameField}>
         {/* exercise-view: viewing (not a busy edit) shows values as read-only text, not as dimmed empty inputs. */}
         <form ref={formRef} noValidate onSubmit={(event) => event.preventDefault()} className={`editor-form${editing ? "" : " exercise-view"}`}>
-          <EditorWorkspace form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes}
-            general={<div className="editor-general">
-              <ExerciseGeneralFields identityForm={editor.identityForm} draftForm={editor.draftForm} disabled={!editing || actions.busy} readOnly={!editing && Boolean(exercise)} autoFocusName={!exerciseId} showNotes={showNotes} />
-              {exercise && <ExerciseGeneralMetadata exercise={exercise} publishedVersion={publishedVersion} publishedAt={publishedAt}
-                eventName={(id) => access?.Events.find((event) => event.ID === id)?.Name} draftForm={editor.draftForm}
-                status={headerStatus({ ...exercise, HasChanges: !readOnly && unpublishedWork })} resources={editor.version?.Resources ?? null}
-                usageEvents={actions.usageEvents.map((event) => event.Name)} />}
-            </div>}
-            resources={infraAllowed ? <TopologyResourcesButton form={editor.draftForm} exerciseId={exercise?.ID ?? null} resources={editor.version?.Resources ?? null} elevation={editor.version?.Elevation ?? null}
-              config={resourcesConfig} canRequest={editing} canPublish={permissions.publish}
-              flush={() => editor.autosave.flush()} onRequested={editor.setElevation} onPickBlock={pickDeviceBlock} /> : undefined} />
+          <EditorShell />
         </form>
         </ImageUploadsProvider>
       </Form>
     </div>
 
+    {dialog === "test" && <TestStartDialog variants={getTestVariants()} busy={actions.busy} onStart={startTest} onClose={() => setDialog(null)} />}
     {dialog === "history" && exercise && <HistoryDialog exerciseId={exercise.ID} viewingVersionId={versionId}
       onClose={() => setDialog(null)}
       onView={(target) => { setDialog(null); void actions.openVersion(target) }} />}
@@ -402,6 +434,17 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       description={t("admin.exTest.limitDescription", { n: limitReached?.items.filter((item) => !item.Expired).length ?? 0, max: maxTests })}
       onClose={() => setLimitReached(null)}
       onEnded={(id) => { activeDeploys.forget(id); setLimitReached((current) => current && { ...current, items: current.items.filter((item) => item.DeployID !== id) }) }} />
+    <ConfirmDialog open={dialog === "reload"} busy={reloading} error={reloadError} tone="danger" cancelLabel={t("admin.exPage.dialog.cancel")}
+      title={t("admin.exPage.conflict.confirmTitle")} description={t("admin.exPage.conflict.confirmDescription")}
+      confirmLabel={t("admin.exPage.conflict.reload")} busyLabel={t("admin.exPage.conflict.reloading")}
+      onCancel={() => setDialog(null)}
+      onConfirm={() => {
+        setReloading(true)
+        setReloadError("")
+        void editor.reloadAfterConflict()
+          .then(() => setDialog(null), (cause: unknown) => setReloadError(exerciseErrorMessage(cause)))
+          .finally(() => setReloading(false))
+      }} />
     <ConfirmDialog open={cancelNewAsk} tone="danger" onCancel={() => setCancelNewAsk(false)}
       title={t("admin.ex.cancelNew.title")} description={t("admin.ex.cancelNew.description")}
       confirmLabel={t("admin.ex.cancelNew.confirm")}
@@ -414,5 +457,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       title={t("admin.exPage.leave.title")} description={t("admin.exPage.leave.description")}
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
+    </EditorProvider>
+    </GatewayLimitProvider></LabCapabilitiesProvider>
   </EditorPositionProvider></ResourcesConfigLoadingProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }

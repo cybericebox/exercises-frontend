@@ -41,7 +41,7 @@ const isForbidden = (error: unknown) => error instanceof ApiError && error.statu
 /**
  * Whether the platform can pull the device's image, before any test lab starts. All images of the variant are
  * checked together (they deploy together, so two keys for one registry show as a conflict); the device shows
- * its own result. Quiet while the image is available or not checked yet; «Образ недоступний» with the reason
+ * its own result. Quiet while the image is available or not checked yet; “Image unavailable” with the reason
  * otherwise.
  */
 export function ImageAvailability({ variantIndex, deviceIndex, enabled = true }: {

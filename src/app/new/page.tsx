@@ -9,7 +9,7 @@ import { t } from "@/i18n/t"
 import { clearPendingChanges, hasDraftContent, pendingBufferKey, readPendingChanges } from "@/lib/exercisePendingBuffer"
 import { useRole } from "@/lib/useRole"
 
-/** Query flag set by the catalog row «Продовжити»: open the browser draft without asking. */
+/** Query flag set by the catalog row “Extend”: open the browser draft without asking. */
 const CONTINUE_DRAFT_PARAM = "draft"
 
 type Gate = "checking" | "ask" | "open"

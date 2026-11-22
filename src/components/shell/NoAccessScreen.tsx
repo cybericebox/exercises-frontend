@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { apiPost } from "@/api/client"
 import { useRole } from "@/lib/useRole"
 import { t } from "@/i18n/t"
-import { mainOrigin, signInURL } from "@/lib/origins"
+import { signInURL } from "@/lib/origins"
+import { cfg } from "@/lib/settings"
 import { SignInRedirect } from "./SignInRedirect"
 
 // A page the signed-in account has no rights for (403): the error-screen frame with a
 // Lock mark, the account, and two ways out: another account (sign out, then sign in
-// back to this page) or home. mode="block" centers the same card inside the page area of the shell.
+// back to this page) or the main site. The main-site button exists only when NEXT_PUBLIC_MAIN_SITE_URL is set (cfg-main-only):
+// without it `/` is this very screen. mode="block" centers the same card inside the page area of the shell.
 export function NoAccessScreen({ title = t("auth.noAccess.title"), mode = "page" }: { title?: string; mode?: "page" | "block" }) {
   const { me } = useRole()
   const [working, setWorking] = useState(false)
@@ -23,7 +25,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title"), mode = "page"
     try {
       await apiPost("/api/auth/sign-out", {}, undefined, { required: false })
       const target = signInURL(window.location.href)
-      window.location.replace(target || mainOrigin)
+      window.location.replace(target || cfg("main-site-url") || "/")
     } catch {
       setFailed(true)
       setWorking(false)
@@ -43,7 +45,7 @@ export function NoAccessScreen({ title = t("auth.noAccess.title"), mode = "page"
           {failed && <p role="alert" className="text-sm text-destructive">{t("auth.noAccess.failed")}</p>}
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <Button busy={working} onClick={() => void switchAccount()}>{t("auth.noAccess.switch")}</Button>
-            <Button variant="outline" asChild><a href={mainOrigin}>{t("auth.noAccess.home")}</a></Button>
+            <Button variant="outline" asChild className="cfg-main-only"><a href={process.env.NEXT_PUBLIC_MAIN_SITE_URL}>{t("auth.noAccess.home")}</a></Button>
           </div>
         </div>
       </div>

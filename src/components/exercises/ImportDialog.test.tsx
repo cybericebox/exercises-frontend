@@ -15,7 +15,7 @@ vi.mock("@/api/exercises/archiveJobs", () => ({ getImportJob: vi.fn(), listRunni
 import { prepareArchiveImport, previewArchiveImport, commitArchiveImport, type ArchivePreviewItem } from "@/api/exercises/archiveImport"
 import { resetImportJobsForTests } from "@/lib/importJobs"
 import { ImportDialog, defaultImportTarget } from "./ImportDialog"
-const item: ArchivePreviewItem = { ItemKey: "folder", Name: "Archive task", SourceExerciseID: "different", SourceVersion: { Position: 0, Status: "draft" }, Target: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, SuggestedTarget: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, TargetExercise: { ID: "target", Name: "Chosen task", Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEventTag: "", HasDraft: true }, SourceIDMismatch: true, ConfirmationRevision: "rev1", ReplacesDraft: true, Summary: { Variants: { Added: 1, Removed: 0, Changed: 2 }, Subtasks: { Before: 3, After: 4 }, FlagsChanged: 2, Files: { Added: 2, Removed: 1 }, Images: { New: 1, Reused: 2 }, MetadataChanged: true } }
+const item: ArchivePreviewItem = { ItemKey: "folder", Name: "Archive task", SourceExerciseID: "different", SourceVersion: { Position: 0, Status: "draft" }, Target: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, SuggestedTarget: { ItemKey: "folder", Mode: "update", ExerciseID: "target" }, TargetExercise: { ID: "target", Name: "Chosen task", Scope: "catalog", OwnerEventID: null, OwnerEventName: "", OwnerEventTag: "", HasDraft: true }, SourceIDMismatch: true, ConfirmationRevision: "rev1", ReplacesDraft: true, Report: { Diff: { Variants: [] }, Issues: [], Publishable: true, Warnings: [] }, Summary: { Variants: { Added: 1, Removed: 0, Changed: 2 }, Subtasks: { Before: 3, After: 4 }, FlagsChanged: 2, Files: { Added: 2, Removed: 1 }, Images: { New: 1, Reused: 2 }, MetadataChanged: true } }
 function pick() { fireEvent.change(screen.getByLabelText(/^admin.exImport.file/), { target: { files: [new File(["zip"], "a.zip")] } }) }
 async function preview() { pick(); await screen.findByText("Archive task") }
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); resetImportJobsForTests(); vi.mocked(prepareArchiveImport).mockReset().mockResolvedValue({ UploadID: "owned" }); vi.mocked(previewArchiveImport).mockReset().mockResolvedValue({ Items: [item] }); vi.mocked(commitArchiveImport).mockReset() })
@@ -152,7 +152,7 @@ it("batch completion presents exact mixed result destinations and counts without
  expect(await screen.findByText('admin.exImport.update.doneCounts {"created":1,"updated":1}')).toBeInTheDocument()
  expect(screen.getAllByRole("link", { name: "admin.exImport.update.open" }).map(link => link.getAttribute("href"))).toEqual(["/detail?id=target", "/detail?id=created"])
  expect(push).not.toHaveBeenCalled()
- // A synchronous answer is a known outcome: no «unknown» note, no recovery, just «Закрити».
+ // A synchronous answer is a known outcome: no «unknown» note, no recovery, just “Close”.
  expect(screen.queryByText("admin.exImport.update.unknownFoot")).not.toBeInTheDocument()
  expect(screen.queryByRole("button", { name: "admin.exImport.update.recover" })).not.toBeInTheDocument()
  expect(within(document.querySelector("footer")!).getByRole("button", { name: "admin.exImport.close" })).toBeInTheDocument()
@@ -286,7 +286,7 @@ it("a missing queued job offers same-plan recovery instead of leaving the task p
  expect(commitArchiveImport).toHaveBeenCalledWith(expect.objectContaining({ UploadID: "owned", Targets: [item.Target] }))
  expect(push).not.toHaveBeenCalled()
 })
-it("lays the archive tasks out as rows: how each was matched, its target, change chips in words with details, and «Без змін»", async () => {
+it(`lays the archive tasks out as rows: how each was matched, its target, change chips in words with details, and "No changes"`, async () => {
  const same = { ...item, ItemKey: "same", Name: "Same task", SourceIDMismatch: false, ReplacesDraft: false, Target: { ItemKey: "same", Mode: "update" as const, ExerciseID: "other" }, SuggestedTarget: { ItemKey: "same", Mode: "update" as const, ExerciseID: "other" },
   Summary: { Variants: { Added: 0, Removed: 0, Changed: 0 }, Subtasks: { Before: 2, After: 2 }, FlagsChanged: 0, Files: { Added: 0, Removed: 0 }, Images: { New: 0, Reused: 3 }, MetadataChanged: false } }
  vi.mocked(previewArchiveImport).mockResolvedValue({ Items: [item, same] })
@@ -297,15 +297,15 @@ it("lays the archive tasks out as rows: how each was matched, its target, change
  expect(screen.getByText('admin.exImport.chip.variantsChanged.few {"count":2}')).toBeInTheDocument()
  expect(screen.getByText('admin.exImport.chip.filesAdded.few {"count":2}')).toBeInTheDocument()
  expect(screen.getByText('admin.exImport.chip.filesRemoved.one {"count":1}')).toBeInTheDocument()
- // «Стане чернеткою» is said once, in the footer, not per row.
+ // "Will become a draft" is said once, in the footer, not per row.
  expect(screen.queryByText("admin.exImport.chip.draft")).not.toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.replacesDraft")).toBeInTheDocument()
  expect(screen.getByText("admin.exImport.chip.same")).toBeInTheDocument()
- // Details only for a real change.
+ // Every row opens into the report of the item.
  const toggles = screen.getAllByRole("button", { name: /admin\.exImport\.row\.showDetails/ })
- expect(toggles).toHaveLength(1)
+ expect(toggles).toHaveLength(2)
  fireEvent.click(toggles[0])
- expect(screen.getByText("admin.exImport.update.flags")).toBeInTheDocument()
+ expect(document.querySelector("[data-import-report]")).not.toBeNull()
  expect(screen.getByRole("button", { name: /admin\.exImport\.row\.hideDetails/ })).toHaveAttribute("aria-expanded", "true")
  expect(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ })).toHaveTextContent('admin.exImport.update.applyUpdates {"updates":2}')
 })

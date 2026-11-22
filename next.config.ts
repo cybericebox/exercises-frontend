@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs"
 import type { NextConfig } from "next"
+import { devFrameSrc, labDomainList } from "./src/lib/consoleFrame.ts"
+import { urlSettingError } from "./src/lib/settingRules.ts"
 
 // Static export for the exercise catalog.
 // One base domain: NEXT_PUBLIC_DOMAIN is the only host input and every host derives from it (src/**/hosts.ts, deploy/base-domain.sh; the daemon and
@@ -8,6 +10,10 @@ const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN ?? ""
 if (!DOMAIN) throw new Error("NEXT_PUBLIC_DOMAIN is required")
 if (DOMAIN !== "__NEXT_PUBLIC_DOMAIN__" && (DOMAIN.length > 253 || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(DOMAIN))) {
   throw new Error(`NEXT_PUBLIC_DOMAIN must be a bare lowercase host name (no scheme, port or path), got: ${DOMAIN}`)
+}
+// The editor fixture mode (canned API, no backend) is for `next dev` only: a production build must not carry it.
+if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_EDITOR_FIXTURES) {
+  throw new Error("NEXT_PUBLIC_EDITOR_FIXTURES is a dev-only switch and must not be set for a production build")
 }
 // Build version for error reports (package.json).
 const APP_VERSION = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version
@@ -19,6 +25,15 @@ const REQUIRED = [
 ]
 const missing = REQUIRED.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing required env: ${missing.join(", ")}`)
+
+// Optional installation settings (src/lib/settings.ts): empty or unset = not shown; a set value must follow the one rule (deploy/cfg-check.sh,
+// tests/cfg-vectors.json). The image build bakes placeholders, which are not checked here: the entrypoint checks the real values.
+const settingProblems = ["NEXT_PUBLIC_MAIN_SITE_URL", "NEXT_PUBLIC_COOKIES_URL"].flatMap((name) => {
+  const value = process.env[name] ?? ""
+  const problem = value.startsWith("__NEXT_PUBLIC_") ? null : urlSettingError(value)
+  return problem ? [`${name} ${problem}`] : []
+})
+if (settingProblems.length > 0) throw new Error(`Invalid optional settings: ${settingProblems.join("; ")}`)
 
 // Dev-only: `next dev` accepts the configured hosts (and event sites) behind a local proxy/tunnel.
 const devHosts = [
@@ -40,6 +55,10 @@ function devContentSecurityPolicy(): string {
     script.push("https://www.googletagmanager.com")
     connect.push("https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://www.google.com/ccm/", "https://*.doubleclick.net")
   }
+  // The lab hosts: labs.<domain> plus the optional NEXT_PUBLIC_LAB_DOMAINS (same rule as deploy/csp.sh). The grant form of the test lab
+  // posts to them (form-action) and the console of a device is framed from them (frame-src).
+  const extraLabDomains = labDomainList(process.env.NEXT_PUBLIC_LAB_DOMAINS)
+  const formAction = ["'self'", ...[...new Set([`labs.${DOMAIN}`, ...extraLabDomains])].map((d) => `https://*.${d}`)]
   return [
     "default-src 'self'",
     `script-src ${script.join(" ")}`,
@@ -47,10 +66,11 @@ function devContentSecurityPolicy(): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connect.join(" ")}`,
-    "frame-src 'none'",
+    // The lab domains (https://*.labs.<domain> and the extra ones; isConsoleFrameUrl narrows each to one label); the dev fixture mode also frames its canned console page ('self' and blob:).
+    `frame-src ${devFrameSrc(DOMAIN, Boolean(process.env.NEXT_PUBLIC_EDITOR_FIXTURES), extraLabDomains)}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action ${formAction.join(" ")}`,
     "frame-ancestors 'none'",
   ].join("; ")
 }

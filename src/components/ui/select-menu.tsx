@@ -50,7 +50,7 @@ interface SelectMenuProps {
 // Generic custom single-select. A Radix DropdownMenu radio group under the hood
 // (fully styled popup) — use where a native <select>'s default option list is
 // undesirable. Option-agnostic: pass any {value,label}[].
-export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, menuHeader, portalled = true, modal = true, sideOffset = 4, id, "aria-labelledby": labelledBy, "aria-describedby": describedBy, "aria-invalid": invalid, "aria-required": required }: SelectMenuProps) {
+export function SelectMenu({ value, onChange, options, disabled, placeholder, className, ariaLabel, compactChevron = false, triggerVariant = "outline", menuClassName, menuHeader, portalled = true, modal = true, sideOffset = 2, id, "aria-labelledby": labelledBy, "aria-describedby": describedBy, "aria-invalid": invalid, "aria-required": required }: SelectMenuProps) {
   const selected = options.find((o) => o.value === value)
   const valueId = useId()
   // The name stays the field label; the chosen option is announced as the description (an aria-label alone would hide it).
@@ -80,9 +80,9 @@ export function SelectMenu({ value, onChange, options, disabled, placeholder, cl
           {options.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value} disabled={o.disabled} className={o.unavailable ? "text-destructive focus:text-destructive" : undefined}>
               {o.content ?? (o.description ? <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                <span className="font-medium">{o.label}</span>
+                <span className="whitespace-nowrap font-medium">{o.label}</span>
                 <span className="whitespace-normal text-xs leading-snug text-muted-foreground">{o.description}</span>
-              </span> : o.label)}
+              </span> : <span className="whitespace-nowrap">{o.label}</span>)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

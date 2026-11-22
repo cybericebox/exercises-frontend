@@ -13,6 +13,7 @@ import {
   publishDraft,
   getDraft,
   saveDraftKeepalive,
+  discardDraft,
   EMPTY_VERSION_ID,
   isStoredVersionId,
   createCheckpoint,
@@ -25,10 +26,14 @@ const mockApiGet = vi.mocked(client.apiGet)
 const mockApiPost = vi.mocked(client.apiPost)
 const mockApiPut = vi.mocked(client.apiPut)
 const mockKeepalive = vi.mocked(client.apiKeepalive)
+const mockApiDelete = vi.mocked(client.apiDelete)
+// Six fractional digits with trailing zeros: a Date round trip would turn it into ".120Z".
+const REV = '2026-11-21T10:00:00.120000Z'
 
 const EX_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 const VER_ID = 'ffffffff-0000-1111-2222-333333333333'
 const DEV_ID = '99999999-8888-7777-6666-555555555555'
+const GW_ID = '99999999-8888-7777-6666-555555555556'
 
 const rawVersion = {
   ID: VER_ID,
@@ -70,14 +75,32 @@ describe('versions API paths', () => {
     expect(result.Variants).toEqual([])
   })
 
-  it('saveDraft PUTs the snapshot to /:id/draft', async () => {
-    mockApiPut.mockResolvedValueOnce(rawVersion)
+  it('saveDraft PUTs the snapshot with the revision it started from to /:id/draft', async () => {
+    mockApiPut.mockResolvedValueOnce({ ...rawVersion, Revision: '2026-11-21T10:00:02.000000Z', UpdatedAt: '2026-11-21T10:00:02Z', UpdatedBy: 'u1', UpdatedByName: 'Olena Koval' })
     const input = { AdminNote: '', Variants: [] }
-    await saveDraft(EX_ID, input)
+    const saved = await saveDraft(EX_ID, input, REV)
     expect(mockApiPut.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/draft`)
-    expect(mockApiPut.mock.calls[0][1]).toBe(input)
+    expect(mockApiPut.mock.calls[0][1]).toEqual({ AdminNote: '', Variants: [], Revision: REV })
+    expect(saved).toMatchObject({ Revision: '2026-11-21T10:00:02.000000Z', UpdatedBy: 'u1', UpdatedByName: 'Olena Koval' })
   })
 
+  it('keeps the revision byte for byte and fills it when absent', async () => {
+    mockApiGet.mockResolvedValueOnce({ ...rawVersion, Revision: REV })
+    expect((await getDraft(EX_ID)).Revision).toBe(REV)
+    mockApiGet.mockResolvedValueOnce(rawVersion)
+    expect(await getDraft(EX_ID)).toMatchObject({ Revision: '', UpdatedAt: '', UpdatedBy: null, UpdatedByName: '' })
+  })
+
+  it('discardDraft DELETEs /:id/draft with ?revision=', async () => {
+    mockApiDelete.mockResolvedValueOnce(undefined)
+    await discardDraft(EX_ID, REV)
+    const url = new URL(mockApiDelete.mock.calls[0][0] as string, 'https://x')
+    expect(url.pathname).toBe(`/api/exercises/${EX_ID}/draft`)
+    expect(url.searchParams.get('revision')).toBe(REV)
+    mockApiDelete.mockResolvedValueOnce(undefined)
+    await discardDraft(EX_ID, '')
+    expect(new URL(mockApiDelete.mock.calls[1][0] as string, 'https://x').searchParams.get('revision')).toBe('')
+  })
   it('publishDraft POSTs to /:id/publish', async () => {
     mockApiPost.mockResolvedValueOnce(rawVersion)
     await publishDraft(EX_ID)
@@ -114,8 +137,8 @@ describe('versions API paths', () => {
   it('sends the working copy with keepalive on page unload', () => {
     mockKeepalive.mockReturnValueOnce(true)
     const input = { AdminNote: '', Variants: [] }
-    expect(saveDraftKeepalive(EX_ID, input)).toBe(true)
-    expect(mockKeepalive).toHaveBeenCalledWith('PUT', `/api/exercises/${EX_ID}/draft`, input)
+    expect(saveDraftKeepalive(EX_ID, input, REV)).toBe(true)
+    expect(mockKeepalive).toHaveBeenCalledWith('PUT', `/api/exercises/${EX_ID}/draft`, { ...input, Revision: REV })
   })
 })
 
@@ -125,10 +148,8 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [{ Name: 'Find the flag', Difficulty: 'easy' }],
       Topology: {
-        VPN: { Enabled: true, DHCP: true },
-        Internet: { Enabled: false, DHCP: false },
-        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'container' }],
-        Connections: [{ Endpoints: [{ Kind: 'vpn', Interface: 'eth0' }, { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' }] }],
+        Devices: [{ ID: DEV_ID, Name: 'web', Type: 'node' }, { ID: GW_ID, Name: 'attack', Type: 'vpn_gateway', DHCP: true, DHCPRanges: [{ Start: 100, End: 200 }] }],
+        Connections: [{ Endpoints: [{ Kind: 'device', DeviceID: GW_ID, Interface: 'eth0' }, { Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' }] }],
       },
     }
     const v = normalizeVariant(raw)
@@ -138,9 +159,9 @@ describe('normalizeVariant', () => {
       Name: 'Find the flag',
       Description: null,
       Difficulty: 'easy',
-      Flag: [],
-      LinkedDeviceID: '',
-      DeviceFlagVar: '',
+      Key: '',
+      Requires: [],
+      Check: {},
       Attachments: [],
       Placeholders: [],
       Hints: [],
@@ -148,14 +169,14 @@ describe('normalizeVariant', () => {
     expect(v.Topology.Devices[0]).toEqual({
       ID: DEV_ID,
       Name: 'web',
-      Type: 'container',
+      Type: 'node',
       SecurityPreset: '',
       Image: '', ResourcePreset: '',
       Interfaces: [],
-      EnvVars: [],
-      External: null, Persistence: null, WaitReadyFile: false,
+      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false, DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
     })
-    expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'vpn', DeviceID: '', Interface: 'eth0' })
+    expect(v.Topology.Devices[1]).toMatchObject({ ID: GW_ID, Name: 'attack', Type: 'vpn_gateway', Interfaces: [], DHCP: true, DHCPRanges: [{ Start: 100, End: 200 }], DNS: '', ReverseConnections: false })
+    expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'device', DeviceID: GW_ID, Interface: 'eth0' })
     expect(v.Topology.Connections[0].Endpoints[1]).toEqual({ Kind: 'device', DeviceID: DEV_ID, Interface: 'eth0' })
   })
 
@@ -164,17 +185,15 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [],
       Topology: {
-        VPN: { Enabled: false, DHCP: false },
-        Internet: { Enabled: false, DHCP: false },
         Devices: [{
-          ID: DEV_ID, Name: 'db', Type: 'container',
-          EnvVars: [{ Name: 'DB_PASS', Secret: true, HasValue: true }],
+          ID: DEV_ID, Name: 'db', Type: 'node',
+          Bootstrap: { Env: [{ Name: 'DB_PASS', Secret: true, HasValue: true }] },
         }],
         Connections: [],
       },
     }
     const v = normalizeVariant(raw)
-    expect(v.Topology.Devices[0].EnvVars[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
+    expect(v.Topology.Devices[0].Bootstrap.Env[0]).toEqual({ Name: 'DB_PASS', Value: '', Secret: true, HasValue: true })
   })
 
   it('reads WaitReadyFile and defaults an old device to off', () => {
@@ -182,11 +201,9 @@ describe('normalizeVariant', () => {
       Index: 1,
       Tasks: [],
       Topology: {
-        VPN: { Enabled: false, DHCP: false },
-        Internet: { Enabled: false, DHCP: false },
         Devices: [
-          { ID: DEV_ID, Name: 'web', Type: 'container', WaitReadyFile: true },
-          { ID: DEV_ID, Name: 'old', Type: 'container' },
+          { ID: DEV_ID, Name: 'web', Type: 'node', WaitReadyFile: true },
+          { ID: DEV_ID, Name: 'old', Type: 'node' },
         ],
         Connections: [],
       },

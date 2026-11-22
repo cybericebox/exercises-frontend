@@ -49,7 +49,7 @@ describe('AttachmentList', () => {
 
   it('keeps the upload action but does not reserve an empty-state panel before files exist', () => {
     render(<Harness />)
-    expect(screen.getByRole('button', { name: 'admin.exFiles.upload' })).toHaveTextContent('admin.exFiles.dropOrPick')
+    expect(screen.getByRole('button', { name: 'admin.exFiles.upload' })).toHaveTextContent('ed.b.files.drop')
     expect(screen.queryByText('admin.exFiles.empty')).not.toBeInTheDocument()
   })
 

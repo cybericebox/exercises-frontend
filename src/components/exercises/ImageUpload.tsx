@@ -36,7 +36,7 @@ function IconButton({ label, onClick, disabled, children, className }: { label: 
   </button></HoverTooltip>
 }
 
-const CONTROL = "flex min-h-9 w-full pointer-coarse:min-h-11 min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm text-foreground transition-colors"
+const CONTROL = "flex min-h-9 w-full pointer-coarse:min-h-11 min-w-0 flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-0.5 text-sm text-foreground transition-colors"
 
 /** The note under the field for the stage of a running upload. */
 function stageNote(progress: ImageUploadProgress): string | null {
@@ -52,7 +52,7 @@ function stageNote(progress: ImageUploadProgress): string | null {
 /**
  * The device image: ONE field. Type a reference, or upload a `docker save` archive (.tar or .tar.gz) with the
  * trailing icon button or by dropping it on the field. An uploaded image is the platform reference, shown as a
- * chip with «Замінити» and «Вказати посилання». The field changes only when the upload has created the image.
+ * chip with “Replace” and “Use a reference”. The field changes only when the upload has created the image.
  * An archive dropped before the task has a name is kept and checked at once; it is sent by itself when the task
  * exists (see ImageUploadStore). Below the field: the stage, the error and the availability of the image.
  */
@@ -63,7 +63,7 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
   compact?: boolean
   /**
    * Set for a linked variant: its base's position. The image is the only own part of the device there: a reference
-   * (no upload — the upload belongs to the device of the base), marked «власний образ» with × back to the base's.
+   * (no upload — the upload belongs to the device of the base), marked "own image" with × back to the base's.
    */
   baseVariantIndex?: number
 }) {

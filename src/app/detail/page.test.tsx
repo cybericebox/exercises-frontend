@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
 import type { Version, VersionListItem } from "@/api/exercises/versions"
 
@@ -11,11 +11,10 @@ vi.mock("@/lib/useRole", () => ({ useRole: () => ({ me: { ID: "editor-1" }, isLo
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams(h.search) }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 vi.mock("@/components/exercises/TaskAccordion", () => ({ TaskAccordion: () => <p>tasks panel</p> }))
-vi.mock("@/components/exercises/TopologySection", () => ({ TopologySection: () => <p>topology panel</p> }))
-vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]) }))
+vi.mock("@/api/exercises/deploy", () => ({ listDeploys: vi.fn().mockResolvedValue([]), getTestRunLengths: vi.fn().mockResolvedValue({ AllowedMinutes: [60], DefaultMinutes: 60 }) }))
 import { listDeploys } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
-vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG }) }))
+vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn().mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG }) }))
 vi.mock("@/api/exercises/catalog", () => ({
   getExercise: vi.fn(), updateExercise: vi.fn(), createExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
   deleteExercise: vi.fn(), archiveExercise: vi.fn(), unarchiveExercise: vi.fn(), getExerciseUsage: vi.fn(),
@@ -35,6 +34,7 @@ import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { toDraftFormValues } from "@/lib/exerciseSchemas"
 import Page from "./page"
+import { normalizedDevice } from "@/test/editorFixtures"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
 const ALL = ["exercises.read", "exercises.write", "exercises.publish", "exercises.delete", "exercises.export"]
@@ -43,16 +43,13 @@ const exercise: Exercise = {
   ID: "ex-1", Name: "Web 101", Description: "", Tags: [], DraftVersionID: "draft-1", PublishedVersionID: "pub-1",
   ArchivedAt: null, HasChanges: true, CreatedAt: "2026-09-01T10:00:00Z", CreatedBy: null, UpdatedAt: "2026-09-20T10:00:00Z", UpdatedBy: null,
 }
-const task = { ID: "task-1", Name: "Find the flag", Description: { root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Find the flag in the lab." }] }] } }, Difficulty: "easy" as const, Flag: [], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }
-const device = {
-  ID: "dev-1", Name: "web", Type: "container" as const, SecurityPreset: "" as const, Image: "nginx",
-  ResourcePreset: "", Resources: { CPURequest: "", MemoryRequest: "", CPULimit: "", MemoryLimit: "" }, Interfaces: [], EnvVars: [], External: null,
-}
+const task = { ID: "task-1", Name: "Find the flag", Description: { root: { type: "root", children: [{ type: "paragraph", children: [{ type: "text", text: "Find the flag in the lab." }] }] } }, Difficulty: "easy" as const, Key: "", Requires: [], Check: { Answer: { Type: "flag" as const, Values: [] } }, Attachments: [], Placeholders: [], Hints: [] }
+const device = normalizedDevice({ ID: "dev-1", Name: "web", Image: "nginx" })
 
 const workingCopy: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "2026-09-20T10:00:00Z", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [task],
-    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 const withDevice: Version = {
   ...workingCopy,
@@ -92,7 +89,7 @@ describe("exercise page — modes", () => {
     expect(await screen.findByRole("heading", { name: "Web 101" })).toBeInTheDocument()
     expect(screen.getByText("admin.exPage.badge.changes")).toHaveAttribute("data-badge", "changes")
     expect(screen.queryByText("admin.exPage.badge.published")).not.toBeInTheDocument()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
     expect(screen.queryByText("admin.exPage.save.saved")).not.toBeInTheDocument()
@@ -101,15 +98,15 @@ describe("exercise page — modes", () => {
   it("edits with autosave and returns to viewing on Done", async () => {
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
-    const name = screen.getByLabelText(/admin.ex.field.name/)
+    const name = screen.getByLabelText(/ed.a.general.name.label/)
     expect(name).toBeEnabled()
     fireEvent.change(name, { target: { value: "Web 102" } })
-    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }), { timeout: 2000 })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, ""), { timeout: 2000 })
     expect(await screen.findByText("admin.exPage.save.saved")).toBeInTheDocument()
     expect(saveDraft).not.toHaveBeenCalled() // A name-only edit does not rewrite the unchanged working copy.
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.done" }))
     expect(await screen.findByRole("button", { name: "admin.exPage.action.edit" })).toBeInTheDocument()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
   })
 
   it("hides every action the user has no permission for", async () => {
@@ -121,18 +118,19 @@ describe("exercise page — modes", () => {
     }
     openMore()
     expect(await screen.findByRole("menuitem", { name:"admin.exPage.action.history" })).toBeInTheDocument()
-    expect(screen.getAllByRole("group")).toHaveLength(1)
+    // The guide, the versions group and the document of the current state.
+    expect(screen.getAllByRole("group")).toHaveLength(3)
   })
 
   it("shows the internal notes to an editor and leaves them out for a reader without full access", async () => {
     const { unmount } = render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.getByText("admin.ex.create.notes")).toBeInTheDocument()
+    expect(screen.getByText("ed.a.general.note.label")).toBeInTheDocument()
     unmount()
     h.perms = new Set(["exercises.read"])
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
-    expect(screen.queryByText("admin.ex.create.notes")).not.toBeInTheDocument()
+    expect(screen.queryByText("ed.a.general.note.label")).not.toBeInTheDocument()
   })
 
   it("omits Publish when the working copy matches the publication", async () => {
@@ -148,7 +146,7 @@ describe("exercise page — modes", () => {
     expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
-    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }), { timeout: 2000 })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }, ""), { timeout: 2000 })
   })
 
   it("treats an empty version param as the working copy, not a version view", async () => {
@@ -161,6 +159,13 @@ describe("exercise page — modes", () => {
     expect(getDraft).toHaveBeenCalledWith("ex-1")
   })
 })
+
+/** The start button of the test dialog, once the run lengths were read. */
+async function startButton() {
+  const button = await screen.findByRole("button", { name: "ed.d.start.go" })
+  await waitFor(() => expect(button).toBeEnabled())
+  return button
+}
 
 describe("exercise page — publishing and history", () => {
   it("publishes a valid working copy", async () => {
@@ -179,11 +184,60 @@ describe("exercise page — publishing and history", () => {
     expect(await screen.findByRole("button", { name: "admin.exPage.action.publish" })).toBeEnabled()
   })
 
+  it("puts a publish error that names its field into the problems list and beside the field, not into a toast", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Key: "scan" }] }] })
+    vi.mocked(publishDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 23519, Message: "m", Context: { task: "scan", field: "description" } } }, "m", undefined, 23519))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
+    expect(toast.error).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
+    expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
+  })
+
+  it("shows the problems list, not the generic «not saved» toast, for a publish whose save error sits beside its field", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(saveDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "web", field: "device" } } }, "m", undefined, 23202))
+    // an unsent edit (the buffer) makes the working copy differ, so a save is tried before the publish
+    writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, toDraftFormValues({ ...withDevice, AdminNote: "edited" }))
+    render(<Page />)
+    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled(), { timeout: 3000 })
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 100)) })
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalledWith("admin.exPage.toast.saveFailed")
+    // the problem is not silent: the problems list names it and leads to its field
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
+    expect(within(dialog).getByRole("button", { name: "ed.shell.issues.go" })).toBeInTheDocument()
+  })
+
+  it("keeps the generic «not saved» message when the failed save has no field", async () => {
+    vi.mocked(getDraft).mockResolvedValue(withDevice)
+    vi.mocked(saveDraft).mockRejectedValue(new Error("offline"))
+    writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, toDraftFormValues({ ...withDevice, AdminNote: "edited" }))
+    render(<Page />)
+    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled(), { timeout: 3000 })
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("admin.exPage.toast.saveFailed"))
+    expect(publishDraft).not.toHaveBeenCalled()
+    expect(screen.queryByRole("dialog", { name: "ed.shell.issues.titlePublish" })).not.toBeInTheDocument()
+  })
+
+  it("keeps a publish error without a place as a toast", async () => {
+    vi.mocked(publishDraft).mockRejectedValue(new ApiError(400, { Status: { Code: 73509, Message: "m", Context: { features: "guest_agent" } } }, "m", undefined, 73509))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    expect(screen.queryByRole("dialog", { name: "ed.shell.issues.titlePublish" })).not.toBeInTheDocument()
+  })
+
   it("opens the task with a missing description before sending a publish request", async () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Description: null }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })).toBeInTheDocument()
     expect(publishDraft).not.toHaveBeenCalled()
   })
 
@@ -191,8 +245,11 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Variants: [{ ...workingCopy.Variants[0], Tasks: [{ ...task, Name: "" }] }] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
-    expect(await screen.findByRole("tab", { name: "admin.exDraft.variantN", selected: true })).toBeInTheDocument()
+    const dialog = await screen.findByRole("dialog", { name: "ed.shell.issues.titlePublish" })
     expect(publishDraft).not.toHaveBeenCalled()
+    // “Go to” opens the subtask and closes the list.
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.shell.issues.go" }))
+    expect(await screen.findByRole("tab", { name: "ed.shell.tab.tasks", selected: true })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "admin.exPage.action.done" })).toBeInTheDocument()
   })
 
@@ -217,7 +274,7 @@ describe("exercise page — publishing and history", () => {
     render(<Page />)
     expect(await screen.findByText("admin.exPage.version.banner")).toBeInTheDocument()
     expect(getDraft).not.toHaveBeenCalled()
-    expect(screen.queryByRole("textbox", { name:/admin.ex.field.name/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name:/ed.a.general.name.label/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "admin.exPage.action.publish" })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.version.restore" }))
@@ -259,12 +316,12 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(publishDraft).mockReturnValue(new Promise((resolve) => { resolvePublish = resolve }))
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled()
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
-    expect(screen.getByLabelText(/admin.ex.field.name/)).toBeDisabled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeDisabled()
     resolvePublish({ ...workingCopy, Status: "published" })
-    await waitFor(() => expect(screen.getByLabelText(/admin.ex.field.name/)).toBeEnabled())
+    await waitFor(() => expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled())
   })
 
   it("discards changes by restoring the published version after confirmation", async () => {
@@ -278,27 +335,27 @@ describe("exercise page — publishing and history", () => {
   })
 
   it("keeps the test action enabled for a static variant without laboratories", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
     render(<Page />)
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
     const test = await screen.findByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
-    fireEvent.keyDown(test, { key: "ArrowDown" })
-    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).not.toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(test)
+    expect(await screen.findByRole("button", { name: "ed.d.start.go" })).toBeEnabled()
   })
 
   it("disables a lab variant when the platform infrastructure is not connected", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
-    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValueOnce({ Laboratories: false, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
     render(<Page />)
     await screen.findByRole("heading", { name: "Web 101" })
     await waitFor(() => expect(getExerciseCapabilities).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 0))
     const test = screen.getByRole("button", { name: "admin.exPage.action.test" })
     expect(test).toBeEnabled()
-    fireEvent.keyDown(test, { key: "ArrowDown" })
-    expect(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" })).toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(test)
+    expect(await screen.findByRole("button", { name: "ed.d.start.go" })).toBeDisabled()
   })
 
   it("tests the authoritative draft produced by a metadata-only PATCH after flush", async () => {
@@ -306,20 +363,20 @@ describe("exercise page — publishing and history", () => {
     vi.mocked(updateExercise).mockResolvedValue({ ...exercise, DraftVersionID:"metadata-draft-2" })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name:"admin.exPage.action.edit" }))
-    fireEvent.change(screen.getByLabelText(/admin.ex.field.name/), { target:{ value:"Web 103" } })
-    fireEvent.keyDown(screen.getByRole("button", { name:"admin.exPage.action.test" }), { key:"ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name:"admin.exDraft.variantN" }))
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1"))
-    expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] })
+    fireEvent.change(screen.getByLabelText(/ed.a.general.name.label/), { target:{ value:"Web 103" } })
+    fireEvent.click(screen.getByRole("button", { name:"admin.exPage.action.test" }))
+    fireEvent.click(await startButton())
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=metadata-draft-2&variant=variant-1&minutes=60"))
+    expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name:"Web 103", Description:"", Tags:[] }, "")
     expect(saveDraft).not.toHaveBeenCalled()
   })
 
   it("opens the testing page for the chosen variant from the header", async () => {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
-    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
+    fireEvent.click(await startButton())
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1&minutes=60"))
   })
 })
 
@@ -327,8 +384,8 @@ describe("exercise page — one test lab per user", () => {
   async function pickVariant() {
     vi.mocked(getDraft).mockResolvedValue(withDevice)
     render(<Page />)
-    fireEvent.keyDown(await screen.findByRole("button", { name: "admin.exPage.action.test" }), { key: "ArrowDown" })
-    fireEvent.click(await screen.findByRole("menuitem", { name: "admin.exDraft.variantN" }))
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.test" }))
+    fireEvent.click(await startButton())
   }
 
   it("offers the user's running test of another exercise instead of starting a second", async () => {
@@ -342,15 +399,15 @@ describe("exercise page — one test lab per user", () => {
   })
 
   it("starts a new test while fewer labs run than the limit allows", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
     vi.mocked(listDeploys).mockResolvedValue([{ DeployID: "run-9", Lab: "lab", ExerciseID: "ex-2", VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] }])
     await pickVariant()
-    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1"))
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG })
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-1&version=draft-1&variant=variant-1&minutes=60"))
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
   })
 
   it("lists every running lab once the limit is reached, each with an open button", async () => {
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, MaxActiveTestDeploys: 2, Resources: RESOURCES_CONFIG })
     const lab = (id: string, ex: string) => ({ DeployID: id, Lab: "lab", ExerciseID: ex, VersionID: "v", VariantID: "x", CreatedAt: "", ExpiresAt: "2999-01-01T00:00:00Z", Tasks: [] })
     vi.mocked(listDeploys).mockResolvedValue([lab("run-8", "ex-8"), lab("run-9", "ex-9")])
     await pickVariant()
@@ -360,7 +417,7 @@ describe("exercise page — one test lab per user", () => {
     expect(h.push).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getAllByRole("button", { name: /admin\.exTest\.openLabNamed/ })[1])
     expect(h.push).toHaveBeenCalledWith("/test?exercise=ex-9&deploy=run-9")
-    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, Resources: RESOURCES_CONFIG })
+    vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true, MaxLabGateways: 10, Resources: RESOURCES_CONFIG })
   })
 
   it("opens the running test straight away when it belongs to this exercise", async () => {
@@ -441,3 +498,29 @@ describe("exercise page — archive and delete", () => {
   })
 })
 
+
+describe("exercise page — working copy changed by someone else", () => {
+  it("shows who saved it beside the editor, keeps the edits, and reloads after a confirmation", async () => {
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Revision: "2026-11-21T10:00:00.100000Z" })
+    vi.mocked(updateExercise).mockRejectedValueOnce(new ApiError(409, { Status: { Code: 70922, Message: "changed", Context: { revision: "2026-11-21T10:00:03.400000Z", savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" } } }))
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
+    const name = screen.getByLabelText(/ed.a.general.name.label/)
+    fireEvent.change(name, { target: { value: "Web 102" } })
+    await waitFor(() => expect(updateExercise).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "2026-11-21T10:00:00.100000Z"), { timeout: 2000 })
+    const notice = await screen.findByText("admin.exPage.conflict.byAt")
+    expect(notice.closest("[role=alert]")).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Web 102")
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled()
+
+    vi.mocked(getDraft).mockResolvedValue({ ...workingCopy, Name: "Their name", Revision: "2026-11-21T10:00:03.400000Z" })
+    fireEvent.click(screen.getByRole("button", { name: "admin.exPage.conflict.reload" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByText("admin.exPage.conflict.confirmDescription")).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole("button", { name: "admin.exPage.conflict.reload" }))
+    await waitFor(() => expect(screen.queryByText("admin.exPage.conflict.byAt")).not.toBeInTheDocument())
+    expect(screen.getByLabelText(/ed.a.general.name.label/)).toHaveValue("Their name")
+    expect(updateExercise).toHaveBeenCalledTimes(1)
+  })
+})

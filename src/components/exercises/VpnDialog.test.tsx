@@ -1,64 +1,75 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
-
-import { VpnDialog } from "@/components/exercises/VpnDialog"
-import { downloadBlob } from "@/lib/downloadBlob"
 
 vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: vi.fn() }))
 
-const base = { open: true, config: "[Interface]", onClose: vi.fn() }
+import { t } from "@/i18n/t"
+import { downloadBlob } from "@/lib/downloadBlob"
+import { VpnDialog } from "./VpnDialog"
+import { wireguardFileName } from "@/lib/wireguard"
 
-describe("VpnDialog — shared connection instructions", () => {
-  it("shows readiness without a waiting loader and opens the instructions", () => {
-    render(<VpnDialog {...base} connected={false} />)
-    expect(screen.getByRole("status")).toHaveTextContent("Готовий до підключення")
-    expect(document.querySelector(".crest-loader")).toBeNull()
-    expect(screen.getByText("Інструкція").closest("details")).toHaveAttribute("open")
+const base = { open: true, ready: true, config: "[Interface]\n", connected: false as boolean | null, probeUrl: "http://10.128.0.1/", onClose: vi.fn() }
+
+describe("VpnDialog (a copy of the event site's window)", () => {
+  beforeEach(() => { vi.mocked(downloadBlob).mockReset() })
+
+  it("not ready: says it is still being prepared and only acknowledges", () => {
+    const onClose = vi.fn()
+    render(<VpnDialog {...base} ready={false} connected={null} config="" onClose={onClose} />)
+    expect(screen.getByText(t("ed.d.vpn.group.pending"))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.group.previewWait"))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.group.waitNext"))).toBeTruthy()
+    expect(screen.queryByText(t("ed.d.vpn.instructions"))).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: t("ed.d.vpn.modal.acknowledge") }))
+    expect(onClose).toHaveBeenCalled()
   })
 
-  it("shows a connected shield and collapses the instructions after a handshake", () => {
-    const { rerender } = render(<VpnDialog {...base} connected={false} />)
-    rerender(<VpnDialog {...base} connected />)
-    expect(screen.getByRole("status")).toHaveAttribute("data-vpn", "connected")
-    expect(screen.getByRole("status")).toHaveTextContent("Підключено")
-    expect(screen.getByText("Інструкція").closest("details")).not.toHaveAttribute("open")
-    fireEvent.click(screen.getByText("Інструкція"))
-    expect(screen.getByText("Інструкція").closest("details")).toHaveAttribute("open")
-  })
-
-  it("preserves unknown connection status separately from disconnected", () => {
-    render(<VpnDialog {...base} connected={null} />)
-    expect(screen.getByRole("status")).toHaveTextContent("VPN доступний")
-    expect(screen.getByText(/Статус зʼєднання поки невідомий/)).toBeInTheDocument()
-  })
-
-  it("offers the official installer, app import and a command for the actual downloaded filename", () => {
-    render(<VpnDialog {...base} connected={false} />)
-    expect(screen.getByRole("link", { name: "WireGuard" })).toHaveAttribute("href", "https://www.wireguard.com/install/")
-    expect(screen.getByText("У застосунку")).toBeInTheDocument()
-    expect(screen.getByText("Або через термінал")).toBeInTheDocument()
-    expect(screen.getByText("sudo wg-quick up ./cybericebox.conf")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Завантажити файл" }))
-    expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "cybericebox.conf")
-  })
-
-  it("offers the probe only when an address is available", () => {
-    const { rerender } = render(<VpnDialog {...base} probeUrl="http://10.128.1.1:8088/" />)
-    const link = screen.getByRole("link", { name: /Перевірте зʼєднання/ })
-    expect(link).toHaveAttribute("href", "http://10.128.1.1:8088/")
-    expect(link).toHaveAttribute("target", "_blank")
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"))
-    expect(screen.getByText("ping 10.128.1.1")).toBeInTheDocument()
-    rerender(<VpnDialog {...base} />)
-    expect(screen.queryByRole("link", { name: /Перевірте зʼєднання/ })).not.toBeInTheDocument()
-  })
-
-  it("closes from the header and keeps failed downloads visible", () => {
-    vi.mocked(downloadBlob).mockImplementationOnce(() => { throw new Error("download") })
+  it("ready, not connected: instructions open, the commands carry the file name, probe line shows the gateway", () => {
     render(<VpnDialog {...base} />)
-    fireEvent.click(screen.getByRole("button", { name: "Завантажити файл" }))
-    expect(screen.getByRole("alert")).toHaveTextContent("Не вдалося завантажити")
-    fireEvent.click(screen.getByRole("button", { name: "Закрити" }))
-    expect(base.onClose).toHaveBeenCalled()
+    expect(screen.getByText(t("ed.d.vpn.group.ready"))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.preview.testConfig"))).toBeTruthy()
+    expect(document.querySelector("details")).toHaveProperty("open", true)
+    expect(screen.getByText("sudo wg-quick up ./cybericebox.conf")).toBeTruthy()
+    expect(screen.getByText("sudo wg-quick down ./cybericebox.conf")).toBeTruthy()
+    expect(screen.getByText("ping 10.128.0.1")).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.file.private"))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.steps.reminder"))).toBeTruthy()
+  })
+
+  it("keeps to the event window: no web access, no addresses of devices, no line about reverse connections", () => {
+    render(<VpnDialog {...base} />)
+    expect(document.body.textContent).not.toMatch(/reverse|зворотн/i)
+    expect(screen.queryByRole("link", { name: /http:\/\/10\.0/ })).toBeNull()
+  })
+
+  it("connected: the instructions are folded", () => {
+    render(<VpnDialog {...base} connected />)
+    expect(screen.getByText(t("ed.d.vpn.connection.connected"))).toBeTruthy()
+    expect(document.querySelector("details")).toHaveProperty("open", false)
+  })
+
+  it("unknown status: says so", () => {
+    render(<VpnDialog {...base} connected={null} />)
+    expect(screen.getByText(t("ed.d.vpn.group.available"))).toBeTruthy()
+    expect(screen.getByText(t("ed.d.vpn.connection.unknown"))).toBeTruthy()
+  })
+
+  it("downloads the configuration under cybericebox.conf, a valid interface name", () => {
+    render(<VpnDialog {...base} />)
+    fireEvent.click(screen.getByRole("button", { name: t("ed.d.vpn.modal.download") }))
+    expect(downloadBlob).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(downloadBlob).mock.calls[0][1]).toBe("cybericebox.conf")
+    expect(wireguardFileName("cybericebox")).toBe("cybericebox.conf")
+    expect(wireguardFileName("a very long event tag!!")).toMatch(/^[a-zA-Z0-9_=+.-]{1,15}\.conf$/)
+  })
+
+  it("download error: failure of the save, and a missing configuration, each have their own message", () => {
+    vi.mocked(downloadBlob).mockImplementation(() => { throw new Error("blocked") })
+    const { rerender } = render(<VpnDialog {...base} />)
+    fireEvent.click(screen.getByRole("button", { name: t("ed.d.vpn.modal.download") }))
+    expect(screen.getByRole("alert").textContent).toBe(t("ed.d.vpn.error.failed"))
+    rerender(<VpnDialog {...base} config="" />)
+    fireEvent.click(screen.getByRole("button", { name: t("ed.d.vpn.modal.download") }))
+    expect(screen.getByRole("alert").textContent).toBe(t("ed.d.vpn.error.notReady"))
   })
 })

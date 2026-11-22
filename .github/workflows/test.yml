@@ -1,6 +1,8 @@
 name: Test
 
-# The tests of the repository: the PR check and the pre-release run them (workflow_call).
+# The tests of the repository: the PR check runs them (workflow_call). A candidate is not tested again: every commit of a line
+# entered it through a pull request whose check was green.
+# These tests run the code of a pull request, so they hold no secret at all and pull public images anonymously.
 on:
   workflow_call:
 
@@ -8,24 +10,44 @@ permissions:
   contents: read
 
 jobs:
+  scripts:
+    name: Release helpers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned tools (mise.toml)
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - name: Tests of .github/scripts and scripts/dev.sh (mise run test-scripts)
+        run: mise run test-scripts
+      - name: shellcheck of the release helpers and dev.sh (mise run lint:ci)
+        run: mise run lint:ci
+
   test:
     name: Lint, typecheck, test
     runs-on: ubuntu-latest
     steps:
       - name: Check repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the pinned tools (mise.toml)
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+      - name: npm cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies
-        run: npm ci
+        run: mise run install
       - name: Design system copy
-        run: npm run check:ds
+        run: mise run check:ds
       - name: Lint
-        run: npm run lint
+        run: mise run lint
       - name: Typecheck
-        run: npm run typecheck
+        run: mise run typecheck
       - name: Test
-        run: npm test
+        run: mise run test
+      - name: Optional settings survive the image build
+        # Builds the export the way deploy/Dockerfile does (placeholders) and checks the placeholders, the substitution and an empty build.
+        run: mise run check:cfg

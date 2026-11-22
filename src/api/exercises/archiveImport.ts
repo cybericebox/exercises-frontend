@@ -16,11 +16,51 @@ export type ArchiveImportSummary = {
   Images: { New: number; Reused: number }
   MetadataChanged: boolean
 }
+/** How an item of the document found its stored counterpart. */
+export type ImportMatchedBy = "id" | "key" | "name" | "order"
+export type ImportDiffTask = { Name: string; PreviousName?: string; Key: string; ID?: string; MatchedBy?: ImportMatchedBy; KeyChanged?: boolean }
+export type ImportDiffDevice = { Name: string; ID?: string; MatchedBy?: ImportMatchedBy }
+export type ImportDiffVariant = {
+  Status: "kept" | "added" | "removed"
+  /** 1-based; 0 = none (added / removed). */
+  Position: number
+  StoredPosition: number
+  MatchedBy?: ImportMatchedBy
+  Tasks: { Kept: ImportDiffTask[]; Added: ImportDiffTask[]; Removed: ImportDiffTask[] }
+  Devices: { Kept: ImportDiffDevice[]; Added: ImportDiffDevice[]; Removed: ImportDiffDevice[] }
+}
+/** An error of the result: the publish errors of the imported version, with the document path of what they name. */
+export type ImportIssue = { Code: number; Message: string; Path: string; Context?: Record<string, string> }
+/** Never forbids anything. */
+export type ImportWarningCode = "no_exercise_id" | "task_key_conflict" | "used_by_events" | "removed_task_has_attempts" | "running_labs"
+export type ImportWarning = { Code: ImportWarningCode | string; Context?: Record<string, string | number> }
+export type ImportUsageEvent = {
+  EventID: string; Name: string; Archived: boolean
+  /** The event is pinned to the version published now. */
+  VersionPublished: boolean
+  RunningLabs: number
+  Removed: { Name: string; Attempts: number; Solves: number }[]
+  Added: { Name: string }[]
+  VariantMissing: boolean
+  /** Moving the event to the new version would be refused. */
+  Blocked: boolean
+}
+/** The same report in the dry run and in every result of the apply. */
+export type ImportReport = {
+  Diff: { Variants: ImportDiffVariant[] }
+  Issues: ImportIssue[]
+  /** True exactly when Issues is empty. */
+  Publishable: boolean
+  Warnings: ImportWarning[]
+  /** Present for an update (empty for a new exercise). */
+  Usage?: { Events: ImportUsageEvent[]; TestDeploys: number }
+}
 export type ArchivePreviewItem = {
   ItemKey: string; SourceExerciseID: string | null; Name: string
   SourceVersion: { Position: number; Status: string }
   SuggestedTarget: ImportTarget; Target: ImportTarget; TargetExercise: ImportTargetExercise | null
   SourceIDMismatch: boolean; ConfirmationRevision: string; ReplacesDraft: boolean; Summary: ArchiveImportSummary
+  Report: ImportReport
 }
 export type ArchiveImportPreview = { Items: ArchivePreviewItem[] }
 export type ImportTargetPage = { Items: ImportTargetExercise[]; Total: number; NextCursor?: string }

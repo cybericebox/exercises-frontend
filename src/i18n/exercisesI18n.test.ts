@@ -53,7 +53,7 @@ describe("admin.ex* i18n parity", () => {
       for (const kind of ["vpn", "internet"]) expect(cat[`admin.exTopo.networkDescription.${kind}.ports`]).toBeUndefined()
       expect(cat["admin.exTopo.dhcpHelp"]).toMatch(/DHCP/)
       expect(cat["admin.exTopo.dhcpHelp"]).toMatch(/IP/)
-      expect(cat["admin.exTopo.dhcp.warning"]).toMatch(/DHCP/)
+      expect(cat["admin.exTopo.dhcp.warning"]).toBeUndefined()
       expect(cat["admin.exTopo.dhcp.warningConsequence"]).toBeUndefined()
       expect(cat["admin.exTopo.dhcp.limit"]).toBeUndefined()
     }

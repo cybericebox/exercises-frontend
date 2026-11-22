@@ -43,7 +43,9 @@ export type ExerciseOwnership = {
   OriginEventID: string | null
   ForkedFrom: ForkedFrom | null
   Infrastructure: boolean
-  /** An approved resource elevation: the task is marked «ресурсоємне». */
+  /** Some device of the published version has a browser console (access kind «terminal»): not meant for events. */
+  UsesConsole: boolean
+  /** An approved resource elevation: the task is marked “Resource-heavy”. */
   ResourceHeavy: boolean
   PendingProposalID: string | null
   /** null when the server sent none (older API) — callers fall back to RBAC. */
@@ -92,6 +94,14 @@ export type Exercise = ExerciseOwnership & {
   UpdatedAt: string
   UpdatedBy: string | null
   UpdatedByName?: string
+  /**
+   * Opaque revision of the working copy ("" when there is none): sent back unchanged with the next write of it (the
+   * identity PATCH, a draft save or discard). Never parsed. DraftUpdatedAt/By/ByName: when and by whom it was last saved.
+   */
+  DraftRevision?: string
+  DraftUpdatedAt?: string | null
+  DraftUpdatedBy?: string | null
+  DraftUpdatedByName?: string
 }
 
 export type ArchivedFilter = "exclude" | "only"
@@ -192,6 +202,7 @@ export function normalizeOwnership(raw: RawOwnership): ExerciseOwnership {
     OriginEventID: raw.OriginEventID ?? null,
     ForkedFrom: raw.ForkedFrom ?? null,
     Infrastructure: raw.Infrastructure ?? false,
+    UsesConsole: raw.UsesConsole ?? false,
     ResourceHeavy: raw.ResourceHeavy ?? false,
     PendingProposalID: raw.PendingProposalID ?? null,
     Permissions: raw.Permissions ?? null,
@@ -209,7 +220,10 @@ function normalizeListItem(raw: RawExerciseListItem): ExerciseListItem {
 }
 
 export function normalizeExercise(raw: RawExercise): Exercise {
-  return { ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, HasChanges: raw.HasChanges ?? false }
+  return {
+    ...raw, ...normalizeOwnership(raw), Tags: raw.Tags ?? [], ArchivedAt: raw.ArchivedAt ?? null, HasChanges: raw.HasChanges ?? false,
+    DraftRevision: raw.DraftRevision ?? "", DraftUpdatedAt: raw.DraftUpdatedAt ?? null, DraftUpdatedBy: raw.DraftUpdatedBy ?? null, DraftUpdatedByName: raw.DraftUpdatedByName ?? "",
+  }
 }
 
 function buildListQuery(filter?: ExercisesFilter): string {
@@ -267,9 +281,12 @@ export async function createExercise(input: ExerciseCreateInput): Promise<Exerci
   return normalizeExercise(raw)
 }
 
-/** PATCH /api/exercises/:id */
-export async function updateExercise(id: string, input: ExerciseIdentityInput): Promise<Exercise> {
-  const raw = await apiPatch<RawExercise>(`${BASE}/${id}`, input)
+/**
+ * PATCH /api/exercises/:id — the identity lives in the working copy: `revision` is the card's DraftRevision the edit
+ * started from ("" when it had none); a stale one is refused with 409 (70922). The answer carries the new DraftRevision.
+ */
+export async function updateExercise(id: string, input: ExerciseIdentityInput, revision: string): Promise<Exercise> {
+  const raw = await apiPatch<RawExercise>(`${BASE}/${id}`, { ...input, Revision: revision })
   return normalizeExercise(raw)
 }
 
@@ -279,8 +296,8 @@ export function deleteExercise(id: string): Promise<void> {
 }
 
 /** PATCH /api/exercises/:id with keepalive — only for pagehide. */
-export function updateExerciseKeepalive(id: string, input: ExerciseIdentityInput): boolean {
-  return apiKeepalive("PATCH", `${BASE}/${id}`, input)
+export function updateExerciseKeepalive(id: string, input: ExerciseIdentityInput, revision: string): boolean {
+  return apiKeepalive("PATCH", `${BASE}/${id}`, { ...input, Revision: revision })
 }
 
 /** POST /api/exercises/:id/archive — idempotent. */

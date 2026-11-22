@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState, type ReactNode } from "react"
+import { useCallback, useRef, useState, type ReactNode } from "react"
 import { MoreHorizontal, Plus, Search, SlidersHorizontal, Upload, X } from "lucide-react"
 import { listExerciseAuthors, type InfrastructureFilter, type ScopeFilter } from "@/api/exercises/catalog"
 import type { EventOption } from "@/api/events/list"
@@ -54,7 +54,7 @@ export type ToolbarProps = {
   onChange: (patch: Partial<CatalogFilters>) => void
   columns: ColumnSetting[]
   onColumns: (columns: ColumnSetting[]) => void
-  /** The layout is the default (no «Скинути» in the columns menu). */
+  /** The layout is the default (no “Reset” in the columns menu). */
   columnsDefault: boolean
   /** Default order, visibility and widths. */
   onColumnsReset: () => void
@@ -70,7 +70,7 @@ export type ToolbarProps = {
 }
 
 /**
- * The one row over the catalog table: search, a chip per filter (status, author, tags; more through «Фільтр»),
+ * The one row over the catalog table: search, a chip per filter (status, author, tags; more through “Filter”),
  * then the columns, import, guide and create actions as icons. On a phone: search, filters (a sheet), more, create.
  */
 export function CatalogToolbar(props: ToolbarProps) {
@@ -95,6 +95,17 @@ function DesktopToolbar({ filters, isAdmin, search, onSearch, onClearSearch, eve
   const [added, setAdded] = useState<ExtraFilter[]>([])
   const [openChip, setOpenChip] = useState<string | null>(null)
   const chipOpen = (id: string) => ({ open: openChip === id, onOpenChange: (open: boolean) => setOpenChip(open ? id : null) })
+  // "+ Filter" hands over to the chip it adds. The chip opens when the menu has finished closing (its close-focus step,
+  // which Radix runs in a timeout after the menu unmounts), and the menu does not return focus to its own trigger:
+  // a chip opened before that return (on a frame that came first) saw focus leave and closed at once.
+  const addedChip = useRef<string | null>(null)
+  const openAddedChip = (event: Event) => {
+    const key = addedChip.current
+    if (!key) return
+    addedChip.current = null
+    event.preventDefault()
+    setOpenChip(key)
+  }
   const shown = EXTRA_FILTERS.filter((key) => added.includes(key) || extraActive(key, filters, isAdmin))
   const addable = EXTRA_FILTERS.filter((key) => !shown.includes(key) && (key !== "events" || eventOptions.length > 0))
   const removeExtra = (key: ExtraFilter, patch: Partial<CatalogFilters>) => { setAdded((list) => list.filter((item) => item !== key)); onChange(patch) }
@@ -141,10 +152,10 @@ function DesktopToolbar({ filters, isAdmin, search, onSearch, onClearSearch, eve
     {shown.map(extraChip)}
     {addable.length > 0 && <Popover {...chipOpen("add")}>
       <PopoverTrigger asChild><button type="button" className="catalog-fchip catalog-fchip-add"><Plus aria-hidden="true" />{t("exercises.filter.add")}</button></PopoverTrigger>
-      <PopoverContent className="w-60 p-1.5">
+      <PopoverContent className="w-60 p-1.5" onCloseAutoFocus={openAddedChip}>
         <p className="px-2 pb-1 pt-1 text-xs text-muted-foreground">{t("exercises.filter.addTitle")}</p>
         {addable.map((key) => <button key={key} type="button" className="catalog-opt w-full text-left"
-          onClick={() => { setAdded((list) => [...list, key]); setOpenChip(null); requestAnimationFrame(() => setOpenChip(key)) }}>
+          onClick={() => { addedChip.current = key; setAdded((list) => [...list, key]); setOpenChip(null) }}>
           {key === "difficulty" ? t("exercises.filter.difficulty.label") : key === "infrastructure" ? t("exercises.filter.infra") : key === "events" ? t(`exercises.filter.events.${filters.scope || "all"}`) : t("exercises.catalog.storage")}
         </button>)}
       </PopoverContent>

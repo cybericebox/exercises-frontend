@@ -1,4 +1,4 @@
-import { StrictMode, useLayoutEffect } from "react"
+import { StrictMode, useLayoutEffect, useRef } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ApiError } from "@/api/client"
@@ -20,7 +20,8 @@ import { createExercise, getExercise, updateExercise } from "@/api/exercises/cat
 import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
-import { emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { emptyBootstrap, emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
+import { normalizedDevice } from "@/test/editorFixtures"
 import { useExerciseEditor, type ExerciseEditor, type UseExerciseEditorOptions } from "./useExerciseEditor"
 import { OWNERSHIP } from "@/test/exerciseFixtures"
 
@@ -30,6 +31,7 @@ const mockUpdate = vi.mocked(updateExercise)
 const mockGetDraft = vi.mocked(getDraft)
 const mockGetVersion = vi.mocked(getVersion)
 const mockSaveDraft = vi.mocked(saveDraft)
+const normalizedDeviceStub = normalizedDevice()
 
 const exercise: Exercise = {
   ...OWNERSHIP,
@@ -40,8 +42,8 @@ const created: Exercise = { ...exercise, ID: "new-exercise", Name: "Buffer overf
 const serverVersion: Version = {
   ID: "draft-1", ExerciseID: "ex-1", Status: "draft", AdminNote: "", Label: "", CreatedAt: "", CreatedBy: null, PublishedAt: null, Resources: null, Elevation: null,
   Variants: [{ ID: "variant-1", Index: 1, Note: "", Weight: 1, LinkedTo: "", Tasks: [{ ID: "task-1", Name: "Find the flag", Description: null,
-    Difficulty: "easy", Flag: ["ICE{server}"], LinkedDeviceID: "", DeviceFlagVar: "", Attachments: [], Placeholders: [], Hints: [] }],
-    Topology: { VPN: { Enabled: false, DHCP: true }, Internet: { Enabled: false, DHCP: true }, Devices: [], Connections: [], VisualRender: null } }],
+    Difficulty: "easy", Key: "", Requires: [], Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } }, Attachments: [], Placeholders: [], Hints: [] }],
+    Topology: { Variables: [], Devices: [], Connections: [], VisualRender: null } }],
 }
 
 let latest: ExerciseEditor
@@ -63,6 +65,17 @@ function Harness(props: Partial<UseExerciseEditorOptions>) {
     <input aria-label="name" {...editor.identityForm.register("Name")} />
     <span data-testid="status">{editor.autosave.status}</span>
   </form>
+}
+
+/**
+ * The form is on screen: its first commit is visible, but the editor subscribes to the form in a passive effect that React
+ * may still be holding (a loaded machine delays it). A test that edits or flushes right away would run before the
+ * subscription exists, so wait for the effects too: that is the state a user is in a moment after the page appears.
+ */
+async function settled(value: string) {
+  const element = await screen.findByDisplayValue(value)
+  await act(async () => {})
+  return element
 }
 
 beforeEach(() => {
@@ -89,7 +102,7 @@ describe("useExerciseEditor", () => {
     mockGetDraft.mockResolvedValue(selected)
     mockGetVersion.mockResolvedValue(selected)
     render(<Harness exerciseId="ex-1" versionId={versionId} editable={!versionId} />)
-    await screen.findByDisplayValue("Selected snapshot")
+    await settled("Selected snapshot")
     expect(latest.identityForm.getValues()).toEqual({ Name: "Selected snapshot", Description: "", Tags: [] })
   })
 
@@ -97,7 +110,7 @@ describe("useExerciseEditor", () => {
     mockGetExercise.mockResolvedValue({ ...exercise, PublishedVersionID: "pub-1" })
     mockGetVersion.mockResolvedValue({ ...serverVersion, Name: "Published name", Description: "Published description", Tags: ["published"] })
     render(<Harness exerciseId="ex-1" publishedOnly={() => true} />)
-    await screen.findByDisplayValue("Published name")
+    await settled("Published name")
     expect(latest.identityForm.getValues("Description")).toBe("Published description")
   })
 
@@ -106,7 +119,7 @@ describe("useExerciseEditor", () => {
     mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve }))
     mockUpdate.mockResolvedValue({ ...exercise, Name: "New metadata", DraftVersionID: "draft-2", HasChanges: true })
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "New metadata" } })
     await act(async () => { await latest.autosave.flush() })
     expect(mockSaveDraft).not.toHaveBeenCalled()
@@ -120,7 +133,7 @@ describe("useExerciseEditor", () => {
     let acknowledge: (value: Exercise) => void = () => undefined
     mockUpdate.mockReturnValueOnce(new Promise((resolve) => { acknowledge = resolve }))
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "First metadata" } })
     let flushed: Promise<boolean>
     act(() => { flushed = latest.autosave.flush() })
@@ -128,13 +141,13 @@ describe("useExerciseEditor", () => {
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Newer metadata" } })
     expect(screen.getByLabelText("name")).toBeEnabled()
     await act(async () => { acknowledge({ ...exercise, Name: "First metadata", DraftVersionID: "draft-2" }); await flushed })
-    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Newer metadata", Description: "", Tags: [] }, "")
     expect(latest.identityForm.getValues("Name")).toBe("Newer metadata")
   })
 
   it("reloads restored working-copy identity from the returned draft snapshot", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     mockGetDraft.mockResolvedValue({ ...serverVersion, ID:"restored-draft", Name:"Restored metadata", Description:"", Tags:[] })
     mockGetExercise.mockResolvedValue({ ...exercise, Name:"Public metadata", Description:"Public text", Tags:["public"] })
     await act(async () => { await latest.reloadWorkingCopy() })
@@ -147,7 +160,7 @@ describe("useExerciseEditor", () => {
     mockGetExercise.mockResolvedValueOnce(exercise).mockReturnValueOnce(new Promise((resolve) => { refresh = resolve })).mockResolvedValue(exercise)
     mockUpdate.mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-2", Name:"First metadata" }).mockResolvedValueOnce({ ...exercise, DraftVersionID:"draft-3", Name:"Latest metadata", HasChanges:true })
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     fireEvent.change(screen.getByLabelText("name"), { target:{ value:"First metadata" } })
     await act(async () => { await latest.autosave.flush() })
     fireEvent.change(screen.getByLabelText("name"), { target:{ value:"Latest metadata" } })
@@ -161,7 +174,7 @@ describe("useExerciseEditor", () => {
 
   it("does not PUT a draft when an edit is reverted before the debounce drains", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     act(() => latest.draftForm.setValue("AdminNote", "temporary note"))
@@ -178,23 +191,23 @@ describe("useExerciseEditor", () => {
 
   it("skips a draft PUT for identity-only edits but still persists a real draft change", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "")
     expect(mockSaveDraft).not.toHaveBeenCalled()
     act(() => latest.draftForm.setValue("AdminNote", "real note"))
     await act(async () => { await latest.autosave.flush() })
-    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "real note" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "real note" }), "")
   })
 
   it("reverts against the acknowledged in-flight draft, not the latest observed local values", async () => {
     let resolve: (value: Version) => void = () => undefined
     mockSaveDraft.mockReturnValueOnce(new Promise((done) => { resolve = done }))
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     act(() => latest.draftForm.setValue("AdminNote", "sent note"))
@@ -202,14 +215,14 @@ describe("useExerciseEditor", () => {
     act(() => latest.draftForm.setValue("AdminNote", ""))
     await act(async () => resolve({ ...serverVersion, AdminNote: "sent note" }))
     expect(mockSaveDraft).toHaveBeenCalledTimes(2)
-    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "" }))
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "" }), "")
     expect(latest.draftForm.getValues("AdminNote")).toBe("")
     expect(latest.autosave.hasUnsaved()).toBe(false)
   })
 
   it("flushes an edit made in the same tick as the unmount", async () => {
     const { unmount } = render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     act(() => {
@@ -217,12 +230,12 @@ describe("useExerciseEditor", () => {
       unmount()
     })
     await act(async () => {})
-    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "last words" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "last words" }), "")
   })
 
   it("uses the same canonical payload for no-op pagehide and subsequent drain", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     // The form sees a change the canonical payload does not (Index is renumbered by position).
@@ -239,7 +252,7 @@ describe("useExerciseEditor", () => {
   it("continues to retry a rejected draft even when local edits do not change again", async () => {
     mockSaveDraft.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ ...serverVersion, AdminNote: "persist me" })
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     act(() => latest.draftForm.setValue("AdminNote", "persist me"))
@@ -256,7 +269,7 @@ describe("useExerciseEditor", () => {
     mockGetDraft.mockResolvedValue(loaded)
     mockSaveDraft.mockResolvedValue(loaded)
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     act(() => latest.draftForm.setValue("Variants.0.Tasks.0.Description", { root: { children: [{ type: "text", text: "first" }, { type: "text", text: "second" }], type: "root" } }))
@@ -270,7 +283,7 @@ describe("useExerciseEditor", () => {
   it("puts a rejected exercise name on Name and preserves the unsaved draft", async () => {
     mockUpdate.mockRejectedValueOnce(new ApiError(409, { Status: { Code: 40903 } }))
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Taken name" } })
@@ -279,6 +292,60 @@ describe("useExerciseEditor", () => {
     expect(latest.autosave.hasUnsaved()).toBe(true)
     expect(latest.identityForm.getValues("Name")).toBe("Taken name")
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("puts a refused ':' (23202) of a save on the device name, with no toast, and drops it when the field changes", async () => {
+    const withDevice: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology, Devices: [
+      normalizedDevice({ ID: "d1", Name: "db", Type: "node" }),
+    ] } }] }
+    mockGetDraft.mockResolvedValue(withDevice)
+    mockSaveDraft.mockRejectedValue(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "db:1", field: "device" } } }, "m", undefined, 23202))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db:1"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error?.type).toBe("server")
+    expect(latest.saveErrorIssues()).toHaveLength(1)
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Name")).toBe("db:1")
+    expect(toast.error).not.toHaveBeenCalled()
+    // the author edits the field: the server's error leaves it at once, without a blur or a publish check
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db"))
+    await act(async () => {})
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Name").error).toBeUndefined()
+  })
+
+  it("after a refused save the next save sends every unchanged value unchanged and keeps an untouched secret blank", async () => {
+    const env = [
+      { Name: "APP_MODE", Value: "ctf", Secret: false, HasValue: false },
+      { Name: "FLAG", Value: "{{task.secret}}", Secret: false, HasValue: false },
+      { Name: "LICENSE_KEY", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
+    ]
+    const withEnv: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology, Devices: [
+      normalizedDevice({ ID: "d1", Name: "db", Type: "node", Bootstrap: { Timeout: "", Env: env, Files: [], Script: "", Interpreter: "" } }),
+    ] } }] }
+    mockGetDraft.mockResolvedValue(withEnv)
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 23202, Message: "m", Context: { variant: 1, device: "db:1", field: "device" } } }, "m", undefined, 23202))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    await act(async () => {})
+    vi.useFakeTimers()
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db:1"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(latest.saveErrorIssues()).toHaveLength(1)
+    // the refused save changed no value in the form
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env").map((entry) => entry.Value)).toEqual(["ctf", "{{task.secret}}", ""])
+    mockSaveDraft.mockResolvedValue(withEnv)
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Name", "db2"))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    const sent = mockSaveDraft.mock.calls.at(-1)![1].Variants[0].Topology.Devices?.[0]
+    expect(sent?.Name).toBe("db2")
+    expect(sent?.Bootstrap?.Env).toEqual([
+      { Name: "APP_MODE", Value: "ctf", Secret: false },
+      { Name: "FLAG", Value: "{{task.secret}}", Secret: false },
+      { Name: "LICENSE_KEY", Value: "", Secret: true },
+    ])
   })
 
   it("creates the exercise once the name is valid, then saves the working copy", async () => {
@@ -292,7 +359,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockCreate).toHaveBeenCalledWith({ Name: "Buffer overflow", Description: "", Tags: [] })
     expect(onCreated).toHaveBeenCalledWith(created)
-    expect(mockSaveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ AdminNote: "" }))
+    expect(mockSaveDraft).toHaveBeenCalledWith("new-exercise", expect.objectContaining({ AdminNote: "" }), "")
     expect(screen.getByTestId("status")).toHaveTextContent("saved")
   })
 
@@ -325,10 +392,10 @@ describe("useExerciseEditor", () => {
 
   it("turns a typed secret into a stored one after the save: its group comes from the answer, nothing else changes, no second save", async () => {
     const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Image: "web:1",
-      EnvVars: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }
+      Bootstrap: { ...emptyBootstrap(), Env: [{ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] } }
     const stored = structuredClone(serverVersion)
-    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null,
-      EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] }]
+    stored.Variants[0].Topology.Devices = [normalizedDevice({ ID: "dev-1", Name: "web", Image: "web:1",
+      Bootstrap: { Timeout: "", Files: [], Script: "", Interpreter: "", Env: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }, { Name: "MODE", Value: "ctf", Secret: false, HasValue: false }] } })]
     mockSaveDraft.mockResolvedValue(stored)
     render(<Harness />)
     act(() => {
@@ -338,8 +405,8 @@ describe("useExerciseEditor", () => {
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].EnvVars?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
-    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars")).toEqual([
+    expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].Bootstrap?.Env?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env")).toEqual([
       { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
       { Name: "MODE", Value: "ctf", Secret: false, HasValue: false },
     ])
@@ -352,17 +419,17 @@ describe("useExerciseEditor", () => {
   it("keeps a secret typed further while the save was in flight", async () => {
     let resolveSave: (value: Version) => void = () => undefined
     mockSaveDraft.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve }))
-    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", EnvVars: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] }
+    const device = { ...emptyDevice(), ID: "dev-1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [{ Name: "FLAG", Value: "s3", Secret: true, HasValue: false }] } }
     const stored = structuredClone(serverVersion)
-    stored.Variants[0].Topology.Devices = [{ ...device, External: null, Persistence: null, EnvVars: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] }]
+    stored.Variants[0].Topology.Devices = [normalizedDevice({ ID: "dev-1", Name: "web", Bootstrap: { Timeout: "", Files: [], Script: "", Interpreter: "", Env: [{ Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 }] } })]
     render(<Harness />)
     act(() => latest.draftForm.setValue("Variants.0.Topology.Devices", [device]))
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.EnvVars.0.Value", "s3cret"))
+    act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value", "s3cret"))
     await act(async () => { resolveSave(stored) })
-    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.EnvVars.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
   })
 
   it("adopts nothing when a task is added to the form while the save is still in flight", async () => {
@@ -394,24 +461,24 @@ describe("useExerciseEditor", () => {
     writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline name", Description: "", Tags: [] }, draft)
     const onPendingRestored = vi.fn()
     render(<Harness exerciseId="ex-1" onPendingRestored={onPendingRestored} />)
-    expect(await screen.findByDisplayValue("Offline name")).toBeInTheDocument()
-    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Flag")).toEqual(["ICE{server}"])
+    expect(await settled("Offline name")).toBeInTheDocument()
+    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Check.Answer.Values")).toEqual(["ICE{server}"])
     expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.pendingRestored")
     expect(onPendingRestored).toHaveBeenCalled()
     // The restore is queued by a passive effect that can run after the inputs commit;
     // flushing before it would find nothing to send.
     await waitFor(() => expect(latest.autosave.hasUnsaved()).toBe(true))
     await act(async () => { await latest.autosave.flush() })
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Offline name", Description: "", Tags: [] }, "")
     expect(mockSaveDraft).toHaveBeenCalledWith("ex-1", expect.objectContaining({
-      Variants: [expect.objectContaining({ Tasks: [expect.objectContaining({ Name: "Edited offline", Flag: ["ICE{server}"] })] })],
-    }))
+      Variants: [expect.objectContaining({ Tasks: [expect.objectContaining({ Name: "Edited offline", Check: { Answer: { Type: "flag", Values: ["ICE{server}"] } } })] })],
+    }), "")
   })
 
   it("turns the empty working copy into one editable variant and never exposes the zero ID", async () => {
     mockGetDraft.mockResolvedValue({ ...serverVersion, ID: "00000000-0000-0000-0000-000000000000", Variants: [] })
     render(<Harness exerciseId="ex-1" editable={false} />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     expect(latest.draftForm.getValues("Variants")).toHaveLength(1)
     expect(latest.getDraftVersionId()).toBe("")
   })
@@ -420,7 +487,7 @@ describe("useExerciseEditor", () => {
     writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Offline", Description: "", Tags: [] }, toDraftFormValues(serverVersion))
     mockGetVersion.mockResolvedValue({ ...serverVersion, ID: "snap-1", Status: "checkpoint" })
     render(<Harness exerciseId="ex-1" versionId="snap-1" editable={false} />)
-    expect(await screen.findByDisplayValue("Web 101")).toBeInTheDocument()
+    expect(await settled("Web 101")).toBeInTheDocument()
     expect(mockGetVersion).toHaveBeenCalledWith("ex-1", "snap-1")
     expect(mockGetDraft).not.toHaveBeenCalled()
     expect(storage.has(pendingBufferKey("editor-1", "ex-1"))).toBe(true)
@@ -474,10 +541,36 @@ describe("useExerciseEditor", () => {
     expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
   })
 
+  it("puts a document error that names its field beside that field, not in a toast, and clears it when a save goes through", async () => {
+    const withDevice = structuredClone(serverVersion)
+    withDevice.Variants[0].Topology.Devices = [{ ...normalizedDeviceStub, ID: "dev-1", Name: "web" }]
+    mockGetDraft.mockResolvedValue(withDevice)
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 23506, Message: "m", Context: { device: "web", field: "bootstrap.script" } } }, "m", undefined, 23506))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft"))
+    await act(async () => { await expect(latest.autosave.flush()).resolves.toBe(false) })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Bootstrap.Script").error?.type).toBe("server")
+    expect(toast.error).not.toHaveBeenCalled()
+    mockSaveDraft.mockResolvedValue(withDevice)
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft again"))
+    await act(async () => { await latest.autosave.flush() })
+    expect(latest.draftForm.getFieldState("Variants.0.Topology.Devices.0.Bootstrap.Script").error).toBeUndefined()
+  })
+
+  it("keeps an error without a place as a toast", async () => {
+    mockSaveDraft.mockRejectedValueOnce(new ApiError(400, { Status: { Code: 73509, Message: "m", Context: { features: "guest_agent" } } }, "m", undefined, 73509))
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    act(() => latest.draftForm.setValue("AdminNote", "Changed draft"))
+    await act(async () => { await expect(latest.autosave.flush()).resolves.toBe(false) })
+    expect(toast.error).toHaveBeenCalledTimes(1)
+  })
+
   it("shows one error toast for repeated identical save failures, not one per retry", async () => {
     mockSaveDraft.mockRejectedValue(new Error("offline"))
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     // Let any still-settling microtasks from the load drain before switching to fake
     // timers — otherwise a stray real-timer/microtask tick can race the first
     // advanceTimersByTimeAsync below and flake this assertion.
@@ -498,7 +591,7 @@ describe("useExerciseEditor", () => {
 
   it("does not report an invalidated identity edit as saved, and keeps the buffer", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "ab" } })
@@ -516,13 +609,13 @@ describe("useExerciseEditor", () => {
 
   it("sends the identity once for a name with surrounding spaces, not on every save", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: " Web 102 " } })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockUpdate).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, "")
     act(() => { latest.draftForm.setValue("AdminNote", "note") })
     await act(async () => { await latest.autosave.flush() })
     expect(mockSaveDraft).toHaveBeenCalledTimes(1)
@@ -531,7 +624,7 @@ describe("useExerciseEditor", () => {
 
   it("skips the identity PATCH when only spaces were added around the saved name", async () => {
     render(<Harness exerciseId="ex-1" />)
-    await screen.findByDisplayValue("Web 101")
+    await settled("Web 101")
     await act(async () => {})
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 101 " } })
@@ -546,7 +639,7 @@ describe("useExerciseEditor", () => {
     expect(mockGetExercise).not.toHaveBeenCalled()
 
     rerender(<Harness exerciseId="ex-1" userId="editor-1" />)
-    expect(await screen.findByDisplayValue("Web 101")).toBeInTheDocument()
+    expect(await settled("Web 101")).toBeInTheDocument()
     expect(mockGetExercise).toHaveBeenCalledTimes(1)
 
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Typed after userId arrived" } })
@@ -593,7 +686,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { resolveCreate(created) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockCreate).toHaveBeenCalledTimes(1)
-    expect(mockUpdate).toHaveBeenCalledWith("new-exercise", { Name: "Buffer overflow 2", Description: "", Tags: [] })
+    expect(mockUpdate).toHaveBeenCalledWith("new-exercise", { Name: "Buffer overflow 2", Description: "", Tags: [] }, "")
   })
 
   it("forgets a /new buffer instead of restoring it without write permission", async () => {
@@ -618,7 +711,7 @@ describe("useExerciseEditor", () => {
     // fetch; the simulated cleanup cancels that run without resetting loadStartedRef;
     // the second pass then sees loadStartedRef already set and returns immediately —
     // no load ever completes, and the page is stuck on "loading" forever.
-    expect(await screen.findByDisplayValue("Web 101")).toBeInTheDocument()
+    expect(await settled("Web 101")).toBeInTheDocument()
     expect(latest.loadState).toBe("ready")
     // Exactly one of the two StrictMode invocations settles ("effective load"): the
     // first is cancelled before it can apply its result, so `identityForm`/`draftForm`
@@ -632,7 +725,7 @@ describe("archive replacement ownership", () => {
   let release!: (value: Version) => void
   mockSaveDraft.mockImplementationOnce(() => new Promise(r => { release = r }))
   render(<Harness exerciseId="ex-1" />)
-  await screen.findByDisplayValue("Web 101")
+  await settled("Web 101")
   let preparing!: Promise<boolean>
   act(() => {
    latest.identityForm.setValue("Name", "Local edit")
@@ -644,7 +737,7 @@ describe("archive replacement ownership", () => {
   window.dispatchEvent(new Event("pagehide"))
   expect(saveDraftKeepalive).not.toHaveBeenCalled()
   await act(async () => { release({ ...serverVersion, AdminNote: "Local note" }); expect(await preparing).toBe(true) })
-  expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Local edit" }))
+  expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Local edit" }), "")
   mockGetExercise.mockResolvedValue({ ...exercise, Name: "Imported" })
   mockGetDraft.mockResolvedValue({ ...serverVersion, Name: "Imported", AdminNote: "Imported note" })
   await act(async () => { await latest.reconcileImportReplacement() })
@@ -656,7 +749,7 @@ describe("archive replacement ownership", () => {
  it("keeps values after failed prepare and safely fences a failed authoritative reload for retry", async () => {
   mockUpdate.mockRejectedValueOnce(new TypeError("offline"))
   render(<Harness exerciseId="ex-1" />)
-  await screen.findByDisplayValue("Web 101")
+  await settled("Web 101")
   act(() => latest.identityForm.setValue("Name", "Keep me"))
   await act(async () => expect(await latest.prepareImportReplacement()).toBe(false))
   expect(latest.identityForm.getValues("Name")).toBe("Keep me")
@@ -677,7 +770,7 @@ it("a catalog update marker fences a remounted editor and refuses to restore its
  writePendingChanges(pendingBufferKey("editor-1", "ex-1"), { Name: "Old buffered name", Description: "", Tags: [] }, emptyDraft())
  recordImportPlan("editor-1", plan, "queued")
  const first = render(<Harness exerciseId="ex-1" />)
- await screen.findByDisplayValue("Web 101")
+ await settled("Web 101")
  expect(latest.replacementActive).toBe(true)
  expect(latest.replacementRecovery?.jobID).toBe("queued")
  window.dispatchEvent(new Event("pagehide"))
@@ -688,7 +781,7 @@ it("a catalog update marker fences a remounted editor and refuses to restore its
  mockGetDraft.mockResolvedValue({ ...serverVersion, Name: "Imported now" })
  settleImportPlan("editor-1", plan, true)
  render(<Harness exerciseId="ex-1" />)
- await screen.findByDisplayValue("Imported now")
+ await settled("Imported now")
  expect(latest.replacementActive).toBe(true)
  await act(async () => { await latest.reconcileImportReplacement() })
  expect(latest.replacementActive).toBe(false)
@@ -702,7 +795,7 @@ it("catalog replacement waits for an orphaned unmount PATCH then PUT before prev
  mockUpdate.mockImplementationOnce(() => new Promise(resolve => { patch = resolve }))
  mockSaveDraft.mockImplementationOnce(() => new Promise(resolve => { put = resolve }))
  const screenA = render(<Harness exerciseId="ex-1" userId="orphan-actor" />)
- await screen.findByDisplayValue("Web 101")
+ await settled("Web 101")
  let saving!: Promise<boolean>
  act(() => {
   latest.identityForm.setValue("Name", "Before catalog")
@@ -720,4 +813,170 @@ it("catalog replacement waits for an orphaned unmount PATCH then PUT before prev
  await act(async () => { put({ ...serverVersion, AdminNote: "Before catalog" }); await saving; await draining })
  expect(prepared).toBe(true)
  expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+})
+
+describe("an edit made before the editor subscribes to its form", () => {
+  it("is not adopted as already saved: it is marked changed and sent", async () => {
+    // A layout effect runs in the commit that first shows the form, before the editor's passive effect subscribes
+    // to the form: the same window a keystroke in the first frame (or a slow machine) lands in.
+    function Early() {
+      const editor = useExerciseEditor({ exerciseId: "ex-1", versionId: null, editable: true, canWrite: true, userId: "editor-1", onCreated: vi.fn(), onPendingRestored: vi.fn() })
+      const done = useRef(false)
+      useLayoutEffect(() => {
+        latest = editor
+        if (editor.loadState === "ready" && !done.current) { done.current = true; editor.identityForm.setValue("Name", "Typed early") }
+      })
+      return <span data-testid="state">{editor.loadState}</span>
+    }
+    render(<Early />)
+    await waitFor(() => expect(screen.getByTestId("state")).toHaveTextContent("ready"))
+    await act(async () => {}) // the passive effect that subscribes (and finds the early edit) has run
+    await act(async () => { await latest.autosave.flush() })
+    expect(mockUpdate).toHaveBeenCalledWith("ex-1", expect.objectContaining({ Name: "Typed early" }), "")
+  })
+})
+
+
+describe("revision of the working copy", () => {
+  const R1 = "2026-11-21T10:00:00.100000Z"
+  const R2 = "2026-11-21T10:00:01.200000Z"
+  const R3 = "2026-11-21T10:00:02.300000Z"
+  const R4 = "2026-11-21T10:00:03.400000Z"
+  const conflictError = () => new ApiError(409, { Status: { Code: 70922, Message: "The working copy was changed by someone else", Context: { revision: R4, savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" } } })
+  const modifiedError = () => new ApiError(409, { Status: { Code: 70904, Message: "Exercise was modified concurrently" } })
+
+  function NoteHarness() {
+    const editor = useExerciseEditor({ exerciseId: "ex-1", versionId: null, editable: true, canWrite: true, userId: "editor-1", onCreated: vi.fn(), onPendingRestored: vi.fn() })
+    useLayoutEffect(() => { latest = editor })
+    if (editor.loadState !== "ready") return <p>loading</p>
+    return <form>
+      <input aria-label="name" {...editor.identityForm.register("Name")} />
+      <input aria-label="note" {...editor.draftForm.register("AdminNote")} />
+      <span data-testid="status">{editor.autosave.status}</span>
+      {editor.conflict && <p role="alert">{editor.conflict.savedBy} {editor.conflict.savedAt}</p>}
+    </form>
+  }
+
+  beforeEach(() => {
+    mockGetDraft.mockResolvedValue({ ...serverVersion, Revision: R1 })
+  })
+
+  it("sends the revision it started from with every write and takes the new one from each answer", async () => {
+    mockSaveDraft.mockResolvedValueOnce({ ...serverVersion, Revision: R2 }).mockResolvedValueOnce({ ...serverVersion, Revision: R4 })
+    mockUpdate.mockImplementationOnce(async (_id, input) => ({ ...exercise, ...input, DraftRevision: R3 }))
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "first" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "first" }), R1)
+    // One round with both edits: the identity PATCH sends R2, the PUT sends what the PATCH answered (R3).
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "second" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Web 102", Description: "", Tags: [] }, R2)
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "second" }), R3)
+    expect(latest.version?.Revision).toBe(R4)
+  })
+
+  it("sends the current revision with the keepalive on pagehide", async () => {
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "leaving" } })
+    await act(async () => {})
+    act(() => { window.dispatchEvent(new Event("pagehide")) })
+    expect(saveDraftKeepalive).toHaveBeenCalledWith("ex-1", expect.objectContaining({ AdminNote: "leaving" }), R1)
+  })
+
+  it("stops autosave on 70922, keeps the edits and names who saved; a reload takes the current working copy", async () => {
+    mockSaveDraft.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(latest.conflict).toEqual({ revision: R4, savedBy: "Olena Koval", savedAt: "2026-11-21T10:00:03Z" })
+    expect(screen.getByRole("alert")).toHaveTextContent("Olena Koval")
+    expect(toast.error).not.toHaveBeenCalled()
+    // Further edits and flushes send nothing until the author reloads; the edits stay in the form.
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine, more" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    act(() => { window.dispatchEvent(new Event("pagehide")) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+    expect(saveDraftKeepalive).not.toHaveBeenCalled()
+    expect(screen.getByLabelText("note")).toHaveValue("mine, more")
+    expect(latest.autosave.hasUnsaved()).toBe(true)
+
+    mockGetDraft.mockResolvedValue({ ...serverVersion, Revision: R4, AdminNote: "theirs" })
+    await act(async () => { await latest.reloadAfterConflict() })
+    expect(latest.conflict).toBeNull()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("note")).toHaveValue("theirs")
+    expect(latest.autosave.hasUnsaved()).toBe(false)
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "on top of theirs" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenLastCalledWith("ex-1", expect.objectContaining({ AdminNote: "on top of theirs" }), R4)
+  })
+
+  it("keeps the conflict and the edits when the reload fails", async () => {
+    mockSaveDraft.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "mine" } })
+    await act(async () => { await latest.autosave.flush() })
+    mockGetDraft.mockRejectedValueOnce(new TypeError("offline"))
+    await act(async () => { await expect(latest.reloadAfterConflict()).rejects.toThrow("offline") })
+    expect(latest.conflict).not.toBeNull()
+    expect(screen.getByLabelText("note")).toHaveValue("mine")
+  })
+
+  it("stops on a 70922 answer to the identity PATCH too", async () => {
+    mockUpdate.mockRejectedValueOnce(conflictError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Web 102" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(latest.conflict?.savedBy).toBe("Olena Koval")
+    expect(latest.identityForm.getFieldState("Name").error).toBeUndefined()
+    expect(screen.getByLabelText("name")).toHaveValue("Web 102")
+  })
+
+  it("retries a write that raced a key rotation (70904) once, silently", async () => {
+    mockSaveDraft.mockRejectedValueOnce(modifiedError()).mockResolvedValueOnce({ ...serverVersion, Revision: R2 })
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "rotated" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(mockSaveDraft.mock.calls.map((call) => call[2])).toEqual([R1, R1])
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.getByTestId("status")).toHaveTextContent("saved")
+  })
+
+  it("reports a second 70904 in a row instead of retrying again", async () => {
+    mockSaveDraft.mockRejectedValueOnce(modifiedError()).mockRejectedValueOnce(modifiedError())
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "rotated" } })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(false) })
+    expect(mockSaveDraft).toHaveBeenCalledTimes(2)
+    expect(toast.error).toHaveBeenCalledTimes(1)
+    expect(latest.conflict).toBeNull()
+  })
+
+  it("keeps another control enabled and editable while a save is pending", async () => {
+    let acknowledge: (value: Version) => void = () => undefined
+    mockSaveDraft.mockReturnValueOnce(new Promise((resolve) => { acknowledge = resolve }))
+    render(<NoteHarness />)
+    await settled("Web 101")
+    fireEvent.change(screen.getByLabelText("note"), { target: { value: "slow" } })
+    let flushed: Promise<boolean> = Promise.resolve(true)
+    act(() => { flushed = latest.autosave.flush() })
+    await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+    expect(screen.getByLabelText("name")).toBeEnabled()
+    expect(screen.getByLabelText("note")).toBeEnabled()
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Typed meanwhile" } })
+    expect(screen.getByLabelText("name")).toHaveValue("Typed meanwhile")
+    await act(async () => { acknowledge({ ...serverVersion, AdminNote: "slow", Revision: R2 }); await flushed })
+    await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
+    expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Typed meanwhile", Description: "", Tags: [] }, R2)
+  })
 })

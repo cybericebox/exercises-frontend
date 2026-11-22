@@ -41,7 +41,7 @@ function reference(failure: ApiFailure): string | undefined {
   return failure.code ? `${failure.code}-${rid}` : rid
 }
 
-// Prefilled mailto of «Повідомити деталі»: no personal data beyond what the user types.
+// Prefilled mailto of “Send details”: no personal data beyond what the user types.
 function reportHref(failure: ApiFailure | null, error: unknown): string {
   if (typeof window === "undefined") return feedbackHref(t("error.page.report"))   // prerender: the client render fills the details
   const app = t("feedback.app")
@@ -74,7 +74,7 @@ function CopyRef({ value }: { value: string }) {
 
 /**
  * The one screen for every error and not-found state (DS patterns/error-page): big muted status code, title,
- * one line, actions and, for an error that carries a platform code, the faint «Код помилки» line.
+ * one line, actions and, for an error that carries a platform code, the faint "Error code" line.
  * `page`: the shell could not render (global error, a page outside the shell), centred in the viewport with
  * the thin footer. `block`: the shell is already there and only the page failed; the same column fills the
  * content area, no footer, no crest. A failed list or table keeps its small LoadError instead.
@@ -85,11 +85,11 @@ export function ErrorPage({ mode, status, title, body, error, onRetry, home = st
   status: 404 | 500
   title?: string
   body?: string
-  /** The failure; its numeric code (when it has one) shows as «Код помилки: {code}». */
+  /** The failure; its numeric code (when it has one) shows as "Error code: {code}". */
   error?: unknown
-  /** «Спробувати ще раз»; omit when retrying makes no sense. */
+  /** “Try again”; omit when retrying makes no sense. */
   onRetry?: () => void
-  /** «На головну» as the primary action (default for 404). */
+  /** “Go home” as the primary action (default for 404). */
   home?: boolean
 }) {
   const notFound = status === 404
