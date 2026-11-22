@@ -12,7 +12,7 @@ import type { BootstrapFormValues, DeviceFormValues } from "@/lib/editor/schemas
  * compile error until it is placed here (and the table test checks the sections are real).
  */
 export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection> = {
-  ID: "main", Name: "main", Type: "main", Profile: "main", SecurityPreset: "main", Image: "main", ResourcePreset: "main", System: "main", Hardware: "main",
+  ID: "main", ClientKey: "main", Name: "main", Type: "main", Profile: "main", SecurityPreset: "main", Image: "main", ResourcePreset: "main", System: "main", Hardware: "main",
   Interfaces: "network",
   Bootstrap: "init",
   Command: "service", Args: "service", Persistence: "service", WaitReadyFile: "service",

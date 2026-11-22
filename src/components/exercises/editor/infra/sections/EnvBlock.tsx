@@ -18,6 +18,7 @@ import { RefField } from "../../kit"
 import { FieldError, fieldProps, useFieldError } from "../../fieldErrors"
 import { Block } from "../fields"
 import { SecretInput } from "../../../SecretInput"
+import { useDraftKeyState } from "@/lib/draftKey"
 import type { SectionProps } from "./MainSection"
 
 /** How long the result of an import stays on screen. */
@@ -140,6 +141,9 @@ function EnvRow({ base, variantIndex, index, disabled, onRemove, requestVariable
   const n = index + 1
   const lockTip = disabled ? t("ed.c.env.secretReadOnly") : stored ? t("ed.c.env.secretLocked") : secret ? t("ed.c.env.secretOn") : t("ed.c.env.secretOff")
   const valueProps = fieldProps(`${base}.${index}.Value`, valueError)
+  // Without the draft key the value is not kept in the browser: until it arrives, or at all on a backend without draft keys.
+  const keyState = useDraftKeyState()
+  const keyNote = keyState === "waiting" ? t("ed.c.env.keptLater") : keyState === "unsupported" ? t("ed.c.env.notKept") : null
 
   return <div data-env-row role="group" aria-label={t("ed.c.env.rowN", { n })} className="group min-w-0">
     <div className="grid grid-cols-[minmax(0,1fr)_36px_36px] items-start gap-2 sm:grid-cols-[minmax(140px,240px)_minmax(0,1fr)_36px_36px]">
@@ -154,6 +158,7 @@ function EnvRow({ base, variantIndex, index, disabled, onRemove, requestVariable
           : <RefField {...valueProps} variantIndex={variantIndex} value={field.value} onValueChange={field.onChange} mask disabled={disabled}
             aria-label={t("ed.c.env.valueN", { n })} placeholder={t("ed.c.env.valuePlaceholder")} onNewVariable={(insert) => requestVariable(insert)} />} />
         <FieldError path={`${base}.${index}.Value`} />
+        {!disabled && keyNote && (row?.Value ?? "") !== "" && <p className="mt-1 text-xs text-muted-foreground">{keyNote}</p>}
       </div>
       <Controller control={control} name={`${base}.${index}.Secret`} render={({ field }) => <HoverTooltip text={lockTip}>
         <button type="button" aria-label={t("ed.c.env.secretN", { n })} aria-pressed={Boolean(field.value)} aria-disabled={disabled || stored || undefined}

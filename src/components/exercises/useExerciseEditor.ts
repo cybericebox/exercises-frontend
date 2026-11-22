@@ -16,8 +16,11 @@ import {
   type DraftFormValues, type IdentityFormValues,
 } from "@/lib/exerciseSchemas"
 import {
-  clearPendingChanges, hasDraftContent, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
+  applyPendingSecrets, clearPendingChanges, hasDraftContent, markPendingBaseline, mergePendingDraft, movePendingChanges, openPendingSecrets, pendingBufferKey,
+  pendingSecretFills, readPendingChanges, sweepPendingChanges, writePendingChanges, type OpenedSecrets, type PendingChanges,
 } from "@/lib/exercisePendingBuffer"
+import { clientKeyFills, ensureClientKeys } from "@/lib/clientKeys"
+import { currentDraftKey, startDraftKey, subscribeDraftKey } from "@/lib/draftKey"
 import { capturedDraftIds, savedSecretUpdates, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
 import type { ArchiveCommitInput } from "@/api/exercises/archiveImport"
@@ -86,6 +89,15 @@ export type ExerciseEditor = {
   readOnly: boolean
   /** A new task with content but no valid name yet: it lives only in this browser. */
   hasLocalDraft: () => boolean
+}
+
+/**
+ * A change of one field the author edits: a value, or a list of values (answers, tags). Not an item or a list of items
+ * (an append, a remove, a move, a whole task set at once): those leave the errors of the fields inside alone.
+ */
+function isLeafChange(value: unknown, type: string | undefined): boolean {
+  if (Array.isArray(value)) return value.length > 0 ? value.every((item) => item === null || typeof item !== "object") : type === "change"
+  return value === null || typeof value !== "object"
 }
 
 function identityOf(exercise: Exercise, version?: Version): IdentityFormValues {
@@ -201,7 +213,9 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const identityForm = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
     defaultValues: { Name: "", Description: "", Tags: [] },
-    mode: "onTouched",
+    // The rules run when a field is left; a change clears the field's error (the watch effect below), so a corrected
+    // value never stays red until the next save.
+    mode: "onBlur",
   })
   const serverErrors = useRef<ServerErrorMemory>(new Map())
   const draftResolver = useMemo(() => withServerErrors(zodResolver(draftSchema) as Resolver<DraftFormValues>, serverErrors.current), [])
@@ -216,12 +230,23 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const applyValues = useCallback((identity: IdentityFormValues, draft: DraftFormValues) => {
     suppressRef.current = true
     identityForm.reset(identity)
-    draftForm.reset(draft)
+    // Every variant, task, device and variable row has its client key from the start (the buffer seals by them).
+    draftForm.reset(ensureClientKeys(draft))
     suppressRef.current = false
     lastSignatureRef.current = signature()
   }, [identityForm, draftForm, signature])
 
   const bufferKey = useCallback(() => userId ? pendingBufferKey(userId, exerciseIdRef.current) : null, [userId])
+
+  // The sealed secret values of a restored buffer that could not be opened yet (no draft key): filled in when it arrives.
+  const heldSecretsRef = useRef<{ key: string; pending: PendingChanges } | null>(null)
+
+  // The editor opened: this tab fetches its draft key (kept in memory only) and drops the user's expired browser drafts.
+  useEffect(() => {
+    if (!userId || !canWrite) return
+    startDraftKey()
+    sweepPendingChanges(userId)
+  }, [userId, canWrite])
 
   const save = useCallback(async (): Promise<boolean> => {
     const identity = identityForm.getValues()
@@ -240,10 +265,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         exerciseIdRef.current = id
         revisionRef.current = createdExercise.DraftRevision ?? ""
         savedIdentityRef.current = JSON.stringify(input)
-        if (userId) {
-          writePendingChanges(pendingBufferKey(userId, id), identity, draftForm.getValues())
-          clearPendingChanges(pendingBufferKey(userId, null))
-        }
+        // The new-task entry becomes the exercise's, its sealed secret values with it.
+        if (userId) movePendingChanges(pendingBufferKey(userId, null), pendingBufferKey(userId, id), identity, draftForm.getValues())
         if (mountedRef.current) {
           setExercise(createdExercise)
           optionsRef.current.onCreated(createdExercise)
@@ -394,8 +417,11 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           const key = pendingBufferKey(knownUserId, null)
           const pending = readPendingChanges(key)
           if (pending && !canWrite) clearPendingChanges(key)
+          const opened: OpenedSecrets = pending?.sealed && canWrite ? await openPendingSecrets(key, pending) : { status: "none" }
           if (pending && canWrite && !cancelled) {
-            applyValues(pending.identity, pending.draft)
+            if (opened.status === "later") heldSecretsRef.current = { key, pending }
+            applyValues(pending.identity, opened.status === "open" ? applyPendingSecrets(pending.draft, opened.secrets) : pending.draft)
+            markPendingBaseline(key, draftForm.getValues())
             toast.success(t("admin.ex.create.localOmitted"))
             optionsRef.current.onPendingRestored()
             setRestored(true)
@@ -435,13 +461,17 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           const recovering = readImportReplacement(knownUserId, exerciseId) !== null
           const apply = pending !== null && canWrite && !loaded.ArchivedAt && !recovering
           if (key && pending && !apply) clearPendingChanges(key)
+          const opened: OpenedSecrets = key && apply && pending.sealed ? await openPendingSecrets(key, pending) : { status: "none" }
+          if (cancelled) return
+          if (key && apply && opened.status === "later") heldSecretsRef.current = { key, pending }
           setExercise(loaded)
           setVersion(loadedVersion)
           if (!versionId) { rememberDraftVersion(loadedVersion.ID); revisionRef.current = workingCopyRevision(loadedVersion) }
           savedIdentityRef.current = JSON.stringify(identityOf(loaded, loadedVersion))
           const serverDraft = workingCopyValues(loadedVersion)
           savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
-          applyValues(apply ? pending.identity : identityOf(loaded, loadedVersion), apply ? mergePendingDraft(serverDraft, pending.draft) : serverDraft)
+          applyValues(apply ? pending.identity : identityOf(loaded, loadedVersion), apply ? mergePendingDraft(serverDraft, pending.draft, opened.status === "open" ? opened.secrets : undefined) : serverDraft)
+          if (key && apply) markPendingBaseline(key, draftForm.getValues())
           setLoadState("ready")
           if (apply) {
             toast.success(t("admin.exPage.toast.pendingRestored"))
@@ -475,6 +505,24 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, versionId, userId, loadAttempt])
 
+  // Sealed values held back because the draft key was not here at the restore (or did not come within ~5 s): once it arrives
+  // they fill their fields, matched by client key, as a restore would (the buffered value wins) unless the author changed
+  // that field since the restore; the change is buffered again, sealed with the key.
+  useEffect(() => {
+    if (loadState !== "ready") return
+    const fill = () => {
+      const held = heldSecretsRef.current
+      if (!held || !currentDraftKey()) return
+      heldSecretsRef.current = null
+      void openPendingSecrets(held.key, held.pending).then((opened) => {
+        if (opened.status !== "open" || !mountedRef.current) return
+        for (const item of pendingSecretFills(held.key, draftForm.getValues(), opened.secrets)) draftForm.setValue(item.path as never, item.value as never, { shouldDirty: true })
+      })
+    }
+    fill()
+    return subscribeDraftKey(fill)
+  }, [loadState, draftForm])
+
   useEffect(() => {
     if (restored) autosave.markChanged()
     // Once per restore; autosave.markChanged is stable (see the watch effect below).
@@ -491,6 +539,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     const check = () => {
       scheduled = false
       if (!active || replacementFence.current) return
+      // A new item (an added task, a copied device, an imported variable) gets its client key before anything is buffered.
+      const keys = clientKeyFills(draftForm.getValues())
+      if (keys.length > 0) {
+        suppressRef.current = true
+        withLinkedMirrorMuted(draftForm.control, () => { for (const fill of keys) draftForm.setValue(fill.path as never, fill.value as never) })
+        suppressRef.current = false
+      }
       const next = signature()
       if (next === lastSignatureRef.current) return
       lastSignatureRef.current = next
@@ -503,10 +558,19 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     }
     checkPendingRef.current = () => { if (scheduled) check() }
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
-    const identityWatch = identityForm.watch(onChange)
-    const draftWatch = draftForm.watch(() => {
-      // A server error beside a field goes away when the author changes that field, without waiting for a blur or a publish check.
-      if (!suppressRef.current) settleChangedServerErrors(draftForm)
+    const identityWatch = identityForm.watch((_values, { name, type }) => {
+      // The error of the changed field goes away as soon as its value changes; the rules run again when the field is left.
+      if (name && !suppressRef.current && isLeafChange(identityForm.getValues(name), type) && identityForm.getFieldState(name).error) identityForm.clearErrors(name)
+      onChange()
+    })
+    const draftWatch = draftForm.watch((_values, { name, type }) => {
+      // A server error beside a field goes away when the author changes that field, without waiting for a blur or a publish check;
+      // so does a rule's error of the changed field (the rules run again when it is left or on the next check). Only that
+      // field's: an append, a remove or a move of items keeps the errors of the other fields.
+      if (!suppressRef.current) {
+        settleChangedServerErrors(draftForm)
+        if (name && isLeafChange(draftForm.getValues(name as never), type) && draftForm.getFieldState(name).error) draftForm.clearErrors(name)
+      }
       onChange()
     })
     // The baseline is the last loaded or acknowledged state (applyValues, a save); it is NOT taken here. An edit made

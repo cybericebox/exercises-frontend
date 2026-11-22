@@ -90,7 +90,8 @@ export type PlaceholderFormValues = {
   Path?: string
 }
 
-export type TaskFormValues = Omit<NormalizedTask, "Placeholders" | "Check"> & { Placeholders: PlaceholderFormValues[]; Check: CheckFormValues }
+/** ClientKey: form-only, the stable identity of the task in this browser (lib/clientKeys); never sent. */
+export type TaskFormValues = Omit<NormalizedTask, "Placeholders" | "Check"> & { Placeholders: PlaceholderFormValues[]; Check: CheckFormValues; ClientKey?: string }
 
 // ── Regexes and helpers ───────────────────────────────────────────────────────
 

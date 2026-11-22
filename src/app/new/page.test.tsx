@@ -197,7 +197,7 @@ describe("new exercise page", () => {
     })
 
     it("asks to continue or start new when a draft exists; continue keeps it", async () => {
-      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { Devices: [], Connections: [] } }] }, updatedAt: Date.now() }))
       render(<NewExercisePage />)
       expect(await screen.findByText("admin.ex.localDraft.confirmTitle")).toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: "admin.ex.localDraft.resume" }))
@@ -206,7 +206,7 @@ describe("new exercise page", () => {
     })
 
     it("start new clears the buffer and opens an empty form", async () => {
-      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { Devices: [], Connections: [] } }] }, updatedAt: 1 }))
+      storage.set(KEY, JSON.stringify({ version: 2, identity: { Name: "Qz", Description: "", Tags: [] }, draft: { AdminNote: "", Variants: [{ ID: "", Index: 1, Note: "", LinkedTo: "", Tasks: [], Topology: { Devices: [], Connections: [] } }] }, updatedAt: Date.now() }))
       render(<NewExercisePage />)
       fireEvent.click(await screen.findByRole("button", { name: "admin.ex.localDraft.startNew" }))
       expect(await screen.findByLabelText(/ed.a.general.name.label/)).toHaveValue("")
