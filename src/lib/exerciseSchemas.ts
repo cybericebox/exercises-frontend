@@ -18,6 +18,7 @@ import { linkedFlagConflicts, ownImages } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
 import type { NormalizedVariant, OpponentDTO, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
 import { deliveriesOfTask } from "@/lib/editor/refs"
+import { danglingOpponentRefs } from "@/lib/editor/opponentRefs"
 import { TEMPLATE_PREFIX } from "@/lib/flagPattern"
 import {
   emptyTask, refineVariantTasks, taskSchema, taskToDTO, taskToForm, type TaskFormValues,
@@ -100,6 +101,9 @@ export const draftSchema = z
           }
         }
       })
+      // The opponents are not edited here, but a removed device or task can leave one naming nothing: the backend refuses that.
+      const dangling = danglingOpponentRefs(variant)
+      if (dangling.length) ctx.addIssue({ code: "custom", path: ["Variants", i, "Opponents"], message: t("ed.c.val.opponentRefMissing", { names: dangling.map((name) => `«${name}»`).join(", ") }) })
       if (variant.Tasks.length !== expected) {
         ctx.addIssue({
           code: "custom",

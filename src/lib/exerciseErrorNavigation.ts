@@ -44,6 +44,8 @@ export function positionForDraftIssue(
     return { ...current, tab: "variants", variant }
   }
   const next: EditorPosition = { ...current, tab: "tasks", variant }
+  // The opponents have no view yet: the schema of the variant is where their devices are.
+  if (path[2] === "Opponents") return { ...next, tab: "infrastructure", topologySection: "diagram", infraView: "diagram", openNode: "" }
   if (path[2] === "Tasks") {
     next.task = typeof path[3] === "number" ? path[3] : 0
     // Conditions of a state check are collapsed lists: the one with the error opens.

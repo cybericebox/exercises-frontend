@@ -13,6 +13,9 @@ import { useEditor } from "../context"
 import { TaskFormView } from "./TaskFormView"
 import { TaskRail } from "./TaskRail"
 import { useTaskList } from "./taskList"
+import { useFormContext } from "react-hook-form"
+import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { opponentsNamingTask } from "@/lib/editor/opponentRefs"
 
 
 /**
@@ -26,6 +29,7 @@ export function TasksView() {
   const [selected, setSelected] = useEditorPosition("task")
   const [removing, setRemoving] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const { getValues } = useFormContext<DraftFormValues>()
   // A phone shows the subtasks as one select instead of the rail beside the form.
   const phone = useMediaQuery("(max-width: 639px)", false)
   const editable = !disabled && baseIndex < 0
@@ -39,6 +43,8 @@ export function TasksView() {
   }
   const removingTask = removing === null ? null : rows[removing]
   const dependents = removing === null ? [] : dependentsOf(removing)
+  // A task is removed from every variant: count the opponents of all of them that name it.
+  const opponents = removingTask?.Key ? getValues("Variants").reduce((sum, variant) => sum + opponentsNamingTask(variant, removingTask.Key), 0) : 0
   return <section className="subtasks">
     <TaskRail rows={rows} selected={active} onSelect={setSelected} editable={editable} phone={phone}
       onAdd={() => setSelected(add())} onMove={(from, to) => { moveTo(from, to); setSelected(to) }} onRemove={setRemoving} />
@@ -47,7 +53,7 @@ export function TasksView() {
     </div>
     <ConfirmDialog open={removing !== null} tone="danger" busy={busy} onCancel={() => setRemoving(null)}
       title={t("ed.b.rail.removeTitle", { name: removingTask?.Name.trim() || t("ed.b.unnamed") })}
-      description={`${t("ed.b.rail.removeDescription")}${dependents.length ? ` ${t("ed.b.rail.removeDependents", { names: dependents.map((name) => `«${name}»`).join(", ") })}` : ""}`}
+      description={`${t("ed.b.rail.removeDescription")}${dependents.length ? ` ${t("ed.b.rail.removeDependents", { names: dependents.map((name) => `«${name}»`).join(", ") })}` : ""}${opponents ? ` ${t("ed.b.rail.removeOpponents", { n: opponents })}` : ""}`}
       confirmLabel={t("ed.b.rail.remove")} busyLabel={t("ed.b.rail.removing")}
       onConfirm={() => {
         if (removing === null) return

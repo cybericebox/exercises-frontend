@@ -191,7 +191,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: Labe
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, edgeLocked, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
   unavailableConnectionNodes = [], connectionMode = false, toolbarExtra, controlsPosition = "bottom-right", nodeSettingsLabel, nodeSettingsBlocked, nodeStatus, minPortLabelScale }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
@@ -209,6 +209,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   onEdgeSelect?: (index: number) => void
   onEdgeSettings?: (index: number) => void
   onEdgeRemove?: (index: number) => void
+  /** A connection that cannot be removed from the schema (a console cable, not edited here yet). */
+  edgeLocked?: (index: number) => boolean
   /** Why a new connection cannot start now (fewer than two nodes with free ports); null when it can. */
   linkUnavailableReason?: string | null
   /** Why another gateway cannot be added (the platform limit); the canvas menu entries are disabled with it. */
@@ -488,7 +490,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     if (menu.kind === "edge") {
       return [
         ...(onEdgeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onEdgeSettings(menu.index) }] as const : []),
-        ...(onEdgeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!onEdgeSettings,
+        ...(onEdgeRemove && !edgeLocked?.(menu.index) ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!onEdgeSettings,
           onSelect: () => onEdgeRemove(menu.index) }] as const : []),
       ]
     }
@@ -695,7 +697,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
                 setContext({ kind: "edge", index: edge.index, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, trigger: event.currentTarget })
                 return
               }
-              if (onEdgeRemove && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onEdgeRemove(edge.index); return }
+              if (onEdgeRemove && !edgeLocked?.(edge.index) && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onEdgeRemove(edge.index); return }
               if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onEdgeSelect?.(edge.index) }
             }}
             className={onEdgeSelect ? "group cursor-pointer focus:outline-none" : undefined}>

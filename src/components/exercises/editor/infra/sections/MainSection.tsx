@@ -17,6 +17,7 @@ import { ResourceSelect } from "../../../ResourceSelect"
 import { useResourcesConfig, useResourcesConfigLoading } from "../../../ResourcesConfigContext"
 import { useLabSupport } from "../../labCapabilities"
 import { FieldGrid, InputField, SelectField, devicePath } from "../fields"
+import { renameDeviceOpponentsInForm } from "@/lib/editor/opponentRefs"
 import type { DeviceProfile } from "@/api/exercises/model"
 
 export type SectionProps = {
@@ -40,6 +41,8 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
   const config = useResourcesConfig()
   const loading = useResourcesConfigLoading()
   const deviceId = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
+  // The name as last rendered, i.e. before the keystroke being handled: the opponents that named it follow the new one.
+  const name = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name` })
   const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
   const icon = topologyIconFor({ ID: deviceId, Type: "node" }, visual ?? null)
   /** The pictogram of the device on the schema is the editor's own (VisualRender.icons), not a field of the device. */
@@ -70,6 +73,7 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
 
   return <FieldGrid>
     <InputField name={`${dp}.Name`} label={t("ed.c.main.name")} required disabled={disabled} maxLength={MAX_DEVICE_NAME_LEN}
+      onValue={(next) => renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, name ?? "", next)}
       help={{ intro: [t("ed.c.h.name1"), t("ed.c.h.name2")] }} />
     <SelectField name={`${dp}.Profile`} label={t("ed.c.main.profile")} disabled={disabled} options={profileOptions} menuClassName="w-[26rem] max-w-[90vw]"
       onValue={(value) => { if (!profileKeepsState(value)) setValue(`${dp}.Persistence` as never, { Enabled: false, Debounce: "" } as never, { shouldDirty: true }) }}

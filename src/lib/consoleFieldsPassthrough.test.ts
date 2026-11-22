@@ -7,7 +7,8 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 
-import { draftSchema, toDraftFormValues, toSaveDraftInput } from './exerciseSchemas'
+import { draftSchema, toDraftFormValues, toSaveDraftInput, type DraftFormValues } from './exerciseSchemas'
+import { mergePendingDraft } from './exercisePendingBuffer'
 import { normalizeVariant, type VariantDTO, type Version } from '@/api/exercises/versions'
 
 const ROUTER = '11111111-2222-3333-4444-555555555555'
@@ -96,5 +97,59 @@ describe('console model pass-through', () => {
     const result = draftSchema.safeParse(toDraftFormValues(version(wireVariant(true))))
     const connectionIssues = result.success ? [] : result.error.issues.filter((issue) => issue.path.includes('Connections'))
     expect(connectionIssues).toEqual([])
+  })
+})
+
+/** A buffer written before this change: the same draft without any of the console model or the opponents. */
+function oldFormatBuffer(server: DraftFormValues): DraftFormValues {
+  return JSON.parse(JSON.stringify(server, (key, value: unknown) => key === 'ConsolePorts' || key === 'SerialPorts' || key === 'Opponents' || key === 'Kind' && typeof value === 'string' && value === 'console' ? undefined : value))
+}
+
+describe('pending buffer restore and the console model', () => {
+  const server = () => toDraftFormValues(version(wireVariant(true)))
+
+  it('an old-format buffer gets the opponents, the ports and the console cable back from the server', () => {
+    const buffered = oldFormatBuffer(server())
+    expect(buffered.Variants[0].Opponents).toBeUndefined()
+    expect(buffered.Variants[0].Topology.Connections[1]).not.toHaveProperty('Kind')
+    buffered.Variants[0].Note = 'typed offline'
+    const merged = mergePendingDraft(server(), buffered).Variants[0]
+    expect(merged.Note).toBe('typed offline')
+    expect(merged.Opponents).toEqual(opponents)
+    expect(merged.Topology.Devices[0].ConsolePorts).toEqual(consolePorts)
+    expect(merged.Topology.Devices[1].SerialPorts).toEqual(serialPorts)
+    expect(merged.Topology.Connections[0]).not.toHaveProperty('Kind')
+    expect(merged.Topology.Connections[1].Kind).toBe('console')
+    expect(toSaveDraftInput({ ...server(), Variants: [merged] })).toEqual(toSaveDraftInput({ ...server(), Variants: [{ ...server().Variants[0], Note: 'typed offline' }] }))
+  })
+
+  it('a newer buffer never brings back stale values: what changed on the server wins', () => {
+    const buffered = server()
+    const fresh = server()
+    fresh.Variants[0].Opponents = [{ ...opponents[0], Seat: 'router' }]
+    fresh.Variants[0].Topology.Devices[0].ConsolePorts = [{ Name: 'console0' }]
+    delete fresh.Variants[0].Topology.Devices[1].SerialPorts
+    fresh.Variants[0].Topology.Connections = fresh.Variants[0].Topology.Connections.filter((connection) => connection.Kind !== 'console')
+    const merged = mergePendingDraft(fresh, buffered).Variants[0]
+    expect(merged.Opponents).toEqual([{ ...opponents[0], Seat: 'router' }])
+    expect(merged.Topology.Devices[0].ConsolePorts).toEqual([{ Name: 'console0' }])
+    expect(merged.Topology.Devices[1]).not.toHaveProperty('SerialPorts')
+    // The cable the server no longer has is not brought back (the editor cannot make one); the network link stays.
+    expect(merged.Topology.Connections.filter((connection) => connection.Kind === 'console')).toHaveLength(0)
+    expect(merged.Topology.Connections).toHaveLength(1)
+  })
+
+  it('a server without opponents removes them from the restored draft', () => {
+    const fresh = server()
+    delete fresh.Variants[0].Opponents
+    expect(mergePendingDraft(fresh, server()).Variants[0]).not.toHaveProperty('Opponents')
+  })
+
+  it('a console cable the buffer lost comes back while both its devices are there', () => {
+    const buffered = server()
+    buffered.Variants[0].Topology.Connections = buffered.Variants[0].Topology.Connections.filter((connection) => connection.Kind !== 'console')
+    expect(mergePendingDraft(server(), buffered).Variants[0].Topology.Connections.map((connection) => connection.Kind ?? '')).toEqual(['', 'console'])
+    buffered.Variants[0].Topology.Devices = buffered.Variants[0].Topology.Devices.filter((device) => device.ID !== PC)
+    expect(mergePendingDraft(server(), buffered).Variants[0].Topology.Connections.map((connection) => connection.Kind ?? '')).toEqual([''])
   })
 })

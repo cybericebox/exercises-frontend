@@ -13,7 +13,7 @@ import { Table, TABLE_CELL, TABLE_HEAD_CELL, TABLE_HEAD_ROW } from "@/components
 import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
-import { gatewayClashOfLink } from "@/lib/editor/schemas/infra"
+import { gatewayClashOfLink, isConsoleCable } from "@/lib/editor/schemas/infra"
 import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
 import { AddButton, FieldError, RowActions, fieldProps, useFieldError } from "../kit"
@@ -111,23 +111,28 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
         </thead>
         <tbody>
           {fields.map((field, ci) => {
-            const open = expandedIndex === ci
+            // A console cable is not edited here yet: its row is read-only (no editor, no removal).
+            const cable = isConsoleCable(connections[ci] ?? {})
+            const open = expandedIndex === ci && !cable
             return <Fragment key={field.id}>
-              <tr data-testid={`connection-row-${ci}`} data-selected={selectedIndex === ci || undefined} className="group h-[49px] cursor-default transition-colors hover:bg-[var(--ib-hover)] data-[selected]:bg-accent/60"
-                onClick={(event) => { if (!(event.target as HTMLElement).closest("button")) onExpand(open ? null : ci) }}>
+              <tr data-testid={`connection-row-${ci}`} data-console={cable || undefined} data-selected={selectedIndex === ci || undefined} className="group h-[49px] cursor-default transition-colors hover:bg-[var(--ib-hover)] data-[selected]:bg-accent/60"
+                onClick={(event) => { if (!cable && !(event.target as HTMLElement).closest("button")) onExpand(open ? null : ci) }}>
                 <td className={cn(TABLE_CELL, "px-0 tabular-nums")}>
-                  <button type="button" aria-expanded={open} aria-label={t("admin.exTopo.overview.editConnectionN", { n: ci + 1 })} onClick={() => onExpand(open ? null : ci)}
+                  {cable
+                    ? <span className="flex h-8 items-center gap-1 pr-2"><span className="w-10" /><span className="font-medium text-foreground">{ci + 1}</span></span>
+                    : <button type="button" aria-expanded={open} aria-label={t("admin.exTopo.overview.editConnectionN", { n: ci + 1 })} onClick={() => onExpand(open ? null : ci)}
                     className="flex h-8 items-center gap-1 pr-2 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
                     <span className="flex w-10 justify-center"><ChevronRight aria-hidden="true" className={cn("h-4 w-4 transition-transform motion-reduce:transition-none", open && "rotate-90")} /></span>
                     <span className="font-medium text-foreground">{ci + 1}</span>
-                  </button>
+                  </button>}
                 </td>
                 {([0, 1] as const).map((side) => <td key={side} className={cn(TABLE_CELL, "min-w-0 truncate")}>{endpointSummary(connections[ci]?.Endpoints[side])}</td>)}
                 <td className={cn(TABLE_CELL, "px-1 py-1")}><RowActions actions={[
                   { key: "show", label: t("admin.exTopo.overview.showOnDiagram"), icon: <LocateFixed aria-hidden="true" className="h-4 w-4" />, disabled: !canShow(ci), onSelect: () => onShow(ci) },
-                  ...(readOnly ? [] : [{ key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 aria-hidden="true" className="h-4 w-4" />, danger: true, onSelect: () => setPendingRemoval(ci) }]),
+                  ...(readOnly || cable ? [] : [{ key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 aria-hidden="true" className="h-4 w-4" />, danger: true, onSelect: () => setPendingRemoval(ci) }]),
                 ]} /></td>
               </tr>
+              {cable && <tr data-testid={`connection-console-${ci}`}><td colSpan={4} className="border-b border-border/50 px-3 pb-2 pl-14 text-xs text-muted-foreground">{t("ed.c.console.readOnly")}</td></tr>}
               {open && <tr><td colSpan={4} className="border-b border-border/50 p-0"><div data-testid={`connection-editor-${ci}`} className="grid gap-3 bg-muted/20 p-3 pl-14 sm:grid-cols-2">
                 {([0, 1] as const).map((side) => <EndpointSelect key={side} path={`${name}.${ci}.Endpoints.${side}`} side={side} disabled={readOnly} options={options(ci, side)} />)}
               </div></td></tr>}
