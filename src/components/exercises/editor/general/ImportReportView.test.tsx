@@ -71,4 +71,11 @@ describe("ImportReportView", () => {
     expect(warningText({ Code: "running_labs", Context: { labs: 1 } })).toBe('ed.a.import.warn.runningLabs.one{"count":1}')
     expect(warningText({ Code: "removed_task_has_attempts", Context: { event: "E", task: "T", attempts: 5, solves: 1 } })).toBe('ed.a.import.warn.removedHasAttempts{"event":"E","task":"T","attempts":5,"solves":1}')
   })
+
+  // The backend puts attachments_in_some_variants into Report.Warnings with Task/WithFiles/WithoutFiles (no Context).
+  it("words a report's attachments_in_some_variants warning from its own fields, not as a bare code", () => {
+    expect(warningText({ Code: "attachments_in_some_variants", Task: "file", WithFiles: [1], WithoutFiles: [2, 3] }))
+      .toBe('ed.a.import.warn.attachmentsInSomeVariants.few{"task":"file","variants":"2, 3"}')
+    expect(warningText({ Code: "attachments_in_some_variants" })).toBe('ed.a.import.warn.attachmentsInSomeVariants.many{"task":"","variants":""}')
+  })
 })

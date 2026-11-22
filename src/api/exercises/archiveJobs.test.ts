@@ -88,6 +88,13 @@ describe("archive jobs", () => {
     expect(exerciseErrorMessage(error)).toBe("Не вдалося виконати операцію")
   })
 
+  it("reads the warnings of a finished import (none when the answer has no field)", async () => {
+    const warning = { Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [1], WithoutFiles: [2] }
+    mockGet.mockResolvedValueOnce({ State: "done", Stage: "done", Exercises: [], Warnings: [warning] }).mockResolvedValueOnce({ State: "done", Stage: "done", Exercises: [] })
+    expect((await getImportJob("j2")).warnings).toEqual([warning])
+    expect((await getImportJob("j2")).warnings).toEqual([])
+  })
+
   it("reads a running import with its stage, counts and bytes", async () => {
     mockGet.mockResolvedValueOnce({ State: "running", Stage: "images", ImagesDone: 3, ImagesTotal: 7, TasksDone: 0, TasksTotal: 12, BytesPushed: 300, BytesTotal: 700 })
     expect(await getImportJob("j2")).toEqual({

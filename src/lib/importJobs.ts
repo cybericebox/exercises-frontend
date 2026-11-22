@@ -15,6 +15,7 @@ import { ApiError } from "@/api/client"
 import { getImportJob, isPassing, listRunningImports, JOB_POLL_MS, type ImportJobStatus } from "@/api/exercises/archiveJobs"
 import { toast } from "@/components/ui/toast"
 import { t } from "@/i18n/t"
+import { publishWarningText } from "@/lib/publishWarningText"
 import type { Exercise } from "@/api/exercises/catalog"
 
 export const IMPORT_JOBS_KEY = "exercises.importJobs"
@@ -160,6 +161,8 @@ async function poll(jobID: string) {
     persist()
     if (status.state === "done") {
       toast.success(t("admin.exImport.done", { count: status.exercises.length }))
+      // A dialog that shows this job lists its warnings in the result; otherwise each is a warning toast.
+      if (!watched.has(jobID)) for (const warning of status.warnings ?? []) toast.warning(publishWarningText(warning))
       doneHandlers.forEach((handler) => handler(status.exercises))
       if (!watched.has(jobID) && !retained.has(jobID)) return forget(jobID)
     } else if (live) {

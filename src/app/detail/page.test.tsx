@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RESOURCES_CONFIG } from '@/test/resourcesConfig'
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import type { Exercise } from "@/api/exercises/catalog"
-import type { Version, VersionListItem } from "@/api/exercises/versions"
+import type { PublishedVersion, Version, VersionListItem } from "@/api/exercises/versions"
 
 const h = vi.hoisted(() => ({ perms: new Set<string>(), search: "id=ex-1", push: vi.fn() }))
 
@@ -169,11 +169,21 @@ async function startButton() {
 
 describe("exercise page — publishing and history", () => {
   it("publishes a valid working copy", async () => {
-    vi.mocked(publishDraft).mockResolvedValue({ ...workingCopy, Status: "published" })
+    vi.mocked(publishDraft).mockResolvedValue({ ...workingCopy, Status: "published", Warnings: [] })
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.published"))
+    expect(toast.warning).not.toHaveBeenCalled()
+  })
+
+  it("publishes and warns (not an error) about a subtask with files in only some variants", async () => {
+    vi.mocked(publishDraft).mockResolvedValue({ ...workingCopy, Status: "published", Warnings: [{ Code: "attachments_in_some_variants", Task: "Find the flag", WithFiles: [1], WithoutFiles: [2] }] })
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.publish" }))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("admin.exPage.toast.published"))
+    expect(toast.warning).toHaveBeenCalledWith("ed.a.import.warn.attachmentsInSomeVariants.one")
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it("shows a mapped error and leaves Publish usable when publish fails", async () => {
@@ -312,7 +322,7 @@ describe("exercise page — publishing and history", () => {
   })
 
   it("locks the form while a publish is in flight", async () => {
-    let resolvePublish: (value: Version) => void = () => undefined
+    let resolvePublish: (value: PublishedVersion) => void = () => undefined
     vi.mocked(publishDraft).mockReturnValue(new Promise((resolve) => { resolvePublish = resolve }))
     render(<Page />)
     fireEvent.click(await screen.findByRole("button", { name: "admin.exPage.action.edit" }))
@@ -320,7 +330,7 @@ describe("exercise page — publishing and history", () => {
     fireEvent.click(screen.getByRole("button", { name: "admin.exPage.action.publish" }))
     await waitFor(() => expect(publishDraft).toHaveBeenCalledWith("ex-1"))
     expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeDisabled()
-    resolvePublish({ ...workingCopy, Status: "published" })
+    resolvePublish({ ...workingCopy, Status: "published", Warnings: [] })
     await waitFor(() => expect(screen.getByLabelText(/ed.a.general.name.label/)).toBeEnabled())
   })
 

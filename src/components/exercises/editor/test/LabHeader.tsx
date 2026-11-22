@@ -92,7 +92,7 @@ export function LabHeader(props: LabHeaderProps) {
       </div>
       <div role="progressbar" aria-label={t("ed.d.header.progress", { done: progress.done, total: progress.total })} aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done}
         className="ml-3 hidden shrink-0 items-center gap-2 text-sm text-muted-foreground xl:flex">
-        <span aria-hidden="true" className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary"><span className="block h-full rounded-full bg-primary" style={{ width: `${percent}%` }} /></span>
+        <span aria-hidden="true" className="h-1.5 w-24 overflow-hidden rounded-full bg-border"><span className="block h-full rounded-full bg-primary" style={{ width: `${percent}%` }} /></span>
         <span aria-hidden="true">{t("ed.d.header.progress", { done: progress.done, total: progress.total })}</span>
       </div>
     </div>

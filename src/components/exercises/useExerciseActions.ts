@@ -16,6 +16,8 @@ import { exerciseHref } from "@/lib/exerciseRoutes"
 import { richTextHasContent } from "@/lib/hintText"
 import { draftSchema, identitySchema } from "@/lib/exerciseSchemas"
 import { draftIssues, type EditorIssue } from "@/lib/editor/issues"
+import { publishWarningText } from "@/lib/publishWarningText"
+import type { PublishWarning } from "@/api/exercises/publishWarnings"
 import type { ExerciseEditor } from "./useExerciseEditor"
 
 export type DeployTarget = {
@@ -128,8 +130,9 @@ export function useExerciseActions({
         toast.error(t("admin.exPage.toast.invalid"))
         return false
       }
+      let warnings: PublishWarning[]
       try {
-        await publishDraft(exerciseId)
+        warnings = (await publishDraft(exerciseId)).Warnings ?? []
       } catch (cause) {
         if (showDeviceImageError(cause)) return false
         // A document error that names its field (23105, 23506, 23519 …) goes beside that field and into the problems list.
@@ -142,6 +145,8 @@ export function useExerciseActions({
       }
       await editor.reloadWorkingCopy()
       toast.success(t("admin.exPage.toast.published"))
+      // Published all the same: each warning is a note for the author, not an error.
+      for (const warning of warnings) toast.warning(publishWarningText(warning))
     }, true, false, "publish")
   }
 

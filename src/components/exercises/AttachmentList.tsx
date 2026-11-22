@@ -177,7 +177,7 @@ export const AttachmentList = forwardRef<AttachmentListHandle, {
       {!disabled && (uploading
         ? <div className="subtask-drop" aria-live="polite">
           <span className="inline-flex items-center gap-2"><Spinner size="sm" />{t("admin.exFiles.uploadingProgress", { percent: progress ?? 0 })}</span>
-          <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0} className="h-1.5 w-40 overflow-hidden rounded-sm bg-secondary"><div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${progress ?? 0}%` }} /></div>
+          <div role="progressbar" aria-label={t("admin.exFiles.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0} className="h-1.5 w-40 overflow-hidden rounded-sm bg-border"><div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${progress ?? 0}%` }} /></div>
         </div>
         : <button type="button" className="subtask-drop" aria-label={t("admin.exFiles.upload")} onClick={pick}>
           <Upload aria-hidden="true" className="h-4 w-4" />

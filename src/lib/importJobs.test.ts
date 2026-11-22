@@ -106,6 +106,15 @@ describe("background import jobs", () => {
     expect(mockGet).toHaveBeenCalledTimes(1)
   })
 
+  it("on completion with warnings: a warning toast for each, beside the success toast", async () => {
+    mockGet.mockResolvedValue(status({ state: "done", stage: "done", exercises: [task("a")], warnings: [{ Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [1], WithoutFiles: [2] }] }))
+    renderHook(() => useImportJobs())
+    act(() => trackImportJob("j1"))
+    await act(() => vi.advanceTimersByTimeAsync(POLL))
+    expect(toast.success).toHaveBeenCalledWith('admin.exImport.done {"count":1}')
+    expect(toast.warning).toHaveBeenCalledWith('ed.a.import.warn.attachmentsInSomeVariants.one {"task":"Scan","variants":"2"}')
+  })
+
   it("keeps a done job for the dialog that shows it until that dialog dismisses it", async () => {
     mockGet.mockResolvedValue(status({ state: "done", stage: "done", exercises: [task("a")] }))
     const { result } = renderHook(() => useImportJob("j1"))

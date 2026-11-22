@@ -8,6 +8,7 @@ const here = import.meta.dirname
 const sources = [
   ...fs.readdirSync(here).filter((name) => /\.tsx?$/.test(name) && !/\.test\./.test(name)).map((name) => path.join(here, name)),
   path.join(here, "../../ExerciseGeneralFields.tsx"), path.join(here, "../../ExportDialog.tsx"), path.join(here, "../../ImportDialog.tsx"),
+  path.join(here, "../../../../lib/publishWarningText.ts"),
 ]
 
 describe("package A messages", () => {

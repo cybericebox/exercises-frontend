@@ -30,7 +30,8 @@ import { importStagePercent, importStageText } from "@/lib/importStage"
 import type { OwnerOption } from "@/lib/exerciseRights"
 import { useRole } from "@/lib/useRole"
 import { ImportTargetPicker, importTargetContext } from "./ImportTargetPicker"
-import { ImportReportView, ReportVerdict } from "./editor/general/ImportReportView"
+import { ImportReportView, PublishWarningList, ReportVerdict } from "./editor/general/ImportReportView"
+import { readPublishWarnings } from "@/api/exercises/publishWarnings"
 import { pluralKey } from "@/lib/presetLabels"
 import { IMPORT_CONFIRMATION_STALE, importFieldFailure, isUnknownImportOutcome, useArchiveImport } from "./useArchiveImport"
 import "@/styles/exercise-import.css"
@@ -79,7 +80,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { if (activeJob) trackImportJob(activeJob, 0) }, [activeJob])
   // Restored jobs expose destinations without attaching navigation intent.
-  const result = resultState ?? (job?.state === "done" ? { kind: "done" as const, exercises: job.exercises, results: job.results, created: job.created, updated: job.updated, unchanged: job.unchanged } : null)
+  const result = resultState ?? (job?.state === "done" ? { kind: "done" as const, exercises: job.exercises, results: job.results, created: job.created, updated: job.updated, unchanged: job.unchanged, warnings: job.warnings } : null)
   const busy = flow.busy || dispatching
   const running = job?.state === "running" || dispatching
   const uncertain = !resultState && (recovery?.state === "unknown" || Boolean(recovery && activeJob && !job))
@@ -117,7 +118,9 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
       return
     }
     const destinations = done.results?.map(item => item.ExerciseID) ?? done.exercises.map(item => item.ID)
-    if (autoNavigate && destinations.length === 1) {
+    // Warnings are read in the result: an import that has some stays there instead of opening the task.
+    const warned = (done.warnings?.length ?? 0) > 0 || (done.results ?? []).some(item => readPublishWarnings(item.Warnings).length > 0)
+    if (autoNavigate && destinations.length === 1 && !warned) {
       if (actorID) clearImportReplacement(actorID, "__catalog__")
       onClose(); router.push(exerciseHref(destinations[0])); return
     }
@@ -141,7 +144,7 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
         record(input, answer.jobID); setActiveJob(answer.jobID)
         initiateImportJob(answer.jobID, terminal => {
           if (actorID) settleImportPlan(actorID, input, terminal.state === "done")
-          if (terminal.state === "done") void complete({ kind: "done", exercises: terminal.exercises, results: terminal.results, created: terminal.created, updated: terminal.updated, unchanged: terminal.unchanged }, input, autoNavigate)
+          if (terminal.state === "done") void complete({ kind: "done", exercises: terminal.exercises, results: terminal.results, created: terminal.created, updated: terminal.updated, unchanged: terminal.unchanged, warnings: terminal.warnings }, input, autoNavigate)
           else if (mounted.current) { flow.releaseEditors(); cancelReplacement?.() }
         }, input.Targets.length > 1)
       } else await complete(answer, input, autoNavigate)
@@ -253,7 +256,9 @@ function ArchiveImportDialog({ onClose, isOriginActive, onImported, jobId, targe
           <section className="exercise-import-content" data-testid="import-content">
           {reconcileError ? <div className="exercise-import-state"><p role="alert">{reconcileError}</p><Button type="button" onClick={() => { setDispatching(true); void onReconcile?.().then(onClose).catch(() => setReconcileError(t("admin.exImport.update.reconcileError"))).finally(() => setDispatching(false)) }} busy={dispatching} busyLabel={t("admin.exImport.update.reconciling")}>{t("error.load.retry")}</Button></div>
           : result ? <div className="exercise-import-results"><h2>{t("admin.exImport.resultTitle")}</h2><p className="text-sm text-muted-foreground">{result.created !== undefined && result.updated !== undefined ? result.unchanged ? t("admin.exImport.update.doneCountsUnchanged", { created: result.created, updated: result.updated, unchanged: result.unchanged }) : t("admin.exImport.update.doneCounts", { created: result.created, updated: result.updated }) : t("admin.exImport.done", { count: result.exercises.length })}</p>
-            {(result.results ?? result.exercises.map(exercise => ({ ItemKey: exercise.ID, ExerciseID: exercise.ID, Mode: "new" as const }))).map(destination => <div key={destination.ItemKey}><div className="exercise-import-result"><strong>{result.exercises.find(exercise => exercise.ID === destination.ExerciseID)?.Name ?? destination.ExerciseID}</strong><span>{t(destination.Mode === "update" ? "admin.exImport.update.updated" : destination.Mode === "unchanged" ? "admin.exImport.update.unchangedResult" : "admin.exImport.update.created")}</span><Link href={exerciseHref(destination.ExerciseID)} onClick={onClose}>{t("admin.exImport.update.open")}</Link></div>{"Report" in destination && destination.Report && <details className="exercise-import-result-report"><summary>{t("ed.a.import.reportOpen")}</summary><ImportReportView report={destination.Report} /></details>}</div>)}</div>
+            {/* The answer repeats each warning under its result (Results[].Warnings); the top-level list is only for an answer without them. */}
+            {result.warnings && !(result.results ?? []).some(item => "Warnings" in item) && <PublishWarningList warnings={result.warnings} />}
+            {(result.results ?? result.exercises.map(exercise => ({ ItemKey: exercise.ID, ExerciseID: exercise.ID, Mode: "new" as const }))).map(destination => <div key={destination.ItemKey}><div className="exercise-import-result"><strong>{result.exercises.find(exercise => exercise.ID === destination.ExerciseID)?.Name ?? destination.ExerciseID}</strong><span>{t(destination.Mode === "update" ? "admin.exImport.update.updated" : destination.Mode === "unchanged" ? "admin.exImport.update.unchangedResult" : "admin.exImport.update.created")}</span><Link href={exerciseHref(destination.ExerciseID)} onClick={onClose}>{t("admin.exImport.update.open")}</Link></div>{"Warnings" in destination && <PublishWarningList warnings={readPublishWarnings(destination.Warnings)} />}{"Report" in destination && destination.Report && <details className="exercise-import-result-report"><summary>{t("ed.a.import.reportOpen")}</summary><ImportReportView report={destination.Report} /></details>}</div>)}</div>
           : running || flow.busy ? <div className="exercise-import-state"><LoadingArea message={job ? importStageText(job) : busyLabel} />{progressBar(job ? importStageText(job) : busyLabel)}<p>{t(running ? "admin.exImport.update.runningHelp" : "admin.exImport.update.checkHelp")}</p></div>
           : uncertain ? <LoadError className="exercise-import-empty" message={flow.error ?? t("admin.exImport.update.unknown")} help={t("admin.exImport.update.unknownHelp")}
             actions={<Button type="button" variant="outline" onClick={() => void recover()}>{t("admin.exImport.update.recover")}</Button>} />

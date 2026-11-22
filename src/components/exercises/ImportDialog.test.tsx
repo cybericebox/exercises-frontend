@@ -158,6 +158,34 @@ it("batch completion presents exact mixed result destinations and counts without
  expect(within(document.querySelector("footer")!).getByRole("button", { name: "admin.exImport.close" })).toBeInTheDocument()
 })
 
+it("shows the warnings of a finished import in its result, as warnings, instead of opening the task", async () => {
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target" }], created: 0, updated: 1, warnings: [{ Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [1], WithoutFiles: [2, 3] }] })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ const list = await screen.findByRole("list", { name: "ed.a.import.warnings" })
+ expect(list).toHaveTextContent('ed.a.import.warn.attachmentsInSomeVariants.few {"task":"Scan","variants":"2, 3"}')
+ expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+ expect(push).not.toHaveBeenCalled()
+ expect(screen.getByRole("link", { name: "admin.exImport.update.open" })).toHaveAttribute("href", "/detail?id=target")
+})
+it("shows each warning once when the answer has it both at the top level and under its result", async () => {
+ const warning = { Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [2], WithoutFiles: [1] }
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target", Warnings: [warning] }], created: 0, updated: 1, warnings: [warning] })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await screen.findByRole("list", { name: "ed.a.import.warnings" })
+ expect(screen.getAllByRole("list", { name: "ed.a.import.warnings" })).toHaveLength(1)
+})
+it("lists the warnings of one result under that result", async () => {
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target", Warnings: [{ Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [2], WithoutFiles: [1] }] }], created: 0, updated: 1, warnings: [] })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ expect(await screen.findByRole("list", { name: "ed.a.import.warnings" })).toHaveTextContent('ed.a.import.warn.attachmentsInSomeVariants.one {"task":"Scan","variants":"1"}')
+ expect(push).not.toHaveBeenCalled()
+})
 it.each([20978,20979,20980,20981,20982,20983,20984,20985,20986,20987,20988,20989,20990,20991,22829])("keeps canonical archive-content failure %i beside the archive", async code => {
  vi.mocked(previewArchiveImport).mockRejectedValueOnce(new ApiError(400, { Status: { Code: code, Context: { file: "web/a.png" } } }, undefined, undefined, code))
  render(<ImportDialog onClose={vi.fn()} />); pick()

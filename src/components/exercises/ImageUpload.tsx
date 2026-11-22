@@ -137,7 +137,7 @@ export function DeviceImageField({ variantIndex, deviceIndex, disabled, compact 
       {!pushing && <span className="font-mono text-xs tabular-nums text-muted-foreground">{t("exercises.image.percent", { percent: progress.percent })}</span>}
       <IconButton label={t("exercises.image.cancelUpload")} onClick={() => store.cancel(deviceId)}><X aria-hidden="true" className="h-4 w-4" /></IconButton>
       {!pushing && <div role="progressbar" aria-label={t("exercises.image.uploading")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}
-        className="h-1 basis-full overflow-hidden rounded-full bg-secondary">
+        className="h-1 basis-full overflow-hidden rounded-full bg-border">
         <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${progress.percent}%` }} />
       </div>}
     </div>
