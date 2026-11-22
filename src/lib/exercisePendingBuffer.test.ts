@@ -507,6 +507,33 @@ describe("exercise pending buffer: sealed secret values", () => {
     expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
   })
 
+  it.each([
+    ["another exercise's entry", pendingBufferKey("u1", "e2")],
+    ["another user's new-task entry", pendingBufferKey("u2", null)],
+  ])("drops a sealed part copied from %s, whatever sealedFrom says", async (_label, foreign) => {
+    await withKey()
+    writePendingChanges(foreign, identity, secretDraft())
+    await flushPendingSealing()
+    const copied = JSON.parse(storage.get(foreign)!).sealed
+    const form = secretDraft()
+    form.Variants[0].Tasks[0].Check.Answer.Values = []
+    form.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
+    writePendingChanges(E1, identity, form)
+    await flushPendingSealing()
+    storage.set(E1, JSON.stringify({ ...JSON.parse(storage.get(E1)!), sealed: copied, sealedFrom: foreign }))
+    resetPendingBufferForTests()
+    await withKey()
+    const { opened, merged } = await restore(E1, serverDraft())
+    expect(opened).toEqual({ status: "none" })
+    expect(values(merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "server-mode"] })
+    // A write never reseals it as this entry's own.
+    markPendingBaseline(E1, merged)
+    writePendingChanges(E1, identity, merged)
+    await flushPendingSealing()
+    expect(storage.get(E1)).not.toContain(copied.data)
+    expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "server-mode"] })
+  })
+
   it("moves the new-task entry and seals it for the exercise once the key arrives in the same tab", async () => {
     await withKey()
     const NEW = pendingBufferKey("u1", null)

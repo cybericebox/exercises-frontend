@@ -235,6 +235,23 @@ function isSealed(value: unknown): value is SealedSecrets {
   return isRecord(value) && typeof value.keyId === "string" && typeof value.iv === "string" && typeof value.data === "string"
 }
 
+/**
+ * The `sealedFrom` of an entry: undefined when it has none, the key when it is the new-task entry of the same user as the
+ * entry (the only place a sealed part moves from), null for anything else (copied from another exercise or user).
+ */
+const PENDING_PREFIX = exercisePendingKey("", "").slice(0, -1)
+
+function sealedFromOf(entryKey: string, entry: Record<string, unknown> | null): string | undefined | null {
+  const from = entry?.sealedFrom
+  if (from === undefined) return undefined
+  if (typeof from !== "string" || !from.endsWith("_new")) return null
+  // Keys are cib_exercise_pending_<user>_<exercise>: the same user, and one more part (an exercise id) after it.
+  const userPrefix = from.slice(0, -"new".length)
+  const rest = entryKey.startsWith(userPrefix) ? entryKey.slice(userPrefix.length) : ""
+  const user = from.slice(PENDING_PREFIX.length, -"_new".length)
+  return from.startsWith(PENDING_PREFIX) && user !== "" && from === exercisePendingKey(user, "new") && rest !== "" && !rest.includes("_") ? from : null
+}
+
 function staleOf(entry: Record<string, unknown> | null): string[] {
   return Array.isArray(entry?.stale) ? entry.stale.filter((slot): slot is string => typeof slot === "string") : []
 }
@@ -289,9 +306,11 @@ export function writePendingChanges(key: string, identity: IdentityFormValues, d
   waiting.delete(key)
 
   const previous = readStoredEntry(source)
-  const previousSealed = isSealed(previous?.sealed) ? previous.sealed : undefined
-  // The additional data the previous sealed part was made with: its own entry's key, or the one it moved from.
-  const sealedAad = typeof previous?.sealedFrom === "string" ? previous.sealedFrom : source
+  // The additional data the previous sealed part was made with: its own entry's key, or this user's new-task entry it moved
+  // from. Any other `sealedFrom` (a part copied from another exercise or user) drops the sealed part.
+  const from = sealedFromOf(source, previous)
+  const previousSealed = from !== null && isSealed(previous?.sealed) ? previous.sealed : undefined
+  const sealedAad = from ?? source
   const current = collectPendingSecrets(draft)
   const known = previousSealed !== undefined && knownSealed.get(source) === previousSealed.data
   const edited = new Set(staleOf(previous))
@@ -494,7 +513,10 @@ export function readPendingChanges(key: string): PendingChanges | null {
     }
     const sealed = value.version === 3 && isSealed(value.sealed) ? value.sealed : undefined
     const stale = sealed ? staleOf(value) : []
-    const sealedFrom = sealed && typeof value.sealedFrom === "string" ? value.sealedFrom : undefined
+    const from = sealedFromOf(key, value)
+    // A sealed part that claims to come from anywhere but this user's new-task entry is not read at all.
+    if (from === null) return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt }
+    const sealedFrom = sealed && from ? from : undefined
     return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt, ...(sealed ? { sealed } : {}), ...(stale.length ? { stale } : {}), ...(sealedFrom ? { sealedFrom } : {}) }
   } catch {
     return null
