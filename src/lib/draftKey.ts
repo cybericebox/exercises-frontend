@@ -4,6 +4,12 @@
  * non-extractable CryptoKey and kept in this tab's memory only, never in IndexedDB or localStorage. Every tab fetches it
  * itself when the editor opens. A failed fetch (the backend is unreachable) is retried with a growing pause; an answer that
  * says no (4xx, e.g. signed out) stops the retries until the next start.
+ *
+ * The backend creates a key for a browser that has no draft-key cookie yet; two tabs asking at once would each create one
+ * (the last cookie wins, a draft sealed with the other key is lost). So the request is serialized across the tabs of the
+ * browser with the Web Locks API: the second tab asks after the first one's cookie is set and gets the same key. Within a
+ * tab every caller shares one request in flight (StrictMode runs effects twice). Without navigator.locks only the in-tab
+ * sharing applies.
  */
 import { useSyncExternalStore } from "react"
 import { ApiError } from "@/api/client"
@@ -16,6 +22,8 @@ export type DraftKeyState = "idle" | "loading" | "ready" | "waiting" | "refused"
 const FIRST_RETRY_MS = 1000
 const MAX_RETRY_MS = 30_000
 const KEY_BYTES = 32
+/** The Web Lock that serializes the key request across the tabs of the browser. */
+export const DRAFT_KEY_LOCK = "cib-draft-key"
 
 let state: DraftKeyState = "idle"
 let current: DraftKey | null = null
@@ -42,6 +50,13 @@ function isRefusal(error: unknown): boolean {
   return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429
 }
 
+/** The key request, one tab of the browser at a time. */
+function requestKey(): Promise<{ ID: string; Key: string }> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined
+  if (!locks?.request) return fetchDraftKey()
+  return locks.request(DRAFT_KEY_LOCK, () => fetchDraftKey())
+}
+
 function scheduleRetry(): void {
   if (retryTimer !== null) return
   const delay = Math.min(MAX_RETRY_MS, FIRST_RETRY_MS * 2 ** Math.max(0, failures - 1))
@@ -54,7 +69,7 @@ function attempt(): Promise<DraftKey | null> {
   if (state !== "waiting") setState("loading")
   inflight = (async () => {
     try {
-      const answer = await fetchDraftKey()
+      const answer = await requestKey()
       const bytes = decodeKey(answer.Key)
       if (!answer.ID || bytes.length !== KEY_BYTES) throw new Error("malformed draft key")
       const key = await crypto.subtle.importKey("raw", bytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"])
