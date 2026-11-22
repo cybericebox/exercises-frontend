@@ -55,8 +55,9 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
   }
   function commitRename() {
     const from = editStart.current
-    editStart.current = null
-    if (from !== null) renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, from, getValues(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name`) ?? "")
+    if (from === null) return
+    // An empty or taken name leaves the rename pending: the next commit still starts from the original name.
+    if (renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, from, getValues(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name`) ?? "")) editStart.current = null
   }
   const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
   const icon = topologyIconFor({ ID: deviceId, Type: "node" }, visual ?? null)

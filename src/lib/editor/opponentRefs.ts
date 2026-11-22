@@ -41,14 +41,17 @@ export function renameDeviceInOpponents(opponents: OpponentDTO[], from: string, 
  * A device of the variant was renamed from `from` to `to` (once, when the rename is committed): the opponents follow it.
  * Nothing changes when the new name is empty or another device carries the old or the new name (the references would then be
  * lost or point at another device; the field shows its own error).
+ * Returns false while the rename cannot be applied yet (the new name is empty or another device's): the caller keeps the name
+ * the editing started from and tries again with the next commit. True once it is settled (applied, or nothing to do).
  */
-export function renameDeviceOpponentsInForm(form: Pick<UseFormReturn<DraftFormValues>, "getValues" | "setValue">, variantIndex: number, deviceId: string, from: string, to: string): void {
-  const opponents = form.getValues(`Variants.${variantIndex}.Opponents`)
-  if (!opponents?.length) return
+export function renameDeviceOpponentsInForm(form: Pick<UseFormReturn<DraftFormValues>, "getValues" | "setValue">, variantIndex: number, deviceId: string, from: string, to: string): boolean {
   const devices = form.getValues(`Variants.${variantIndex}.Topology.Devices`) ?? []
-  if (to === "" || devices.some((device) => device.ID !== deviceId && (device.Name === from || device.Name === to))) return
+  if (to === "" || devices.some((device) => device.ID !== deviceId && device.Name === to)) return false
+  const opponents = form.getValues(`Variants.${variantIndex}.Opponents`)
+  if (!opponents?.length || devices.some((device) => device.ID !== deviceId && device.Name === from)) return true
   const next = renameDeviceInOpponents(opponents, from, to)
   if (next !== opponents) form.setValue(`Variants.${variantIndex}.Opponents`, next, { shouldDirty: true, shouldValidate: true })
+  return true
 }
 
 /** How many opponents of the variant name the device `name`. */

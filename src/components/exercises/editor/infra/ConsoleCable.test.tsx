@@ -120,6 +120,30 @@ describe("console cables and opponents in the infrastructure editor", () => {
     expect(variant().Opponents?.[0]).toMatchObject({ Seat: "pc", Operates: ["router"] })
   })
 
+  it("after leaving the field empty, a later edit still renames from the original name", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0].Seat).toBe("pc")
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: "desk" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0].Seat).toBe("desk")
+  })
+
+  it("after leaving the field on a taken name, fixing it renames from the original name", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "router" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0]).toMatchObject({ Seat: "pc", Operates: ["router"] })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: "router2" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0]).toMatchObject({ Seat: "router2", Operates: ["router"] })
+  })
+
   it("closing the dialog while typing commits the rename", () => {
     renderWorkspace()
     const input = nameInput("p")
