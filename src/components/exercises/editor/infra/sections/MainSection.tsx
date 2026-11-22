@@ -1,6 +1,7 @@
 "use client"
 
 import { profileKeepsState } from "@/lib/editor/schemas/infra"
+import { useEffect, useRef } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import { t } from "@/i18n/t"
 import { FieldLabel } from "@/components/ui/field-label"
@@ -41,8 +42,22 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
   const config = useResourcesConfig()
   const loading = useResourcesConfigLoading()
   const deviceId = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.ID` })
-  // The name as last rendered, i.e. before the keystroke being handled: the opponents that named it follow the new one.
-  const name = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name` })
+  // The opponents follow a rename once, when it is committed (blur, or the dialog closing), from the name the device had when the
+  // editing started: never per keystroke, where an empty or another device's name on the way would lose or move the references.
+  const editStart = useRef<string | null>(null)
+  useEffect(() => () => {
+    const from = editStart.current
+    editStart.current = null
+    if (from !== null) renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, from, getValues(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name`) ?? "")
+  }, [getValues, setValue, variantIndex, deviceIndex, deviceId])
+  function startRename() {
+    if (editStart.current === null) editStart.current = getValues(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name`) ?? ""
+  }
+  function commitRename() {
+    const from = editStart.current
+    editStart.current = null
+    if (from !== null) renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, from, getValues(`Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name`) ?? "")
+  }
   const visual = useWatch({ control, name: `Variants.${variantIndex}.Topology.VisualRender` })
   const icon = topologyIconFor({ ID: deviceId, Type: "node" }, visual ?? null)
   /** The pictogram of the device on the schema is the editor's own (VisualRender.icons), not a field of the device. */
@@ -72,9 +87,10 @@ export function MainSection({ variantIndex, deviceIndex, disabled, linkedBaseInd
   }))
 
   return <FieldGrid>
-    <InputField name={`${dp}.Name`} label={t("ed.c.main.name")} required disabled={disabled} maxLength={MAX_DEVICE_NAME_LEN}
-      onValue={(next) => renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, deviceId, name ?? "", next)}
-      help={{ intro: [t("ed.c.h.name1"), t("ed.c.h.name2")] }} />
+    <div className="contents" onFocus={startRename} onBlur={commitRename}>
+      <InputField name={`${dp}.Name`} label={t("ed.c.main.name")} required disabled={disabled} maxLength={MAX_DEVICE_NAME_LEN}
+        help={{ intro: [t("ed.c.h.name1"), t("ed.c.h.name2")] }} />
+    </div>
     <SelectField name={`${dp}.Profile`} label={t("ed.c.main.profile")} disabled={disabled} options={profileOptions} menuClassName="w-[26rem] max-w-[90vw]"
       onValue={(value) => { if (!profileKeepsState(value)) setValue(`${dp}.Persistence` as never, { Enabled: false, Debounce: "" } as never, { shouldDirty: true }) }}
       help={{ intro: t("ed.c.h.profile"), items: PROFILES.map((value) => ({ term: t(`ed.c.profile.${value}`), text: t(`ed.c.h.profile${value === "microvm" ? "Microvm" : value === "vm" ? "Vm" : "Container"}`) })) }} />

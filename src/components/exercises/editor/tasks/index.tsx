@@ -43,8 +43,9 @@ export function TasksView() {
   }
   const removingTask = removing === null ? null : rows[removing]
   const dependents = removing === null ? [] : dependentsOf(removing)
-  // A task is removed from every variant: count the opponents of all of them that name it.
-  const opponents = removingTask?.Key ? getValues("Variants").reduce((sum, variant) => sum + opponentsNamingTask(variant, removingTask.Key), 0) : 0
+  // A task is removed from every variant: count the opponents of all of them that name it. A linked variant holds a copy of its
+  // base's opponents, so it is skipped (each opponent counts once).
+  const opponents = removingTask?.Key ? getValues("Variants").filter((variant) => !variant.LinkedTo).reduce((sum, variant) => sum + opponentsNamingTask(variant, removingTask.Key), 0) : 0
   return <section className="subtasks">
     <TaskRail rows={rows} selected={active} onSelect={setSelected} editable={editable} phone={phone}
       onAdd={() => setSelected(add())} onMove={(from, to) => { moveTo(from, to); setSelected(to) }} onRemove={setRemoving} />

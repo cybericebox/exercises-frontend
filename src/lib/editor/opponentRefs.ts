@@ -38,14 +38,15 @@ export function renameDeviceInOpponents(opponents: OpponentDTO[], from: string, 
 }
 
 /**
- * A device of the variant was renamed from `from` to `to`: the opponents follow it. Nothing changes when another device
- * still carries the old name (the references are then ambiguous and stay as they are).
+ * A device of the variant was renamed from `from` to `to` (once, when the rename is committed): the opponents follow it.
+ * Nothing changes when the new name is empty or another device carries the old or the new name (the references would then be
+ * lost or point at another device; the field shows its own error).
  */
 export function renameDeviceOpponentsInForm(form: Pick<UseFormReturn<DraftFormValues>, "getValues" | "setValue">, variantIndex: number, deviceId: string, from: string, to: string): void {
   const opponents = form.getValues(`Variants.${variantIndex}.Opponents`)
   if (!opponents?.length) return
   const devices = form.getValues(`Variants.${variantIndex}.Topology.Devices`) ?? []
-  if (devices.some((device) => device.ID !== deviceId && device.Name === from)) return
+  if (to === "" || devices.some((device) => device.ID !== deviceId && (device.Name === from || device.Name === to))) return
   const next = renameDeviceInOpponents(opponents, from, to)
   if (next !== opponents) form.setValue(`Variants.${variantIndex}.Opponents`, next, { shouldDirty: true, shouldValidate: true })
 }

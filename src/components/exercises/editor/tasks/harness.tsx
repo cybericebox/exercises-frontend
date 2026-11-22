@@ -34,7 +34,7 @@ export function node(id: string, name: string, bootstrap: Partial<DeviceFormValu
 }
 
 export type HarnessOptions = {
-  variants?: { tasks: TaskFormValues[]; devices?: DeviceFormValues[]; id?: string; linkedTo?: string; variables?: { Name: string; Kind: "value" | "template"; Text: string }[] }[]
+  variants?: { tasks: TaskFormValues[]; devices?: DeviceFormValues[]; id?: string; linkedTo?: string; variables?: { Name: string; Kind: "value" | "template"; Text: string }[]; opponents?: DraftFormValues["Variants"][number]["Opponents"] }[]
   disabled?: boolean
   variantIndex?: number
   /** Skip the zod resolver (a test that only looks at values). */
@@ -51,6 +51,7 @@ export function draftOf(options: HarnessOptions): DraftFormValues {
     variant.LinkedTo = spec.linkedTo ?? ""
     variant.Tasks = spec.tasks
     variant.Topology = { ...variant.Topology, Devices: spec.devices ?? [], Variables: spec.variables ?? [] }
+    if (spec.opponents) variant.Opponents = spec.opponents
     return variant
   })
   return draft

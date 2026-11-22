@@ -56,6 +56,14 @@ describe("opponent references", () => {
     expect(value.Variants[0].Opponents?.[0].Seat).toBe("pc")
   })
 
+  it("never renames to an empty name or to the name of another device", () => {
+    const value = draft()
+    renameDeviceOpponentsInForm(fakeForm(value), 0, "p", "pc", "")
+    expect(value.Variants[0].Opponents?.[0].Seat).toBe("pc")
+    renameDeviceOpponentsInForm(fakeForm(value), 0, "p", "pc", "router")
+    expect(value.Variants[0].Opponents?.[0]).toMatchObject({ Seat: "pc", Operates: ["router", "web"] })
+  })
+
   it("a gateway rename carries the opponents too", () => {
     const value = draft()
     value.Variants[0].Topology.Devices.push({ ...emptyGateway("vpn_gateway", "vpn-1"), ID: "g" })

@@ -67,15 +67,66 @@ describe("console cables and opponents in the infrastructure editor", () => {
     expect(variant().Topology.Connections).toHaveLength(2)
   })
 
-  it("renaming a device in its dialog carries the new name into the opponents", () => {
-    renderWorkspace()
-    fireEvent.click(screen.getByTestId("node-p"))
+  function nameInput(id: string) {
+    fireEvent.click(screen.getByTestId(`node-${id}`))
     fireEvent.click(within(document.querySelector<HTMLElement>("[data-side-panel]")!).getByRole("button", { name: "ed.c.panel.configure" }))
     const input = within(screen.getByRole("dialog")).getByLabelText(/ed.c.main.name/)
+    fireEvent.focus(input)
+    return input
+  }
+
+  it("renaming a device in its dialog carries the new name into the opponents once, when the field is left", () => {
+    renderWorkspace()
+    const input = nameInput("p")
     fireEvent.change(input, { target: { value: "des" } })
     fireEvent.change(input, { target: { value: "desk" } })
+    expect(variant().Opponents?.[0].Seat).toBe("pc") // not per keystroke
+    fireEvent.blur(input)
     expect(variant().Opponents?.[0].Seat).toBe("desk")
     expect(variant().Opponents?.[0].Operates).toEqual(["router"])
+  })
+
+  it("clearing the name on the way keeps the references: they follow the final name", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "" } })
+    fireEvent.change(input, { target: { value: "desk" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0].Seat).toBe("desk")
+  })
+
+  it("an empty name left in the field moves nothing", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0].Seat).toBe("pc")
+  })
+
+  it("typing through another device's name does not move its references", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "router" } })
+    fireEvent.change(input, { target: { value: "router2" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0]).toMatchObject({ Seat: "router2", Operates: ["router"] })
+  })
+
+  it("leaving the field on another device's name moves nothing (the field shows its duplicate error)", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "router" } })
+    fireEvent.blur(input)
+    expect(variant().Opponents?.[0]).toMatchObject({ Seat: "pc", Operates: ["router"] })
+  })
+
+  it("closing the dialog while typing commits the rename", () => {
+    renderWorkspace()
+    const input = nameInput("p")
+    fireEvent.change(input, { target: { value: "desk" } })
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "ed.c.dev.done" }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(variant().Opponents?.[0].Seat).toBe("desk")
   })
 
   it("the removal of a device the opponents name says so in the confirmation", () => {

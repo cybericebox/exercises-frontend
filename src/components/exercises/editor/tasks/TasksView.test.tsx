@@ -75,6 +75,18 @@ describe("TasksView: the rail", () => {
     expect(values().Variants.map((variant) => variant.Tasks[0].Requires)).toEqual([[], []])
   })
 
+  it("counts each opponent that names the removed task once: a linked variant's copy of its base's opponents is skipped", () => {
+    const opponents = [{ Role: "attack", Band: 1, Goal: ["task_1"], Foothold: "sw" }, { Role: "defense", Band: 1, Goal: ["task_2"], StartAfter: "task_1" }]
+    renderInEditor(<TasksView />, { variants: [
+      { id: "base", tasks: [flagTask("task_1", "First"), flagTask("task_2", "Second")], opponents },
+      { id: "linked", linkedTo: "base", tasks: [flagTask("task_1", "First"), flagTask("task_2", "Second")], opponents },
+    ] })
+    const first = within(rail()).getAllByRole("listitem")[0]
+    fireEvent.keyDown(within(first).getByRole("button", { name: "ed.b.rail.actions" }), { key: "ArrowDown" })
+    fireEvent.click(screen.getByRole("menuitem", { name: /ed.b.rail.remove/ }))
+    expect(screen.getByRole("dialog")).toHaveTextContent('ed.b.rail.removeOpponents{"n":2}')
+  })
+
   it("keeps the last task: no removal item for a single task", () => {
     renderInEditor(<TasksView />, { variants: [{ tasks: [flagTask("task_1", "First")] }] })
     fireEvent.keyDown(within(rail()).getByRole("button", { name: "ed.b.rail.actions" }), { key: "ArrowDown" })
