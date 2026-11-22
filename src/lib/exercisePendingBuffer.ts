@@ -6,14 +6,17 @@
  * clear: they go into `sealed`, encrypted (AES-GCM) with the session's draft key (lib/draftKey), which lives in the
  * tab's memory only. They are named by the client keys of their items (lib/clientKeys), never by position or by name, so
  * they follow their task, device or variable row through a reorder, a rename or a delete.
- *  - With the key, a write seals first and then stores the draft and its sealed part in one write.
- *  - Without it (or when sealing fails) the previous sealed part stays, and `stale` lists (keys only, no values) the
- *    fields changed or cleared since it was made: a restore leaves those out. The values wait in memory and the whole
- *    current set is sealed as soon as the key arrives.
+ *  - Every write stores at once the draft, the previous sealed part and `stale`: the list (keys only, no values) of the
+ *    fields changed or cleared since that part was made; a restore leaves those out. So the entry is whole whenever the
+ *    page goes away. When a secret changed, the full current set is then sealed and replaces the entry; without the key
+ *    (or when sealing fails) the values wait in memory and are sealed as soon as it arrives.
+ *  - A sealed part that this tab did not write or restore (another tab of the same exercise wrote it) is never paired
+ *    with this tab's draft: every field of the draft counts as changed.
  *  - A sealed part of another key (signed out in this browser) or one that does not decrypt is dropped; the rest of the
  *    entry still restores. On restore the sealed values win over the server copy.
- *  - The entry of a new task moves to its exercise when the task is created; its sealed part goes with it, sealed again
- *    for the new entry (the entry key is the additional data). Without a key the "new" entry is kept until then.
+ *  - The entry of a new task moves to its exercise when the task is created, in one synchronous step (the "new" entry is
+ *    deleted); its sealed part moves as it is, `sealedFrom` naming the entry it was made for (the entry key is the
+ *    additional data), and is sealed again for the exercise entry with the key (at once, or after a reload).
  * Entries older than two days are deleted.
  */
 import { set } from "react-hook-form"
@@ -39,6 +42,8 @@ export type PendingChanges = {
   sealed?: SealedSecrets
   /** The slots changed or cleared since `sealed` was made (no values): a restore leaves them out. */
   stale?: string[]
+  /** The entry key `sealed` was made for (its additional data), when it moved here with a new task and is not sealed again yet. */
+  sealedFrom?: string
 }
 
 export type OpenedSecrets = { status: "none" } | { status: "open"; secrets: PendingSecrets } | { status: "later" }
@@ -131,9 +136,14 @@ export function applyPendingSecrets(draft: DraftFormValues, secrets: PendingSecr
 // a field that differs from it was changed by the author since.
 const baselines = new Map<string, PendingSecrets>()
 
-/** The restore of an entry has shown these values: changes from here on are the author's (they win over the sealed part). */
+/**
+ * The restore of an entry has shown these values: changes from here on are the author's (they win over the sealed part).
+ * The sealed part stored now is the one this tab knows.
+ */
 export function markPendingBaseline(key: string, draft: DraftFormValues): void {
   baselines.set(key, collectPendingSecrets(draft))
+  const stored = readStoredEntry(key)
+  if (isSealed(stored?.sealed)) knownSealed.set(key, stored.sealed.data)
 }
 
 /**
@@ -235,10 +245,11 @@ function staleOf(entry: Record<string, unknown> | null): string[] {
 const writeSeq = new Map<string, number>()
 let nextSeq = 0
 const sealing = new Set<Promise<void>>()
-// Writes that had secret values (or a sealed part to carry) while the key could not be had: written again when it arrives.
+// Writes that had secret values (or a sealed part to seal again) while the key could not be had: written again when it arrives.
 const waiting = new Map<string, () => void>()
-// Entries that moved (a new task was created) while the key was away: target → source, until the sealed part is carried over.
-const moves = new Map<string, string>()
+// The sealed part (its ciphertext) this tab last wrote, restored or carried for each entry. Another one in the storage is
+// another tab's: none of its values is paired with this tab's draft.
+const knownSealed = new Map<string, string>()
 let unsubscribeKey: (() => void) | null = null
 
 function track(work: Promise<void>): void {
@@ -264,66 +275,69 @@ function waitForKey(storageKey: string, rewrite: () => void): void {
   })
 }
 
-/** The move of an entry is complete: the source entry goes. */
-function finishMove(key: string, source: string): void {
-  if (source === key) return
-  moves.delete(key)
-  writeSeq.delete(source)
-  baselines.delete(source)
-  removeStored(source)
-}
-
 /**
- * Writes the entry of a draft. With the key the secret values are sealed first and the entry is stored in one write
- * (at once when the sealed part is still the one stored). Without it, see the top of this file.
+ * Writes the entry of a draft, at once: the draft, the previous sealed part and the fields changed since it was made
+ * (`stale`), so the entry is whole whenever the page goes away. When a secret value changed (or the sealed part was made
+ * for another entry, or with another key) the full current set is then sealed and replaces the entry; without the key,
+ * that happens as soon as it arrives. `from`: the entry this one takes over (a new task just created): it is deleted in
+ * the same step and its sealed part moves as it is (`sealedFrom` names its additional data) until it is sealed again.
  */
 export function writePendingChanges(key: string, identity: IdentityFormValues, draft: DraftFormValues, options: { from?: string } = {}): boolean {
-  const source = options.from ?? moves.get(key) ?? key
-  if (source !== key) moves.set(key, source)
+  const source = options.from ?? key
   const seq = ++nextSeq
   writeSeq.set(key, seq)
   waiting.delete(key)
 
   const previous = readStoredEntry(source)
   const previousSealed = isSealed(previous?.sealed) ? previous.sealed : undefined
+  // The additional data the previous sealed part was made with: its own entry's key, or the one it moved from.
+  const sealedAad = typeof previous?.sealedFrom === "string" ? previous.sealedFrom : source
   const current = collectPendingSecrets(draft)
-  // The slots changed or cleared since the previous sealed part was made.
+  const known = previousSealed !== undefined && knownSealed.get(source) === previousSealed.data
   const edited = new Set(staleOf(previous))
-  if (previousSealed) for (const slot of changedSlots(current, baselines.get(source) ?? emptySecrets())) edited.add(slot)
+  if (previousSealed) {
+    if (known) for (const slot of changedSlots(current, baselines.get(source) ?? emptySecrets())) edited.add(slot)
+    // Another tab's sealed part: every field of this draft is this tab's, none of those values may be restored.
+    else for (const visit of slotsOf(draft)) edited.add(visit.slot)
+  }
+  if (source !== key) {
+    const baseline = baselines.get(source)
+    if (baseline) baselines.set(key, baseline)
+    baselines.delete(source)
+    knownSealed.delete(source)
+    writeSeq.delete(source)
+    waiting.delete(source)
+  }
+
   const entry: PendingChanges = {
     version: 3,
     identity: { Name: identity.Name, Description: identity.Description, Tags: [...identity.Tags] },
     draft: sanitizePendingDraft(draft),
     updatedAt: Date.now(),
   }
-  const rewrite = () => { if (writeSeq.get(key) === seq && readStoredEntry(key)) writePendingChanges(key, identity, draft) }
-
-  const writeWithoutKey = (wait: boolean): boolean => {
-    let next: PendingChanges = entry
-    if (source === key) {
-      if (previousSealed) next = { ...entry, sealed: previousSealed, ...(edited.size ? { stale: [...edited] } : {}) }
-    } else if (previous && previousSealed && edited.size) {
-      // The sealed part stays in its own entry (its additional data is that entry's key); the changes are noted there.
-      store(source, { ...previous, stale: [...edited] })
-    }
-    if (!store(key, next)) return false
-    if (wait && (!isEmptySecrets(current) || previousSealed)) waitForKey(key, rewrite)
-    return true
-  }
+  const kept = previousSealed
+    ? { ...entry, sealed: previousSealed, ...(sealedAad !== key ? { sealedFrom: sealedAad } : {}), ...(edited.size ? { stale: [...edited] } : {}) }
+    : entry
+  if (!store(key, kept)) return false
+  if (source !== key) removeStored(source)
+  if (previousSealed) knownSealed.set(key, previousSealed.data)
+  else knownSealed.delete(key)
 
   const draftKey = currentDraftKey()
-  if (!draftKey) return writeWithoutKey(true)
-  if (source === key && (previousSealed ? previousSealed.keyId === draftKey.id && edited.size === 0 : isEmptySecrets(current))) {
-    // Nothing secret changed since the stored sealed part (or there is nothing to seal): one write now.
-    if (!store(key, previousSealed ? { ...entry, sealed: previousSealed } : entry)) return false
+  const needsSeal = previousSealed ? edited.size > 0 || sealedAad !== key || previousSealed.keyId !== draftKey?.id : !isEmptySecrets(current)
+  if (!needsSeal) {
     if (!previousSealed) baselines.set(key, current)
+    return true
+  }
+  if (!draftKey) {
+    waitForKey(key, () => { if (writeSeq.get(key) === seq && readStoredEntry(key)) writePendingChanges(key, identity, draft) })
     return true
   }
 
   track((async () => {
     const final = { answers: { ...current.answers }, env: { ...current.env } }
     if (previousSealed && previousSealed.keyId === draftKey.id) {
-      const old = await unseal(source, draftKey, previousSealed)
+      const old = await unseal(sealedAad, draftKey, previousSealed)
       if (old) {
         // Sealed values of fields the author did not touch since stay (they may not be in the form yet: a restore without the key).
         const present = new Set(slotsOf(draft).map((visit) => visit.slot))
@@ -333,23 +347,19 @@ export function writePendingChanges(key: string, identity: IdentityFormValues, d
     }
     let sealed: SealedSecrets | undefined
     if (!isEmptySecrets(final)) {
-      try {
-        sealed = await seal(key, draftKey, final)
-      } catch {
-        // No sealed part that does not match the draft: the previous one stays with the changed fields noted, as without a key.
-        if (writeSeq.get(key) === seq) writeWithoutKey(false)
-        return
-      }
+      // A failed encryption leaves the entry written above: the previous sealed part with the changed fields marked stale.
+      try { sealed = await seal(key, draftKey, final) } catch { return }
     }
     if (writeSeq.get(key) !== seq) return
     if (!store(key, sealed ? { ...entry, sealed } : entry)) return
+    if (sealed) knownSealed.set(key, sealed.data)
+    else knownSealed.delete(key)
     baselines.set(key, final)
-    finishMove(key, source)
   })())
   return true
 }
 
-/** The entry of a new task becomes the entry of the exercise it was created as; its sealed part goes with it. */
+/** The entry of a new task becomes the entry of the exercise it was created as, in one step; its sealed part goes with it. */
 export function movePendingChanges(from: string, to: string, identity: IdentityFormValues, draft: DraftFormValues): boolean {
   return writePendingChanges(to, identity, draft, { from })
 }
@@ -367,13 +377,14 @@ export async function openPendingSecrets(key: string, pending: PendingChanges, t
     new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs) }),
   ]).finally(() => clearTimeout(timer))
   if (!draftKey) return { status: "later" }
-  const secrets = draftKey.id === pending.sealed.keyId ? await unseal(key, draftKey, pending.sealed) : null
+  const secrets = draftKey.id === pending.sealed.keyId ? await unseal(pending.sealedFrom ?? key, draftKey, pending.sealed) : null
   if (secrets) return { status: "open", secrets: withoutSlots(secrets, pending.stale ?? []) }
   const stored = readStoredEntry(key)
   if (stored && isSealed(stored.sealed) && stored.sealed.data === pending.sealed.data) {
-    const { sealed, stale, ...rest } = stored
+    const { sealed, stale, sealedFrom, ...rest } = stored
     void sealed
     void stale
+    void sealedFrom
     store(key, rest)
   }
   return { status: "none" }
@@ -398,7 +409,7 @@ export function sweepPendingChanges(userId: string): void {
 export function resetPendingBufferForTests(): void {
   writeSeq.clear()
   waiting.clear()
-  moves.clear()
+  knownSealed.clear()
   baselines.clear()
   sealing.clear()
   unsubscribeKey?.()
@@ -483,7 +494,8 @@ export function readPendingChanges(key: string): PendingChanges | null {
     }
     const sealed = value.version === 3 && isSealed(value.sealed) ? value.sealed : undefined
     const stale = sealed ? staleOf(value) : []
-    return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt, ...(sealed ? { sealed } : {}), ...(stale.length ? { stale } : {}) }
+    const sealedFrom = sealed && typeof value.sealedFrom === "string" ? value.sealedFrom : undefined
+    return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt, ...(sealed ? { sealed } : {}), ...(stale.length ? { stale } : {}), ...(sealedFrom ? { sealedFrom } : {}) }
   } catch {
     return null
   }
@@ -493,9 +505,7 @@ export function clearPendingChanges(key: string): void {
   writeSeq.delete(key)
   waiting.delete(key)
   baselines.delete(key)
-  // A save went through: the new-task entry this one was waiting to take the sealed part from is obsolete too.
-  const source = moves.get(key)
-  if (source) { moves.delete(key); writeSeq.delete(source); baselines.delete(source); removeStored(source) }
+  knownSealed.delete(key)
   removeStored(key)
 }
 

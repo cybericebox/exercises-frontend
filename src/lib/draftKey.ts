@@ -2,8 +2,8 @@
  * draftKey.ts — the AES-GCM key that seals the secret values (flag answers, environment values) of the browser drafts
  * (exercisePendingBuffer). The backend hands it out per session (POST /api/me/draft-key); it is imported as a
  * non-extractable CryptoKey and kept in this tab's memory only, never in IndexedDB or localStorage. Every tab fetches it
- * itself when the editor opens. A failed fetch (the backend is unreachable) is retried with a growing pause. 401 (not signed
- * in) keeps waiting: it is asked again when the tab gets the focus back (after a sign-in in another tab). Another 4xx
+ * itself when the editor opens. A failed fetch (the backend is unreachable) is retried with a growing pause. 401 or 403 (not
+ * signed in) keeps waiting: it is asked again when the tab gets the focus back (after a sign-in in another tab). Another 4xx
  * means a backend without draft keys: no more asking, and the editor says the secrets are not kept in the browser.
  * Any waiting state is also retried when the tab gets the focus back or becomes visible.
  *
@@ -50,14 +50,14 @@ function decodeKey(base64: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-/** Not signed in: the key comes after a sign-in. */
+/** Not signed in (401), or not allowed right now (403): the key may come after a sign-in. */
 function isSignedOut(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 401
+  return error instanceof ApiError && (error.status === 401 || error.status === 403)
 }
 
 /** A backend without the endpoint (404, 405) or another refusal that waiting does not change. */
 function isUnsupported(error: unknown): boolean {
-  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 408 && error.status !== 429
+  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 403 && error.status !== 408 && error.status !== 429
 }
 
 let listening = false

@@ -274,20 +274,77 @@ function unsavedTasksDraft(): DraftFormValues {
 }
 
 describe("exercise pending buffer: sealed secret values", () => {
-  it("seals first and writes the draft and its sealed part in one write (round trip)", async () => {
+  it("seals and stores the draft with its sealed part (round trip)", async () => {
     await withKey()
-    const setItem = vi.spyOn(window.localStorage, "setItem")
     expect(writePendingChanges(E1, identity, secretDraft())).toBe(true)
     await flushPendingSealing()
-    const writes = setItem.mock.calls.filter(([key]) => key === E1)
-    expect(writes).toHaveLength(1)
-    const raw = writes[0][1] as string
+    const raw = storage.get(E1)!
     for (const plain of ["ICE{one-time-token}", "tok-123-secret", "plain-mode"]) expect(raw).not.toContain(plain)
     expect(JSON.parse(raw)).toMatchObject({ version: 3, sealed: { keyId: "key-1", iv: expect.any(String), data: expect.any(String) } })
     const { opened, merged } = await restore(E1, serverDraft())
     expect(opened.status).toBe("open")
     expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
     expect(merged.Variants[0].Topology.Devices[0].Bootstrap.Env[0].HasValue).toBe(true)
+  })
+
+  it("updates the entry at once when a secret changes with the key (previous sealed part + stale keys), then seals", async () => {
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
+    await flushPendingSealing()
+    const before = JSON.parse(storage.get(E1)!).sealed
+    const edited = secretDraft()
+    edited.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "rotated"
+    writePendingChanges(E1, { ...identity, Name: "Renamed" }, edited)
+    // Right after the call (a pagehide may come now): the new draft, the previous sealed part, the changed field marked.
+    const now = JSON.parse(storage.get(E1)!)
+    expect(now.identity.Name).toBe("Renamed")
+    expect(now.sealed).toEqual(before)
+    expect(now.stale).toEqual([expect.stringContaining("ce1")])
+    expect(storage.get(E1)).not.toContain("rotated")
+    await flushPendingSealing()
+    const sealed = JSON.parse(storage.get(E1)!)
+    expect(sealed.sealed.data).not.toBe(before.data)
+    expect(sealed.stale).toBeUndefined()
+    expect(values((await restore(E1, serverDraft())).merged).env).toEqual(["rotated", "plain-mode"])
+  })
+
+  it("never pairs its draft with the sealed part another tab wrote meanwhile", async () => {
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
+    await flushPendingSealing()
+    // Another tab of the same exercise: its own module state, the same storage and key.
+    vi.resetModules()
+    const tabB = await import("./exercisePendingBuffer")
+    const keyB = await import("@/lib/draftKey")
+    vi.mocked((await import("@/api/me/draftKey")).fetchDraftKey).mockResolvedValue(KEY_1)
+    await keyB.getDraftKey()
+    const other = secretDraft()
+    other.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "tok-from-tab-b"
+    tabB.writePendingChanges(E1, identity, other)
+    await tabB.flushPendingSealing()
+    // This tab writes again without changing a secret: the stored sealed part is not the one it wrote.
+    writePendingChanges(E1, { ...identity, Name: "Tab A" }, secretDraft())
+    expect(JSON.parse(storage.get(E1)!).stale).toEqual(expect.arrayContaining([expect.stringContaining("ce1"), expect.stringContaining("ct1")]))
+    await flushPendingSealing()
+    const { pending, merged } = await restore(E1, serverDraft())
+    expect(pending.identity.Name).toBe("Tab A")
+    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+  })
+
+  it("marks every field of its draft stale when another tab's sealed part is there and the key is away", async () => {
+    await withKey()
+    const other = secretDraft()
+    other.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "tok-from-tab-b"
+    writePendingChanges(E1, identity, other)
+    await flushPendingSealing()
+    // A new tab that never wrote or restored this entry, without the key.
+    resetPendingBufferForTests()
+    await withoutKey()
+    writePendingChanges(E1, identity, secretDraft())
+    resetPendingBufferForTests()
+    await withKey()
+    const { merged } = await restore(E1, serverDraft())
+    expect(values(merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "server-mode"] })
   })
 
   it("drops only the sealed values when the key of this session is another one (signed out in this browser)", async () => {
@@ -419,12 +476,11 @@ describe("exercise pending buffer: sealed secret values", () => {
     expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
   })
 
-  it("keeps the new-task entry while the key is away and moves its sealed values once it arrives", async () => {
+  it("moves the new-task entry at once when the task is created without the key, and reseals it after a reload", async () => {
     await withKey()
     const NEW = pendingBufferKey("u1", null)
     writePendingChanges(NEW, identity, secretDraft())
     await flushPendingSealing()
-    vi.useFakeTimers()
     await withoutKey()
     // The form after the restore holds no secret values yet (they were sealed under the new-task entry).
     const form = secretDraft()
@@ -432,17 +488,44 @@ describe("exercise pending buffer: sealed secret values", () => {
     form.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
     markPendingBaseline(NEW, form)
     movePendingChanges(NEW, E1, identity, form)
-    expect(JSON.parse(storage.get(NEW)!).sealed?.keyId).toBe("key-1")
-    expect(JSON.parse(storage.get(E1)!).sealed).toBeUndefined()
+    // In the same step: the new-task entry is gone, the exercise entry holds its sealed part, sealed for the new-task entry.
+    expect(storage.has(NEW)).toBe(false)
+    expect(JSON.parse(storage.get(E1)!)).toMatchObject({ sealed: { keyId: "key-1" }, sealedFrom: NEW })
     writePendingChanges(E1, { ...identity, Name: "Renamed" }, form)
+    // A reload: nothing of this tab's memory is left; the key is back.
+    resetPendingBufferForTests()
+    await withKey()
+    const { pending, opened, merged } = await restore(E1, serverDraft())
+    expect(pending.identity.Name).toBe("Renamed")
+    expect(opened.status).toBe("open")
+    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+    // The restore shows them; the next write seals them for the exercise entry.
+    markPendingBaseline(E1, merged)
+    writePendingChanges(E1, pending.identity, merged)
+    await flushPendingSealing()
+    expect(JSON.parse(storage.get(E1)!).sealedFrom).toBeUndefined()
+    expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+  })
+
+  it("moves the new-task entry and seals it for the exercise once the key arrives in the same tab", async () => {
+    await withKey()
+    const NEW = pendingBufferKey("u1", null)
+    writePendingChanges(NEW, identity, secretDraft())
+    await flushPendingSealing()
+    vi.useFakeTimers()
+    await withoutKey()
+    const form = secretDraft()
+    form.Variants[0].Tasks[0].Check.Answer.Values = []
+    form.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
+    markPendingBaseline(NEW, form)
+    movePendingChanges(NEW, E1, identity, form)
     mockFetchDraftKey.mockResolvedValue(KEY_1)
     await vi.advanceTimersByTimeAsync(1000)
     vi.useRealTimers()
     await flushPendingSealing()
     expect(storage.has(NEW)).toBe(false)
-    const { pending, merged } = await restore(E1, serverDraft())
-    expect(pending.identity.Name).toBe("Renamed")
-    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+    expect(JSON.parse(storage.get(E1)!).sealedFrom).toBeUndefined()
+    expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
   })
 
   it("does not keep a sealed part that no longer matches the draft when sealing fails", async () => {

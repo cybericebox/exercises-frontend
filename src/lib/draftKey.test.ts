@@ -57,9 +57,9 @@ describe("draft key", () => {
     expect(draftKeyState()).toBe("ready")
   })
 
-  it("keeps waiting while not signed in (401): no timed retry, it asks again when the tab gets the focus back", async () => {
+  it.each([401, 403])("keeps waiting on %i (not signed in): no timed retry, it asks again when the tab gets the focus back", async (status) => {
     vi.useFakeTimers()
-    mockFetch.mockRejectedValue(new ApiError(401, null))
+    mockFetch.mockRejectedValue(new ApiError(status, null))
     expect(await getDraftKey()).toBeNull()
     expect(draftKeyState()).toBe("waiting")
     await vi.advanceTimersByTimeAsync(60_000)
