@@ -2,8 +2,10 @@
  * draftKey.ts — the AES-GCM key that seals the secret values (flag answers, environment values) of the browser drafts
  * (exercisePendingBuffer). The backend hands it out per session (POST /api/me/draft-key); it is imported as a
  * non-extractable CryptoKey and kept in this tab's memory only, never in IndexedDB or localStorage. Every tab fetches it
- * itself when the editor opens. A failed fetch (the backend is unreachable) is retried with a growing pause; an answer that
- * says no (4xx, e.g. signed out) stops the retries until the next start.
+ * itself when the editor opens. A failed fetch (the backend is unreachable) is retried with a growing pause. 401 (not signed
+ * in) keeps waiting: it is asked again when the tab gets the focus back (after a sign-in in another tab). Another 4xx
+ * means a backend without draft keys: no more asking, and the editor says the secrets are not kept in the browser.
+ * Any waiting state is also retried when the tab gets the focus back or becomes visible.
  *
  * The backend creates a key for a browser that has no draft-key cookie yet; two tabs asking at once would each create one
  * (the last cookie wins, a draft sealed with the other key is lost). So the request is serialized across the tabs of the
@@ -16,8 +18,11 @@ import { ApiError } from "@/api/client"
 import { fetchDraftKey } from "@/api/me/draftKey"
 
 export type DraftKey = { id: string; key: CryptoKey }
-/** idle: never asked; loading: the first attempt runs; ready: the key is here; waiting: an attempt failed, the next is planned; refused: the server said no. */
-export type DraftKeyState = "idle" | "loading" | "ready" | "waiting" | "refused"
+/**
+ * idle: never asked; loading: the first attempt runs; ready: the key is here; waiting: an attempt failed (unreachable, or not
+ * signed in), the next one comes; unsupported: the backend has no draft keys.
+ */
+export type DraftKeyState = "idle" | "loading" | "ready" | "waiting" | "unsupported"
 
 const FIRST_RETRY_MS = 1000
 const MAX_RETRY_MS = 30_000
@@ -45,9 +50,29 @@ function decodeKey(base64: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-/** True when the failure means "no key for this session" rather than "try again later". */
-function isRefusal(error: unknown): boolean {
-  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429
+/** Not signed in: the key comes after a sign-in. */
+function isSignedOut(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401
+}
+
+/** A backend without the endpoint (404, 405) or another refusal that waiting does not change. */
+function isUnsupported(error: unknown): boolean {
+  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 408 && error.status !== 429
+}
+
+let listening = false
+
+/** A waiting key is asked for again when the tab gets the focus back or becomes visible (e.g. after a sign-in elsewhere). */
+function listenForReturn(): void {
+  if (listening || typeof window === "undefined") return
+  listening = true
+  const retry = () => {
+    if (state !== "waiting" || inflight || current) return
+    if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null }
+    void attempt()
+  }
+  window.addEventListener("focus", retry)
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") retry() })
 }
 
 /** The key request, one tab of the browser at a time. */
@@ -67,6 +92,7 @@ function attempt(): Promise<DraftKey | null> {
   if (current) return Promise.resolve(current)
   if (inflight) return inflight
   if (state !== "waiting") setState("loading")
+  listenForReturn()
   inflight = (async () => {
     try {
       const answer = await requestKey()
@@ -79,7 +105,8 @@ function attempt(): Promise<DraftKey | null> {
       return current
     } catch (error) {
       failures += 1
-      if (isRefusal(error)) setState("refused")
+      if (isUnsupported(error)) setState("unsupported")
+      else if (isSignedOut(error)) setState("waiting")
       else { setState("waiting"); scheduleRetry() }
       return null
     } finally {

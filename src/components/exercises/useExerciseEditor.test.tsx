@@ -22,7 +22,8 @@ import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exerc
 import { toast } from "@/components/ui/toast"
 import { fetchDraftKey } from "@/api/me/draftKey"
 import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
-import { flushPendingSealing } from "@/lib/exercisePendingBuffer"
+import { flushPendingSealing, resetPendingBufferForTests } from "@/lib/exercisePendingBuffer"
+import { ensureClientKeys } from "@/lib/clientKeys"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { emptyBootstrap, emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { normalizedDevice } from "@/test/editorFixtures"
@@ -413,8 +414,8 @@ describe("useExerciseEditor", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(mockSaveDraft.mock.calls[0][1].Variants[0].Topology.Devices?.[0].Bootstrap?.Env?.[0]).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true })
     expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env")).toEqual([
-      { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1 },
-      { Name: "MODE", Value: "ctf", Secret: false, HasValue: false },
+      { Name: "FLAG", Value: "", Secret: true, HasValue: true, ValueGroup: 1, ClientKey: expect.any(String) },
+      { Name: "MODE", Value: "ctf", Secret: false, HasValue: false, ClientKey: expect.any(String) },
     ])
     expect(latest.draftForm.getValues("Variants.0.Note")).toBe("kept note")
     expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Image")).toBe("web:1")
@@ -435,7 +436,7 @@ describe("useExerciseEditor", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     act(() => latest.draftForm.setValue("Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value", "s3cret"))
     await act(async () => { resolveSave(stored) })
-    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false })
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env.0")).toEqual({ Name: "FLAG", Value: "s3cret", Secret: true, HasValue: false, ClientKey: expect.any(String) })
   })
 
   it("adopts nothing when a task is added to the form while the save is still in flight", async () => {
@@ -1003,12 +1004,46 @@ describe("useExerciseEditor: field errors and sealed secrets", () => {
     await waitFor(() => expect(latest.identityForm.getFieldState("Name").error?.message).toBe("admin.ex.val.name"))
   })
 
+  it("keeps the errors of the other fields when a task is appended after a publish check, and clears only the changed field's", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Web 101")
+    act(() => { latest.draftForm.setValue("Variants.0.Tasks.0.Name", "") })
+    await act(async () => { await latest.draftForm.trigger() })
+    expect(latest.draftForm.getFieldState("Variants.0.Tasks.0.Name").error).toBeDefined()
+    act(() => { latest.draftForm.setValue("Variants.0.Tasks", [...latest.draftForm.getValues("Variants.0.Tasks"), { ...emptyTask(), Name: "Second task" }]) })
+    expect(latest.draftForm.getFieldState("Variants.0.Tasks.0.Name").error).toBeDefined()
+    act(() => { latest.draftForm.setValue("Variants.0.Tasks.0", { ...latest.draftForm.getValues("Variants.0.Tasks.0") }) })
+    expect(latest.draftForm.getFieldState("Variants.0.Tasks.0.Name").error).toBeDefined()
+    act(() => { latest.draftForm.setValue("Variants.0.Tasks.0.Name", "Named") })
+    expect(latest.draftForm.getFieldState("Variants.0.Tasks.0.Name").error).toBeUndefined()
+  })
+
+  it("shows the editor when the key does not come within five seconds and fills the sealed values once it arrives", async () => {
+    await getDraftKey()
+    const draft = ensureClientKeys(toDraftFormValues(serverVersion))
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{typed-offline}"]
+    const key = pendingBufferKey("editor-1", "ex-1")
+    writePendingChanges(key, { Name: "Offline name", Description: "", Tags: [] }, draft)
+    await flushPendingSealing()
+    // A new page load: the key request hangs.
+    resetDraftKeyForTests()
+    resetPendingBufferForTests()
+    let answer: (value: { ID: string; Key: string }) => void = () => undefined
+    vi.mocked(fetchDraftKey).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    render(<Harness exerciseId="ex-1" />)
+    expect(await screen.findByDisplayValue("Offline name", {}, { timeout: 8000 })).toBeInTheDocument()
+    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Check.Answer.Values")).toEqual(["ICE{server}"])
+    await act(async () => { answer({ ID: "key-1", Key: btoa(String.fromCharCode(...new Uint8Array(32).fill(3))) }) })
+    await waitFor(() => expect(latest.draftForm.getValues("Variants.0.Tasks.0.Check.Answer.Values")).toEqual(["ICE{typed-offline}"]))
+  })
+
   it("restores a sealed one-time flag and secret over the server copy when the session key matches", async () => {
     await getDraftKey()
     const withDevice: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology,
       Devices: [{ ...normalizedDeviceStub, ID: "dev-1", Name: "web", Bootstrap: { ...normalizedDeviceStub.Bootstrap, Env: [{ Name: "TOKEN", Value: "", Secret: true, HasValue: true }] } }] } }] }
     mockGetDraft.mockResolvedValue(withDevice)
-    const draft = toDraftFormValues(withDevice)
+    // The form keys every item when it loads; the buffer names the sealed values by those keys.
+    const draft = ensureClientKeys(toDraftFormValues(withDevice))
     draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{typed-offline}"]
     draft.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "one-time-token"
     const key = pendingBufferKey("editor-1", "ex-1")

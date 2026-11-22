@@ -70,8 +70,9 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
   const { field } = useController({ control, name: path as `Variants.${number}.Tasks.${number}.Check.Answer.Values` })
   const values = field.value ?? []
   const listError = useFieldError(path)
-  // The draft key cannot be fetched yet: the values are not kept in the browser until it arrives (lib/exercisePendingBuffer).
-  const keyWaiting = useDraftKeyState() === "waiting"
+  // Without the draft key the values are not kept in the browser: until it arrives, or at all on a backend without draft keys.
+  const keyState = useDraftKeyState()
+  const keyNote = keyState === "waiting" ? t("ed.b.answer.keptLater") : keyState === "unsupported" ? t("ed.b.answer.notKept") : null
   const [pending, setPending] = useState<{ index: number; lines: PasteLine[] } | null>(null)
   const [pasteMode, setPasteMode] = useState<"fixed" | "template">("fixed")
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
@@ -128,7 +129,7 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
         : <p className="text-sm text-muted-foreground">{t("ed.b.answer.textRequired")}</p>)}
     </div>
     {listError && <FieldError path={path} />}
-    {!disabled && keyWaiting && values.some((value) => value !== "") && <p className="text-xs text-muted-foreground">{t("ed.b.answer.keptLater")}</p>}
+    {!disabled && keyNote && values.some((value) => value !== "") && <p className="text-xs text-muted-foreground">{keyNote}</p>}
     {!disabled && !inherited && <div className="flex flex-wrap items-center gap-2 subtask-add-left">
       <SectionAddButton label={t("ed.b.answer.add")} onClick={add} blockedReason={values.length >= MAX_ANSWER_VALUES ? t("ed.b.answer.limit", { max: MAX_ANSWER_VALUES }) : null} />
       {linked && <Button type="button" size="sm" variant="outline" onClick={() => change([])}><RefreshCw aria-hidden="true" className="mr-1 h-4 w-4" />{t("ed.b.answer.reset")}</Button>}

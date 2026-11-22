@@ -1,15 +1,22 @@
 /**
- * exercisePendingBuffer.ts — browser safety net for edits the server has not
- * acknowledged yet. One entry per user and exercise ("new" before creation).
- * Flag values and environment-variable values (device secrets included) are never
- * written in the clear: they go into `sealed`, encrypted (AES-GCM) with the session's
- * draft key (lib/draftKey), which lives in the tab's memory only. While the key cannot be
- * fetched they stay in memory and are sealed as soon as it arrives. A sealed part made
- * with another key (signed out in this browser) or one that does not decrypt is dropped;
- * the rest of the entry still restores. On restore the sealed values win over the server
- * copy; without them flags come back from the server copy and empty env values mean
- * "keep the stored value" on save. Entries older than two days are deleted.
+ * exercisePendingBuffer.ts — browser safety net for edits the server has not acknowledged yet. One entry per user and
+ * exercise ("new" before creation).
+ *
+ * Flag values (Check.Answer.Values) and environment-variable values (device secrets included) are never written in the
+ * clear: they go into `sealed`, encrypted (AES-GCM) with the session's draft key (lib/draftKey), which lives in the
+ * tab's memory only. They are named by the client keys of their items (lib/clientKeys), never by position or by name, so
+ * they follow their task, device or variable row through a reorder, a rename or a delete.
+ *  - With the key, a write seals first and then stores the draft and its sealed part in one write.
+ *  - Without it (or when sealing fails) the previous sealed part stays, and `stale` lists (keys only, no values) the
+ *    fields changed or cleared since it was made: a restore leaves those out. The values wait in memory and the whole
+ *    current set is sealed as soon as the key arrives.
+ *  - A sealed part of another key (signed out in this browser) or one that does not decrypt is dropped; the rest of the
+ *    entry still restores. On restore the sealed values win over the server copy.
+ *  - The entry of a new task moves to its exercise when the task is created; its sealed part goes with it, sealed again
+ *    for the new entry (the entry key is the additional data). Without a key the "new" entry is kept until then.
+ * Entries older than two days are deleted.
  */
+import { set } from "react-hook-form"
 import { currentDraftKey, getDraftKey, subscribeDraftKey, type DraftKey } from "@/lib/draftKey"
 import { emptyDraft, type DeviceFormValues, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exercisePendingKey } from "@/lib/storageKeys"
@@ -19,9 +26,8 @@ import { normalizeWeight } from "@/lib/variantWeights"
 export type SealedSecrets = { keyId: string; iv: string; data: string }
 
 /**
- * The secret values of a draft. `answers`: the answer values of a task, by variant and task; `env`: the value of an
- * environment variable, by variant, device and variable name. A variant, task or device without an id yet (never
- * saved) is named by its position: the entry restores the same structure.
+ * The secret values of a draft, by slot. `answers`: the answer values of a task (slot: variant and task client keys);
+ * `env`: the value of an environment variable (slot: variant, device and row client keys). Empty values are not kept.
  */
 export type PendingSecrets = { answers: Record<string, string[]>; env: Record<string, string> }
 
@@ -31,36 +37,57 @@ export type PendingChanges = {
   draft: DraftFormValues
   updatedAt: number
   sealed?: SealedSecrets
+  /** The slots changed or cleared since `sealed` was made (no values): a restore leaves them out. */
+  stale?: string[]
 }
 
 export type OpenedSecrets = { status: "none" } | { status: "open"; secrets: PendingSecrets } | { status: "later" }
 
 /** A draft nobody touched for this long is deleted (on read, and by the sweep when the editor opens). */
 export const PENDING_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000
+/** How long a restore waits for the draft key before it shows the editor (the values are filled in when the key arrives). */
+export const RESTORE_KEY_TIMEOUT_MS = 5000
 
 export function pendingBufferKey(userId: string, exerciseId: string | null): string {
   return exercisePendingKey(userId, exerciseId ?? "new")
 }
 
-// ── Secret values ─────────────────────────────────────────────────────────────
+// ── Slots ─────────────────────────────────────────────────────────────────────
 
-const variantRef = (variant: { ID: string }, index: number) => variant.ID || `@${index}`
-const answerKey = (variant: string, task: { ID: string }, index: number) => JSON.stringify([variant, task.ID || `@${index}`])
-const envKey = (variant: string, device: { ID: string }, index: number, name: string) => JSON.stringify([variant, device.ID || `@${index}`, name])
+type Keyed = { ClientKey?: string }
+const answerSlot = (variant: Keyed, task: Keyed) => variant.ClientKey && task.ClientKey ? JSON.stringify(["a", variant.ClientKey, task.ClientKey]) : null
+const envSlot = (variant: Keyed, device: Keyed, row: Keyed) =>
+  variant.ClientKey && device.ClientKey && row.ClientKey ? JSON.stringify(["e", variant.ClientKey, device.ClientKey, row.ClientKey]) : null
+
+type SlotVisit = { slot: string; kind: "answers"; path: string; value: string[] } | { slot: string; kind: "env"; path: string; value: string }
+
+/** Every slot of a draft (with its form path and value), whatever its value. */
+function slotsOf(draft: DraftFormValues): SlotVisit[] {
+  const out: SlotVisit[] = []
+  draft.Variants.forEach((variant, vi) => {
+    variant.Tasks.forEach((task, ti) => {
+      const slot = answerSlot(variant, task)
+      if (slot) out.push({ slot, kind: "answers", path: `Variants.${vi}.Tasks.${ti}.Check.Answer.Values`, value: task.Check?.Answer?.Values ?? [] })
+    })
+    variant.Topology.Devices.forEach((device, di) => {
+      device.Bootstrap.Env.forEach((row, ei) => {
+        const slot = envSlot(variant, device, row)
+        if (slot) out.push({ slot, kind: "env", path: `Variants.${vi}.Topology.Devices.${di}.Bootstrap.Env.${ei}.Value`, value: row.Value })
+      })
+    })
+  })
+  return out
+}
+
+const emptySecrets = (): PendingSecrets => ({ answers: {}, env: {} })
 
 /** The answer values and environment values of a draft that have something in them. */
 export function collectPendingSecrets(draft: DraftFormValues): PendingSecrets {
-  const secrets: PendingSecrets = { answers: {}, env: {} }
-  draft.Variants.forEach((variant, vi) => {
-    const ref = variantRef(variant, vi)
-    variant.Tasks.forEach((task, ti) => {
-      const values = task.Check?.Answer?.Values ?? []
-      if (values.length > 0) secrets.answers[answerKey(ref, task, ti)] = [...values]
-    })
-    variant.Topology.Devices.forEach((device, di) => {
-      for (const entry of device.Bootstrap.Env) if (entry.Value) secrets.env[envKey(ref, device, di, entry.Name)] = entry.Value
-    })
-  })
+  const secrets = emptySecrets()
+  for (const visit of slotsOf(draft)) {
+    if (visit.kind === "answers" && visit.value.length > 0) secrets.answers[visit.slot] = [...visit.value]
+    if (visit.kind === "env" && visit.value !== "") secrets.env[visit.slot] = visit.value
+  }
   return secrets
 }
 
@@ -68,57 +95,66 @@ function isEmptySecrets(secrets: PendingSecrets): boolean {
   return Object.keys(secrets.answers).length === 0 && Object.keys(secrets.env).length === 0
 }
 
-/** The draft with the secret values put back where they were taken from. */
+/** The value of a slot as a comparable string ("" for nothing). */
+function slotValue(secrets: PendingSecrets, slot: string): string {
+  const value = secrets.answers[slot] ?? secrets.env[slot]
+  return value === undefined ? "" : JSON.stringify(value)
+}
+
+/** The slots whose value differs between two sets. */
+function changedSlots(a: PendingSecrets, b: PendingSecrets): string[] {
+  const slots = new Set([...Object.keys(a.answers), ...Object.keys(a.env), ...Object.keys(b.answers), ...Object.keys(b.env)])
+  return [...slots].filter((slot) => slotValue(a, slot) !== slotValue(b, slot))
+}
+
+function withoutSlots(secrets: PendingSecrets, slots: Iterable<string>): PendingSecrets {
+  const out = { answers: { ...secrets.answers }, env: { ...secrets.env } }
+  for (const slot of slots) { delete out.answers[slot]; delete out.env[slot] }
+  return out
+}
+
+const sealedAnswer = (secrets: PendingSecrets, variant: Keyed, task: Keyed) => { const slot = answerSlot(variant, task); return slot ? secrets.answers[slot] : undefined }
+const sealedEnv = (secrets: PendingSecrets, variant: Keyed, device: Keyed, row: Keyed) => { const slot = envSlot(variant, device, row); return slot ? secrets.env[slot] : undefined }
+
+/** The draft with the secret values put back on the items they belong to. */
 export function applyPendingSecrets(draft: DraftFormValues, secrets: PendingSecrets): DraftFormValues {
-  return {
-    ...draft,
-    Variants: draft.Variants.map((variant, vi) => {
-      const ref = variantRef(variant, vi)
-      return {
-        ...variant,
-        Tasks: variant.Tasks.map((task, ti) => {
-          const values = secrets.answers[answerKey(ref, task, ti)]
-          return values ? { ...task, Check: { ...task.Check, Answer: { ...task.Check.Answer, Values: [...values] } } } : task
-        }),
-        Topology: {
-          ...variant.Topology,
-          Devices: variant.Topology.Devices.map((device, di) => ({
-            ...device,
-            Bootstrap: {
-              ...device.Bootstrap,
-              Env: device.Bootstrap.Env.map((entry) => {
-                const value = secrets.env[envKey(ref, device, di, entry.Name)]
-                return value !== undefined ? { ...entry, Value: value } : entry
-              }),
-            },
-          })),
-        },
-      }
-    }),
+  const out = structuredClone(draft)
+  for (const visit of slotsOf(out)) {
+    const value = visit.kind === "answers" ? secrets.answers[visit.slot] : secrets.env[visit.slot]
+    if (value !== undefined) set(out, visit.path, Array.isArray(value) ? [...value] : value)
   }
+  return out
+}
+
+// ── Baselines ─────────────────────────────────────────────────────────────────
+// What the secret fields of an entry held when its sealed part was made (or, after a restore, what the restore showed):
+// a field that differs from it was changed by the author since.
+const baselines = new Map<string, PendingSecrets>()
+
+/** The restore of an entry has shown these values: changes from here on are the author's (they win over the sealed part). */
+export function markPendingBaseline(key: string, draft: DraftFormValues): void {
+  baselines.set(key, collectPendingSecrets(draft))
 }
 
 /**
- * The form fields of `draft` that are empty and have a value in `secrets` (sealed values that could be opened only
- * after the form was shown): what to fill in without overwriting anything the author typed meanwhile.
+ * The fields to fill with sealed values that could be opened only after the form was shown: the buffered value wins over
+ * the shown one, unless the author changed that field since the restore. Matched by client key only.
  */
-export function pendingSecretFills(draft: DraftFormValues, secrets: PendingSecrets): { path: string; value: string | string[] }[] {
+export function pendingSecretFills(key: string, draft: DraftFormValues, secrets: PendingSecrets): { path: string; value: string | string[] }[] {
+  const baseline = baselines.get(key) ?? emptySecrets()
+  const current = collectPendingSecrets(draft)
   const fills: { path: string; value: string | string[] }[] = []
-  draft.Variants.forEach((variant, vi) => {
-    const ref = variantRef(variant, vi)
-    variant.Tasks.forEach((task, ti) => {
-      const values = secrets.answers[answerKey(ref, task, ti)]
-      if (values && task.Check.Answer.Values.length === 0) fills.push({ path: `Variants.${vi}.Tasks.${ti}.Check.Answer.Values`, value: [...values] })
-    })
-    variant.Topology.Devices.forEach((device, di) => {
-      device.Bootstrap.Env.forEach((entry, ei) => {
-        const value = secrets.env[envKey(ref, device, di, entry.Name)]
-        if (value !== undefined && entry.Value === "") fills.push({ path: `Variants.${vi}.Topology.Devices.${di}.Bootstrap.Env.${ei}.Value`, value })
-      })
-    })
-  })
+  for (const visit of slotsOf(draft)) {
+    const value = visit.kind === "answers" ? secrets.answers[visit.slot] : secrets.env[visit.slot]
+    if (value === undefined) continue
+    if (slotValue(current, visit.slot) !== slotValue(baseline, visit.slot)) continue
+    if (slotValue(current, visit.slot) === JSON.stringify(value)) continue
+    fills.push({ path: visit.path, value: Array.isArray(value) ? [...value] : value })
+  }
   return fills
 }
+
+// ── Encryption ────────────────────────────────────────────────────────────────
 
 function toBase64(bytes: Uint8Array): string {
   let binary = ""
@@ -133,7 +169,7 @@ function fromBase64(text: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-// The storage key is the additional data: a sealed part cannot be moved to another user's or exercise's entry.
+// The entry key is the additional data: a sealed part cannot be moved to another user's or exercise's entry.
 const additionalData = (storageKey: string) => new TextEncoder().encode(storageKey)
 
 async function seal(storageKey: string, key: DraftKey, secrets: PendingSecrets): Promise<SealedSecrets> {
@@ -159,14 +195,50 @@ async function unseal(storageKey: string, key: DraftKey, sealed: SealedSecrets):
   }
 }
 
-// ── Sealing in the background ─────────────────────────────────────────────────
+// ── Storage ───────────────────────────────────────────────────────────────────
+
+function readStoredEntry(storageKey: string): Record<string, unknown> | null {
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return null
+    const value: unknown = JSON.parse(raw)
+    return isRecord(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function store(storageKey: string, entry: object): boolean {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(entry))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function removeStored(storageKey: string): void {
+  try { window.localStorage.removeItem(storageKey) } catch { /* storage unavailable */ }
+}
+
+function isSealed(value: unknown): value is SealedSecrets {
+  return isRecord(value) && typeof value.keyId === "string" && typeof value.iv === "string" && typeof value.data === "string"
+}
+
+function staleOf(entry: Record<string, unknown> | null): string[] {
+  return Array.isArray(entry?.stale) ? entry.stale.filter((slot): slot is string => typeof slot === "string") : []
+}
+
+// ── Writing ───────────────────────────────────────────────────────────────────
 
 // The last write of each entry; a sealing that finishes after a newer write (or a clear) of its entry is not stored.
 const writeSeq = new Map<string, number>()
 let nextSeq = 0
 const sealing = new Set<Promise<void>>()
-// Writes that had secret values while the key could not be fetched: written again, sealed, when it arrives.
+// Writes that had secret values (or a sealed part to carry) while the key could not be had: written again when it arrives.
 const waiting = new Map<string, () => void>()
+// Entries that moved (a new task was created) while the key was away: target → source, until the sealed part is carried over.
+const moves = new Map<string, string>()
 let unsubscribeKey: (() => void) | null = null
 
 function track(work: Promise<void>): void {
@@ -192,27 +264,148 @@ function waitForKey(storageKey: string, rewrite: () => void): void {
   })
 }
 
-function storeSealed(storageKey: string, seq: number, sealed: SealedSecrets): void {
-  if (writeSeq.get(storageKey) !== seq) return
-  const entry = readStoredEntry(storageKey)
-  if (!entry) return
-  try { window.localStorage.setItem(storageKey, JSON.stringify({ ...entry, sealed })) } catch { /* storage unavailable */ }
+/** The move of an entry is complete: the source entry goes. */
+function finishMove(key: string, source: string): void {
+  if (source === key) return
+  moves.delete(key)
+  writeSeq.delete(source)
+  baselines.delete(source)
+  removeStored(source)
 }
 
-function readStoredEntry(storageKey: string): Record<string, unknown> | null {
-  try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return null
-    const value: unknown = JSON.parse(raw)
-    return isRecord(value) ? value : null
-  } catch {
-    return null
+/**
+ * Writes the entry of a draft. With the key the secret values are sealed first and the entry is stored in one write
+ * (at once when the sealed part is still the one stored). Without it, see the top of this file.
+ */
+export function writePendingChanges(key: string, identity: IdentityFormValues, draft: DraftFormValues, options: { from?: string } = {}): boolean {
+  const source = options.from ?? moves.get(key) ?? key
+  if (source !== key) moves.set(key, source)
+  const seq = ++nextSeq
+  writeSeq.set(key, seq)
+  waiting.delete(key)
+
+  const previous = readStoredEntry(source)
+  const previousSealed = isSealed(previous?.sealed) ? previous.sealed : undefined
+  const current = collectPendingSecrets(draft)
+  // The slots changed or cleared since the previous sealed part was made.
+  const edited = new Set(staleOf(previous))
+  if (previousSealed) for (const slot of changedSlots(current, baselines.get(source) ?? emptySecrets())) edited.add(slot)
+  const entry: PendingChanges = {
+    version: 3,
+    identity: { Name: identity.Name, Description: identity.Description, Tags: [...identity.Tags] },
+    draft: sanitizePendingDraft(draft),
+    updatedAt: Date.now(),
   }
+  const rewrite = () => { if (writeSeq.get(key) === seq && readStoredEntry(key)) writePendingChanges(key, identity, draft) }
+
+  const writeWithoutKey = (wait: boolean): boolean => {
+    let next: PendingChanges = entry
+    if (source === key) {
+      if (previousSealed) next = { ...entry, sealed: previousSealed, ...(edited.size ? { stale: [...edited] } : {}) }
+    } else if (previous && previousSealed && edited.size) {
+      // The sealed part stays in its own entry (its additional data is that entry's key); the changes are noted there.
+      store(source, { ...previous, stale: [...edited] })
+    }
+    if (!store(key, next)) return false
+    if (wait && (!isEmptySecrets(current) || previousSealed)) waitForKey(key, rewrite)
+    return true
+  }
+
+  const draftKey = currentDraftKey()
+  if (!draftKey) return writeWithoutKey(true)
+  if (source === key && (previousSealed ? previousSealed.keyId === draftKey.id && edited.size === 0 : isEmptySecrets(current))) {
+    // Nothing secret changed since the stored sealed part (or there is nothing to seal): one write now.
+    if (!store(key, previousSealed ? { ...entry, sealed: previousSealed } : entry)) return false
+    if (!previousSealed) baselines.set(key, current)
+    return true
+  }
+
+  track((async () => {
+    const final = { answers: { ...current.answers }, env: { ...current.env } }
+    if (previousSealed && previousSealed.keyId === draftKey.id) {
+      const old = await unseal(source, draftKey, previousSealed)
+      if (old) {
+        // Sealed values of fields the author did not touch since stay (they may not be in the form yet: a restore without the key).
+        const present = new Set(slotsOf(draft).map((visit) => visit.slot))
+        for (const [slot, value] of Object.entries(old.answers)) if (present.has(slot) && !edited.has(slot)) final.answers[slot] = value
+        for (const [slot, value] of Object.entries(old.env)) if (present.has(slot) && !edited.has(slot)) final.env[slot] = value
+      }
+    }
+    let sealed: SealedSecrets | undefined
+    if (!isEmptySecrets(final)) {
+      try {
+        sealed = await seal(key, draftKey, final)
+      } catch {
+        // No sealed part that does not match the draft: the previous one stays with the changed fields noted, as without a key.
+        if (writeSeq.get(key) === seq) writeWithoutKey(false)
+        return
+      }
+    }
+    if (writeSeq.get(key) !== seq) return
+    if (!store(key, sealed ? { ...entry, sealed } : entry)) return
+    baselines.set(key, final)
+    finishMove(key, source)
+  })())
+  return true
 }
 
-function isSealed(value: unknown): value is SealedSecrets {
-  return isRecord(value) && typeof value.keyId === "string" && typeof value.iv === "string" && typeof value.data === "string"
+/** The entry of a new task becomes the entry of the exercise it was created as; its sealed part goes with it. */
+export function movePendingChanges(from: string, to: string, identity: IdentityFormValues, draft: DraftFormValues): boolean {
+  return writePendingChanges(to, identity, draft, { from })
 }
+
+/**
+ * The secret values of a read entry, without the stale ones. "none": there are none, or they were sealed with another key
+ * or do not decrypt (then the sealed part is removed from the entry); "later": the key cannot be had now (it is waited
+ * for about five seconds; the entry is left as is).
+ */
+export async function openPendingSecrets(key: string, pending: PendingChanges, timeoutMs = RESTORE_KEY_TIMEOUT_MS): Promise<OpenedSecrets> {
+  if (!pending.sealed) return { status: "none" }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const draftKey = await Promise.race([
+    getDraftKey(),
+    new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs) }),
+  ]).finally(() => clearTimeout(timer))
+  if (!draftKey) return { status: "later" }
+  const secrets = draftKey.id === pending.sealed.keyId ? await unseal(key, draftKey, pending.sealed) : null
+  if (secrets) return { status: "open", secrets: withoutSlots(secrets, pending.stale ?? []) }
+  const stored = readStoredEntry(key)
+  if (stored && isSealed(stored.sealed) && stored.sealed.data === pending.sealed.data) {
+    const { sealed, stale, ...rest } = stored
+    void sealed
+    void stale
+    store(key, rest)
+  }
+  return { status: "none" }
+}
+
+/** Deletes the expired entries of a user (the editor opened). */
+export function sweepPendingChanges(userId: string): void {
+  const prefix = exercisePendingKey(userId, "")
+  const keys: string[] = []
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i)
+      if (key?.startsWith(prefix)) keys.push(key)
+    }
+  } catch {
+    return
+  }
+  for (const key of keys) readPendingChanges(key)
+}
+
+/** Tests only: forgets what this tab keeps in memory (a new page load). */
+export function resetPendingBufferForTests(): void {
+  writeSeq.clear()
+  waiting.clear()
+  moves.clear()
+  baselines.clear()
+  sealing.clear()
+  unsubscribeKey?.()
+  unsubscribeKey = null
+}
+
+// ── Draft ─────────────────────────────────────────────────────────────────────
 
 export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
   return {
@@ -242,7 +435,7 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
 
 // Client-generated ids differ between two empty drafts; everything else is the content.
 function contentSignature(draft: DraftFormValues): string {
-  return JSON.stringify(sanitizePendingDraft(draft), (key, value: unknown) => key === "ID" ? undefined : value)
+  return JSON.stringify(sanitizePendingDraft(draft), (key, value: unknown) => key === "ID" || key === "ClientKey" ? undefined : value)
 }
 
 const BLANK_DRAFT_SIGNATURE = contentSignature(emptyDraft())
@@ -251,75 +444,6 @@ const BLANK_DRAFT_SIGNATURE = contentSignature(emptyDraft())
 export function hasDraftContent(identity: IdentityFormValues, draft: DraftFormValues): boolean {
   return identity.Name.trim() !== "" || identity.Description.trim() !== "" || identity.Tags.length > 0 ||
     contentSignature(draft) !== BLANK_DRAFT_SIGNATURE
-}
-
-/**
- * Writes the entry now, without the secret values; they are sealed in the background with the session key and added
- * to the entry. Until a new sealing is stored the entry keeps its previous sealed part. Without the key the values wait
- * in memory and are written as soon as it arrives.
- */
-export function writePendingChanges(key: string, identity: IdentityFormValues, draft: DraftFormValues): boolean {
-  const previous = readStoredEntry(key)
-  const secrets = collectPendingSecrets(draft)
-  const draftKey = currentDraftKey()
-  const keepSealed = isSealed(previous?.sealed) && !(draftKey && isEmptySecrets(secrets)) ? previous.sealed : undefined
-  const entry: PendingChanges = {
-    version: 3,
-    identity: { Name: identity.Name, Description: identity.Description, Tags: [...identity.Tags] },
-    draft: sanitizePendingDraft(draft),
-    updatedAt: Date.now(),
-    ...(keepSealed ? { sealed: keepSealed } : {}),
-  }
-  try {
-    window.localStorage.setItem(key, JSON.stringify(entry))
-  } catch {
-    return false
-  }
-  const seq = ++nextSeq
-  writeSeq.set(key, seq)
-  waiting.delete(key)
-  if (isEmptySecrets(secrets)) return true
-  if (!draftKey) {
-    const snapshot = { identity: entry.identity, draft }
-    waitForKey(key, () => { if (writeSeq.get(key) === seq && readStoredEntry(key)) writePendingChanges(key, snapshot.identity, snapshot.draft) })
-    return true
-  }
-  track(seal(key, draftKey, secrets).then((sealed) => storeSealed(key, seq, sealed), () => undefined))
-  return true
-}
-
-/**
- * The secret values of a read entry. "none": there are none, or they were sealed with another key or do not decrypt
- * (then the sealed part is removed from the entry); "later": the key cannot be fetched right now (the entry is left as is).
- */
-export async function openPendingSecrets(key: string, pending: PendingChanges): Promise<OpenedSecrets> {
-  if (!pending.sealed) return { status: "none" }
-  const draftKey = await getDraftKey()
-  if (!draftKey) return { status: "later" }
-  const secrets = draftKey.id === pending.sealed.keyId ? await unseal(key, draftKey, pending.sealed) : null
-  if (secrets) return { status: "open", secrets }
-  const stored = readStoredEntry(key)
-  if (stored && isSealed(stored.sealed) && stored.sealed.data === pending.sealed.data) {
-    const { sealed, ...rest } = stored
-    void sealed
-    try { window.localStorage.setItem(key, JSON.stringify(rest)) } catch { /* storage unavailable */ }
-  }
-  return { status: "none" }
-}
-
-/** Deletes the expired entries of a user (the editor opened). */
-export function sweepPendingChanges(userId: string): void {
-  const prefix = exercisePendingKey(userId, "")
-  const keys: string[] = []
-  try {
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i)
-      if (key?.startsWith(prefix)) keys.push(key)
-    }
-  } catch {
-    return
-  }
-  for (const key of keys) readPendingChanges(key)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -358,7 +482,8 @@ export function readPendingChanges(key: string): PendingChanges | null {
       Variants: value.draft.Variants.map((variant) => ({ ...variant, LinkedTo: variant.LinkedTo ?? "", Weight: normalizeWeight(variant.Weight) })),
     }
     const sealed = value.version === 3 && isSealed(value.sealed) ? value.sealed : undefined
-    return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt, ...(sealed ? { sealed } : {}) }
+    const stale = sealed ? staleOf(value) : []
+    return { version: value.version, identity: value.identity, draft, updatedAt: value.updatedAt, ...(sealed ? { sealed } : {}), ...(stale.length ? { stale } : {}) }
   } catch {
     return null
   }
@@ -367,7 +492,11 @@ export function readPendingChanges(key: string): PendingChanges | null {
 export function clearPendingChanges(key: string): void {
   writeSeq.delete(key)
   waiting.delete(key)
-  try { window.localStorage.removeItem(key) } catch { /* storage unavailable */ }
+  baselines.delete(key)
+  // A save went through: the new-task entry this one was waiting to take the sealed part from is obsolete too.
+  const source = moves.get(key)
+  if (source) { moves.delete(key); writeSeq.delete(source); baselines.delete(source); removeStored(source) }
+  removeStored(key)
 }
 
 type ServerVariantInfo = {
@@ -401,23 +530,22 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
     serverInfoByVariant.set(variant.ID, { taskIds, answers, devicesById })
   }
 
-  // Positions are those of the buffered draft (the sealed values name unsaved items by position), taken before filtering.
+  // The sealed values name the buffered items by their client keys: an item that is no longer there gets nothing.
   const variants = pending.Variants
-    .map((variant, vi) => ({ variant, ref: variantRef(variant, vi) }))
-    .filter(({ variant }) => !variant.ID || serverVariantIds.has(variant.ID))
-    .map(({ variant, ref }) => {
+    .filter((variant) => !variant.ID || serverVariantIds.has(variant.ID))
+    .map((variant) => {
       const info = variant.ID ? serverInfoByVariant.get(variant.ID) : undefined
       return {
         ...variant,
         Tasks: variant.Tasks
-          .map((task, ti) => ({ task, sealedValues: secrets?.answers[answerKey(ref, task, ti)] }))
+          .map((task) => ({ task, sealedValues: secrets ? sealedAnswer(secrets, variant, task) : undefined }))
           .filter(({ task }) => !task.ID || info?.taskIds.has(task.ID))
           // Buffers written before hints existed carry no Hints array; before
           // levels, hints carried a cost and no level.
           .map(({ task, sealedValues }) => ({ ...task, Hints: (task.Hints ?? []).map((hint) => ({ ID: hint.ID, Text: hint.Text, Level: hint.Level ?? "nudge" })), Check: { ...task.Check, Answer: { ...task.Check.Answer, Values: sealedValues ? [...sealedValues] : task.ID && info?.answers.has(task.ID) ? [...info.answers.get(task.ID)!] : [] } } })),
         Topology: {
           ...variant.Topology,
-          Devices: variant.Topology.Devices.map((device, di) => {
+          Devices: variant.Topology.Devices.map((device) => {
             const serverDevice = info?.devicesById.get(device.ID)
             return {
               ...device,
@@ -425,7 +553,7 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
                 ...device.Bootstrap,
                 Env: device.Bootstrap.Env.map((entry) => {
                   const serverEntry = serverDevice?.Bootstrap.Env.find((candidate) => candidate.Name === entry.Name)
-                  const sealedValue = secrets?.env[envKey(ref, device, di, entry.Name)]
+                  const sealedValue = secrets ? sealedEnv(secrets, variant, device, entry) : undefined
                   if (sealedValue !== undefined) return { ...entry, Value: sealedValue, HasValue: serverEntry?.HasValue ?? false }
                   return {
                     ...entry,

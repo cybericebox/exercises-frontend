@@ -7,9 +7,10 @@ import { formTask } from "@/test/editorFixtures"
 import { fetchDraftKey } from "@/api/me/draftKey"
 import { draftKeyState, getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
 import {
-  clearPendingChanges, flushPendingSealing, mergePendingDraft, openPendingSecrets, pendingBufferKey, PENDING_MAX_AGE_MS, readPendingChanges,
-  sweepPendingChanges, writePendingChanges,
+  clearPendingChanges, flushPendingSealing, markPendingBaseline, mergePendingDraft, movePendingChanges, openPendingSecrets, pendingBufferKey,
+  PENDING_MAX_AGE_MS, pendingSecretFills, readPendingChanges, resetPendingBufferForTests, sweepPendingChanges, writePendingChanges, type PendingSecrets,
 } from "./exercisePendingBuffer"
+import type { DraftFormValues } from "@/lib/exerciseSchemas"
 
 const mockFetchDraftKey = vi.mocked(fetchDraftKey)
 const keyBase64 = (fill: number) => btoa(String.fromCharCode(...new Uint8Array(32).fill(fill)))
@@ -19,6 +20,7 @@ let storage: Map<string, string>
 
 beforeEach(() => {
   resetDraftKeyForTests()
+  resetPendingBufferForTests()
   mockFetchDraftKey.mockReset()
   storage = new Map()
   Object.defineProperty(window, "localStorage", { configurable: true, value: {
@@ -204,23 +206,27 @@ describe("exercise pending buffer", () => {
   })
 })
 
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
-/** A draft with a one-time flag, a device secret and a plain variable (ids as the server gave them). */
-function secretDraft() {
+const KEY_1 = { ID: "key-1", Key: keyBase64(7) }
+const E1 = pendingBufferKey("u1", "e1")
+
+/** A draft with a one-time flag, a device secret and a plain variable; every item has its client key. */
+function secretDraft(): DraftFormValues {
   const draft = emptyDraft()
   draft.Variants[0].ID = "v1"
-  draft.Variants[0].Tasks[0] = { ...formTask({ ID: "t1", Name: "Find the flag" }) }
+  draft.Variants[0].ClientKey = "cv1"
+  draft.Variants[0].Tasks[0] = { ...formTask({ ID: "t1", Name: "Find the flag" }), ClientKey: "ct1" }
   draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{one-time-token}"]
-  draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [
-    { Name: "API_TOKEN", Value: "tok-123-secret", Secret: true, HasValue: true },
-    { Name: "APP_MODE", Value: "plain-mode", Secret: false, HasValue: false },
+  draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", ClientKey: "cd1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [
+    { Name: "API_TOKEN", Value: "tok-123-secret", Secret: true, HasValue: true, ClientKey: "ce1" },
+    { Name: "APP_MODE", Value: "plain-mode", Secret: false, HasValue: false, ClientKey: "ce2" },
   ] } }]
   return draft
 }
 
 /** The server copy of the same draft: its own flag, the secret stored (blank), the plain variable with its stored value. */
-function serverDraft() {
+function serverDraft(): DraftFormValues {
   const draft = secretDraft()
   draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{server}"]
   draft.Variants[0].Topology.Devices[0].Bootstrap.Env = [
@@ -230,112 +236,262 @@ function serverDraft() {
   return draft
 }
 
-const values = (draft: ReturnType<typeof emptyDraft>) => ({
-  answers: draft.Variants[0].Tasks[0].Check.Answer.Values,
-  env: draft.Variants[0].Topology.Devices[0].Bootstrap.Env.map((entry) => entry.Value),
+const values = (draft: DraftFormValues) => ({
+  answers: draft.Variants[0].Tasks.map((task) => task.Check.Answer.Values),
+  env: draft.Variants[0].Topology.Devices[0]?.Bootstrap.Env.map((entry) => entry.Value) ?? [],
 })
 
+async function withKey(response = KEY_1) {
+  resetDraftKeyForTests()
+  mockFetchDraftKey.mockReset()
+  mockFetchDraftKey.mockResolvedValue(response)
+  expect(await getDraftKey()).not.toBeNull()
+}
+
+async function withoutKey() {
+  resetDraftKeyForTests()
+  mockFetchDraftKey.mockReset()
+  mockFetchDraftKey.mockRejectedValue(new TypeError("Failed to fetch"))
+  expect(await getDraftKey()).toBeNull()
+}
+
+async function restore(key: string, server: DraftFormValues) {
+  await flushPendingSealing()
+  const pending = readPendingChanges(key)!
+  const opened = await openPendingSecrets(key, pending)
+  return { pending, opened, merged: mergePendingDraft(server, pending.draft, opened.status === "open" ? opened.secrets : undefined) }
+}
+
+/** Two unsaved tasks (no server id) with their own flags, keyed only by their client keys. */
+function unsavedTasksDraft(): DraftFormValues {
+  const draft = secretDraft()
+  draft.Variants[0].Topology.Devices = []
+  draft.Variants[0].Tasks = [
+    { ...formTask({ Name: "A", flag: ["ICE{a}"] }), ClientKey: "ta" },
+    { ...formTask({ Name: "B", flag: ["ICE{b}"] }), ClientKey: "tb" },
+  ]
+  return draft
+}
+
 describe("exercise pending buffer: sealed secret values", () => {
-  it("seals flag and environment values with the session key and opens them again (round trip)", async () => {
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
-    expect(await getDraftKey()).not.toBeNull()
-    const key = pendingBufferKey("u1", "e1")
-    expect(writePendingChanges(key, identity, secretDraft())).toBe(true)
+  it("seals first and writes the draft and its sealed part in one write (round trip)", async () => {
+    await withKey()
+    const setItem = vi.spyOn(window.localStorage, "setItem")
+    expect(writePendingChanges(E1, identity, secretDraft())).toBe(true)
     await flushPendingSealing()
-    const raw = storage.get(key)!
+    const writes = setItem.mock.calls.filter(([key]) => key === E1)
+    expect(writes).toHaveLength(1)
+    const raw = writes[0][1] as string
     for (const plain of ["ICE{one-time-token}", "tok-123-secret", "plain-mode"]) expect(raw).not.toContain(plain)
-    const entry = JSON.parse(raw)
-    expect(entry.version).toBe(3)
-    expect(entry.sealed).toMatchObject({ keyId: "key-1", iv: expect.any(String), data: expect.any(String) })
-    const pending = readPendingChanges(key)!
-    const opened = await openPendingSecrets(key, pending)
+    expect(JSON.parse(raw)).toMatchObject({ version: 3, sealed: { keyId: "key-1", iv: expect.any(String), data: expect.any(String) } })
+    const { opened, merged } = await restore(E1, serverDraft())
     expect(opened.status).toBe("open")
-    // The buffered values win over the server copy for those fields.
-    const merged = mergePendingDraft(serverDraft(), pending.draft, opened.status === "open" ? opened.secrets : undefined)
-    expect(values(merged)).toEqual({ answers: ["ICE{one-time-token}"], env: ["tok-123-secret", "plain-mode"] })
+    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
     expect(merged.Variants[0].Topology.Devices[0].Bootstrap.Env[0].HasValue).toBe(true)
   })
 
   it("drops only the sealed values when the key of this session is another one (signed out in this browser)", async () => {
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
-    await getDraftKey()
-    const key = pendingBufferKey("u1", "e1")
+    await withKey()
     const draft = secretDraft()
     draft.Variants[0].Tasks[0].Name = "Edited offline"
-    writePendingChanges(key, identity, draft)
+    writePendingChanges(E1, identity, draft)
     await flushPendingSealing()
-
-    resetDraftKeyForTests()
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-2", Key: keyBase64(9) })
-    const pending = readPendingChanges(key)!
-    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
-    expect(JSON.parse(storage.get(key)!).sealed).toBeUndefined()
-    const merged = mergePendingDraft(serverDraft(), pending.draft)
+    await withKey({ ID: "key-2", Key: keyBase64(9) })
+    const { opened, merged } = await restore(E1, serverDraft())
+    expect(opened).toEqual({ status: "none" })
+    expect(JSON.parse(storage.get(E1)!).sealed).toBeUndefined()
     expect(merged.Variants[0].Tasks[0].Name).toBe("Edited offline")
-    expect(values(merged)).toEqual({ answers: ["ICE{server}"], env: ["", "server-mode"] })
+    expect(values(merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "server-mode"] })
   })
 
   it("drops the sealed values silently when they cannot be decrypted", async () => {
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
-    await getDraftKey()
-    const key = pendingBufferKey("u1", "e1")
-    writePendingChanges(key, identity, secretDraft())
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
     await flushPendingSealing()
-    const entry = JSON.parse(storage.get(key)!)
+    const entry = JSON.parse(storage.get(E1)!)
     entry.sealed.data = btoa("tampered")
-    storage.set(key, JSON.stringify(entry))
-    const pending = readPendingChanges(key)!
-    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
-    expect(readPendingChanges(key)?.identity).toEqual(identity)
+    storage.set(E1, JSON.stringify(entry))
+    expect((await restore(E1, serverDraft())).opened).toEqual({ status: "none" })
+    expect(readPendingChanges(E1)?.identity).toEqual(identity)
   })
 
   it("writes nothing secret while the key cannot be fetched, and seals the values once it arrives", async () => {
     vi.useFakeTimers()
-    mockFetchDraftKey.mockRejectedValue(new TypeError("Failed to fetch"))
-    expect(await getDraftKey()).toBeNull()
+    await withoutKey()
     expect(draftKeyState()).toBe("waiting")
-    const key = pendingBufferKey("u1", "e1")
-    writePendingChanges(key, identity, secretDraft())
+    writePendingChanges(E1, identity, secretDraft())
     await flushPendingSealing()
-    const raw = storage.get(key)!
+    const raw = storage.get(E1)!
     for (const plain of ["ICE{one-time-token}", "tok-123-secret", "plain-mode"]) expect(raw).not.toContain(plain)
     expect(JSON.parse(raw).sealed).toBeUndefined()
-
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    mockFetchDraftKey.mockResolvedValue(KEY_1)
     await vi.advanceTimersByTimeAsync(1000)
     expect(draftKeyState()).toBe("ready")
     vi.useRealTimers()
     await flushPendingSealing()
-    const entry = JSON.parse(storage.get(key)!)
-    expect(entry.sealed?.keyId).toBe("key-1")
-    const opened = await openPendingSecrets(key, readPendingChanges(key)!)
-    expect(opened.status === "open" && opened.secrets).toBeTruthy()
-    expect(values(mergePendingDraft(serverDraft(), readPendingChanges(key)!.draft, opened.status === "open" ? opened.secrets : undefined)))
-      .toEqual({ answers: ["ICE{one-time-token}"], env: ["tok-123-secret", "plain-mode"] })
+    expect(JSON.parse(storage.get(E1)!).sealed?.keyId).toBe("key-1")
+    expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
   })
 
   it("does not write the waiting values after the draft was cleared (saved meanwhile)", async () => {
     vi.useFakeTimers()
-    mockFetchDraftKey.mockRejectedValue(new TypeError("Failed to fetch"))
-    await getDraftKey()
-    const key = pendingBufferKey("u1", "e1")
-    writePendingChanges(key, identity, secretDraft())
-    clearPendingChanges(key)
-    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    await withoutKey()
+    writePendingChanges(E1, identity, secretDraft())
+    clearPendingChanges(E1)
+    mockFetchDraftKey.mockResolvedValue(KEY_1)
     await vi.advanceTimersByTimeAsync(1000)
     vi.useRealTimers()
     await flushPendingSealing()
-    expect(storage.has(key)).toBe(false)
+    expect(storage.has(E1)).toBe(false)
+  })
+
+  it("lets the values follow their unsaved tasks through a reorder and a delete made before the key came back", async () => {
+    await withKey()
+    const draft = unsavedTasksDraft()
+    writePendingChanges(E1, identity, draft)
+    await flushPendingSealing()
+    await withoutKey()
+    // Task B moves first, task A is deleted, a new task C is added in A's old place.
+    const edited = { ...draft, Variants: [{ ...draft.Variants[0], Tasks: [draft.Variants[0].Tasks[1], { ...formTask({ Name: "C" }), ClientKey: "tc" }] }] }
+    writePendingChanges(E1, identity, edited)
+    await withKey()
+    const server = serverDraft()
+    server.Variants[0].Tasks = []
+    const { merged } = await restore(E1, server)
+    expect(merged.Variants[0].Tasks.map((task) => [task.Name, task.Check.Answer.Values])).toEqual([["B", ["ICE{b}"]], ["C", []]])
+  })
+
+  it("gives nothing to a task the server deleted, and the rest still restores by client key", async () => {
+    await withKey()
+    const draft = secretDraft()
+    draft.Variants[0].Tasks.push({ ...formTask({ ID: "t-gone", Name: "Gone", flag: ["ICE{gone}"] }), ClientKey: "ct-gone" })
+    writePendingChanges(E1, identity, draft)
+    await flushPendingSealing()
+    const { merged } = await restore(E1, serverDraft())
+    expect(merged.Variants[0].Tasks.map((task) => task.ID)).toEqual(["t1"])
+    expect(values(merged).answers).toEqual([["ICE{one-time-token}"]])
+    expect(JSON.stringify(merged)).not.toContain("ICE{gone}")
+  })
+
+  it("keeps a secret cleared (and a changed flag unrestored) when the change was made without a key", async () => {
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
+    await flushPendingSealing()
+    await withoutKey()
+    const edited = secretDraft()
+    edited.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = ""
+    edited.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{changed}"]
+    writePendingChanges(E1, identity, edited)
+    const stored = JSON.parse(storage.get(E1)!)
+    expect(stored.sealed?.keyId).toBe("key-1")
+    expect(stored.stale).toHaveLength(2)
+    expect(storage.get(E1)).not.toContain("ICE{changed}")
+    // The next page load, the key is back: the cleared secret stays cleared, the stale flag is not brought back.
+    resetPendingBufferForTests()
+    await withKey()
+    const { merged } = await restore(E1, serverDraft())
+    expect(values(merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "plain-mode"] })
+  })
+
+  it("keeps the values of two variables with the same name apart", async () => {
+    await withKey()
+    const draft = secretDraft()
+    draft.Variants[0].Topology.Devices[0].Bootstrap.Env = [
+      { Name: "TOKEN", Value: "first", Secret: true, HasValue: false, ClientKey: "ce1" },
+      { Name: "TOKEN", Value: "second", Secret: true, HasValue: false, ClientKey: "ce2" },
+    ]
+    writePendingChanges(E1, identity, draft)
+    await flushPendingSealing()
+    const server = serverDraft()
+    server.Variants[0].Topology.Devices[0].Bootstrap.Env = []
+    const { merged } = await restore(E1, server)
+    expect(values(merged).env).toEqual(["first", "second"])
+  })
+
+  it("carries the sealed part of a new task to its exercise: resealed when the key is here", async () => {
+    await withKey()
+    const NEW = pendingBufferKey("u1", null)
+    writePendingChanges(NEW, identity, secretDraft())
+    await flushPendingSealing()
+    movePendingChanges(NEW, E1, identity, secretDraft())
+    await flushPendingSealing()
+    expect(storage.has(NEW)).toBe(false)
+    expect(values((await restore(E1, serverDraft())).merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+  })
+
+  it("keeps the new-task entry while the key is away and moves its sealed values once it arrives", async () => {
+    await withKey()
+    const NEW = pendingBufferKey("u1", null)
+    writePendingChanges(NEW, identity, secretDraft())
+    await flushPendingSealing()
+    vi.useFakeTimers()
+    await withoutKey()
+    // The form after the restore holds no secret values yet (they were sealed under the new-task entry).
+    const form = secretDraft()
+    form.Variants[0].Tasks[0].Check.Answer.Values = []
+    form.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
+    markPendingBaseline(NEW, form)
+    movePendingChanges(NEW, E1, identity, form)
+    expect(JSON.parse(storage.get(NEW)!).sealed?.keyId).toBe("key-1")
+    expect(JSON.parse(storage.get(E1)!).sealed).toBeUndefined()
+    writePendingChanges(E1, { ...identity, Name: "Renamed" }, form)
+    mockFetchDraftKey.mockResolvedValue(KEY_1)
+    await vi.advanceTimersByTimeAsync(1000)
+    vi.useRealTimers()
+    await flushPendingSealing()
+    expect(storage.has(NEW)).toBe(false)
+    const { pending, merged } = await restore(E1, serverDraft())
+    expect(pending.identity.Name).toBe("Renamed")
+    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["tok-123-secret", "plain-mode"] })
+  })
+
+  it("does not keep a sealed part that no longer matches the draft when sealing fails", async () => {
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
+    await flushPendingSealing()
+    vi.spyOn(crypto.subtle, "encrypt").mockRejectedValueOnce(new Error("encrypt failed"))
+    const edited = secretDraft()
+    edited.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "rotated"
+    writePendingChanges(E1, identity, edited)
+    await flushPendingSealing()
+    const stored = JSON.parse(storage.get(E1)!)
+    expect(stored.stale).toEqual([expect.stringContaining("ce1")])
+    const { merged } = await restore(E1, serverDraft())
+    expect(values(merged)).toEqual({ answers: [["ICE{one-time-token}"]], env: ["", "plain-mode"] })
+  })
+
+  it("fills a late-opened value over the shown one unless the author edited that field since the restore", () => {
+    const shown = serverDraft()
+    markPendingBaseline(E1, shown)
+    const secrets: PendingSecrets = { answers: { [JSON.stringify(["a", "cv1", "ct1"])]: ["ICE{typed}"] }, env: { [JSON.stringify(["e", "cv1", "cd1", "ce1"])]: "tok" } }
+    shown.Variants[0].Topology.Devices[0].ClientKey = "cd1"
+    shown.Variants[0].Topology.Devices[0].Bootstrap.Env[0].ClientKey = "ce1"
+    expect(pendingSecretFills(E1, shown, secrets)).toEqual([
+      { path: "Variants.0.Tasks.0.Check.Answer.Values", value: ["ICE{typed}"] },
+      { path: "Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value", value: "tok" },
+    ])
+    shown.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{author}"]
+    expect(pendingSecretFills(E1, shown, secrets).map((fill) => fill.path)).toEqual(["Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value"])
+  })
+
+  it("stops waiting for the key at the restore after about five seconds", async () => {
+    await withKey()
+    writePendingChanges(E1, identity, secretDraft())
+    await flushPendingSealing()
+    resetDraftKeyForTests()
+    vi.useFakeTimers()
+    mockFetchDraftKey.mockReturnValue(new Promise(() => undefined))
+    const opened = openPendingSecrets(E1, readPendingChanges(E1)!)
+    await vi.advanceTimersByTimeAsync(5000)
+    await expect(opened).resolves.toEqual({ status: "later" })
   })
 
   it("deletes a draft older than two days on read, and the sweep deletes every expired draft of the user", () => {
     const old = Date.now() - PENDING_MAX_AGE_MS - 1
-    const stale = pendingBufferKey("u1", "e1")
-    writePendingChanges(stale, identity, emptyDraft())
-    storage.set(stale, JSON.stringify({ ...JSON.parse(storage.get(stale)!), updatedAt: old }))
-    expect(readPendingChanges(stale)).toBeNull()
-    expect(storage.has(stale)).toBe(false)
-
+    writePendingChanges(E1, identity, emptyDraft())
+    storage.set(E1, JSON.stringify({ ...JSON.parse(storage.get(E1)!), updatedAt: old }))
+    expect(readPendingChanges(E1)).toBeNull()
+    expect(storage.has(E1)).toBe(false)
     const mine = [pendingBufferKey("u1", "e2"), pendingBufferKey("u1", null)]
     const fresh = pendingBufferKey("u1", "e3")
     const foreign = pendingBufferKey("u2", "e2")
@@ -348,17 +504,15 @@ describe("exercise pending buffer: sealed secret values", () => {
   })
 
   it("keeps reading version 2 entries (no sealed part)", async () => {
-    const key = pendingBufferKey("u1", "e1")
     const draft = secretDraft()
     draft.Variants[0].Tasks[0].Check.Answer.Values = []
     draft.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
     draft.Variants[0].Tasks[0].Name = "Edited in v2"
-    storage.set(key, JSON.stringify({ version: 2, identity, draft, updatedAt: Date.now() }))
-    const pending = readPendingChanges(key)!
+    storage.set(E1, JSON.stringify({ version: 2, identity, draft, updatedAt: Date.now() }))
+    const { pending, opened, merged } = await restore(E1, serverDraft())
     expect(pending.identity).toEqual(identity)
-    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
-    const merged = mergePendingDraft(serverDraft(), pending.draft)
+    expect(opened).toEqual({ status: "none" })
     expect(merged.Variants[0].Tasks[0].Name).toBe("Edited in v2")
-    expect(values(merged)).toEqual({ answers: ["ICE{server}"], env: ["", "server-mode"] })
+    expect(values(merged)).toEqual({ answers: [["ICE{server}"]], env: ["", "server-mode"] })
   })
 })

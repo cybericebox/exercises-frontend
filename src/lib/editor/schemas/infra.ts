@@ -105,9 +105,13 @@ export type BootstrapFileForm = {
   Group: string
   Mode: string
 }
-export type BootstrapFormValues = { Timeout: string; Env: NormalizedEnvVar[]; Files: BootstrapFileForm[]; Script: string; Interpreter: string }
+/** A variable row; ClientKey: form-only, its stable identity in this browser (lib/clientKeys), never sent. */
+export type EnvFormValues = NormalizedEnvVar & { ClientKey?: string }
+export type BootstrapFormValues = { Timeout: string; Env: EnvFormValues[]; Files: BootstrapFileForm[]; Script: string; Interpreter: string }
 
 export type DeviceFormValues = Omit<NormalizedDevice, "Access" | "Bootstrap" | "Persistence"> & {
+  /** Form-only: the stable identity of the device in this browser (lib/clientKeys); never sent. */
+  ClientKey?: string
   Access: AccessFormEntry[]
   Bootstrap: BootstrapFormValues
   Persistence?: PersistenceFormValues

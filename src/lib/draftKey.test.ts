@@ -57,11 +57,31 @@ describe("draft key", () => {
     expect(draftKeyState()).toBe("ready")
   })
 
-  it("stops when the server refuses (signed out) and rejects a key of the wrong size", async () => {
+  it("keeps waiting while not signed in (401): no timed retry, it asks again when the tab gets the focus back", async () => {
+    vi.useFakeTimers()
     mockFetch.mockRejectedValue(new ApiError(401, null))
     expect(await getDraftKey()).toBeNull()
-    expect(draftKeyState()).toBe("refused")
-    resetDraftKeyForTests()
+    expect(draftKeyState()).toBe("waiting")
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    mockFetch.mockResolvedValue({ ID: "key-1", Key: KEY })
+    window.dispatchEvent(new Event("focus"))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(draftKeyState()).toBe("ready")
+  })
+
+  it.each([404, 405, 400])("says the backend has no draft keys on %i and stops asking", async (status) => {
+    vi.useFakeTimers()
+    mockFetch.mockRejectedValue(new ApiError(status, null))
+    expect(await getDraftKey()).toBeNull()
+    expect(draftKeyState()).toBe("unsupported")
+    window.dispatchEvent(new Event("focus"))
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects a key of the wrong size and tries again later", async () => {
     vi.useFakeTimers()
     mockFetch.mockResolvedValue({ ID: "key-1", Key: btoa("short") })
     expect(await getDraftKey()).toBeNull()

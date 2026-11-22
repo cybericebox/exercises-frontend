@@ -32,6 +32,8 @@ export * from "@/lib/editor/schemas/infra"
 // ── Form types ─────────────────────────────────────────────────────────────────
 
 export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
+  /** Form-only: the stable identity of the item in this browser (lib/clientKeys); never sent. */
+  ClientKey?: string
   /** Form-only: the stored variant this unsaved one was copied from; sent only when set. */
   CopyOf?: string
   Topology: TopologyFormValues

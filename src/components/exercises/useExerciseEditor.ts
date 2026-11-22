@@ -16,9 +16,10 @@ import {
   type DraftFormValues, type IdentityFormValues,
 } from "@/lib/exerciseSchemas"
 import {
-  applyPendingSecrets, clearPendingChanges, hasDraftContent, mergePendingDraft, openPendingSecrets, pendingBufferKey, pendingSecretFills, readPendingChanges,
-  sweepPendingChanges, writePendingChanges, type OpenedSecrets, type PendingChanges,
+  applyPendingSecrets, clearPendingChanges, hasDraftContent, markPendingBaseline, mergePendingDraft, movePendingChanges, openPendingSecrets, pendingBufferKey,
+  pendingSecretFills, readPendingChanges, sweepPendingChanges, writePendingChanges, type OpenedSecrets, type PendingChanges,
 } from "@/lib/exercisePendingBuffer"
+import { clientKeyFills, ensureClientKeys } from "@/lib/clientKeys"
 import { currentDraftKey, startDraftKey, subscribeDraftKey } from "@/lib/draftKey"
 import { capturedDraftIds, savedSecretUpdates, serverIdUpdates } from "@/lib/serverIdUpdates"
 import { withLinkedMirrorMuted } from "@/lib/linkedMirrorMute"
@@ -88,6 +89,15 @@ export type ExerciseEditor = {
   readOnly: boolean
   /** A new task with content but no valid name yet: it lives only in this browser. */
   hasLocalDraft: () => boolean
+}
+
+/**
+ * A change of one field the author edits: a value, or a list of values (answers, tags). Not an item or a list of items
+ * (an append, a remove, a move, a whole task set at once): those leave the errors of the fields inside alone.
+ */
+function isLeafChange(value: unknown, type: string | undefined): boolean {
+  if (Array.isArray(value)) return value.length > 0 ? value.every((item) => item === null || typeof item !== "object") : type === "change"
+  return value === null || typeof value !== "object"
 }
 
 function identityOf(exercise: Exercise, version?: Version): IdentityFormValues {
@@ -220,7 +230,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
   const applyValues = useCallback((identity: IdentityFormValues, draft: DraftFormValues) => {
     suppressRef.current = true
     identityForm.reset(identity)
-    draftForm.reset(draft)
+    // Every variant, task, device and variable row has its client key from the start (the buffer seals by them).
+    draftForm.reset(ensureClientKeys(draft))
     suppressRef.current = false
     lastSignatureRef.current = signature()
   }, [identityForm, draftForm, signature])
@@ -254,10 +265,8 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
         exerciseIdRef.current = id
         revisionRef.current = createdExercise.DraftRevision ?? ""
         savedIdentityRef.current = JSON.stringify(input)
-        if (userId) {
-          writePendingChanges(pendingBufferKey(userId, id), identity, draftForm.getValues())
-          clearPendingChanges(pendingBufferKey(userId, null))
-        }
+        // The new-task entry becomes the exercise's, its sealed secret values with it.
+        if (userId) movePendingChanges(pendingBufferKey(userId, null), pendingBufferKey(userId, id), identity, draftForm.getValues())
         if (mountedRef.current) {
           setExercise(createdExercise)
           optionsRef.current.onCreated(createdExercise)
@@ -412,6 +421,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           if (pending && canWrite && !cancelled) {
             if (opened.status === "later") heldSecretsRef.current = { key, pending }
             applyValues(pending.identity, opened.status === "open" ? applyPendingSecrets(pending.draft, opened.secrets) : pending.draft)
+            markPendingBaseline(key, draftForm.getValues())
             toast.success(t("admin.ex.create.localOmitted"))
             optionsRef.current.onPendingRestored()
             setRestored(true)
@@ -461,6 +471,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
           const serverDraft = workingCopyValues(loadedVersion)
           savedDraftRef.current = isStoredVersionId(loadedVersion.ID) ? payloadSignature(toSaveDraftInput(toDraftFormValues(loadedVersion))) : null
           applyValues(apply ? pending.identity : identityOf(loaded, loadedVersion), apply ? mergePendingDraft(serverDraft, pending.draft, opened.status === "open" ? opened.secrets : undefined) : serverDraft)
+          if (key && apply) markPendingBaseline(key, draftForm.getValues())
           setLoadState("ready")
           if (apply) {
             toast.success(t("admin.exPage.toast.pendingRestored"))
@@ -494,8 +505,9 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, versionId, userId, loadAttempt])
 
-  // Sealed values held back because the draft key was not here at the restore: once it arrives they fill the fields that are
-  // still empty (never what the author typed meanwhile); the change is buffered again, sealed with the key.
+  // Sealed values held back because the draft key was not here at the restore (or did not come within ~5 s): once it arrives
+  // they fill their fields, matched by client key, as a restore would (the buffered value wins) unless the author changed
+  // that field since the restore; the change is buffered again, sealed with the key.
   useEffect(() => {
     if (loadState !== "ready") return
     const fill = () => {
@@ -504,7 +516,7 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
       heldSecretsRef.current = null
       void openPendingSecrets(held.key, held.pending).then((opened) => {
         if (opened.status !== "open" || !mountedRef.current) return
-        for (const item of pendingSecretFills(draftForm.getValues(), opened.secrets)) draftForm.setValue(item.path as never, item.value as never, { shouldDirty: true })
+        for (const item of pendingSecretFills(held.key, draftForm.getValues(), opened.secrets)) draftForm.setValue(item.path as never, item.value as never, { shouldDirty: true })
       })
     }
     fill()
@@ -527,6 +539,13 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     const check = () => {
       scheduled = false
       if (!active || replacementFence.current) return
+      // A new item (an added task, a copied device, an imported variable) gets its client key before anything is buffered.
+      const keys = clientKeyFills(draftForm.getValues())
+      if (keys.length > 0) {
+        suppressRef.current = true
+        withLinkedMirrorMuted(draftForm.control, () => { for (const fill of keys) draftForm.setValue(fill.path as never, fill.value as never) })
+        suppressRef.current = false
+      }
       const next = signature()
       if (next === lastSignatureRef.current) return
       lastSignatureRef.current = next
@@ -539,17 +558,18 @@ export function useExerciseEditor(options: UseExerciseEditorOptions): ExerciseEd
     }
     checkPendingRef.current = () => { if (scheduled) check() }
     // eslint-disable-next-line react-hooks/incompatible-library -- Imperative form subscription; React Compiler must not memoize this effect.
-    const identityWatch = identityForm.watch((_values, { name }) => {
-      // An error beside a field goes away as soon as its value changes; the rules run again when the field is left.
-      if (name && !suppressRef.current && identityForm.getFieldState(name).error) identityForm.clearErrors(name)
+    const identityWatch = identityForm.watch((_values, { name, type }) => {
+      // The error of the changed field goes away as soon as its value changes; the rules run again when the field is left.
+      if (name && !suppressRef.current && isLeafChange(identityForm.getValues(name), type) && identityForm.getFieldState(name).error) identityForm.clearErrors(name)
       onChange()
     })
-    const draftWatch = draftForm.watch((_values, { name }) => {
+    const draftWatch = draftForm.watch((_values, { name, type }) => {
       // A server error beside a field goes away when the author changes that field, without waiting for a blur or a publish check;
-      // so does a rule's error of the changed field (the rules run again when it is left or on the next check).
+      // so does a rule's error of the changed field (the rules run again when it is left or on the next check). Only that
+      // field's: an append, a remove or a move of items keeps the errors of the other fields.
       if (!suppressRef.current) {
         settleChangedServerErrors(draftForm)
-        if (name && draftForm.getFieldState(name).error) draftForm.clearErrors(name)
+        if (name && isLeafChange(draftForm.getValues(name as never), type) && draftForm.getFieldState(name).error) draftForm.clearErrors(name)
       }
       onChange()
     })

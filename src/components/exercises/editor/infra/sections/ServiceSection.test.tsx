@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen, waitFor, within, cleanup } from "@testi
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
 vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) }))
+import { fetchDraftKey } from "@/api/me/draftKey"
+import { ApiError } from "@/api/client"
 
 import { ServiceSection } from "./ServiceSection"
 import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
@@ -174,6 +176,16 @@ describe("environment variables: the draft key", () => {
     await getDraftKey()
     renderService(withEnv(env("API_TOKEN", "one-time", { Secret: true }), env("EMPTY")))
     expect(screen.getAllByText("ed.c.env.keptLater")).toHaveLength(1)
+    resetDraftKeyForTests()
+  })
+
+  it("says the secrets are not kept in the browser when the backend has no draft keys (404)", async () => {
+    resetDraftKeyForTests()
+    vi.mocked(fetchDraftKey).mockRejectedValueOnce(new ApiError(404, null))
+    await getDraftKey()
+    renderService(withEnv(env("API_TOKEN", "one-time", { Secret: true })))
+    expect(screen.getByText("ed.c.env.notKept")).toBeInTheDocument()
+    expect(screen.queryByText("ed.c.env.keptLater")).toBeNull()
     resetDraftKeyForTests()
   })
 

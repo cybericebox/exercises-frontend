@@ -40,7 +40,7 @@ export function withOwnImage(overrides: VariantFormValues["ImageOverrides"], dev
   return image.trim() && image !== baseImage ? [...rest, { DeviceID: deviceId, Image: image }] : rest
 }
 
-function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; Note: string; Weight: number; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"]; ImageOverrides?: VariantFormValues["ImageOverrides"] }): VariantFormValues {
+function inheritFrom(base: VariantFormValues, own: { ID: string; ClientKey?: string; Index: number; Note: string; Weight: number; LinkedTo: string; CopyOf?: string; Tasks: VariantFormValues["Tasks"]; ImageOverrides?: VariantFormValues["ImageOverrides"] }): VariantFormValues {
   const applied = ownImages(own, base)
   const images = new Map(applied.map((image) => [image.DeviceID, image.Image]))
   const rebuilt = clone(base)
@@ -52,6 +52,9 @@ function inheritFrom(base: VariantFormValues, own: { ID: string; Index: number; 
     task.Attachments = mine ? clone(mine.Attachments) : []
   })
   rebuilt.ID = own.ID
+  // The variant keeps its own identity in this browser (its tasks and devices are the base's: the variant key tells them apart).
+  if (own.ClientKey) rebuilt.ClientKey = own.ClientKey
+  else delete rebuilt.ClientKey
   rebuilt.Index = own.Index
   rebuilt.Note = own.Note
   // A linked variant keeps its own issue weight and its own images (those that still apply, as the server keeps them).

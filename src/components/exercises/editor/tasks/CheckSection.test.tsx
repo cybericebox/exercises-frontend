@@ -5,6 +5,8 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 vi.mock("@/api/exercises/flagPolicy", () => ({ getFlagPolicy: () => Promise.resolve({ WarningBits: 20, RandomBits: 64, RandomHexLength: 16 }) }))
 
 vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) }))
+import { fetchDraftKey } from "@/api/me/draftKey"
+import { ApiError } from "@/api/client"
 
 import { CheckSection } from "./CheckSection"
 import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
@@ -175,6 +177,15 @@ describe("CheckSection: the draft key", () => {
     await getDraftKey()
     renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{one-time}"])] }] })
     expect(await screen.findByText("ed.b.answer.keptLater")).toBeInTheDocument()
+    resetDraftKeyForTests()
+  })
+
+  it("says under the flag that secrets are not kept in the browser when the backend has no draft keys (404)", async () => {
+    resetDraftKeyForTests()
+    vi.mocked(fetchDraftKey).mockRejectedValueOnce(new ApiError(404, null))
+    await getDraftKey()
+    renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{one-time}"])] }] })
+    expect(await screen.findByText("ed.b.answer.notKept")).toBeInTheDocument()
     resetDraftKeyForTests()
   })
 })
