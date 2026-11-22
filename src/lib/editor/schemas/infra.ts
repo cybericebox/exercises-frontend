@@ -18,7 +18,7 @@ import {
 } from "@/api/exercises/model"
 import { isGatewayType, type GatewayDeviceType } from "@/lib/gatewayTypes"
 import type {
-  ConnectionDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, TopologyDTO,
+  ConnectionDTO, ConsolePortDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, SerialPortDTO, TopologyDTO,
 } from "@/api/exercises/versions"
 import { durationSeconds } from "./task"
 
@@ -294,6 +294,9 @@ const deviceSchema = z
     DHCPRanges: z.array(z.object({ Start: z.number().int(), End: z.number().int() })),
     DNS: z.string(),
     ReverseConnections: z.boolean(),
+    // Not edited here yet: carried through unchanged.
+    ConsolePorts: z.array(z.custom<ConsolePortDTO>()).optional(),
+    SerialPorts: z.array(z.custom<SerialPortDTO>()).optional(),
   })
   .superRefine((d, ctx) => {
     const node = d.Type === "node"
@@ -355,6 +358,7 @@ const endpointSchema = z
   })
 
 const connectionSchema = z.object({
+  Kind: z.string().optional(),
   Endpoints: z.array(endpointSchema).length(2, t("admin.ex.val.connectionArity")),
 })
 
@@ -393,6 +397,8 @@ export const topologySchema = z
     topology.Connections.forEach((connection, ci) => {
       connection.Endpoints.forEach((ep, side) => {
         if (ep.Kind !== "device") return
+        // A console cable joins a serial and a console port, not interfaces: the editor does not check those yet.
+        if (isConsoleCable(connection) && topology.Devices.some((d) => d.ID === ep.DeviceID)) return
         const device = topology.Devices.find((d) => d.ID === ep.DeviceID)
         if (!device) {
           ctx.addIssue({
@@ -591,6 +597,9 @@ export function bootstrapToDTO(b: BootstrapFormValues): BootstrapDTO | undefined
   return Object.keys(out).length ? out : undefined
 }
 
+/** A console cable (Kind "console"): not a network link. */
+export const isConsoleCable = (connection: { Kind?: string }): boolean => connection.Kind === "console"
+
 function deviceToDTO(d: DeviceFormValues): DeviceDTO {
   // The device ID ALWAYS goes out (client-side uuid for new devices): Connections
   // and the conditions of a state check reference it.
@@ -628,6 +637,9 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...(bootstrap ? { Bootstrap: bootstrap } : {}),
     ...(d.Profile === "container" && d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } satisfies PersistenceDTO } : {}),
     ...(d.WaitReadyFile ? { WaitReadyFile: true } : {}),
+    // Not edited here yet: sent back as loaded, absent when absent.
+    ...(d.ConsolePorts ? { ConsolePorts: d.ConsolePorts } : {}),
+    ...(d.SerialPorts ? { SerialPorts: d.SerialPorts } : {}),
   }
 }
 
@@ -637,6 +649,7 @@ function variablesToDTO(variables: VariableFormValues[]): VariableDTO[] {
 
 export function topologyToDTO(topology: TopologyFormValues): TopologyDTO {
   const connections: ConnectionDTO[] = topology.Connections.map((c) => ({
+    ...(c.Kind ? { Kind: c.Kind } : {}),
     Endpoints: c.Endpoints.map((ep) => ({ Kind: ep.Kind, DeviceID: ep.DeviceID, ...(ep.Interface ? { Interface: ep.Interface } : {}) })),
   }))
   return {
@@ -672,6 +685,7 @@ function networkRoots(topology: Pick<TopologyFormValues, "Devices" | "Connection
     if (ra !== rb) parent.set(ra, rb)
   }
   topology.Connections.forEach((connection) => {
+    if (isConsoleCable(connection)) return // a console cable joins no network
     const [a, b] = connection.Endpoints
     if (a && b) join(a, b)
   })

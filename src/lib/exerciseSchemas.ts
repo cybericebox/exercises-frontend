@@ -16,7 +16,7 @@ import { z } from "zod"
 import { t } from "@/i18n/t"
 import { linkedFlagConflicts, ownImages } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
-import type { NormalizedVariant, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
+import type { NormalizedVariant, OpponentDTO, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
 import { deliveriesOfTask } from "@/lib/editor/refs"
 import { TEMPLATE_PREFIX } from "@/lib/flagPattern"
 import {
@@ -70,6 +70,8 @@ const variantSchema = z.object({
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
+  // Not edited here yet: carried through unchanged.
+  Opponents: z.array(z.custom<OpponentDTO>()).optional(),
 })
 
 export const draftSchema = z
@@ -163,6 +165,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       ImageOverrides: v.ImageOverrides ?? [],
       Tasks: v.Tasks.map((task, ti) => taskToForm(task, vi, ti)),
       Topology: topologyToForm(v.Topology),
+      ...(v.Opponents ? { Opponents: v.Opponents } : {}),
     })),
   }
 }
@@ -190,6 +193,8 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
+    // A request without Opponents removes them: what was loaded goes back unchanged.
+    ...(v.Opponents ? { Opponents: v.Opponents } : {}),
   }))
   return {
     AdminNote: values.AdminNote,

@@ -19,6 +19,8 @@ export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection>
   Access: "access",
   // A gateway has one small dialog: every field of it is in the first section.
   DHCP: "main", DHCPRanges: "main", DNS: "main", ReverseConnections: "main",
+  // Console and serial ports have no section yet (carried through unchanged): an error on them opens the first one.
+  ConsolePorts: "main", SerialPorts: "main",
 }
 
 /** Environment variables are in “Service”; files, the script, its interpreter and the timeout are in “Initialization”. */

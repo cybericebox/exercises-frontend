@@ -140,10 +140,21 @@ export type DeviceDTO = {
   DNS?: string
   /** VPN gateway only: devices of the lab may start connections to the participants' machines. Default false. */
   ReverseConnections?: boolean
+  /** Nodes only: the management lines (console0..., aux0...) and the terminal lines (serial0...), the ends of a console cable. Not edited here yet: carried through unchanged. */
+  ConsolePorts?: ConsolePortDTO[]
+  SerialPorts?: SerialPortDTO[]
 }
 
+/** A console port: at most one of Command and Native. */
+export type ConsolePortDTO = { Name: string; Command?: string[]; User?: string; Native?: NativeSourceDTO }
+/** stdio: the service's own terminal; tcp: Port on the device's loopback. */
+export type NativeSourceDTO = { Kind: string; Port?: number }
+/** A serial port; an empty Path is /dev/ttyCON<n> for serial<n>. */
+export type SerialPortDTO = { Name: string; Path?: string }
+
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
-export type ConnectionDTO = { Endpoints: EndpointDTO[] } // exactly 2
+/** Kind: absent for a network connection, "console" for a console cable (its endpoints' Interface name the ports). Carried through unchanged. */
+export type ConnectionDTO = { Kind?: string; Endpoints: EndpointDTO[] } // exactly 2
 export type DHCPRangeDTO = { Start: number; End: number }
 export type TopologyDTO = {
   /** Variables of the infrastructure ({{var.<Name>}}): exactly one of Value and Template each. */
@@ -197,6 +208,23 @@ export type VariantDTO = {
   CopyOf?: string
   Tasks: TaskDTO[]
   Topology: TopologyDTO
+  /**
+   * The automated attackers and defenders of the variant (author content). A request that omits them removes them, so the
+   * editor, which does not edit them yet, sends back what it loaded, unchanged.
+   */
+  Opponents?: OpponentDTO[]
+}
+
+/** One opponent of a variant; Seat (defense, attack-defense) is the node with serial ports a human defender sits at. */
+export type OpponentDTO = {
+  Role: string
+  Band: number
+  Goal: string[]
+  StartAfter?: string
+  Operates?: string[]
+  Foothold?: string
+  Seat?: string
+  Brief?: string
 }
 
 export type SaveDraftInput = {
@@ -272,10 +300,14 @@ export type NormalizedDevice = {
   DHCPRanges: DHCPRangeDTO[]
   DNS: string
   ReverseConnections: boolean
+  /** Carried through unchanged: present only when the server sent them. */
+  ConsolePorts?: ConsolePortDTO[]
+  SerialPorts?: SerialPortDTO[]
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
-export type NormalizedConnection = { Endpoints: NormalizedEndpoint[] }
+/** Kind is present only when the server sent one (a console cable); carried through unchanged. */
+export type NormalizedConnection = { Kind?: string; Endpoints: NormalizedEndpoint[] }
 
 export type NormalizedTopology = {
   Variables: VariableDTO[]
@@ -295,6 +327,8 @@ export type NormalizedVariant = {
   ImageOverrides?: ImageOverride[]
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
+  /** Carried through unchanged: present only when the server sent them. */
+  Opponents?: OpponentDTO[]
 }
 
 /** Containers only; a variant is one entry of Variants. */
@@ -430,6 +464,9 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     DHCPRanges: (raw.DHCPRanges ?? []).map(({ Start, End }) => ({ Start, End })),
     DNS: raw.DNS ?? "",
     ReverseConnections: raw.ReverseConnections ?? false,
+    // Not edited here yet: kept as sent, absent when absent.
+    ...(raw.ConsolePorts ? { ConsolePorts: raw.ConsolePorts } : {}),
+    ...(raw.SerialPorts ? { SerialPorts: raw.SerialPorts } : {}),
   }
 }
 
@@ -438,6 +475,7 @@ export function normalizeTopology(raw: TopologyDTO | null | undefined): Normaliz
     Variables: (raw?.Variables ?? []).map((variable) => ({ Name: variable.Name, ...(variable.Template ? { Template: variable.Template } : { Value: variable.Value ?? "" }) })),
     Devices: (raw?.Devices ?? []).map(normalizeDevice),
     Connections: (raw?.Connections ?? []).map((c) => ({
+      ...(c.Kind ? { Kind: c.Kind } : {}),
       Endpoints: (c.Endpoints ?? []).map((ep) => ({
         Kind: ep.Kind,
         DeviceID: ep.DeviceID ?? "",
@@ -458,6 +496,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     ImageOverrides: raw.LinkedTo ? (raw.ImageOverrides ?? []).map(({ DeviceID, Image }) => ({ DeviceID, Image })) : [],
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
+    ...(raw.Opponents ? { Opponents: raw.Opponents } : {}),
   }
 }
 
