@@ -24,6 +24,7 @@ export function warningText(warning: ImportWarning): string {
     case "used_by_events": return t(pluralKey("ed.a.import.warn.usedByEvents", Number(context.events ?? 0)), { count: Number(context.events ?? 0) })
     case "removed_task_has_attempts": return t("ed.a.import.warn.removedHasAttempts", { event: String(context.event ?? ""), task: String(context.task ?? ""), attempts: Number(context.attempts ?? 0), solves: Number(context.solves ?? 0) })
     case "running_labs": return t(pluralKey("ed.a.import.warn.runningLabs", Number(context.labs ?? 0)), { count: Number(context.labs ?? 0) })
+    case "attachments_in_some_variants": return publishWarningText({ Code: warning.Code, Task: warning.Task ?? "", WithFiles: warning.WithFiles ?? [], WithoutFiles: warning.WithoutFiles ?? [] })
     default: return t("ed.a.import.warn.other", { code: warning.Code })
   }
 }

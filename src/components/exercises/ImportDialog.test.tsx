@@ -169,6 +169,15 @@ it("shows the warnings of a finished import in its result, as warnings, instead 
  expect(push).not.toHaveBeenCalled()
  expect(screen.getByRole("link", { name: "admin.exImport.update.open" })).toHaveAttribute("href", "/detail?id=target")
 })
+it("shows each warning once when the answer has it both at the top level and under its result", async () => {
+ const warning = { Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [2], WithoutFiles: [1] }
+ vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target", Warnings: [warning] }], created: 0, updated: 1, warnings: [warning] })
+ render(<ImportDialog onClose={vi.fn()} />); await preview()
+ fireEvent.click(screen.getByRole("button", { name: /^admin\.exImport\.update\.apply/ }))
+ fireEvent.click(within(await screen.findByRole("dialog", { name: "admin.exImport.update.replaceTitle" })).getByRole("button", { name: "admin.exImport.update.replace" }))
+ await screen.findByRole("list", { name: "ed.a.import.warnings" })
+ expect(screen.getAllByRole("list", { name: "ed.a.import.warnings" })).toHaveLength(1)
+})
 it("lists the warnings of one result under that result", async () => {
  vi.mocked(commitArchiveImport).mockResolvedValue({ kind: "done", exercises: [], results: [{ ItemKey: "folder", Mode: "update", ExerciseID: "target", Warnings: [{ Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [2], WithoutFiles: [1] }] }], created: 0, updated: 1, warnings: [] })
  render(<ImportDialog onClose={vi.fn()} />); await preview()
