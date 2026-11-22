@@ -18,6 +18,7 @@ import { flagCandidateErrorKey, flagTemplateCanProduce, parseFlagCandidate, TEMP
 import { getFlagPolicy, type FlagPolicy } from "@/api/exercises/flagPolicy"
 import { MAX_ANSWER_VALUES, type AnswerType } from "@/api/exercises/model"
 import { answerValueError } from "@/lib/editor/schemas/task"
+import { useDraftKeyState } from "@/lib/draftKey"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { cn } from "@/utils/cn"
 import { FieldError, fieldId, fieldProps, useFieldError } from "../fieldErrors"
@@ -69,6 +70,8 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
   const { field } = useController({ control, name: path as `Variants.${number}.Tasks.${number}.Check.Answer.Values` })
   const values = field.value ?? []
   const listError = useFieldError(path)
+  // The draft key cannot be fetched yet: the values are not kept in the browser until it arrives (lib/exercisePendingBuffer).
+  const keyWaiting = useDraftKeyState() === "waiting"
   const [pending, setPending] = useState<{ index: number; lines: PasteLine[] } | null>(null)
   const [pasteMode, setPasteMode] = useState<"fixed" | "template">("fixed")
   const [policy, setPolicy] = useState<FlagPolicy | null>(null)
@@ -125,6 +128,7 @@ export function AnswerValues({ variantIndex, taskIndex, type, disabled, linked, 
         : <p className="text-sm text-muted-foreground">{t("ed.b.answer.textRequired")}</p>)}
     </div>
     {listError && <FieldError path={path} />}
+    {!disabled && keyWaiting && values.some((value) => value !== "") && <p className="text-xs text-muted-foreground">{t("ed.b.answer.keptLater")}</p>}
     {!disabled && !inherited && <div className="flex flex-wrap items-center gap-2 subtask-add-left">
       <SectionAddButton label={t("ed.b.answer.add")} onClick={add} blockedReason={values.length >= MAX_ANSWER_VALUES ? t("ed.b.answer.limit", { max: MAX_ANSWER_VALUES }) : null} />
       {linked && <Button type="button" size="sm" variant="outline" onClick={() => change([])}><RefreshCw aria-hidden="true" className="mr-1 h-4 w-4" />{t("ed.b.answer.reset")}</Button>}

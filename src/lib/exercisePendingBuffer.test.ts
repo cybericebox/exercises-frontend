@@ -1,17 +1,29 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn() }))
 import { emptyDevice, emptyDraft, emptyTask, emptyVariant } from "@/lib/exerciseSchemas"
 import { emptyBootstrap } from "@/lib/editor/schemas/infra"
 import { formTask } from "@/test/editorFixtures"
+import { fetchDraftKey } from "@/api/me/draftKey"
+import { draftKeyState, getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
 import {
-  clearPendingChanges, mergePendingDraft, pendingBufferKey, readPendingChanges, writePendingChanges,
+  clearPendingChanges, flushPendingSealing, mergePendingDraft, openPendingSecrets, pendingBufferKey, PENDING_MAX_AGE_MS, readPendingChanges,
+  sweepPendingChanges, writePendingChanges,
 } from "./exercisePendingBuffer"
+
+const mockFetchDraftKey = vi.mocked(fetchDraftKey)
+const keyBase64 = (fill: number) => btoa(String.fromCharCode(...new Uint8Array(32).fill(fill)))
 
 const identity = { Name: "Web 101", Description: "About", Tags: ["web"] }
 let storage: Map<string, string>
 
 beforeEach(() => {
+  resetDraftKeyForTests()
+  mockFetchDraftKey.mockReset()
   storage = new Map()
   Object.defineProperty(window, "localStorage", { configurable: true, value: {
+    get length() { return storage.size },
+    key: (index: number) => [...storage.keys()][index] ?? null,
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => { storage.set(key, String(value)) },
     removeItem: (key: string) => { storage.delete(key) },
@@ -49,7 +61,7 @@ describe("exercise pending buffer", () => {
     const key = pendingBufferKey("u1", "e1")
     storage.set(key, "{")
     expect(readPendingChanges(key)).toBeNull()
-    storage.set(key, JSON.stringify({ version: 3, identity, draft: emptyDraft(), updatedAt: 1 }))
+    storage.set(key, JSON.stringify({ version: 4, identity, draft: emptyDraft(), updatedAt: Date.now() }))
     expect(readPendingChanges(key)).toBeNull()
     // A buffer of the earlier model (tasks with a flag list) is not read.
     storage.set(key, JSON.stringify({ version: 1, identity, draft: emptyDraft(), updatedAt: 1 }))
@@ -189,5 +201,164 @@ describe("exercise pending buffer", () => {
     expect(writePendingChanges(key, identity, emptyDraft())).toBe(false)
     expect(readPendingChanges(key)).toBeNull()
     expect(() => clearPendingChanges(key)).not.toThrow()
+  })
+})
+
+afterEach(() => { vi.useRealTimers() })
+
+/** A draft with a one-time flag, a device secret and a plain variable (ids as the server gave them). */
+function secretDraft() {
+  const draft = emptyDraft()
+  draft.Variants[0].ID = "v1"
+  draft.Variants[0].Tasks[0] = { ...formTask({ ID: "t1", Name: "Find the flag" }) }
+  draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{one-time-token}"]
+  draft.Variants[0].Topology.Devices = [{ ...emptyDevice(), ID: "d1", Name: "web", Bootstrap: { ...emptyBootstrap(), Env: [
+    { Name: "API_TOKEN", Value: "tok-123-secret", Secret: true, HasValue: true },
+    { Name: "APP_MODE", Value: "plain-mode", Secret: false, HasValue: false },
+  ] } }]
+  return draft
+}
+
+/** The server copy of the same draft: its own flag, the secret stored (blank), the plain variable with its stored value. */
+function serverDraft() {
+  const draft = secretDraft()
+  draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{server}"]
+  draft.Variants[0].Topology.Devices[0].Bootstrap.Env = [
+    { Name: "API_TOKEN", Value: "", Secret: true, HasValue: true },
+    { Name: "APP_MODE", Value: "server-mode", Secret: false, HasValue: false },
+  ]
+  return draft
+}
+
+const values = (draft: ReturnType<typeof emptyDraft>) => ({
+  answers: draft.Variants[0].Tasks[0].Check.Answer.Values,
+  env: draft.Variants[0].Topology.Devices[0].Bootstrap.Env.map((entry) => entry.Value),
+})
+
+describe("exercise pending buffer: sealed secret values", () => {
+  it("seals flag and environment values with the session key and opens them again (round trip)", async () => {
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    expect(await getDraftKey()).not.toBeNull()
+    const key = pendingBufferKey("u1", "e1")
+    expect(writePendingChanges(key, identity, secretDraft())).toBe(true)
+    await flushPendingSealing()
+    const raw = storage.get(key)!
+    for (const plain of ["ICE{one-time-token}", "tok-123-secret", "plain-mode"]) expect(raw).not.toContain(plain)
+    const entry = JSON.parse(raw)
+    expect(entry.version).toBe(3)
+    expect(entry.sealed).toMatchObject({ keyId: "key-1", iv: expect.any(String), data: expect.any(String) })
+    const pending = readPendingChanges(key)!
+    const opened = await openPendingSecrets(key, pending)
+    expect(opened.status).toBe("open")
+    // The buffered values win over the server copy for those fields.
+    const merged = mergePendingDraft(serverDraft(), pending.draft, opened.status === "open" ? opened.secrets : undefined)
+    expect(values(merged)).toEqual({ answers: ["ICE{one-time-token}"], env: ["tok-123-secret", "plain-mode"] })
+    expect(merged.Variants[0].Topology.Devices[0].Bootstrap.Env[0].HasValue).toBe(true)
+  })
+
+  it("drops only the sealed values when the key of this session is another one (signed out in this browser)", async () => {
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    await getDraftKey()
+    const key = pendingBufferKey("u1", "e1")
+    const draft = secretDraft()
+    draft.Variants[0].Tasks[0].Name = "Edited offline"
+    writePendingChanges(key, identity, draft)
+    await flushPendingSealing()
+
+    resetDraftKeyForTests()
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-2", Key: keyBase64(9) })
+    const pending = readPendingChanges(key)!
+    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
+    expect(JSON.parse(storage.get(key)!).sealed).toBeUndefined()
+    const merged = mergePendingDraft(serverDraft(), pending.draft)
+    expect(merged.Variants[0].Tasks[0].Name).toBe("Edited offline")
+    expect(values(merged)).toEqual({ answers: ["ICE{server}"], env: ["", "server-mode"] })
+  })
+
+  it("drops the sealed values silently when they cannot be decrypted", async () => {
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    await getDraftKey()
+    const key = pendingBufferKey("u1", "e1")
+    writePendingChanges(key, identity, secretDraft())
+    await flushPendingSealing()
+    const entry = JSON.parse(storage.get(key)!)
+    entry.sealed.data = btoa("tampered")
+    storage.set(key, JSON.stringify(entry))
+    const pending = readPendingChanges(key)!
+    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
+    expect(readPendingChanges(key)?.identity).toEqual(identity)
+  })
+
+  it("writes nothing secret while the key cannot be fetched, and seals the values once it arrives", async () => {
+    vi.useFakeTimers()
+    mockFetchDraftKey.mockRejectedValue(new TypeError("Failed to fetch"))
+    expect(await getDraftKey()).toBeNull()
+    expect(draftKeyState()).toBe("waiting")
+    const key = pendingBufferKey("u1", "e1")
+    writePendingChanges(key, identity, secretDraft())
+    await flushPendingSealing()
+    const raw = storage.get(key)!
+    for (const plain of ["ICE{one-time-token}", "tok-123-secret", "plain-mode"]) expect(raw).not.toContain(plain)
+    expect(JSON.parse(raw).sealed).toBeUndefined()
+
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(draftKeyState()).toBe("ready")
+    vi.useRealTimers()
+    await flushPendingSealing()
+    const entry = JSON.parse(storage.get(key)!)
+    expect(entry.sealed?.keyId).toBe("key-1")
+    const opened = await openPendingSecrets(key, readPendingChanges(key)!)
+    expect(opened.status === "open" && opened.secrets).toBeTruthy()
+    expect(values(mergePendingDraft(serverDraft(), readPendingChanges(key)!.draft, opened.status === "open" ? opened.secrets : undefined)))
+      .toEqual({ answers: ["ICE{one-time-token}"], env: ["tok-123-secret", "plain-mode"] })
+  })
+
+  it("does not write the waiting values after the draft was cleared (saved meanwhile)", async () => {
+    vi.useFakeTimers()
+    mockFetchDraftKey.mockRejectedValue(new TypeError("Failed to fetch"))
+    await getDraftKey()
+    const key = pendingBufferKey("u1", "e1")
+    writePendingChanges(key, identity, secretDraft())
+    clearPendingChanges(key)
+    mockFetchDraftKey.mockResolvedValue({ ID: "key-1", Key: keyBase64(7) })
+    await vi.advanceTimersByTimeAsync(1000)
+    vi.useRealTimers()
+    await flushPendingSealing()
+    expect(storage.has(key)).toBe(false)
+  })
+
+  it("deletes a draft older than two days on read, and the sweep deletes every expired draft of the user", () => {
+    const old = Date.now() - PENDING_MAX_AGE_MS - 1
+    const stale = pendingBufferKey("u1", "e1")
+    writePendingChanges(stale, identity, emptyDraft())
+    storage.set(stale, JSON.stringify({ ...JSON.parse(storage.get(stale)!), updatedAt: old }))
+    expect(readPendingChanges(stale)).toBeNull()
+    expect(storage.has(stale)).toBe(false)
+
+    const mine = [pendingBufferKey("u1", "e2"), pendingBufferKey("u1", null)]
+    const fresh = pendingBufferKey("u1", "e3")
+    const foreign = pendingBufferKey("u2", "e2")
+    for (const key of [...mine, fresh, foreign]) writePendingChanges(key, identity, emptyDraft())
+    for (const key of [...mine, foreign]) storage.set(key, JSON.stringify({ ...JSON.parse(storage.get(key)!), updatedAt: old }))
+    sweepPendingChanges("u1")
+    expect(mine.map((key) => storage.has(key))).toEqual([false, false])
+    expect(storage.has(fresh)).toBe(true)
+    expect(storage.has(foreign)).toBe(true)
+  })
+
+  it("keeps reading version 2 entries (no sealed part)", async () => {
+    const key = pendingBufferKey("u1", "e1")
+    const draft = secretDraft()
+    draft.Variants[0].Tasks[0].Check.Answer.Values = []
+    draft.Variants[0].Topology.Devices[0].Bootstrap.Env.forEach((entry) => { entry.Value = "" })
+    draft.Variants[0].Tasks[0].Name = "Edited in v2"
+    storage.set(key, JSON.stringify({ version: 2, identity, draft, updatedAt: Date.now() }))
+    const pending = readPendingChanges(key)!
+    expect(pending.identity).toEqual(identity)
+    expect(await openPendingSecrets(key, pending)).toEqual({ status: "none" })
+    const merged = mergePendingDraft(serverDraft(), pending.draft)
+    expect(merged.Variants[0].Tasks[0].Name).toBe("Edited in v2")
+    expect(values(merged)).toEqual({ answers: ["ICE{server}"], env: ["", "server-mode"] })
   })
 })

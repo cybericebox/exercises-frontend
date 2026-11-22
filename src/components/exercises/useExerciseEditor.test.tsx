@@ -7,6 +7,7 @@ import type { Version } from "@/api/exercises/versions"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string) => key }))
 vi.mock("@/components/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
+vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn() }))
 vi.mock("@/api/exercises/catalog", () => ({
   createExercise: vi.fn(), getExercise: vi.fn(), updateExercise: vi.fn(), updateExerciseKeepalive: vi.fn(),
 }))
@@ -19,6 +20,9 @@ vi.mock("@/api/exercises/versions", () => ({
 import { createExercise, getExercise, updateExercise } from "@/api/exercises/catalog"
 import { getDraft, getVersion, saveDraft, saveDraftKeepalive } from "@/api/exercises/versions"
 import { toast } from "@/components/ui/toast"
+import { fetchDraftKey } from "@/api/me/draftKey"
+import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
+import { flushPendingSealing } from "@/lib/exercisePendingBuffer"
 import { pendingBufferKey, writePendingChanges } from "@/lib/exercisePendingBuffer"
 import { emptyBootstrap, emptyDevice, emptyDraft, emptyTask, toDraftFormValues } from "@/lib/exerciseSchemas"
 import { normalizedDevice } from "@/test/editorFixtures"
@@ -81,6 +85,8 @@ async function settled(value: string) {
 beforeEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
+  resetDraftKeyForTests()
+  vi.mocked(fetchDraftKey).mockResolvedValue({ ID: "key-1", Key: btoa(String.fromCharCode(...new Uint8Array(32).fill(3))) })
   storage = new Map()
   Object.defineProperty(window, "localStorage", { configurable: true, value: {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -978,5 +984,40 @@ describe("revision of the working copy", () => {
     await act(async () => { acknowledge({ ...serverVersion, AdminNote: "slow", Revision: R2 }); await flushed })
     await act(async () => { expect(await latest.autosave.flush()).toBe(true) })
     expect(mockUpdate).toHaveBeenLastCalledWith("ex-1", { Name: "Typed meanwhile", Description: "", Tags: [] }, R2)
+  })
+})
+
+describe("useExerciseEditor: field errors and sealed secrets", () => {
+  it("clears a name error as soon as the name changes and runs the name rules again on blur", async () => {
+    render(<Harness exerciseId="ex-1" />)
+    const name = await settled("Web 101")
+    fireEvent.change(name, { target: { value: "ab" } })
+    // A check (publish) puts the rule's error on the field before the author ever left it.
+    await act(async () => { await latest.identityForm.trigger("Name") })
+    expect(latest.identityForm.getFieldState("Name").error?.message).toBe("admin.ex.val.name")
+    fireEvent.change(name, { target: { value: "abc" } })
+    expect(latest.identityForm.getFieldState("Name").error).toBeUndefined()
+    fireEvent.change(name, { target: { value: "x" } })
+    expect(latest.identityForm.getFieldState("Name").error).toBeUndefined()
+    fireEvent.blur(name)
+    await waitFor(() => expect(latest.identityForm.getFieldState("Name").error?.message).toBe("admin.ex.val.name"))
+  })
+
+  it("restores a sealed one-time flag and secret over the server copy when the session key matches", async () => {
+    await getDraftKey()
+    const withDevice: Version = { ...serverVersion, Variants: [{ ...serverVersion.Variants[0], Topology: { ...serverVersion.Variants[0].Topology,
+      Devices: [{ ...normalizedDeviceStub, ID: "dev-1", Name: "web", Bootstrap: { ...normalizedDeviceStub.Bootstrap, Env: [{ Name: "TOKEN", Value: "", Secret: true, HasValue: true }] } }] } }] }
+    mockGetDraft.mockResolvedValue(withDevice)
+    const draft = toDraftFormValues(withDevice)
+    draft.Variants[0].Tasks[0].Check.Answer.Values = ["ICE{typed-offline}"]
+    draft.Variants[0].Topology.Devices[0].Bootstrap.Env[0].Value = "one-time-token"
+    const key = pendingBufferKey("editor-1", "ex-1")
+    writePendingChanges(key, { Name: "Offline name", Description: "", Tags: [] }, draft)
+    await flushPendingSealing()
+    expect(storage.get(key)).not.toContain("one-time-token")
+    render(<Harness exerciseId="ex-1" />)
+    await settled("Offline name")
+    expect(latest.draftForm.getValues("Variants.0.Tasks.0.Check.Answer.Values")).toEqual(["ICE{typed-offline}"])
+    expect(latest.draftForm.getValues("Variants.0.Topology.Devices.0.Bootstrap.Env.0.Value")).toBe("one-time-token")
   })
 })

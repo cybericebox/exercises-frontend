@@ -3,7 +3,10 @@ import { act, fireEvent, render, screen, waitFor, within, cleanup } from "@testi
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
 
+vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) }))
+
 import { ServiceSection } from "./ServiceSection"
+import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
 import { DevicePersistenceProvider } from "../../../DevicePersistenceContext"
 import { device, draftWith, FormHarness, readValues, Values } from "../test/harness"
 import type { DeviceFormValues } from "@/lib/exerciseSchemas"
@@ -162,5 +165,21 @@ describe("service command and behavior", () => {
     expect(screen.getByRole("switch", { name: "ed.c.service.ownCommand" })).toBeDisabled()
     expect(screen.getByRole("textbox", { name: "ed.c.env.nameN 1" })).toBeDisabled()
     expect(screen.queryByRole("button", { name: "ed.c.env.add" })).not.toBeInTheDocument()
+  })
+})
+
+describe("environment variables: the draft key", () => {
+  it("says under a typed value that it is kept in the browser once the server is reachable, while the draft key cannot be fetched", async () => {
+    resetDraftKeyForTests()
+    await getDraftKey()
+    renderService(withEnv(env("API_TOKEN", "one-time", { Secret: true }), env("EMPTY")))
+    expect(screen.getAllByText("ed.c.env.keptLater")).toHaveLength(1)
+    resetDraftKeyForTests()
+  })
+
+  it("shows no note when the draft key is here or was never asked for", () => {
+    resetDraftKeyForTests()
+    renderService(withEnv(env("API_TOKEN", "one-time", { Secret: true })))
+    expect(screen.queryByText("ed.c.env.keptLater")).toBeNull()
   })
 })

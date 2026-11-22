@@ -4,7 +4,10 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) => (vars ? `${key}${JSON.stringify(vars)}` : key) }))
 vi.mock("@/api/exercises/flagPolicy", () => ({ getFlagPolicy: () => Promise.resolve({ WarningBits: 20, RandomBits: 64, RandomHexLength: 16 }) }))
 
+vi.mock("@/api/me/draftKey", () => ({ fetchDraftKey: vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) }))
+
 import { CheckSection } from "./CheckSection"
+import { getDraftKey, resetDraftKeyForTests } from "@/lib/draftKey"
 import { flagTask, node, renderInEditor, task } from "./harness"
 
 const kind = (name: string) => screen.getByRole("radio", { name })
@@ -163,5 +166,15 @@ describe(`CheckSection: "Where the answer goes"`, () => {
     const { handles } = renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{a}", "ICE{b}"])] }] })
     await act(async () => { await handles.form.trigger("Variants") })
     expect(within(screen.getByTestId("answer-values")).getByText("ed.shell.val.deliveryRequired")).toBeInTheDocument()
+  })
+})
+
+describe("CheckSection: the draft key", () => {
+  it("says under the flag that it is kept in the browser once the server is reachable, while the draft key cannot be fetched", async () => {
+    resetDraftKeyForTests()
+    await getDraftKey()
+    renderInEditor(<CheckSection variantIndex={0} taskIndex={0} />, { variants: [{ tasks: [flagTask("task_1", "First", ["ICE{one-time}"])] }] })
+    expect(await screen.findByText("ed.b.answer.keptLater")).toBeInTheDocument()
+    resetDraftKeyForTests()
   })
 })

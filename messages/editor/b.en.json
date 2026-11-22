@@ -453,5 +453,6 @@
   "ed.b.val.requiresUnknown": "There is no such subtask in the variant",
   "ed.b.val.stateNotForEvents": "Subtasks with a state check are meant for the Academy. Such a task cannot be added to an event.",
   "ed.b.val.textTemplateEmpty": "A pattern cannot be empty",
-  "ed.b.val.userRequired": "Enter a user"
+  "ed.b.val.userRequired": "Enter a user",
+  "ed.b.answer.keptLater": "The secret is kept in the browser as soon as the server is reachable."
 }

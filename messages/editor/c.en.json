@@ -540,5 +540,6 @@
   "ed.c.views.diagram": "Schema",
   "ed.c.views.linkedNote": "As in variant {n}: only the device images change.",
   "ed.c.views.vars": "Variables",
-  "ed.c.remove.gatewayCleared": "References to be cleared: {refs}, placeholders: {placeholders}."
+  "ed.c.remove.gatewayCleared": "References to be cleared: {refs}, placeholders: {placeholders}.",
+  "ed.c.env.keptLater": "The secret is kept in the browser as soon as the server is reachable."
 }
