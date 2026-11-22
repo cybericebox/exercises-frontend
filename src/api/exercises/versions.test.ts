@@ -103,8 +103,17 @@ describe('versions API paths', () => {
   })
   it('publishDraft POSTs to /:id/publish', async () => {
     mockApiPost.mockResolvedValueOnce(rawVersion)
-    await publishDraft(EX_ID)
+    const published = await publishDraft(EX_ID)
     expect(mockApiPost.mock.calls[0][0]).toBe(`/api/exercises/${EX_ID}/publish`)
+    // An older backend sends no Warnings: none.
+    expect(published.Warnings).toEqual([])
+  })
+  it('publishDraft returns the warnings of the publish answer', async () => {
+    const warning = { Code: 'attachments_in_some_variants', Task: 'Scan', WithFiles: [1], WithoutFiles: [2] }
+    mockApiPost.mockResolvedValueOnce({ ...rawVersion, Warnings: [warning] })
+    const published = await publishDraft(EX_ID)
+    expect(published.Warnings).toEqual([warning])
+    expect(published.ID).toBe(VER_ID)
   })
 
   it('restores a historical version while preserving the current draft', async () => {

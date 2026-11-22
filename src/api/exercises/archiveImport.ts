@@ -33,7 +33,8 @@ export type ImportDiffVariant = {
 export type ImportIssue = { Code: number; Message: string; Path: string; Context?: Record<string, string> }
 /** Never forbids anything. */
 export type ImportWarningCode = "no_exercise_id" | "task_key_conflict" | "used_by_events" | "removed_task_has_attempts" | "running_labs"
-export type ImportWarning = { Code: ImportWarningCode | string; Context?: Record<string, string | number> }
+/** A content warning (attachments_in_some_variants) carries Task, WithFiles and WithoutFiles (1-based variant numbers) instead of Context. */
+export type ImportWarning = { Code: ImportWarningCode | string; Context?: Record<string, string | number>; Task?: string; WithFiles?: number[]; WithoutFiles?: number[] }
 export type ImportUsageEvent = {
   EventID: string; Name: string; Archived: boolean
   /** The event is pinned to the version published now. */

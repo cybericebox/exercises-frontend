@@ -17,6 +17,7 @@ import { ApiError, apiGet } from "@/api/client"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
 
 import type { ImportResult } from "./archive"
+import { readPublishWarnings, type PublishWarning } from "./publishWarnings"
 
 const BASE = "/api/exercises"
 
@@ -44,6 +45,7 @@ type ImportJob = JobState<{
   Created?: number
   Updated?: number
   Unchanged?: number
+  Warnings?: PublishWarning[]
 }>
 
 /** An import job as the UI reads it: the counts are 0 until the stage that learns them. */
@@ -60,6 +62,8 @@ export type ImportJobStatus = {
   created?: number
   updated?: number
   unchanged?: number
+  /** The warnings of a finished import (never blocking); present once the job is done. */
+  warnings?: PublishWarning[]
   exercises: Exercise[]
   error?: ApiError
 }
@@ -138,6 +142,7 @@ export async function getImportJob(jobID: string, signal?: AbortSignal): Promise
     bytesPushed: job.BytesPushed ?? 0,
     bytesTotal: job.BytesTotal ?? 0,
     exercises: job.State === "done" ? (job.Exercises ?? []).map(normalizeExercise) : [],
+    ...(job.State === "done" ? { warnings: readPublishWarnings(job.Warnings) } : {}),
     ...(job.Results ? { results: job.Results, created: job.Created, updated: job.Updated, unchanged: job.Unchanged ?? 0 } : {}),
     error: job.State === "failed" ? jobError(job.Error) : undefined,
   }

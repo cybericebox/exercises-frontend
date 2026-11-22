@@ -23,6 +23,12 @@ it("reuses one source for suggestions, explicit choices and revision-bound commi
  expect(apiPost).toHaveBeenNthCalledWith(1, "/api/exercises/import/preview", source, { signal: undefined })
  expect(apiPost).toHaveBeenLastCalledWith("/api/exercises/import/upload", input)
 })
+it("carries the warnings of the import answer; an older answer without them has none", async () => {
+ const warning = { Code: "attachments_in_some_variants", Task: "Scan", WithFiles: [1], WithoutFiles: [2, 3] }
+ vi.mocked(apiPost).mockResolvedValueOnce({ Exercises: [], Results: [], Created: 1, Updated: 0, Warnings: [warning] }).mockResolvedValueOnce({ Exercises: [], Results: [], Created: 1, Updated: 0 })
+ expect(await commitArchiveImport({ UploadID: "u", Password: "", Targets: [] })).toMatchObject({ kind: "done", warnings: [warning] })
+ expect(await commitArchiveImport({ UploadID: "u", Password: "", Targets: [] })).toMatchObject({ kind: "done", warnings: [] })
+})
 it("keeps server cursor/search policy and stored-file commit route", async () => {
  vi.mocked(apiGet).mockResolvedValue({ Items: [], NextCursor: "next", HasMore: true, Total: 9 })
  await listArchiveImportTargets({ search: "name & owner", cursor: "last", pageSize: 25 })

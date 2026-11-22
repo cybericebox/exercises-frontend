@@ -20,6 +20,7 @@ import { downloadInChunks } from "@/api/exercises/chunkedDownload"
 import { forgetChunkedUpload, uploadChunks, uploadInChunks } from "@/api/exercises/chunkedUpload"
 import { normalizeExercise, type Exercise, type RawExercise } from "@/api/exercises/catalog"
 import type { ImportReport } from "@/api/exercises/archiveImport"
+import { readPublishWarnings, type PublishWarning } from "@/api/exercises/publishWarnings"
 
 const BASE = "/api/exercises"
 
@@ -76,13 +77,14 @@ export async function downloadImportExample(): Promise<ExportedArchive> {
 
 /** What an import start came to: the tasks created at once, or (an archive naming image files) a job to follow. */
 /** «unchanged»: an update the server skipped because the archive brought nothing new. */
-export type ImportResult = { ItemKey: string; Mode: "new" | "update" | "unchanged"; ExerciseID: string; Report?: ImportReport }
-export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number; Unchanged?: number }
-export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number; unchanged?: number } | { kind: "job"; jobID: string }
+/** Warnings (never blocking) may come per result or for the whole answer; an older backend sends none. */
+export type ImportResult = { ItemKey: string; Mode: "new" | "update" | "unchanged"; ExerciseID: string; Report?: ImportReport; Warnings?: PublishWarning[] }
+export type ImportAnswer = RawExercise[] | null | { JobID: string } | { Exercises: RawExercise[] | null; Results: ImportResult[]; Created: number; Updated: number; Unchanged?: number; Warnings?: PublishWarning[] }
+export type ImportStart = { kind: "done"; exercises: Exercise[]; results?: ImportResult[]; created?: number; updated?: number; unchanged?: number; warnings?: PublishWarning[] } | { kind: "job"; jobID: string }
 
 export function normalizeImportStart(answer: ImportAnswer): ImportStart {
   if (isJob(answer)) return { kind: "job", jobID: answer.JobID }
-  if (answer && !Array.isArray(answer)) return { kind: "done", exercises: (answer.Exercises ?? []).map(normalizeExercise), results: answer.Results ?? [], created: answer.Created, updated: answer.Updated, unchanged: answer.Unchanged ?? 0 }
+  if (answer && !Array.isArray(answer)) return { kind: "done", exercises: (answer.Exercises ?? []).map(normalizeExercise), results: answer.Results ?? [], created: answer.Created, updated: answer.Updated, unchanged: answer.Unchanged ?? 0, warnings: readPublishWarnings(answer.Warnings) }
   return { kind: "done", exercises: (answer ?? []).map(normalizeExercise) }
 }
 
