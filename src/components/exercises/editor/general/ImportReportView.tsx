@@ -2,7 +2,9 @@
 
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react"
 import type { ImportDiffDevice, ImportDiffTask, ImportDiffVariant, ImportReport, ImportWarning } from "@/api/exercises/archiveImport"
+import type { PublishWarning } from "@/api/exercises/publishWarnings"
 import { t } from "@/i18n/t"
+import { publishWarningText } from "@/lib/publishWarningText"
 import "@/styles/editor-a.css"
 import { pluralKey } from "@/lib/presetLabels"
 import { cn } from "@/utils/cn"
@@ -64,6 +66,16 @@ function VariantDiff({ variant }: { variant: ImportDiffVariant }) {
         </ul></div>
     </div>}
   </section>
+}
+
+/** The warnings of a finished publish or import: notes for the author, never errors. */
+export function PublishWarningList({ warnings }: { warnings: PublishWarning[] }) {
+  if (warnings.length === 0) return null
+  return <ul aria-label={t("ed.a.import.warnings")} className="flex flex-col gap-1.5">
+    {warnings.map((warning, index) => <li key={`${warning.Code}-${warning.Task}-${index}`} className="flex items-start gap-2 text-sm">
+      <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ib-warn)]" /><span>{publishWarningText(warning)}</span>
+    </li>)}
+  </ul>
 }
 
 /** The one-line verdict of a report: publishable, or how many issues block publishing. */

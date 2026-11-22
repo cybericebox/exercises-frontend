@@ -21,6 +21,7 @@
  */
 import { apiDelete, apiGet, apiPost, apiPut, apiKeepalive } from "@/api/client"
 import { normalizeElevation, type Elevation } from "./elevation"
+import { readPublishWarnings, type PublishWarning } from "./publishWarnings"
 import type { ResourceAmount } from "./capabilities"
 import { HINT_LEVELS, type HintLevel } from "@/lib/hintLevels"
 import { normalizeWeight } from "@/lib/variantWeights"
@@ -505,10 +506,13 @@ export async function saveDraft(exerciseId: string, input: SaveDraftInput, revis
   return normalizeVersion(raw)
 }
 
+/** The published version and the warnings of the publish (never blocking; [] from an older backend). */
+export type PublishedVersion = Version & { Warnings: PublishWarning[] }
+
 /** POST /api/exercises/:id/publish */
-export async function publishDraft(exerciseId: string): Promise<Version> {
-  const raw = await apiPost<RawVersion>(`${BASE}/${exerciseId}/publish`, {})
-  return normalizeVersion(raw)
+export async function publishDraft(exerciseId: string): Promise<PublishedVersion> {
+  const raw = await apiPost<RawVersion & { Warnings?: unknown }>(`${BASE}/${exerciseId}/publish`, {})
+  return { ...normalizeVersion(raw), Warnings: readPublishWarnings(raw.Warnings) }
 }
 
 /** ID of the empty working copy (no draft row, nothing published). Never used in version routes. */
