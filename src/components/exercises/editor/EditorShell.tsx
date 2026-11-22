@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { GitBranch } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,51 @@ function moveFocus(event: KeyboardEvent<HTMLElement>) {
   tabs[next].click()
 }
 
+/** The width of the edge fade of the tab row (exercise-general.css); a tab brought into view clears it. */
+const TAB_FADE = 24
+
+/**
+ * The tab row scrolls sideways with its scrollbar hidden (a phone shows about 358 of its 449 px). It says so: data-overflow
+ * (end / start / both) names the edges where tabs are hidden, and the stylesheet fades those edges. The selected tab (or
+ * the variant dropdown of the all-variants view) is brought fully into view, scrolling only the row, never the page.
+ */
+function useTabRowOverflow(selected: string) {
+  const row = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const element = row.current
+    if (!element) return
+    const update = () => {
+      const max = element.scrollWidth - element.clientWidth
+      const before = element.scrollLeft > 1
+      const after = element.scrollLeft < max - 1
+      const overflow = max <= 1 ? null : before && after ? "both" : before ? "start" : "end"
+      if (overflow) element.setAttribute("data-overflow", overflow)
+      else element.removeAttribute("data-overflow")
+    }
+    update()
+    element.addEventListener("scroll", update, { passive: true })
+    window.addEventListener("resize", update)
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update)
+    observer?.observe(element)
+    return () => {
+      element.removeEventListener("scroll", update)
+      window.removeEventListener("resize", update)
+      observer?.disconnect()
+    }
+  }, [])
+  useEffect(() => {
+    const element = row.current
+    const current = element?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"], #editor-variant-trigger[data-on]')
+    if (!element || !current || element.scrollWidth <= element.clientWidth) return
+    const box = element.getBoundingClientRect()
+    const tab = current.getBoundingClientRect()
+    if (tab.right > box.right - TAB_FADE) element.scrollLeft += tab.right - box.right + TAB_FADE
+    else if (tab.left < box.left + TAB_FADE) element.scrollLeft -= box.left + TAB_FADE - tab.left
+    element.dispatchEvent(new Event("scroll"))
+  }, [selected])
+  return row
+}
+
 /**
  * The editor below the header: ONE tab row — "General · [Variant N ▾] · Subtasks · Infrastructure" (B2) — and the
  * view of the open tab. “All variants” is a view reached from the dropdown, not a tab. The views are the packages'
@@ -37,6 +82,7 @@ export function EditorShell() {
   const uid = useId()
   const { form, exerciseId, disabled, variantIndex, dialog, closeDialog } = useEditor()
   const [tab, setTab] = useEditorPosition("tab")
+  const tabRow = useTabRowOverflow(`${tab}:${variantIndex}`)
   useLinkedVariantSync(form, !disabled)
   // A variant's view starts afresh when another variant is chosen.
   const variantKey = form.getValues(`Variants.${variantIndex}.ID`) || `new-${variantIndex}`
@@ -47,7 +93,7 @@ export function EditorShell() {
 
   return <ExerciseIdContext.Provider value={exerciseId}>
     <div className="editor-tabs">
-      <div role="tablist" aria-label={t("ed.shell.tabs.aria")} className="editor-tablist" onKeyDown={moveFocus}>
+      <div ref={tabRow} role="tablist" aria-label={t("ed.shell.tabs.aria")} className="editor-tablist" onKeyDown={moveFocus}>
         {tabButton("general", t("ed.shell.tab.general"))}
         <span className="editor-tabs-divider" aria-hidden="true" />
         <div role="group" className="editor-tab-group" aria-label={t("ed.shell.variant.group", { n: variantIndex + 1 })}>
