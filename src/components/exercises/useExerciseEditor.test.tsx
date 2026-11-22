@@ -193,6 +193,7 @@ describe("useExerciseEditor", () => {
     expect(mockSaveDraft).not.toHaveBeenCalled()
     expect(mockUpdate).not.toHaveBeenCalled()
     expect(latest.autosave.hasUnsaved()).toBe(false)
+    await act(async () => { await flushPendingSealing() })
     expect(storage.has(pendingBufferKey("editor-1", "ex-1"))).toBe(false)
   })
 
@@ -376,12 +377,15 @@ describe("useExerciseEditor", () => {
     vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Buffer overflow" } })
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    await act(async () => { await flushPendingSealing() })
     expect(storage.get(pendingBufferKey("editor-1", null))).toContain("Buffer overflow")
     await act(async () => { await vi.advanceTimersByTimeAsync(700) })
     expect(screen.getByTestId("status")).toHaveTextContent("error")
+    await act(async () => { await flushPendingSealing() })
     expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
     expect(storage.get(pendingBufferKey("editor-1", "new-exercise"))).toContain("Buffer overflow")
     await act(async () => { await latest.autosave.flush() })
+    await act(async () => { await flushPendingSealing() })
     expect(storage.has(pendingBufferKey("editor-1", "new-exercise"))).toBe(false)
   })
 
@@ -497,6 +501,7 @@ describe("useExerciseEditor", () => {
     expect(await settled("Web 101")).toBeInTheDocument()
     expect(mockGetVersion).toHaveBeenCalledWith("ex-1", "snap-1")
     expect(mockGetDraft).not.toHaveBeenCalled()
+    await act(async () => { await flushPendingSealing() })
     expect(storage.has(pendingBufferKey("editor-1", "ex-1"))).toBe(true)
   })
 
@@ -544,6 +549,7 @@ describe("useExerciseEditor", () => {
       await inFlightAutosave.flush()
     })
     expect(onCreated).not.toHaveBeenCalled()
+    await act(async () => { await flushPendingSealing() })
     expect(storage.get(pendingBufferKey("editor-1", "new-exercise"))).toContain("Buffer overflow")
     expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
   })
@@ -610,6 +616,7 @@ describe("useExerciseEditor", () => {
     // ...but the round is reported as not saved (error: indicator + leave guard), the
     // buffer (holding "ab") stays, and no save-failed toast — the field shows the error.
     expect(screen.getByTestId("status")).toHaveTextContent("error")
+    await act(async () => { await flushPendingSealing() })
     expect(storage.get(pendingBufferKey("editor-1", "ex-1"))).toContain("\"ab\"")
     expect(toast.error).not.toHaveBeenCalled()
   })
@@ -705,6 +712,7 @@ describe("useExerciseEditor", () => {
     expect(screen.getByLabelText("name")).toHaveValue("")
     expect(onPendingRestored).not.toHaveBeenCalled()
     expect(mockCreate).not.toHaveBeenCalled()
+    await act(async () => { await flushPendingSealing() })
     expect(storage.has(pendingBufferKey("editor-1", null))).toBe(false)
   })
 
