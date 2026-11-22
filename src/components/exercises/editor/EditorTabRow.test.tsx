@@ -40,7 +40,8 @@ function Harness({ expose }: { expose: (api: EditorApi) => void }) {
 // A layout model of the 390 px phone: the row shows 358 px; the tabs sit at fixed offsets inside the scrolled content.
 const ROW = { left: 16, width: 358 }
 const CONTENT = 449
-const TABS: Record<string, [number, number]> = { general: [0, 80], tasks: [250, 340], infrastructure: [340, 449] }
+const TABS: Record<string, [number, number]> = { general: [0, 80], "variant-trigger": [90, 250], tasks: [250, 340], infrastructure: [340, 449] }
+const FADE = 24
 let scrollLeft = 0
 let content = CONTENT
 
@@ -58,12 +59,19 @@ function layout() {
   })
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
     if (this.getAttribute("role") === "tablist") return rect(ROW.left, ROW.width)
-    const tab = Object.entries(TABS).find(([value]) => this.id.endsWith(`-${value}`))
+    const tab = Object.entries(TABS).find(([value]) => this.id === `editor-${value}` || this.id.endsWith(`-${value}`))
     return tab ? rect(ROW.left + tab[1][0] - scrollLeft, tab[1][1] - tab[1][0]) : rect(0, 0)
   })
 }
 
-afterEach(() => { vi.restoreAllMocks(); content = CONTENT })
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); content = CONTENT })
+
+const shown = (element: HTMLElement) => {
+  const row = screen.getByRole("tablist").getBoundingClientRect()
+  const box = element.getBoundingClientRect()
+  return { clearOfStart: box.left >= row.left + FADE, clearOfEnd: box.right <= row.right - FADE, inside: box.left >= row.left && box.right <= row.right }
+}
+const trigger = () => screen.getByRole("button", { name: /ed\.shell\.variant\.trigger/ })
 
 describe("editor tab row on a narrow screen", () => {
   it("marks the edge where more tabs are hidden, and follows the scroll", () => {
@@ -94,6 +102,54 @@ describe("editor tab row on a narrow screen", () => {
     expect(tab.left).toBeGreaterThanOrEqual(row.left)
     expect(tab.right).toBeLessThanOrEqual(row.right)
     expect(screen.getByRole("tablist")).toHaveAttribute("data-overflow", "start")
+  })
+
+  it("keeps a middle tab clear of the edge fade", () => {
+    layout()
+    let api: EditorApi | undefined
+    render(<Harness expose={(value) => { api = value }} />)
+    act(() => api?.goTo({ tab: "tasks", variant: 0 }))
+    expect(shown(screen.getByRole("tab", { name: "ed.shell.tab.tasks" })).clearOfEnd).toBe(true)
+    expect(screen.getByRole("tablist")).toHaveAttribute("data-overflow", "both")
+  })
+
+  it("scrolls back for a tab at the start and for the variant dropdown of the all-variants view", () => {
+    layout()
+    let api: EditorApi | undefined
+    render(<Harness expose={(value) => { api = value }} />)
+    act(() => api?.goTo({ tab: "infrastructure", variant: 0 }))
+    act(() => api?.goTo({ tab: "general" }))
+    expect(scrollLeft).toBe(0)
+    expect(screen.getByRole("tablist")).toHaveAttribute("data-overflow", "end")
+    act(() => api?.goTo({ tab: "infrastructure", variant: 0 }))
+    act(() => api?.goTo({ tab: "variants" }))
+    expect(shown(trigger()).clearOfStart).toBe(true)
+  })
+
+  it("brings a focused tab into view", () => {
+    layout()
+    let api: EditorApi | undefined
+    render(<Harness expose={(value) => { api = value }} />)
+    act(() => api?.goTo({ tab: "infrastructure", variant: 0 }))
+    act(() => trigger().focus())
+    expect(shown(trigger()).clearOfStart).toBe(true)
+  })
+
+  it("follows a tab that changes size inside a row of the same width", () => {
+    const callbacks: (() => void)[] = []
+    const observed: Element[] = []
+    vi.stubGlobal("ResizeObserver", class { constructor(callback: () => void) { callbacks.push(callback) } observe(node: Element) { observed.push(node) } unobserve() {} disconnect() {} })
+    layout()
+    let api: EditorApi | undefined
+    render(<Harness expose={(value) => { api = value }} />)
+    act(() => api?.goTo({ tab: "infrastructure", variant: 0 }))
+    expect(screen.getByRole("tablist")).toHaveAttribute("data-overflow", "start")
+    expect(observed).toContain(trigger())
+    // The variant label grows ("· separate" → "· based on 1"): the scroll range grows, the row does not.
+    content = CONTENT + 40
+    act(() => callbacks.forEach((callback) => callback()))
+    expect(screen.getByRole("tablist")).toHaveAttribute("data-overflow", "both")
+    expect(shown(screen.getByRole("tab", { name: "ed.shell.tab.infrastructure" })).inside).toBe(true)
   })
 
   it("fades the hidden edge in the stylesheet", () => {
