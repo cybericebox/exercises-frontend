@@ -455,5 +455,6 @@
   "ed.b.val.textTemplateEmpty": "A pattern cannot be empty",
   "ed.b.val.userRequired": "Enter a user",
   "ed.b.answer.keptLater": "The secret is kept in the browser as soon as the server is reachable.",
-  "ed.b.answer.notKept": "Secrets are not kept in the browser: save the task while you are online."
+  "ed.b.answer.notKept": "Secrets are not kept in the browser: save the task while you are online.",
+  "ed.b.rail.removeOpponents": "Opponents refer to it: {n}. After the removal they must be fixed before publishing."
 }

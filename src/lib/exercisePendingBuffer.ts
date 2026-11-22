@@ -535,6 +535,52 @@ type ServerVariantInfo = {
   taskIds: Set<string>
   answers: Map<string, string[]>
   devicesById: Map<string, DeviceFormValues>
+  variant: DraftFormValues["Variants"][number]
+}
+
+type Connection = DraftFormValues["Variants"][number]["Topology"]["Connections"][number]
+
+/** The two ends of a connection, in either order: what identifies it (connections have no ID). */
+function connectionKey(connection: Connection): string {
+  return connection.Endpoints.map((endpoint) => `${endpoint.DeviceID}\0${endpoint.Interface}`).sort().join("\0\0")
+}
+
+/**
+ * The console model and the opponents are not edited in the editor: they always come from the server's copy, never from a
+ * buffer (an old one has none of them, a newer one may hold stale values). Devices match by ID, connections by their two ends;
+ * a console cable of the server that the buffer lacks comes back while both its devices are still there, and one the server no
+ * longer has is dropped.
+ */
+function withServerConsoleModel(variant: DraftFormValues["Variants"][number], server: DraftFormValues["Variants"][number] | undefined): DraftFormValues["Variants"][number] {
+  // A variant, device or connection the server does not have (new in this browser) keeps what the buffer holds.
+  if (!server) return variant
+  const serverDevices = new Map(server.Topology.Devices.map((device) => [device.ID, device] as const))
+  const serverConnections = new Map(server.Topology.Connections.map((connection) => [connectionKey(connection), connection] as const))
+  const devices = variant.Topology.Devices.map((device) => {
+    const { ConsolePorts, SerialPorts, ...rest } = device
+    void ConsolePorts
+    void SerialPorts
+    const own = serverDevices.get(device.ID)
+    if (!own) return device
+    return { ...rest, ...(own.ConsolePorts ? { ConsolePorts: own.ConsolePorts } : {}), ...(own.SerialPorts ? { SerialPorts: own.SerialPorts } : {}) }
+  })
+  const present = new Set(variant.Topology.Connections.map(connectionKey))
+  const deviceIds = new Set(devices.map((device) => device.ID))
+  const connections = [
+    ...variant.Topology.Connections.map((connection) => {
+      const own = serverConnections.get(connectionKey(connection))
+      // A cable the server does not have is stale: the editor cannot make one. A new network link stays as typed.
+      if (!own) return connection.Kind ? [] : [connection]
+      const { Kind, ...rest } = connection
+      void Kind
+      return [own.Kind ? { Kind: own.Kind, ...rest } : rest]
+    }).flat(),
+    ...server.Topology.Connections.filter((connection) => connection.Kind && !present.has(connectionKey(connection)) &&
+      connection.Endpoints.every((endpoint) => deviceIds.has(endpoint.DeviceID))),
+  ]
+  const { Opponents, ...rest } = variant
+  void Opponents
+  return { ...rest, ...(server.Opponents ? { Opponents: server.Opponents } : {}), Topology: { ...variant.Topology, Devices: devices, Connections: connections } }
 }
 
 /**
@@ -547,6 +593,7 @@ type ServerVariantInfo = {
  *    secret set/rotated after the buffer was written still round-trips as "has a value"
  *    instead of failing "secret requires a value" validation on a blank buffered Value.
  *  - The opened sealed values (`secrets`) win over the server copy for the answers and env values they hold.
+ *  - Opponents, console and serial ports and the kind of each connection are the server's (withServerConsoleModel).
  */
 export function mergePendingDraft(server: DraftFormValues, pending: DraftFormValues, secrets?: PendingSecrets): DraftFormValues {
   const serverVariantIds = new Set(server.Variants.filter((variant) => variant.ID).map((variant) => variant.ID))
@@ -559,14 +606,15 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
       if (task.ID) { taskIds.add(task.ID); answers.set(task.ID, task.Check.Answer.Values) }
     }
     const devicesById = new Map(variant.Topology.Devices.map((device) => [device.ID, device] as const))
-    serverInfoByVariant.set(variant.ID, { taskIds, answers, devicesById })
+    serverInfoByVariant.set(variant.ID, { taskIds, answers, devicesById, variant })
   }
 
   // The sealed values name the buffered items by their client keys: an item that is no longer there gets nothing.
   const variants = pending.Variants
     .filter((variant) => !variant.ID || serverVariantIds.has(variant.ID))
-    .map((variant) => {
-      const info = variant.ID ? serverInfoByVariant.get(variant.ID) : undefined
+    .map((buffered) => {
+      const info = buffered.ID ? serverInfoByVariant.get(buffered.ID) : undefined
+      const variant = withServerConsoleModel(buffered, info?.variant)
       return {
         ...variant,
         Tasks: variant.Tasks

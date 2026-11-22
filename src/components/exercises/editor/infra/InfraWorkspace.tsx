@@ -9,7 +9,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { containerNameError, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
-import { emptyGateway, gatewayNameError } from "@/lib/editor/schemas/infra"
+import { emptyGateway, gatewayNameError, isConsoleCable } from "@/lib/editor/schemas/infra"
+import { opponentsNamingDevice, renameDeviceOpponentsInForm } from "@/lib/editor/opponentRefs"
 import { countGatewayRefs, renameGatewayInForm, rewriteGatewayRefs } from "@/lib/editor/gatewayRefs"
 import type { DeviceSection, InfraView } from "@/lib/editorPosition"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
@@ -63,6 +64,7 @@ export function InfraWorkspace() {
   const linked = baseIndex >= 0
   const readOnly = disabled || linked
   const topology = useWatch({ control, name: base })
+  const opponents = useWatch({ control, name: `Variants.${variantIndex}.Opponents` })
   const diagramTopology = useDeferredValue(topology)
   const devices = topology?.Devices ?? []
   const maxGateways = useMaxLabGateways()
@@ -157,7 +159,10 @@ export function InfraWorkspace() {
     if (devices.some((candidate) => candidate.ID !== key && candidate.Name === name)) return t("admin.ex.err.deviceNameDuplicate")
     if (name === device.Name) return null
     if (isGatewayType(device.Type)) renameGatewayInForm({ getValues, setValue }, variantIndex, key, name)
-    else setValue(`${base}.Devices.${index}.Name`, name, { shouldDirty: true, shouldValidate: true })
+    else {
+      renameDeviceOpponentsInForm({ getValues, setValue }, variantIndex, key, device.Name, name)
+      setValue(`${base}.Devices.${index}.Name`, name, { shouldDirty: true, shouldValidate: true })
+    }
     return null
   }
 
@@ -169,7 +174,7 @@ export function InfraWorkspace() {
     setSection(nextSection)
     setOpenNode(key)
     if (field) focusFieldSoon(field)
-  }, [setSection, setOpenNode])
+  }, [setSection, setOpenNode, setSelected, setSelectedEdge])
 
   function closeEditor() {
     setOpenNode("")
@@ -233,8 +238,16 @@ export function InfraWorkspace() {
     setPendingRemoval(null)
   }
 
+  /** A console cable is not edited here yet: it cannot be removed on its own. */
+  function edgeLocked(index: number): boolean {
+    return isConsoleCable(topology?.Connections[index] ?? {})
+  }
+  function requestEdgeRemoval(index: number) {
+    if (!edgeLocked(index)) setPendingEdgeRemoval(index)
+  }
+
   function confirmEdgeRemoval() {
-    if (pendingEdgeRemoval === null) return
+    if (pendingEdgeRemoval === null || edgeLocked(pendingEdgeRemoval)) return
     const index = pendingEdgeRemoval
     setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((_, candidate) => candidate !== index), { shouldDirty: true, shouldValidate: true })
     setSelectedEdge(null)
@@ -244,6 +257,7 @@ export function InfraWorkspace() {
 
   const pendingDevice = pendingRemoval ? devices.find((device) => device.ID === pendingRemoval) : undefined
   const pendingGateway = pendingDevice !== undefined && isGatewayType(pendingDevice.Type)
+  const opponentHits = pendingDevice ? opponentsNamingDevice({ Opponents: opponents }, pendingDevice.Name) : 0
   const removalTitle = pendingRemoval ? t(pendingGateway ? "ed.c.remove.titleGateway" : "ed.c.remove.titleDevice", { name: nodeName(pendingRemoval) }) : ""
   const removalDescription = pendingRemoval ? [
     t(pendingGateway ? "ed.c.remove.gatewayGone" : "ed.c.remove.deviceGone", { name: nodeName(pendingRemoval) }),
@@ -259,6 +273,7 @@ export function InfraWorkspace() {
         || deliveriesOfTask(topology, task.Key).some((delivery) => delivery.deviceId === pendingRemoval)).map((task) => `«${task.Name}»`)
       return names.length ? [t("ed.c.remove.usedBy", { tasks: names.join(", ") })] : []
     })(),
+    ...(opponentHits ? [t("ed.c.remove.opponents", { n: opponentHits })] : []),
   ].join(" ") : ""
 
   const readOnlyReason = linked ? t("ed.c.panel.linkedReason", { n: baseIndex + 1 }) : t("ed.c.panel.editOff")
@@ -327,7 +342,7 @@ export function InfraWorkspace() {
               nodeSettingsBlocked={(key) => { const device = devices.find((candidate) => candidate.ID === key); return device && device.Type !== "node" && !isGatewayType(device.Type) ? t("ed.c.panel.noSettings") : null }}
               gatewayAddBlockedReason={gatewayAddBlockedReason}
               onEdgeSettings={(index) => { cancelConnect(); setView("connections"); setExpandedConnection(index) }}
-              onEdgeRemove={readOnly ? undefined : setPendingEdgeRemoval} linkUnavailableReason={linkUnavailableReason}
+              onEdgeRemove={readOnly ? undefined : requestEdgeRemoval} edgeLocked={edgeLocked} linkUnavailableReason={linkUnavailableReason}
               onNodeRemove={readOnly ? undefined : setPendingRemoval}
               onNodeLinkStart={readOnly ? undefined : (key) => { if (unavailableNodes.includes(key)) return; startConnect(key) }}
               onCanvasSelect={() => { if (!connectMode) { setSelected(null); setSelectedEdge(null) } }}
@@ -346,10 +361,10 @@ export function InfraWorkspace() {
             : edgeNames && selectedEdge !== null && <SidePanel className="bg-background" title={t("ed.c.edge.title", { n: selectedEdge + 1 })} subtitle={t("ed.c.edge.subtitle")} onClose={() => setSelectedEdge(null)}
               footer={<>
                 <Button type="button" variant="outline" onClick={() => { setView("connections"); setExpandedConnection(selectedEdge) }}>{readOnly ? t("ed.c.panel.view") : t("ed.c.panel.configure")}</Button>
-                <HoverTooltip text={readOnly ? readOnlyReason : t("ed.c.panel.delete")} describe={readOnly ? "always" : false}>
-                  <Button type="button" variant="outline" size="icon" aria-label={t("ed.c.panel.delete")} aria-disabled={readOnly || undefined}
+                <HoverTooltip text={readOnly ? readOnlyReason : edgeLocked(selectedEdge) ? t("ed.c.console.readOnly") : t("ed.c.panel.delete")} describe={readOnly || edgeLocked(selectedEdge) ? "always" : false}>
+                  <Button type="button" variant="outline" size="icon" aria-label={t("ed.c.panel.delete")} aria-disabled={readOnly || edgeLocked(selectedEdge) || undefined}
                     className="text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                    onClick={() => { if (!readOnly) setPendingEdgeRemoval(selectedEdge) }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button>
+                    onClick={() => { if (!readOnly) requestEdgeRemoval(selectedEdge) }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button>
                 </HoverTooltip>
               </>}>
               <SummaryList rows={[{ key: "first", label: t("ed.c.edge.first"), value: edgeNames.first }, { key: "second", label: t("ed.c.edge.second"), value: edgeNames.second }]} />

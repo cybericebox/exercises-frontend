@@ -8,6 +8,7 @@
  */
 import type { UseFormReturn } from "react-hook-form"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { renameDeviceOpponentsInForm } from "./opponentRefs"
 
 type Variant = DraftFormValues["Variants"][number]
 type Devices = Variant["Topology"]["Devices"]
@@ -74,6 +75,7 @@ export function renameGatewayInForm(form: Pick<UseFormReturn<DraftFormValues>, "
   const variant = form.getValues(`Variants.${variantIndex}`)
   const current = variant.Topology.Devices.find((device) => device.ID === deviceId)
   if (!current || current.Name === name) return
+  renameDeviceOpponentsInForm(form, variantIndex, deviceId, current.Name, name)
   const rewritten = rewriteGatewayRefs(variant.Topology.Devices, variant.Tasks, current.Name, name)
   form.setValue(`Variants.${variantIndex}.Topology.Devices`, rewritten.devices.map((device) => device.ID === deviceId ? { ...device, Name: name } : device), { shouldDirty: true, shouldValidate: true })
   if (rewritten.tasks.some((task, index) => task !== variant.Tasks[index])) form.setValue(`Variants.${variantIndex}.Tasks`, rewritten.tasks, { shouldDirty: true, shouldValidate: true })

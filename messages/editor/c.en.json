@@ -542,5 +542,8 @@
   "ed.c.views.vars": "Variables",
   "ed.c.remove.gatewayCleared": "References to be cleared: {refs}, placeholders: {placeholders}.",
   "ed.c.env.keptLater": "The secret is kept in the browser as soon as the server is reachable.",
-  "ed.c.env.notKept": "Secrets are not kept in the browser: save the task while you are online."
+  "ed.c.env.notKept": "Secrets are not kept in the browser: save the task while you are online.",
+  "ed.c.console.readOnly": "Console cable (editing comes later)",
+  "ed.c.remove.opponents": "Opponents refer to it: {n}. After the removal they must be fixed before publishing.",
+  "ed.c.val.opponentRefMissing": "Opponents refer to what is gone: {names}. Bring back the device or subtask with that name."
 }

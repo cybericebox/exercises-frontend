@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import type { SelectMenuOption } from "@/components/ui/select-menu"
 import { type NetworkIPRefDTO, type NetworkSubnetRefDTO } from "@/api/exercises/versions"
 import { isGatewayType } from "@/lib/gatewayTypes"
-import { emptyInterface, interfaceNameError } from "@/lib/editor/schemas/infra"
+import { emptyInterface, interfaceNameError, isConsoleCable } from "@/lib/editor/schemas/infra"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { shortForwardingPort } from "@/lib/topologyPorts"
 import { pluralKey } from "@/lib/presetLabels"
@@ -84,7 +84,7 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
     return `${device?.Name || t("admin.exTopo.unnamedDevice")} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
   }
   const linksOf = (name: string): string[] => connections
-    .filter((connection) => connection.Endpoints.some((endpoint) => endpoint.Kind === "device" && endpoint.DeviceID === deviceId && endpoint.Interface === name))
+    .filter((connection) => !isConsoleCable(connection) && connection.Endpoints.some((endpoint) => endpoint.Kind === "device" && endpoint.DeviceID === deviceId && endpoint.Interface === name))
     .map((connection) => endLabel(connection.Endpoints.find((endpoint) => !(endpoint.Kind === "device" && endpoint.DeviceID === deviceId && endpoint.Interface === name)) ?? connection.Endpoints[0]))
 
   function addInterface() {
@@ -188,7 +188,8 @@ function InterfaceForm({ base, index, deviceId, disabled, gateways, links, other
     setDraft(next)
     if (interfaceNameError(next, otherNames)) return
     const connectionsPath = `Variants.${variantIndex}.Topology.Connections` as const
-    const updated = getValues(connectionsPath).map((connection) => ({
+    // A console cable names console and serial ports, never an interface: it is left as it is.
+    const updated = getValues(connectionsPath).map((connection) => isConsoleCable(connection) ? connection : ({
       ...connection,
       Endpoints: connection.Endpoints.map((endpoint) => endpoint.Kind === "device" && endpoint.DeviceID === deviceId && endpoint.Interface === name ? { ...endpoint, Interface: next } : endpoint),
     }))

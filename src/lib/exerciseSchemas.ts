@@ -16,8 +16,9 @@ import { z } from "zod"
 import { t } from "@/i18n/t"
 import { linkedFlagConflicts, ownImages } from "@/lib/linkedVariants"
 import { hintsAligned } from "@/lib/hintSync"
-import type { NormalizedVariant, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
+import type { NormalizedVariant, OpponentDTO, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
 import { deliveriesOfTask } from "@/lib/editor/refs"
+import { danglingOpponentRefs } from "@/lib/editor/opponentRefs"
 import { TEMPLATE_PREFIX } from "@/lib/flagPattern"
 import {
   emptyTask, refineVariantTasks, taskSchema, taskToDTO, taskToForm, type TaskFormValues,
@@ -70,6 +71,8 @@ const variantSchema = z.object({
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
+  // Not edited here yet: carried through unchanged.
+  Opponents: z.array(z.custom<OpponentDTO>()).optional(),
 })
 
 export const draftSchema = z
@@ -98,6 +101,9 @@ export const draftSchema = z
           }
         }
       })
+      // The opponents are not edited here, but a removed device or task can leave one naming nothing: the backend refuses that.
+      const dangling = danglingOpponentRefs(variant)
+      if (dangling.length) ctx.addIssue({ code: "custom", path: ["Variants", i, "Opponents"], message: t("ed.c.val.opponentRefMissing", { names: dangling.map((name) => `«${name}»`).join(", ") }) })
       if (variant.Tasks.length !== expected) {
         ctx.addIssue({
           code: "custom",
@@ -163,6 +169,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       ImageOverrides: v.ImageOverrides ?? [],
       Tasks: v.Tasks.map((task, ti) => taskToForm(task, vi, ti)),
       Topology: topologyToForm(v.Topology),
+      ...(v.Opponents ? { Opponents: v.Opponents } : {}),
     })),
   }
 }
@@ -190,6 +197,8 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
+    // A request without Opponents removes them: what was loaded goes back unchanged.
+    ...(v.Opponents ? { Opponents: v.Opponents } : {}),
   }))
   return {
     AdminNote: values.AdminNote,

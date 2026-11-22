@@ -37,5 +37,6 @@
   "ed.shell.variant.option": "Variant {n} · {kind}",
   "ed.shell.variant.separate": "Separate",
   "ed.shell.variant.trigger": "Variant {n}, {kind}. Change the variant",
-  "ed.shell.variant.weight": "weight {n}"
+  "ed.shell.variant.weight": "weight {n}",
+  "ed.shell.issue.opponents": "opponents"
 }
