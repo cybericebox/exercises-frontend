@@ -700,5 +700,12 @@
   "ed.c.port.mode.platform": "Native console «{kind}» (set by the platform)",
   "ed.c.h.credSecretTerm": "Secret credentials",
   "ed.c.h.credStoredTerm": "Stored password",
-  "ed.c.h.credStoredText": "the field shows «Value stored»; «Replace» opens a field for a new value. Leave it empty to keep the stored one."
+  "ed.c.h.credStoredText": "the field shows «Value stored»; «Replace» opens a field for a new value. Leave it empty to keep the stored one.",
+  "ed.c.port.kernelLog": "Kernel log",
+  "ed.c.port.kernelLogOn": "The kernel log is shown on the port {port}.",
+  "ed.c.port.kernelLogNoPort": "Add a console port with a program: the kernel log is shown on the first such port; the device's own console (stdio, tcp) does not carry it.",
+  "ed.c.port.kernelLogUnavailable": "The kernel log can be switched on and published, but a test lab with it cannot be deployed now: no connected laboratory supports it yet.",
+  "ed.c.port.val.kernelLogNoPort": "The kernel log needs a console port with a program",
+  "ed.c.h.kernelLog1": "The guest kernel's messages of the microVM on the console line, like on the console of a real device: everything since boot when a client attaches, then new ones.",
+  "ed.c.h.kernelLog2": "The microvm profile only; shown on the first console port with a program, beside it (the login by default)."
 }

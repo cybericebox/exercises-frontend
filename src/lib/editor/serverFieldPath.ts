@@ -7,7 +7,7 @@
  *            check.state.conditions[2].port.port · check.state.conditions[0].observation · requires[1]
  *   device:  bootstrap.env[2].name · bootstrap.files[0].source · bootstrap.script · access[1].port · command · args · image ·
  *            (a gateway is a device) dhcp · dhcp_ranges · dns · reverse_connections ·
- *            console_ports · console_ports[2].command · console_ports[1].native · serial_ports[1].path
+ *            console_ports · console_ports[2].command · console_ports[1].native · serial_ports[1].path · kernel_log
  *   variant: variables[1].name · defender.seat · defender.off_limits[2] · defender.credentials[1].port · opponents[1].seat
  * Only a reliably identified field gets a path; an unknown shape gives null (the error stays a form-level one).
  */
@@ -92,6 +92,7 @@ export function deviceFieldPath(field: string): Segment[] | null {
     if (key === "name" || key === "command" || key === "user" || key === "path") return [list, index, pascal(String(key))]
     return null
   }
+  if (head === "kernel_log") return ["KernelLog"]
   if (head === "dhcp") return ["DHCP"]
   if (head === "dhcp_ranges") return ["DHCPRanges"]
   if (head === "dns") return ["DNS"]

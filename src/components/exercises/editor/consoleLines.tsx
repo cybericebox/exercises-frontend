@@ -20,6 +20,15 @@ export function ConsoleCablesAvailableProvider({ value, children }: { value: boo
 
 export const useConsoleCablesAvailable = (): boolean | null => useContext(ConsoleCablesAvailableContext)
 
+const KernelLogAvailableContext = createContext<boolean | null>(null)
+
+/** Whether a laboratory in use shows the kernel log on a console port (capabilities.KernelLogAvailable); null: not known. */
+export function KernelLogAvailableProvider({ value, children }: { value: boolean | null; children: ReactNode }) {
+  return <KernelLogAvailableContext.Provider value={value}>{children}</KernelLogAvailableContext.Provider>
+}
+
+export const useKernelLogAvailable = (): boolean | null => useContext(KernelLogAvailableContext)
+
 /** The console-line limits of the laboratory: the capabilities, else the defaults of an older server. */
 export function useConsoleLimits(): { consolePorts: number; serialPorts: number; cables: number } {
   const config = useResourcesConfig()
