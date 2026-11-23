@@ -2,7 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
-import { Maximize2, Minimize2, Plus, Trash2 } from "lucide-react"
+import { Cable, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -10,6 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { containerNameError, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { emptyGateway, gatewayNameError, isConsoleCable } from "@/lib/editor/schemas/infra"
+import { canJoinConsoleCable, canStartConsoleCable } from "@/lib/editor/consolePorts"
+import { defenderNamesDevice } from "@/lib/editor/defender"
 import { opponentsNamingDevice, renameDeviceOpponentsInForm } from "@/lib/editor/opponentRefs"
 import { countGatewayRefs, renameGatewayInForm, rewriteGatewayRefs } from "@/lib/editor/gatewayRefs"
 import type { DeviceSection, InfraView } from "@/lib/editorPosition"
@@ -31,11 +33,13 @@ import { DevicesTable } from "./DevicesTable"
 import { GatewayDialog } from "./GatewayDialog"
 import { NodePanel } from "./NodePanel"
 import { VariablesTable } from "./VariablesTable"
+import { DefenseView } from "./DefenseView"
+import { ConsoleLinesNotice } from "../consoleLines"
 import { focusFieldSoon } from "./focus"
 import type { VariableUse } from "./varUsage"
 import { cn } from "@/utils/cn"
 
-const VIEWS: InfraView[] = ["diagram", "devices", "connections", "vars"]
+const VIEWS: InfraView[] = ["diagram", "devices", "connections", "vars", "defense"]
 const GATEWAY_OPTIONS: { type: GatewayDeviceType; label: string; prefix: string }[] = [
   { type: "vpn_gateway", label: "admin.exTopo.vpn", prefix: "vpn" },
   { type: "internet_gateway", label: "admin.exTopo.internet", prefix: "internet" },
@@ -65,6 +69,7 @@ export function InfraWorkspace() {
   const readOnly = disabled || linked
   const topology = useWatch({ control, name: base })
   const opponents = useWatch({ control, name: `Variants.${variantIndex}.Opponents` })
+  const defender = useWatch({ control, name: `Variants.${variantIndex}.Defender` })
   const diagramTopology = useDeferredValue(topology)
   const devices = topology?.Devices ?? []
   const maxGateways = useMaxLabGateways()
@@ -79,6 +84,8 @@ export function InfraWorkspace() {
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
   const [pendingEdgeRemoval, setPendingEdgeRemoval] = useState<number | null>(null)
   const [connectMode, setConnectMode] = useState(false)
+  // What the connect mode makes: a network link between two NICs, or a console cable between a serial and a console port.
+  const [connectKind, setConnectKind] = useState<"network" | "console">("network")
   const [linkNodes, setLinkNodes] = useState<string[]>([])
   const [fullscreen, setFullscreen] = useState(false)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
@@ -186,12 +193,18 @@ export function InfraWorkspace() {
     else goTo({ tab: "tasks", variant: variantIndex, task: use.taskIndex, condition: use.conditionIndex })
   }
 
-  // Connections: who can still take one.
-  const unavailableNodes = [
-    ...devices.filter((device) => availableDevicePorts({ Connections: topology?.Connections ?? [] }, device).length === 0).map((device) => device.ID),
-  ]
+  // Connections: who can still take one. A network link needs a free NIC at both ends; a console cable a free serial port at one
+  // end and a free console port at the other (never a switch, a hub or a gateway: they have no ports).
+  const connections = topology?.Connections ?? []
+  const networkUnavailable = devices.filter((device) => availableDevicePorts({ Connections: connections }, device).length === 0).map((device) => device.ID)
+  const firstConsoleEnd = connectMode && connectKind === "console" && linkNodes.length === 1 ? devices.find((device) => device.ID === linkNodes[0]) : undefined
+  const consoleUnavailable = devices.filter((device) => !canStartConsoleCable(connections, device) ||
+    (firstConsoleEnd !== undefined && device.ID !== firstConsoleEnd.ID && !canJoinConsoleCable(connections, firstConsoleEnd, device))).map((device) => device.ID)
+  const unavailableNodes = connectMode && connectKind === "console" ? consoleUnavailable : networkUnavailable
   const nodeCount = devices.length
-  const linkUnavailableReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : nodeCount - unavailableNodes.length < 2 ? t("admin.exTopo.needFreePorts") : null
+  const linkUnavailableReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : nodeCount - networkUnavailable.length < 2 ? t("admin.exTopo.needFreePorts") : null
+  const consoleUnavailableReason = devices.some((a) => devices.some((b) => canJoinConsoleCable(connections, a, b))) ? null : t("ed.c.cable.needPorts")
+  const usesConsoleLines = connections.some(isConsoleCable) || devices.some((device) => device.ConsolePorts.length + device.SerialPorts.length > 0)
   const pendingPair = connectMode && linkNodes.length === 2 ? linkNodes as [string, string] : null
 
   function selectNode(key: string) {
@@ -200,9 +213,10 @@ export function InfraWorkspace() {
     setLinkNodes((current) => current.length === 0 || current.length === 2 ? [key] : current[0] === key ? [] : [current[0], key])
   }
   /** Starts the connect mode. The node panel closes: on a phone it is a sheet over the canvas and would hide the nodes to pick. */
-  function startConnect(first?: string) {
+  function startConnect(first?: string, kind: "network" | "console" = "network") {
     setSelected(null)
     setSelectedEdge(null)
+    setConnectKind(kind)
     setConnectMode(true)
     setLinkNodes(first ? [first] : [])
   }
@@ -215,6 +229,10 @@ export function InfraWorkspace() {
     const [first, second] = topology?.Connections[index]?.Endpoints ?? []
     const side = (endpoint: typeof first) => !endpoint ? "—" : `${nodeName(endpoint.DeviceID)} · ${endpoint.Interface ? shortForwardingPort(endpoint.Interface) : "—"}`
     return { first: side(first), second: side(second) }
+  }
+
+  function cableWords(index: number): string {
+    return isConsoleCable(topology?.Connections[index] ?? {}) ? t("ed.c.edge.consoleSubtitle") : t("ed.c.edge.subtitle")
   }
 
   function confirmRemoval() {
@@ -238,16 +256,8 @@ export function InfraWorkspace() {
     setPendingRemoval(null)
   }
 
-  /** A console cable is not edited here yet: it cannot be removed on its own. */
-  function edgeLocked(index: number): boolean {
-    return isConsoleCable(topology?.Connections[index] ?? {})
-  }
-  function requestEdgeRemoval(index: number) {
-    if (!edgeLocked(index)) setPendingEdgeRemoval(index)
-  }
-
   function confirmEdgeRemoval() {
-    if (pendingEdgeRemoval === null || edgeLocked(pendingEdgeRemoval)) return
+    if (pendingEdgeRemoval === null) return
     const index = pendingEdgeRemoval
     setValue(`${base}.Connections`, getValues(`${base}.Connections`).filter((_, candidate) => candidate !== index), { shouldDirty: true, shouldValidate: true })
     setSelectedEdge(null)
@@ -258,6 +268,7 @@ export function InfraWorkspace() {
   const pendingDevice = pendingRemoval ? devices.find((device) => device.ID === pendingRemoval) : undefined
   const pendingGateway = pendingDevice !== undefined && isGatewayType(pendingDevice.Type)
   const opponentHits = pendingDevice ? opponentsNamingDevice({ Opponents: opponents }, pendingDevice.Name) : 0
+  const defenderHit = pendingDevice ? defenderNamesDevice(defender, pendingDevice.Name) : false
   const removalTitle = pendingRemoval ? t(pendingGateway ? "ed.c.remove.titleGateway" : "ed.c.remove.titleDevice", { name: nodeName(pendingRemoval) }) : ""
   const removalDescription = pendingRemoval ? [
     t(pendingGateway ? "ed.c.remove.gatewayGone" : "ed.c.remove.deviceGone", { name: nodeName(pendingRemoval) }),
@@ -274,6 +285,7 @@ export function InfraWorkspace() {
       return names.length ? [t("ed.c.remove.usedBy", { tasks: names.join(", ") })] : []
     })(),
     ...(opponentHits ? [t("ed.c.remove.opponents", { n: opponentHits })] : []),
+    ...(defenderHit ? [t("ed.c.remove.defender")] : []),
   ].join(" ") : ""
 
   const readOnlyReason = linked ? t("ed.c.panel.linkedReason", { n: baseIndex + 1 }) : t("ed.c.panel.editOff")
@@ -291,10 +303,16 @@ export function InfraWorkspace() {
       {gatewayAddBlockedReason && <p role="note" className="max-w-64 px-2 pb-1.5 pt-1 text-xs leading-5 text-muted-foreground">{gatewayAddBlockedReason}</p>}
     </DropdownMenuContent>
   </DropdownMenu>
-  const connectButton = !readOnly && activeView === "diagram" && !connectMode && <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
-    <Button type="button" variant="outline" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-      onClick={() => { if (linkUnavailableReason !== null) return; startConnect() }}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}</Button>
-  </HoverTooltip>
+  const connectButton = !readOnly && activeView === "diagram" && !connectMode && <>
+    <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
+      <Button type="button" variant="outline" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={() => { if (linkUnavailableReason !== null) return; startConnect() }}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}</Button>
+    </HoverTooltip>
+    <HoverTooltip text={consoleUnavailableReason ?? t("ed.c.cable.addTip")} describe={consoleUnavailableReason !== null ? "always" : false}>
+      <Button type="button" variant="outline" data-add-console-cable aria-disabled={consoleUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={() => { if (consoleUnavailableReason !== null) return; startConnect(undefined, "console") }}><Cable aria-hidden="true" className="mr-1 h-4 w-4 text-[var(--ib-console)]" />{t("ed.c.cable.addShort")}</Button>
+    </HoverTooltip>
+  </>
 
   const toggleFullscreen = () => {
     if (fullscreen) { setFullscreen(false); if (document.fullscreenElement === document.documentElement) void document.exitFullscreen?.().catch(() => {}); return }
@@ -321,12 +339,15 @@ export function InfraWorkspace() {
           <Button type="button" variant="outline" size="icon" onClick={toggleFullscreen} aria-label={t("admin.exTopo.expandCanvas")} className="h-9 w-9"><Maximize2 aria-hidden="true" className="h-4 w-4" /></Button>
         </HoverTooltip>}
       </ViewToolbar>}
+      {usesConsoleLines && activeView !== "vars" && <ConsoleLinesNotice className="mb-2" />}
 
       {canvasView && <div data-testid="topology-canvas-layout" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row xl:gap-2">
         <div data-testid="topology-canvas-surface" className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background", !fullscreen && "rounded-md border border-border")}>
           {fullscreen && <div className="topology-float-actions">{addDeviceMenu}{connectButton}</div>}
           {connectMode && <div className="topology-connect-hint" role="status">
-            <span>{linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>
+            <span>{connectKind === "console"
+              ? t(linkNodes.length === 0 ? "ed.c.cable.selectFirst" : "ed.c.cable.selectSecond")
+              : linkNodes.length === 0 ? t("admin.exTopo.canvasSelectFirst") : t("admin.exTopo.canvasSelectSecond")}</span>
             <Button type="button" variant="outline" size="sm" onClick={cancelConnect}>{t("admin.exTopo.canvasCancel")}</Button>
           </div>}
           <div className="relative min-h-0 flex-1 overflow-auto">
@@ -342,7 +363,7 @@ export function InfraWorkspace() {
               nodeSettingsBlocked={(key) => { const device = devices.find((candidate) => candidate.ID === key); return device && device.Type !== "node" && !isGatewayType(device.Type) ? t("ed.c.panel.noSettings") : null }}
               gatewayAddBlockedReason={gatewayAddBlockedReason}
               onEdgeSettings={(index) => { cancelConnect(); setView("connections"); setExpandedConnection(index) }}
-              onEdgeRemove={readOnly ? undefined : requestEdgeRemoval} edgeLocked={edgeLocked} linkUnavailableReason={linkUnavailableReason}
+              onEdgeRemove={readOnly ? undefined : setPendingEdgeRemoval} linkUnavailableReason={linkUnavailableReason}
               onNodeRemove={readOnly ? undefined : setPendingRemoval}
               onNodeLinkStart={readOnly ? undefined : (key) => { if (unavailableNodes.includes(key)) return; startConnect(key) }}
               onCanvasSelect={() => { if (!connectMode) { setSelected(null); setSelectedEdge(null) } }}
@@ -358,13 +379,13 @@ export function InfraWorkspace() {
           {selected !== null
             ? <NodePanel key={selected} variantIndex={variantIndex} nodeKey={selected} readOnly={readOnly} readOnlyReason={readOnlyReason} onClose={() => setSelected(null)}
               onConfigure={(nextSection) => openEditor(selected, nextSection ?? "main")} onDelete={() => setPendingRemoval(selected)} />
-            : edgeNames && selectedEdge !== null && <SidePanel className="bg-background" title={t("ed.c.edge.title", { n: selectedEdge + 1 })} subtitle={t("ed.c.edge.subtitle")} onClose={() => setSelectedEdge(null)}
+            : edgeNames && selectedEdge !== null && <SidePanel className="bg-background" title={t("ed.c.edge.title", { n: selectedEdge + 1 })} subtitle={cableWords(selectedEdge)} onClose={() => setSelectedEdge(null)}
               footer={<>
                 <Button type="button" variant="outline" onClick={() => { setView("connections"); setExpandedConnection(selectedEdge) }}>{readOnly ? t("ed.c.panel.view") : t("ed.c.panel.configure")}</Button>
-                <HoverTooltip text={readOnly ? readOnlyReason : edgeLocked(selectedEdge) ? t("ed.c.console.readOnly") : t("ed.c.panel.delete")} describe={readOnly || edgeLocked(selectedEdge) ? "always" : false}>
-                  <Button type="button" variant="outline" size="icon" aria-label={t("ed.c.panel.delete")} aria-disabled={readOnly || edgeLocked(selectedEdge) || undefined}
+                <HoverTooltip text={readOnly ? readOnlyReason : t("ed.c.panel.delete")} describe={readOnly ? "always" : false}>
+                  <Button type="button" variant="outline" size="icon" aria-label={t("ed.c.panel.delete")} aria-disabled={readOnly || undefined}
                     className="text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                    onClick={() => { if (!readOnly) requestEdgeRemoval(selectedEdge) }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button>
+                    onClick={() => { if (!readOnly) setPendingEdgeRemoval(selectedEdge) }}><Trash2 aria-hidden="true" className="h-4 w-4" /></Button>
                 </HoverTooltip>
               </>}>
               <SummaryList rows={[{ key: "first", label: t("ed.c.edge.first"), value: edgeNames.first }, { key: "second", label: t("ed.c.edge.second"), value: edgeNames.second }]} />
@@ -380,9 +401,13 @@ export function InfraWorkspace() {
         selectedIndex={selectedEdge} onShow={(index) => { setSelectedEdge(index); setSelected(null); setView("diagram") }}
         onAdded={(index) => setExpandedConnection(index)} />}
       {activeView === "vars" && <VariablesTable variantIndex={variantIndex} disabled={readOnly} onOpenUse={openUse} />}
+      {activeView === "defense" && <DefenseView variantIndex={variantIndex} readOnly={readOnly} />}
 
-      {!readOnly && <TopologyConnectionDialog variantIndex={variantIndex} pair={pendingPair} onClose={cancelConnect}
-        onAdd={(first, second) => { setValue(`${base}.Connections`, [...getValues(`${base}.Connections`), { Endpoints: [first, second] }], { shouldDirty: true, shouldValidate: true }); cancelConnect() }} />}
+      {!readOnly && <TopologyConnectionDialog variantIndex={variantIndex} pair={pendingPair} kind={connectKind} onClose={cancelConnect}
+        onAdd={(first, second) => {
+          setValue(`${base}.Connections`, [...getValues(`${base}.Connections`), { ...(connectKind === "console" ? { Kind: "console" } : {}), Endpoints: [first, second] }], { shouldDirty: true, shouldValidate: true })
+          cancelConnect()
+        }} />}
 
       {openNode && openIndex >= 0 && devices[openIndex].Type === "node" && <DeviceDialog variantIndex={variantIndex} deviceIndex={openIndex} section={section} onSection={setSection} onClose={closeEditor}
         readOnly={readOnly} linkedBaseIndex={linked ? baseIndex : undefined} imageEditable={linked && !disabled}

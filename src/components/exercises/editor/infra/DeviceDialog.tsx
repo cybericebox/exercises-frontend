@@ -15,17 +15,21 @@ import { InitSection } from "./sections/InitSection"
 import { MainSection } from "./sections/MainSection"
 import { NetworkSection } from "./sections/NetworkSection"
 import { ServiceSection } from "./sections/ServiceSection"
+import { PortsSection } from "./sections/PortsSection"
+import { canHavePorts } from "@/lib/editor/consolePorts"
 
 export const DEVICE_SECTIONS: { id: DeviceSection; label: string }[] = [
   { id: "main", label: "ed.c.dev.main" },
   { id: "network", label: "ed.c.dev.network" },
+  { id: "ports", label: "ed.c.dev.ports" },
   { id: "init", label: "ed.c.dev.init" },
   { id: "service", label: "ed.c.dev.service" },
   { id: "access", label: "ed.c.dev.access" },
 ]
 
 /**
- * The device editor (E5): a wide dialog, the section list on the left (wrapping on a phone), one section on the right.
+ * The device editor (E5): a wide dialog, the section list on the left (wrapping on a phone), one section on the right. “Ports” is
+ * there only for a device that may have console or serial ports (not a Windows device), or that already has some.
  * Everything saves as it is typed (the form is the draft); “Done” only closes. In a linked variant only the image is
  * editable and the dialog says so.
  */
@@ -45,7 +49,9 @@ export function DeviceDialog({ variantIndex, deviceIndex, section, onSection, on
   const name = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}.Name` })
   const newVariable = useNewVariable(variantIndex)
   const props = { variantIndex, deviceIndex, disabled: readOnly }
-  const current = DEVICE_SECTIONS.find((item) => item.id === section) ?? DEVICE_SECTIONS[0]
+  const kind = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices.${deviceIndex}`, compute: (device) => ({ Type: device?.Type ?? "node", System: device?.System ?? "linux", ports: (device?.ConsolePorts?.length ?? 0) + (device?.SerialPorts?.length ?? 0) }) })
+  const sections = DEVICE_SECTIONS.filter((item) => item.id !== "ports" || canHavePorts(kind) || kind.ports > 0)
+  const current = sections.find((item) => item.id === section) ?? sections[0]
 
   return <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
     <DialogContent aria-describedby="device-dialog-description" data-device-dialog
@@ -64,7 +70,7 @@ export function DeviceDialog({ variantIndex, deviceIndex, section, onSection, on
       </header>
       <div className="@container grid min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-5 md:grid-cols-[13.125rem_minmax(0,1fr)] md:grid-rows-1">
         <nav aria-label={t("ed.c.dev.sections")} className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap md:gap-0.5 md:border-r md:border-border md:pr-3">
-          {DEVICE_SECTIONS.map((item) => <button key={item.id} type="button" id={`device-section-${item.id}`} aria-current={item.id === current.id ? "true" : undefined} onClick={() => onSection(item.id)}
+          {sections.map((item) => <button key={item.id} type="button" id={`device-section-${item.id}`} aria-current={item.id === current.id ? "true" : undefined} onClick={() => onSection(item.id)}
             className={cn("min-h-10 rounded-md px-2.5 text-left text-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary", item.id === current.id ? "bg-accent font-semibold text-accent-foreground" : "text-foreground hover:bg-[var(--ib-hover)]")}>
             {t(item.label)}
           </button>)}
@@ -72,6 +78,7 @@ export function DeviceDialog({ variantIndex, deviceIndex, section, onSection, on
         <div role="region" aria-label={t(current.label)} className="@container min-h-0 min-w-0 overflow-y-auto pb-3 pl-1 pr-2 pt-1 [scrollbar-gutter:stable]">
           {current.id === "main" && <MainSection {...props} linkedBaseIndex={linkedBaseIndex} imageDisabled={imageEditable ? false : undefined} />}
           {current.id === "network" && <NetworkSection {...props} />}
+          {current.id === "ports" && <PortsSection {...props} />}
           {current.id === "init" && <InitSection {...props} requestVariable={newVariable.request} />}
           {current.id === "service" && <ServiceSection {...props} onOpenVariables={onOpenVariables} requestVariable={newVariable.request} />}
           {current.id === "access" && <AccessSection {...props} />}

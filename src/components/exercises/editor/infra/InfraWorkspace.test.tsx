@@ -36,10 +36,10 @@ beforeEach(() => { editor.value = { variantIndex: 0, disabled: false, baseIndex:
 const topology = () => readValues() as { Devices: { ID: string; Name: string }[]; Connections: unknown[] }
 
 describe("infrastructure workspace", () => {
-  it("has the four sub-views in one row and marks the active one", () => {
+  it("has the five sub-views in one row and marks the active one", () => {
     renderWorkspace()
     const nav = screen.getByRole("navigation", { name: "ed.c.views.aria" })
-    expect(within(nav).getAllByRole("button").map((button) => button.textContent)).toEqual(["ed.c.views.diagram", "ed.c.views.devices", "ed.c.views.connections", "ed.c.views.vars"])
+    expect(within(nav).getAllByRole("button").map((button) => button.textContent)).toEqual(["ed.c.views.diagram", "ed.c.views.devices", "ed.c.views.connections", "ed.c.views.vars", "ed.c.views.defense"])
     expect(within(nav).getByRole("button", { name: "ed.c.views.diagram" })).toHaveAttribute("aria-current", "page")
     fireEvent.click(within(nav).getByRole("button", { name: "ed.c.views.devices" }))
     expect(within(nav).getByRole("button", { name: "ed.c.views.devices" })).toHaveAttribute("aria-current", "page")

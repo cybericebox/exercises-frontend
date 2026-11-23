@@ -19,8 +19,7 @@ export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection>
   Access: "access",
   // A gateway has one small dialog: every field of it is in the first section.
   DHCP: "main", DHCPRanges: "main", DNS: "main", ReverseConnections: "main",
-  // Console and serial ports have no section yet (carried through unchanged): an error on them opens the first one.
-  ConsolePorts: "main", SerialPorts: "main",
+  ConsolePorts: "ports", SerialPorts: "ports",
 }
 
 /** Environment variables are in “Service”; files, the script, its interpreter and the timeout are in “Initialization”. */
@@ -44,8 +43,8 @@ export function positionForDraftIssue(
     return { ...current, tab: "variants", variant }
   }
   const next: EditorPosition = { ...current, tab: "tasks", variant }
-  // The opponents have no view yet: the schema of the variant is where their devices are.
-  if (path[2] === "Opponents") return { ...next, tab: "infrastructure", topologySection: "diagram", infraView: "diagram", openNode: "" }
+  // The seats of the opponents and the defender block are in the “Defense” view of the infrastructure.
+  if (path[2] === "Opponents" || path[2] === "Defender") return { ...next, tab: "infrastructure", topologySection: "diagram", infraView: "defense", openNode: "" }
   if (path[2] === "Tasks") {
     next.task = typeof path[3] === "number" ? path[3] : 0
     // Conditions of a state check are collapsed lists: the one with the error opens.

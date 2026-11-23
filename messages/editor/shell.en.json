@@ -38,5 +38,6 @@
   "ed.shell.variant.separate": "Separate",
   "ed.shell.variant.trigger": "Variant {n}, {kind}. Change the variant",
   "ed.shell.variant.weight": "weight {n}",
-  "ed.shell.issue.opponents": "opponents"
+  "ed.shell.issue.opponents": "opponents",
+  "ed.shell.issue.defender": "defender's dossier"
 }

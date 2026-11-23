@@ -17,11 +17,12 @@ const network = { Endpoints: [{ Kind: "device" as const, DeviceID: "r", Interfac
 const cable = { Kind: "console", Endpoints: [{ Kind: "device" as const, DeviceID: "p", Interface: "serial0" }, { Kind: "device" as const, DeviceID: "r", Interface: "console0" }] }
 const opponents: OpponentDTO[] = [{ Role: "defense", Band: 2, Goal: ["task_1"], Operates: ["router"], Seat: "pc" }]
 
-function renderWorkspace() {
+function renderWorkspace(connections: unknown[] = [network, cable]) {
   const draft = draftWith([
-    device({ ID: "r", Name: "router", Interfaces: [eth0], ConsolePorts: [{ Name: "console0" }] }),
-    device({ ID: "p", Name: "pc", Interfaces: [eth0], SerialPorts: [{ Name: "serial0" }] }),
-  ], { Connections: [network, cable], VisualRender: { positions: { r: { x: 0.3, y: 0.3 }, p: { x: 0.6, y: 0.3 } } } })
+    device({ ID: "r", Name: "router", Interfaces: [eth0], ConsolePorts: [{ Name: "console0", Mode: "program", Command: [], User: "", Port: "" }, { Name: "aux0", Mode: "program", Command: [], User: "", Port: "" }] }),
+    device({ ID: "p", Name: "pc", Interfaces: [eth0], SerialPorts: [{ Name: "serial0", Path: "" }, { Name: "serial1", Path: "" }] }),
+    device({ ID: "w", Name: "web", Interfaces: [eth0] }),
+  ], { Connections: connections as never, VisualRender: { positions: { r: { x: 0.3, y: 0.3 }, p: { x: 0.6, y: 0.3 }, w: { x: 0.45, y: 0.7 } } } })
   draft.Variants[0].Tasks[0].Key = "task_1"
   draft.Variants[0].Opponents = opponents
   render(<ResourcesConfigProvider value={RESOURCES_CONFIG}><FormHarness draft={draft} validate>
@@ -34,37 +35,65 @@ const variant = () => readValues() as { Opponents?: OpponentDTO[]; Topology: { D
 beforeEach(() => { editor.value = { variantIndex: 0, disabled: false, baseIndex: -1, resources: null, goTo: vi.fn(), goToField: vi.fn() } })
 
 describe("console cables and opponents in the infrastructure editor", () => {
-  it("shows a console cable as a read-only row: no editor, no removal, with its note", () => {
+  it("lists a console cable with its type and edits its ends with serial and console ports only", () => {
     renderWorkspace()
     fireEvent.click(screen.getByRole("button", { name: "ed.c.views.connections" }))
     const row = screen.getByTestId("connection-row-1")
     expect(row).toHaveAttribute("data-console", "true")
-    expect(within(row).queryByRole("button", { name: /admin.exTopo.overview.editConnectionN/ })).not.toBeInTheDocument()
-    fireEvent.click(row)
-    expect(screen.queryByTestId("connection-editor-1")).not.toBeInTheDocument()
-    expect(screen.getByTestId("connection-console-1")).toHaveTextContent("ed.c.console.readOnly")
-    // The network link keeps its editor.
-    fireEvent.click(screen.getByTestId("connection-row-0"))
-    expect(screen.getByTestId("connection-editor-0")).toBeInTheDocument()
+    expect(row.querySelector("[data-connection-kind]")).toHaveAttribute("data-connection-kind", "console")
+    expect(row).toHaveTextContent("ed.c.th.kindConsole")
+    expect(screen.getByTestId("connection-row-0")).toHaveTextContent("ed.c.th.kindNetwork")
+    fireEvent.click(within(row).getByRole("button", { name: /admin.exTopo.overview.editConnectionN/ }))
+    const editor = screen.getByTestId("connection-editor-1")
+    // The first end (pc · serial0): another serial port of pc, never a NIC or a console port of the same device.
+    fireEvent.keyDown(within(editor).getByRole("button", { name: "admin.exTopo.endpoint.first" }), { key: "Enter" })
+    const first = screen.getAllByRole("menuitemradio").map((item) => item.textContent)
+    expect(first.some((text) => text?.includes("pc · serial1"))).toBe(true)
+    expect(first.some((text) => text?.includes("eth0"))).toBe(false)
+    expect(first.some((text) => text?.includes("router"))).toBe(false)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" })
+    expect(editor).toHaveTextContent("ed.c.cable.outsideNetworks")
     expect(variant().Topology.Connections.map((connection) => connection.Kind ?? "")).toEqual(["", "console"])
   })
 
-  it("the schema offers no removal of a console cable (menu, Delete key, side panel)", () => {
+  it("a console cable is removed like any connection (the schema's menu and a confirmation)", () => {
     renderWorkspace()
-    const edges = screen.getAllByRole("button", { name: "router — pc" }).concat(screen.queryAllByRole("button", { name: "pc — router" }))
-    const consoleEdge = edges.find((edge) => edge.querySelector("[data-edge='e1']"))!
+    const consoleEdge = document.querySelector<HTMLElement>("[data-edge-kind='console']")!
+    expect(consoleEdge.querySelector("[data-edge='e1']")).toHaveAttribute("stroke-dasharray", "7 4")
     fireEvent.contextMenu(consoleEdge)
-    expect(screen.queryByRole("menuitem", { name: "admin.exTopo.removeConnection" })).not.toBeInTheDocument()
-    fireEvent.keyDown(consoleEdge, { key: "Escape" })
-    fireEvent.keyDown(consoleEdge, { key: "Delete" })
+    fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.removeConnection" }))
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "admin.exTopo.removeConnection" }))
+    expect(variant().Topology.Connections.map((connection) => connection.Kind ?? "")).toEqual([""])
+  })
+
+  it("the console connect mode joins a serial port to a console port and never offers a device without free ports", () => {
+    renderWorkspace([network])
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.cable.addShort" }))
+    expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("ed.c.cable.selectFirst")
+    // web has no ports: picking it does nothing.
+    fireEvent.click(screen.getByTestId("node-w"))
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    fireEvent.click(consoleEdge)
-    const panel = document.querySelector<HTMLElement>("[data-side-panel]")!
-    const trash = within(panel).getByRole("button", { name: "ed.c.panel.delete" })
-    expect(trash).toHaveAttribute("aria-disabled", "true")
-    fireEvent.click(trash)
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    expect(variant().Topology.Connections).toHaveLength(2)
+    fireEvent.click(screen.getByTestId("node-p"))
+    fireEvent.click(screen.getByTestId("node-r"))
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveTextContent("ed.c.cable.outsideNetworks")
+    fireEvent.click(within(dialog).getByRole("button", { name: "ed.c.cable.add" }))
+    expect(variant().Topology.Connections[1]).toEqual({ Kind: "console", Endpoints: [{ Kind: "device", DeviceID: "p", Interface: "serial0" }, { Kind: "device", DeviceID: "r", Interface: "console0" }] })
+  })
+
+  it("a port takes one cable: with every console port of the router cabled, no second cable starts there", () => {
+    const second = { Kind: "console", Endpoints: [{ Kind: "device" as const, DeviceID: "p", Interface: "serial1" }, { Kind: "device" as const, DeviceID: "r", Interface: "aux0" }] }
+    renderWorkspace([network, cable, second])
+    const button = screen.getByRole("button", { name: "ed.c.cable.addShort" })
+    expect(button).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("the form refuses a cable with both ends on one device beside its second end", async () => {
+    const wrong = { Kind: "console", Endpoints: [{ Kind: "device" as const, DeviceID: "p", Interface: "serial0" }, { Kind: "device" as const, DeviceID: "p", Interface: "serial1" }] }
+    renderWorkspace([network, wrong])
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.connections" }))
+    fireEvent.click(screen.getByRole("button", { name: "validate-all" }))
+    expect(await screen.findByText("ed.c.port.val.cable.same_device")).toBeInTheDocument()
   })
 
   function nameInput(id: string) {

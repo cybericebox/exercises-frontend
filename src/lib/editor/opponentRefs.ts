@@ -1,6 +1,6 @@
 /**
- * opponentRefs.ts — what the opponents of a variant name, and how that follows the editor. The editor does not edit the
- * opponents yet (they are carried through unchanged), but it renames and removes what they name:
+ * opponentRefs.ts — what the opponents (and the defender block) of a variant name, and how that follows the editor. The editor
+ * edits only the seats of the opponents (the rest is carried through unchanged), but it renames and removes what they name:
  *   Operates (devices), Seat (a node), Foothold (a switch or hub) name devices of the topology by name;
  *   Goal and StartAfter name tasks of the variant by key (task keys are never renamed by the editor).
  *   rename of a device: every such name follows the new one;
@@ -10,6 +10,7 @@
 import type { UseFormReturn } from "react-hook-form"
 import type { OpponentDTO } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
+import { renameDeviceInDefender } from "./defender"
 
 type Variant = Pick<DraftFormValues["Variants"][number], "Opponents" | "Tasks"> & { Topology: { Devices: { Name: string }[] } }
 
@@ -47,10 +48,16 @@ export function renameDeviceInOpponents(opponents: OpponentDTO[], from: string, 
 export function renameDeviceOpponentsInForm(form: Pick<UseFormReturn<DraftFormValues>, "getValues" | "setValue">, variantIndex: number, deviceId: string, from: string, to: string): boolean {
   const devices = form.getValues(`Variants.${variantIndex}.Topology.Devices`) ?? []
   if (to === "" || devices.some((device) => device.ID !== deviceId && device.Name === to)) return false
+  if (devices.some((device) => device.ID !== deviceId && device.Name === from)) return true
   const opponents = form.getValues(`Variants.${variantIndex}.Opponents`)
-  if (!opponents?.length || devices.some((device) => device.ID !== deviceId && device.Name === from)) return true
-  const next = renameDeviceInOpponents(opponents, from, to)
-  if (next !== opponents) form.setValue(`Variants.${variantIndex}.Opponents`, next, { shouldDirty: true, shouldValidate: true })
+  if (opponents?.length) {
+    const next = renameDeviceInOpponents(opponents, from, to)
+    if (next !== opponents) form.setValue(`Variants.${variantIndex}.Opponents`, next, { shouldDirty: true, shouldValidate: true })
+  }
+  // The defender block names devices too (its seat, the off-limits list, the credentials).
+  const defender = form.getValues(`Variants.${variantIndex}.Defender`)
+  const renamed = renameDeviceInDefender(defender, from, to)
+  if (renamed !== defender) form.setValue(`Variants.${variantIndex}.Defender`, renamed ?? null, { shouldDirty: true, shouldValidate: true })
   return true
 }
 

@@ -19,6 +19,7 @@ import { hintsAligned } from "@/lib/hintSync"
 import type { NormalizedVariant, OpponentDTO, SaveDraftInput, VariantDTO, Version } from "@/api/exercises/versions"
 import { deliveriesOfTask } from "@/lib/editor/refs"
 import { danglingOpponentRefs } from "@/lib/editor/opponentRefs"
+import { defenderToDTO, defenderToForm, refineDefender, type DefenderForm } from "@/lib/editor/defender"
 import { TEMPLATE_PREFIX } from "@/lib/flagPattern"
 import {
   emptyTask, refineVariantTasks, taskSchema, taskToDTO, taskToForm, type TaskFormValues,
@@ -32,7 +33,9 @@ export * from "@/lib/editor/schemas/infra"
 
 // ── Form types ─────────────────────────────────────────────────────────────────
 
-export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks"> & {
+export type VariantFormValues = Omit<NormalizedVariant, "Topology" | "Tasks" | "Defender"> & {
+  /** The defender block (null or absent: none). A buffer written before the block was edited has no key at all. */
+  Defender?: DefenderForm | null
   /** Form-only: the stable identity of the item in this browser (lib/clientKeys); never sent. */
   ClientKey?: string
   /** Form-only: the stored variant this unsaved one was copied from; sent only when set. */
@@ -71,8 +74,9 @@ const variantSchema = z.object({
   CopyOf: z.string().optional(),
   Tasks: z.array(taskSchema).min(1, t("admin.ex.val.taskRequired")),
   Topology: topologySchema,
-  // Not edited here yet: carried through unchanged.
+  // Only the seats are edited here; the rest of each opponent goes back as loaded.
   Opponents: z.array(z.custom<OpponentDTO>()).optional(),
+  Defender: z.custom<DefenderForm | null>().optional(),
 })
 
 export const draftSchema = z
@@ -104,6 +108,8 @@ export const draftSchema = z
       // The opponents are not edited here, but a removed device or task can leave one naming nothing: the backend refuses that.
       const dangling = danglingOpponentRefs(variant)
       if (dangling.length) ctx.addIssue({ code: "custom", path: ["Variants", i, "Opponents"], message: t("ed.c.val.opponentRefMissing", { names: dangling.map((name) => `«${name}»`).join(", ") }) })
+      // The seats and the defender block are the variant's own; a linked variant takes its base's (the backend rewrites them).
+      if (variant.LinkedTo === "") refineDefender(i, variant, ctx)
       if (variant.Tasks.length !== expected) {
         ctx.addIssue({
           code: "custom",
@@ -170,6 +176,7 @@ export function toDraftFormValues(version: Version | null): DraftFormValues {
       Tasks: v.Tasks.map((task, ti) => taskToForm(task, vi, ti)),
       Topology: topologyToForm(v.Topology),
       ...(v.Opponents ? { Opponents: v.Opponents } : {}),
+      Defender: defenderToForm(v.Defender),
     })),
   }
 }
@@ -197,8 +204,9 @@ export function toSaveDraftInput(values: DraftFormValues): SaveDraftInput {
     ...(v.CopyOf && !v.ID ? { CopyOf: v.CopyOf } : {}),
     Tasks: v.Tasks.map(taskToDTO),
     Topology: topologyToDTO(v.Topology),
-    // A request without Opponents removes them: what was loaded goes back unchanged.
+    // A request without Opponents (or Defender) removes them: what the form holds goes back.
     ...(v.Opponents ? { Opponents: v.Opponents } : {}),
+    ...(v.Defender ? { Defender: defenderToDTO(v.Defender) } : {}),
   }))
   return {
     AdminNote: values.AdminNote,

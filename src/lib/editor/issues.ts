@@ -27,6 +27,7 @@ function placeOf(values: DraftFormValues, path: (string | number)[]): string[] {
   const parts: string[] = []
   if (path[2] === "Weight") parts.push(t("ed.shell.issue.weight"))
   if (path[2] === "Opponents") parts.push(t("ed.shell.issue.opponents"))
+  if (path[2] === "Defender") parts.push(t("ed.shell.issue.defender"))
   if (path[2] === "Tasks" && typeof path[3] === "number") {
     parts.push(t("ed.shell.issue.task", { n: path[3] + 1 }))
     if (path[4] === "Check" && path[5] === "State" && path[6] === "Conditions" && typeof path[7] === "number") parts.push(t("ed.shell.issue.condition", { n: path[7] + 1 }))

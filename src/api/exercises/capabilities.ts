@@ -18,6 +18,10 @@ export type ResourcesConfig = {
   MaxDevicesPerLab: number
   MaxInterfacesPerDevice: number
   MaxPortsPerSwitch: number
+  /** The console-line limits of the laboratory (older servers do not send them: the editor uses 4, 16 and 64). */
+  MaxConsolePortsPerDevice?: number
+  MaxSerialPortsPerDevice?: number
+  MaxConsoleCablesPerLab?: number
   /** Variants of one task differing by more than this percent trigger a warning. */
   VariantSpreadWarnPercent: number
 }
@@ -39,6 +43,8 @@ export type LabCapabilities = {
   Bootstrap: LabSupportValue
   Checks: LabSupportValue
   VPNReverse: LabSupportValue
+  /** Console ports, serial ports and console cables (older servers do not send it: nothing is said). */
+  ConsoleCables?: LabSupportValue
 }
 
 export type ExerciseCapabilities = {
@@ -52,6 +58,11 @@ export type ExerciseCapabilities = {
   /** The platform can keep a container's state across an unplanned restart (device Persistence). */
   DevicePersistence?: boolean
   Resources: ResourcesConfig
+  /**
+   * A laboratory in use serves console ports and console cables, so a test lab that uses them can start. False: the ports and
+   * cables still save and publish, but a test lab with them is refused. Older servers do not send it (nothing is said).
+   */
+  ConsoleCablesAvailable?: boolean
 }
 
 /** Editor-only capability: does not expose agent inventory or monitoring. */

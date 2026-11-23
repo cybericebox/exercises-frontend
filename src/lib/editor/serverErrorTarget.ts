@@ -4,6 +4,8 @@
  * A save or publish error names its place in the public context: `task` = the task key (`task_name` only for a task without a key yet), `device` = the device name,
  * `field` = the path inside it (see serverFieldPath.ts), and, when the daemon says it, `variant` (an int: the 1-based position of the variant in the version).
  * Resolution never guesses a field (AGENTS.md: an ambiguous server error is never assigned to a field):
+ *   - `connection` (1-based position in the variant's connections) names a connection: its end on `device`·`port` when they are given,
+ *     else the end the editor marks for that error;
  *   - exactly one candidate → its field; none or several → no target, the error stays form-level (a toast);
  *   - `variant` present → the candidates are that variant's only;
  *   - without it, answers (Check.Answer.*) may belong to any variant (a linked variant has its own answers), every other field of
@@ -17,7 +19,7 @@ import { deviceErrorPath, taskFieldPath, variantFieldPath } from "./serverFieldP
 
 type Path = (string | number)[]
 
-const ERR = { taskKey: 23501, requires: 23502, checkMissing: 23503, stateNotForEvents: 23513 } as const
+const ERR = { taskKey: 23501, requires: 23502, checkMissing: 23503, stateNotForEvents: 23513, cableEnds: 23707 } as const
 
 /** The index of the variant the context names: `variant` is the 1-based position in the version's Variants (an int on the wire); -1 when it is not in the form. */
 function variantIndexOf(ref: string, draft: Pick<DraftFormValues, "Variants">): number {
@@ -30,14 +32,29 @@ function variantIndexOf(ref: string, draft: Pick<DraftFormValues, "Variants">): 
 export function serverFieldTargets(error: unknown, draft: Pick<DraftFormValues, "Variants">): Path[] | null {
   const code = exerciseErrorCode(error)
   if (code === null) return null
-  const { task, task_name: taskName, device, field = "", variant: variantRef } = errorContext(error)
+  const { task, task_name: taskName, device, field = "", variant: variantRef, connection, port } = errorContext(error)
   const out: Path[] = []
   const named = variantRef === undefined ? -1 : variantIndexOf(variantRef, draft)
   // A named variant that is not in the form cannot be placed; an unnamed one falls back to who owns the field.
   if (variantRef !== undefined && named < 0) return null
   const own = (vi: number) => (named >= 0 ? vi === named : draft.Variants[vi].LinkedTo === "")
 
-  if (task || taskName) {
+  if (connection) {
+    if (!/^\d+$/.test(connection) || Number(connection) < 1) return null
+    const ci = Number(connection) - 1
+    draft.Variants.forEach((variant, vi) => {
+      if (!own(vi)) return
+      const endpoints = variant.Topology.Connections[ci]?.Endpoints
+      if (!endpoints) return
+      let side = 0
+      if (device && port) {
+        const deviceId = variant.Topology.Devices.find((candidate) => candidate.Name === device)?.ID
+        side = endpoints.findIndex((endpoint) => endpoint.DeviceID === deviceId && endpoint.Interface === port)
+        if (side < 0) return
+      } else if (code === ERR.cableEnds) side = 1 // the form marks the second end of a cable whose ends do not pair
+      out.push(["Variants", vi, "Topology", "Connections", ci, "Endpoints", side, "Interface"])
+    })
+  } else if (task || taskName) {
     let rest: Path | null = null
     if (field) rest = taskFieldPath(field)
     else if (code === ERR.taskKey) rest = ["Key"]

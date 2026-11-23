@@ -22,13 +22,13 @@ const topology: TopologyFormValues = {
       ResourcePreset: "",
       Interfaces: [{ Name: 'eth0', MAC: '', IP: { Type: 'dhcp', Addresses: [], Gateway: '', Routes: [] } }],
       Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
-      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
+      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false, ConsolePorts: [], SerialPorts: [],
     },
     {
       ID: 'd2', Name: 'sw1', Type: 'unmanaged-switch', SecurityPreset: '', Image: '',
       ResourcePreset: "",
       Interfaces: [], Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" },
-      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
+      DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false, ConsolePorts: [], SerialPorts: [],
     },
     vpnGateway,
   ],
@@ -920,5 +920,46 @@ describe('TopologyDiagram', () => {
     fireEvent(svg, new MouseEvent('pointerup', { bubbles: true, clientX: startClientX + 125, clientY: 200 }))
     expect(node).toHaveClass('cursor-grab')
     expect(onPositionChange.mock.calls[0][1].x).toBeCloseTo((worldX + 100) / 960, 3)
+  })
+})
+
+describe('console cables on the schema', () => {
+  const withCable: TopologyFormValues = {
+    ...topology,
+    Devices: [
+      { ...topology.Devices[0], ConsolePorts: [{ Name: 'console0', Mode: 'program', Command: [], User: '', Port: '' }] },
+      { ...topology.Devices[0], ID: 'd3', Name: 'pc', SerialPorts: [{ Name: 'serial0', Path: '' }] },
+      ...topology.Devices.slice(1),
+    ],
+    Connections: [
+      ...topology.Connections,
+      { Endpoints: [{ Kind: 'device', DeviceID: 'd3', Interface: 'eth0' }, { Kind: 'device', DeviceID: 'd1', Interface: 'eth0' }] },
+      { Kind: 'console', Endpoints: [{ Kind: 'device', DeviceID: 'd3', Interface: 'serial0' }, { Kind: 'device', DeviceID: 'd1', Interface: 'console0' }] },
+    ],
+  }
+
+  it('draws a console cable as its own cable type with its port labels, bowed beside the network link, and a legend', () => {
+    const { container } = render(<TopologyDiagram topology={withCable} />)
+    const edge = container.querySelector('[data-edge-kind="console"]')!
+    const path = edge.querySelector('[data-edge="e3"]')!
+    expect(path).toHaveAttribute('stroke-dasharray', '7 4')
+    expect(path.getAttribute('class')).toContain('stroke-[var(--ib-console)]')
+    expect(path.getAttribute('d')).toContain(' Q ')
+    expect([...edge.querySelectorAll('[data-port-label]')].map((label) => label.textContent)).toEqual(['serial0', 'console0'])
+    expect(container.querySelectorAll('[data-edge-kind="network"]')).toHaveLength(3)
+    expect(screen.getByRole('note', { name: 'ed.c.diagram.legend' })).toHaveTextContent('ed.c.diagram.consoleCable')
+  })
+
+  it('has no legend without console cables', () => {
+    render(<TopologyDiagram topology={topology} />)
+    expect(screen.queryByRole('note', { name: 'ed.c.diagram.legend' })).not.toBeInTheDocument()
+  })
+
+  it('a cable whose line is down in a running lab is drawn in the warning colour and says why', () => {
+    const { container } = render(<TopologyDiagram topology={withCable} edgeStatus={{ 3: { up: false, label: 'waiting' } }} />)
+    const edge = container.querySelector('[data-edge-kind="console"]')!
+    expect(edge).toHaveAttribute('data-line', 'down')
+    expect(edge.querySelector('[data-edge="e3"]')!.getAttribute('class')).toContain('stroke-[var(--ib-warn)]')
+    expect(edge.querySelector('title')?.textContent).toBe('ed.c.diagram.consoleCable: waiting')
   })
 })

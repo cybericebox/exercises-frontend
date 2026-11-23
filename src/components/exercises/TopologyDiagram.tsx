@@ -35,7 +35,10 @@ const STATUS_OUTLINE: Record<TopologyNodeStatus, string> = {
 
 type NodeKind = "device" | "forwarding" | "vpn" | "internet"
 type DiagramNode = { key: string; label: string; kind: NodeKind; icon?: TopologyIconKey; external?: boolean }
-type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string }
+/** console: a console cable (its own cable type: dashed, the console colour, outside the lab networks); bend: how far it bows away from a parallel link. */
+type DiagramEdge = { key: string; index: number; a: string; b: string; labelA: string; labelB: string; console: boolean; bend: number }
+/** The line state of a console cable in a running lab: down draws it in the warning colour; label is the state said in words. */
+export type TopologyEdgeStatus = { up: boolean; label: string }
 type Point = { x: number; y: number }
 type DiagramHint = { text: string; left: number; top: number; below: boolean }
 type AddNodeKind = "node" | "unmanaged-switch" | "hub" | "vpn" | "internet"
@@ -191,7 +194,7 @@ function portLabelPosition(own: Point, other: Point, offset: Point, avoid?: Labe
 }
 
 export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNodeSettings, onNodeLinkStart, onNodeRemove,
-  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, edgeLocked, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
+  onCanvasAddNode, onCanvasLinkStart, onCanvasSelect, onEdgeSelect, onEdgeSettings, onEdgeRemove, edgeStatus, linkUnavailableReason = null, gatewayAddBlockedReason = null, onLabelOffsetChange, onPortLabelOffsetChange, onNodeRename, onNodeRenameStart, selectedNodes = [], selectedConnectionIndex = null,
   unavailableConnectionNodes = [], connectionMode = false, toolbarExtra, controlsPosition = "bottom-right", nodeSettingsLabel, nodeSettingsBlocked, nodeStatus, minPortLabelScale }: {
   topology: TopologyFormValues
   onPositionChange?: (key: string, position: Point) => void
@@ -209,8 +212,8 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
   onEdgeSelect?: (index: number) => void
   onEdgeSettings?: (index: number) => void
   onEdgeRemove?: (index: number) => void
-  /** A connection that cannot be removed from the schema (a console cable, not edited here yet). */
-  edgeLocked?: (index: number) => boolean
+  /** The line state of console cables in a running lab, by connection index (the test lab view). */
+  edgeStatus?: Record<number, TopologyEdgeStatus | undefined>
   /** Why a new connection cannot start now (fewer than two nodes with free ports); null when it can. */
   linkUnavailableReason?: string | null
   /** Why another gateway cannot be added (the platform limit); the canvas menu entries are disabled with it. */
@@ -347,8 +350,16 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       const keyA = a.DeviceID
       const keyB = b.DeviceID
       if (!known.has(keyA) || !known.has(keyB)) return // unresolvable endpoint — skip
-      edges.push({ key: `e${i}`, index: i, a: keyA, b: keyB, labelA: a.Interface, labelB: b.Interface })
+      edges.push({ key: `e${i}`, index: i, a: keyA, b: keyB, labelA: a.Interface, labelB: b.Interface, console: c.Kind === "console", bend: 0 })
     })
+    // A console cable beside a network link (or another cable) of the same two devices bows out, so both stay visible.
+    const pair = (edge: DiagramEdge) => [edge.a, edge.b].sort().join("\u0000")
+    const seen = new Map<string, number>()
+    for (const edge of edges) {
+      const count = seen.get(pair(edge)) ?? 0
+      seen.set(pair(edge), count + 1)
+      if (count > 0) edge.bend = (count % 2 === 1 ? 1 : -1) * Math.ceil(count / 2) * 26 * (edge.a < edge.b ? 1 : -1)
+    }
     return { nodes, edges }
   }, [topology])
 
@@ -490,7 +501,7 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
     if (menu.kind === "edge") {
       return [
         ...(onEdgeSettings ? [{ kind: "item", key: "settings", label: t("admin.exTopo.configure"), icon: <Settings2 className="h-5 w-5 shrink-0 p-0.5" />, onSelect: () => onEdgeSettings(menu.index) }] as const : []),
-        ...(onEdgeRemove && !edgeLocked?.(menu.index) ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!onEdgeSettings,
+        ...(onEdgeRemove ? [{ kind: "item", key: "remove", label: t("admin.exTopo.removeConnection"), icon: <Trash2 className="h-5 w-5 shrink-0 p-0.5" />, danger: true, separated: !!onEdgeSettings,
           onSelect: () => onEdgeRemove(menu.index) }] as const : []),
       ]
     }
@@ -673,13 +684,26 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
                 y: offset.y - delta[0] * axis.y + delta[1] * axis.x })
             }}>{shortForwardingPort(port)}</text>
         }
+        // A bowed line: the control point stands off the middle of the straight one, across it.
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const length = Math.hypot(dx, dy) || 1
+        const control = { x: (start.x + end.x) / 2 - (dy / length) * edge.bend * 2, y: (start.y + end.y) / 2 + (dx / length) * edge.bend * 2 }
+        const d = edge.bend ? `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}` : `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+        const status = edge.console ? edgeStatus?.[edge.index] : undefined
+        const kindWord = edge.console ? t("ed.c.diagram.consoleCable") : ""
+        const hintText = `${kindWord ? `${kindWord}\n` : ""}${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}${status ? `\n${status.label}` : ""}`
+        const strokeClass = selectedConnectionIndex === edge.index ? "fill-none stroke-primary"
+          : edge.console ? (status && !status.up ? "fill-none stroke-[var(--ib-warn)]" : "fill-none stroke-[var(--ib-console)] group-hover:stroke-primary group-focus-visible:stroke-primary")
+            : "fill-none stroke-muted-foreground/70 group-hover:stroke-primary group-focus-visible:stroke-primary"
         return (
-          <g key={edge.key} role={onEdgeSelect ? "button" : undefined} tabIndex={onEdgeSelect ? 0 : undefined}
-            aria-label={onEdgeSelect ? `${nameA} — ${nameB}` : undefined}
+          <g key={edge.key} role={onEdgeSelect ? "button" : undefined} tabIndex={onEdgeSelect ? 0 : undefined} data-edge-kind={edge.console ? "console" : "network"}
+            data-line={status ? (status.up ? "up" : "down") : undefined}
+            aria-label={onEdgeSelect ? `${kindWord ? `${kindWord}: ` : ""}${nameA} — ${nameB}` : undefined}
             onClick={() => onEdgeSelect?.(edge.index)}
-            onMouseEnter={(event) => showHint(event.currentTarget, `${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`)}
+            onMouseEnter={(event) => showHint(event.currentTarget, hintText)}
             onMouseLeave={() => setHint(null)}
-            onFocus={(event) => showHint(event.currentTarget, `${nameA}: ${edge.labelA || "—"} — ${nameB}: ${edge.labelB || "—"}`)}
+            onFocus={(event) => showHint(event.currentTarget, hintText)}
             onBlur={() => setHint(null)}
             onContextMenu={(event) => {
               if (!onEdgeSettings && !onEdgeRemove) return
@@ -697,15 +721,15 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
                 setContext({ kind: "edge", index: edge.index, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, trigger: event.currentTarget })
                 return
               }
-              if (onEdgeRemove && !edgeLocked?.(edge.index) && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onEdgeRemove(edge.index); return }
+              if (onEdgeRemove && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); onEdgeRemove(edge.index); return }
               if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onEdgeSelect?.(edge.index) }
             }}
             className={onEdgeSelect ? "group cursor-pointer focus:outline-none" : undefined}>
-            {onEdgeSelect && <path data-edge-hit={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
+            {onEdgeSelect && <path data-edge-hit={edge.key} d={d}
               fill="none" stroke="transparent" strokeWidth={16} pointerEvents="stroke" />}
-            <path data-edge={edge.key} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
-              className={selectedConnectionIndex === edge.index ? "fill-none stroke-primary" : "fill-none stroke-muted-foreground/70 group-hover:stroke-primary group-focus-visible:stroke-primary"}
-              strokeWidth={selectedConnectionIndex === edge.index ? 3 : 2} />
+            {status && <title>{`${kindWord}: ${status.label}`}</title>}
+            <path data-edge={edge.key} d={d} className={strokeClass}
+              strokeWidth={selectedConnectionIndex === edge.index ? 3 : 2} strokeDasharray={edge.console ? "7 4" : undefined} strokeLinecap={edge.console ? "round" : undefined} />
             {renderPortLabel(edge.labelA, edge.a, start, end)}
             {renderPortLabel(edge.labelB, edge.b, end, start)}
           </g>
@@ -862,6 +886,11 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
       </g>
     </svg>
     </div>
+    {edges.some((edge) => edge.console) && <div data-topology-legend role="note" aria-label={t("ed.c.diagram.legend")}
+      className={cn("pointer-events-none absolute left-3 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border bg-background/95 px-2.5 py-1.5 text-xs text-muted-foreground", controlsPosition === "top-right" ? "bottom-3" : "top-3")}>
+      <span className="flex items-center gap-1.5"><svg aria-hidden="true" width="24" height="8"><line x1="1" y1="4" x2="23" y2="4" className="stroke-muted-foreground/70" strokeWidth={2} /></svg>{t("ed.c.diagram.legendNetwork")}</span>
+      <span className="flex items-center gap-1.5"><svg aria-hidden="true" width="24" height="8"><line x1="1" y1="4" x2="23" y2="4" className="stroke-[var(--ib-console)]" strokeWidth={2} strokeDasharray="7 4" strokeLinecap="round" /></svg>{t("ed.c.diagram.consoleCable")}</span>
+    </div>}
     <div className={cn("topology-zoom absolute right-3 z-10 flex items-center gap-1 rounded-md border border-border bg-background/95 p-1", controlsPosition === "top-right" ? "top-3" : "bottom-3")} aria-describedby={controlsHelpId}>
       <HoverTooltip text={t("admin.exTopo.zoomOutTip")}><Button type="button" variant="ghost" size="icon" className="h-8 w-8"
         aria-label={t("admin.exTopo.zoomOut")} onClick={() => { viewportTouched.current = true; setViewport((current) => zoomViewportAt(current, current.scale / 1.25,

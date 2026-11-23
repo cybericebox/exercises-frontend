@@ -18,7 +18,7 @@ import { EnvBlock } from "./EnvBlock"
 import type { SectionProps } from "./MainSection"
 
 /** A list of command parts edited as one line (`nginx -g 'daemon off;'`); the form keeps the parts. */
-function ListTextField({ name, label, required, help, placeholder, disabled, className }: {
+export function ListTextField({ name, label, required, help, placeholder, disabled, className }: {
   name: string
   label: string
   required?: boolean

@@ -18,9 +18,14 @@ import {
 } from "@/api/exercises/model"
 import { isGatewayType, type GatewayDeviceType } from "@/lib/gatewayTypes"
 import type {
-  ConnectionDTO, ConsolePortDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, SerialPortDTO, TopologyDTO,
+  ConnectionDTO, DeviceDTO, InterfaceDTO, NormalizedDevice, NormalizedEnvVar, NormalizedInterface, NormalizedTopology, PersistenceDTO, TopologyDTO,
 } from "@/api/exercises/versions"
 import { durationSeconds } from "./task"
+import {
+  CONSOLE_MODES, CONSOLE_PORT_NAME_RE, MAX_CONSOLE_CABLES, MAX_CONSOLE_PORTS, MAX_SERIAL_PORTS, SERIAL_PORT_NAME_RE, canHavePorts, consoleCableProblem,
+  consoleCommandProblem, consolePortToDTO, consolePortToForm, isConsoleConnection, portKindOf, serialDevicePath, serialPortToDTO, serialPortToForm,
+  validSerialPath, type ConsolePortForm, type SerialPortForm,
+} from "../consolePorts"
 
 // ── Regexes and parsers (mirror the domain) ─────────────────────────────────────
 
@@ -109,13 +114,17 @@ export type BootstrapFileForm = {
 export type EnvFormValues = NormalizedEnvVar & { ClientKey?: string }
 export type BootstrapFormValues = { Timeout: string; Env: EnvFormValues[]; Files: BootstrapFileForm[]; Script: string; Interpreter: string }
 
-export type DeviceFormValues = Omit<NormalizedDevice, "Access" | "Bootstrap" | "Persistence"> & {
+export type DeviceFormValues = Omit<NormalizedDevice, "Access" | "Bootstrap" | "Persistence" | "ConsolePorts" | "SerialPorts"> & {
   /** Form-only: the stable identity of the device in this browser (lib/clientKeys); never sent. */
   ClientKey?: string
   Access: AccessFormEntry[]
   Bootstrap: BootstrapFormValues
   Persistence?: PersistenceFormValues
+  /** Nodes only (not Windows): the management lines and the terminal lines, the ends of console cables. */
+  ConsolePorts: ConsolePortForm[]
+  SerialPorts: SerialPortForm[]
 }
+export type { ConsolePortForm, SerialPortForm }
 
 /** A variable of the schema: a fixed value or a template; Text is the value or the template. */
 export type VariableFormValues = { Name: string; Kind: "value" | "template"; Text: string }
@@ -272,6 +281,68 @@ const bootstrapSchema = z.object({
   if (bootstrap.Interpreter && !bootstrap.Interpreter.startsWith("/")) ctx.addIssue({ code: "custom", path: ["Interpreter"], message: t("ed.c.val.pathAbsolute") })
 })
 
+const consolePortSchema = z.object({
+  Name: z.string(),
+  Mode: z.string(),
+  Command: z.array(z.string()),
+  User: z.string(),
+  Port: z.string(),
+}).superRefine((port, ctx) => {
+  if (!CONSOLE_PORT_NAME_RE.test(port.Name)) ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.c.port.val.consoleName") })
+  if (!(CONSOLE_MODES as readonly string[]).includes(port.Mode)) {
+    ctx.addIssue({ code: "custom", path: ["Mode"], message: t("ed.c.port.val.mode") })
+    return
+  }
+  if (port.Mode === "program") {
+    const problem = consoleCommandProblem(port.Command)
+    if (problem) ctx.addIssue({ code: "custom", path: ["Command"], message: t(`ed.c.port.val.command.${problem}`, { max: problem === "entries" ? 32 : 4096 }) })
+    if (port.User && !USER_RE.test(port.User)) ctx.addIssue({ code: "custom", path: ["User"], message: t("ed.c.val.terminalUser") })
+    return
+  }
+  if (port.Mode === "tcp") {
+    const number = Number(port.Port)
+    if (port.Port.trim() === "" || !Number.isInteger(number) || number < 1 || number > 65535) ctx.addIssue({ code: "custom", path: ["Port"], message: t("ed.c.val.accessPort") })
+  }
+})
+
+const serialPortSchema = z.object({
+  Name: z.string(),
+  Path: z.string(),
+}).superRefine((port, ctx) => {
+  if (!SERIAL_PORT_NAME_RE.test(port.Name)) ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.c.port.val.serialName") })
+  if (port.Path !== "" && !validSerialPath(port.Path)) ctx.addIssue({ code: "custom", path: ["Path"], message: t("ed.c.port.val.serialPath") })
+})
+
+/** Rules of the ports of one device as a whole (the shapes of each port are in their own schemas): kind, limits, names, stdio once, paths. */
+function refineDevicePorts(d: { Type: string; System: string; Interfaces: { Name: string }[]; ConsolePorts: ConsolePortForm[]; SerialPorts: SerialPortForm[] }, ctx: z.RefinementCtx) {
+  if (d.ConsolePorts.length === 0 && d.SerialPorts.length === 0) return
+  if (!canHavePorts(d)) {
+    const path = d.ConsolePorts.length ? "ConsolePorts" : "SerialPorts"
+    ctx.addIssue({ code: "custom", path: [path], message: t(d.Type === "node" ? "ed.c.port.val.windows" : "ed.c.port.val.notNode") })
+    return
+  }
+  if (d.ConsolePorts.length > MAX_CONSOLE_PORTS) ctx.addIssue({ code: "custom", path: ["ConsolePorts"], message: t("ed.c.port.val.consoleMax", { max: MAX_CONSOLE_PORTS }) })
+  if (d.SerialPorts.length > MAX_SERIAL_PORTS) ctx.addIssue({ code: "custom", path: ["SerialPorts"], message: t("ed.c.port.val.serialMax", { max: MAX_SERIAL_PORTS }) })
+  const taken = new Set(d.Interfaces.map((iface) => iface.Name))
+  let stdio = false
+  d.ConsolePorts.forEach((port, index) => {
+    if (port.Name && taken.has(port.Name)) ctx.addIssue({ code: "custom", path: ["ConsolePorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
+    taken.add(port.Name)
+    if (port.Mode === "stdio") {
+      if (stdio) ctx.addIssue({ code: "custom", path: ["ConsolePorts", index, "Mode"], message: t("ed.c.port.val.stdioTwice") })
+      stdio = true
+    }
+  })
+  const paths = new Set<string>()
+  d.SerialPorts.forEach((port, index) => {
+    if (port.Name && taken.has(port.Name)) ctx.addIssue({ code: "custom", path: ["SerialPorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
+    taken.add(port.Name)
+    const path = serialDevicePath(port)
+    if (port.Name && paths.has(path)) ctx.addIssue({ code: "custom", path: ["SerialPorts", index, "Path"], message: t("ed.c.port.val.pathTaken", { path }) })
+    paths.add(path)
+  })
+}
+
 const deviceSchema = z
   .object({
     ID: z.string(),
@@ -294,9 +365,8 @@ const deviceSchema = z
     DHCPRanges: z.array(z.object({ Start: z.number().int(), End: z.number().int() })),
     DNS: z.string(),
     ReverseConnections: z.boolean(),
-    // Not edited here yet: carried through unchanged.
-    ConsolePorts: z.array(z.custom<ConsolePortDTO>()).optional(),
-    SerialPorts: z.array(z.custom<SerialPortDTO>()).optional(),
+    ConsolePorts: z.array(consolePortSchema),
+    SerialPorts: z.array(serialPortSchema),
   })
   .superRefine((d, ctx) => {
     const node = d.Type === "node"
@@ -345,6 +415,7 @@ const deviceSchema = z
     })
     if (d.Command.length > MAX_DEVICE_COMMAND) ctx.addIssue({ code: "custom", path: ["Command"], message: t("ed.c.val.commandMax", { max: MAX_DEVICE_COMMAND }) })
     if (d.Args.length > MAX_DEVICE_ARGS) ctx.addIssue({ code: "custom", path: ["Args"], message: t("ed.c.val.argsMax", { max: MAX_DEVICE_ARGS }) })
+    refineDevicePorts(d, ctx)
   })
 
 const endpointSchema = z
@@ -393,12 +464,22 @@ export const topologySchema = z
     })
     // Device endpoints must resolve to a declared node interface or a
     // fixed logical forwarding port, occupied by at most one connection.
+    // A console cable joins one serial port and one console port of two devices (never a NIC); a network connection never
+    // ends on a port. A port, like a NIC, takes one connection.
     const usedPorts = new Set<string>()
+    let cables = 0
     topology.Connections.forEach((connection, ci) => {
+      const cable = isConsoleCable(connection)
+      if (cable) {
+        cables += 1
+        if (cables > MAX_CONSOLE_CABLES) ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", 0, "Interface"], message: t("ed.c.port.val.cablesMax", { max: MAX_CONSOLE_CABLES }) })
+        const problem = consoleCableProblem(connection, topology.Devices)
+        if (problem === "two_serial" || problem === "two_console" || problem === "same_device") {
+          ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", 1, "Interface"], message: t(`ed.c.port.val.cable.${problem}`) })
+        }
+      }
       connection.Endpoints.forEach((ep, side) => {
         if (ep.Kind !== "device") return
-        // A console cable joins a serial and a console port, not interfaces: the editor does not check those yet.
-        if (isConsoleCable(connection) && topology.Devices.some((d) => d.ID === ep.DeviceID)) return
         const device = topology.Devices.find((d) => d.ID === ep.DeviceID)
         if (!device) {
           ctx.addIssue({
@@ -409,15 +490,25 @@ export const topologySchema = z
           return
         }
         const forwarding = device.Type === "unmanaged-switch" || device.Type === "hub"
-        // A gateway has one implicit port, eth0; a switch or hub its fixed logical ports; a node its declared interfaces.
-        const portKnown = isGatewayType(device.Type) ? ep.Interface === GATEWAY_PORT : forwarding ? isForwardingPort(ep.Interface) : device.Interfaces.some((iface) => iface.Name === ep.Interface)
-        if (!portKnown) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["Connections", ci, "Endpoints", side, "Interface"],
-            message: t("admin.ex.val.endpointUnresolved"),
-          })
-          return
+        if (cable) {
+          const kind = device.Type === "node" ? portKindOf(device, ep.Interface) : null
+          if (kind !== "serial" && kind !== "console") {
+            const nic = kind === "nic" || forwarding || isGatewayType(device.Type)
+            ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", side, "Interface"], message: t(nic && ep.Interface ? "ed.c.port.val.cable.nic" : "admin.ex.val.endpointUnresolved") })
+            return
+          }
+        } else {
+          // A gateway has one implicit port, eth0; a switch or hub its fixed logical ports; a node its declared interfaces.
+          const portKnown = isGatewayType(device.Type) ? ep.Interface === GATEWAY_PORT : forwarding ? isForwardingPort(ep.Interface) : device.Interfaces.some((iface) => iface.Name === ep.Interface)
+          if (!portKnown) {
+            const port = device.Type === "node" ? portKindOf(device, ep.Interface) : null
+            ctx.addIssue({
+              code: "custom",
+              path: ["Connections", ci, "Endpoints", side, "Interface"],
+              message: t(port === "serial" || port === "console" ? "ed.c.port.val.portOnNetwork" : "admin.ex.val.endpointUnresolved"),
+            })
+            return
+          }
         }
         const key = `${ep.DeviceID}\0${ep.Interface}`
         if (usedPorts.has(key)) {
@@ -504,6 +595,8 @@ export function emptyDevice(): DeviceFormValues {
     DHCPRanges: [],
     DNS: "",
     ReverseConnections: false,
+    ConsolePorts: [],
+    SerialPorts: [],
   }
 }
 
@@ -537,6 +630,8 @@ export function deviceToForm(d: NormalizedDevice): DeviceFormValues {
     },
     Persistence: { Enabled: d.Persistence?.Enabled ?? false, Debounce: d.Persistence?.Debounce ?? "" },
     WaitReadyFile: d.WaitReadyFile ?? false,
+    ConsolePorts: (d.ConsolePorts ?? []).map(consolePortToForm),
+    SerialPorts: (d.SerialPorts ?? []).map(serialPortToForm),
   }
 }
 
@@ -598,7 +693,14 @@ export function bootstrapToDTO(b: BootstrapFormValues): BootstrapDTO | undefined
 }
 
 /** A console cable (Kind "console"): not a network link. */
-export const isConsoleCable = (connection: { Kind?: string }): boolean => connection.Kind === "console"
+export const isConsoleCable = isConsoleConnection
+
+function portsToDTO(d: DeviceFormValues): Pick<DeviceDTO, "ConsolePorts" | "SerialPorts"> {
+  return {
+    ...(d.ConsolePorts.length ? { ConsolePorts: d.ConsolePorts.map(consolePortToDTO) } : {}),
+    ...(d.SerialPorts.length ? { SerialPorts: d.SerialPorts.map(serialPortToDTO) } : {}),
+  }
+}
 
 function deviceToDTO(d: DeviceFormValues): DeviceDTO {
   // The device ID ALWAYS goes out (client-side uuid for new devices): Connections
@@ -637,9 +739,8 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...(bootstrap ? { Bootstrap: bootstrap } : {}),
     ...(d.Profile === "container" && d.Persistence?.Enabled ? { Persistence: { Enabled: true, ...(d.Persistence.Debounce ? { Debounce: d.Persistence.Debounce } : {}) } satisfies PersistenceDTO } : {}),
     ...(d.WaitReadyFile ? { WaitReadyFile: true } : {}),
-    // Not edited here yet: sent back as loaded, absent when absent.
-    ...(d.ConsolePorts ? { ConsolePorts: d.ConsolePorts } : {}),
-    ...(d.SerialPorts ? { SerialPorts: d.SerialPorts } : {}),
+    // Absent when the device has none.
+    ...portsToDTO(d),
   }
 }
 
