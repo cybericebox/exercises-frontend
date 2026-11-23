@@ -19,10 +19,10 @@ vi.mock("@/api/exercises/versions", async (original) => ({ ...(await original<ob
 vi.mock("@/api/exercises/capabilities", () => ({ getExerciseCapabilities: vi.fn() }))
 vi.mock("@/api/exercises/deploy", () => ({
   listDeploys: vi.fn(), deployStatus: vi.fn(), deployVariant: vi.fn(), destroyDeploy: vi.fn(), extendDeploy: vi.fn(), openDeployLink: vi.fn(),
-  checkDeployFlag: vi.fn(), runDeployChecks: vi.fn(), resetDeployDevice: vi.fn(), setDeployDeviceRescue: vi.fn(),
+  checkDeployFlag: vi.fn(), runDeployChecks: vi.fn(), resetDeployDevice: vi.fn(), setDeployDeviceRescue: vi.fn(), getDeployDossier: vi.fn(),
 }))
 
-import { checkDeployFlag, deployStatus, deployVariant, destroyDeploy, listDeploys, type DeployListItem, type DeployStatus } from "@/api/exercises/deploy"
+import { checkDeployFlag, deployStatus, deployVariant, destroyDeploy, getDeployDossier, listDeploys, type DeployListItem, type DeployStatus } from "@/api/exercises/deploy"
 import { getExerciseCapabilities } from "@/api/exercises/capabilities"
 import { getExercise } from "@/api/exercises/catalog"
 import { getVersion } from "@/api/exercises/versions"
@@ -58,6 +58,7 @@ describe("TestLabView", () => {
     window.localStorage.clear()
     window.matchMedia = ((query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as unknown as typeof window.matchMedia
     vi.mocked(listDeploys).mockResolvedValue([item])
+    vi.mocked(getDeployDossier).mockResolvedValue({ Declared: false, Links: [], Forbidden: [], Credentials: [], Topology: "full", Operates: [] })
     vi.mocked(getExercise).mockResolvedValue({ ID: "ex1", Name: "Маршрутизація" } as never)
     vi.mocked(getVersion).mockResolvedValue({ Variants: [variant], Resources: null } as never)
     vi.mocked(getExerciseCapabilities).mockResolvedValue({ Laboratories: true } as never)
@@ -211,4 +212,35 @@ describe("TestLabView", () => {
     fireEvent.click(screen.getByRole("button", { name: "node d1" }))
     expect(screen.getByRole("tab", { name: t("ed.d.dock.tab.devices") }).getAttribute("aria-selected")).toBe("true")
   })
+
+  it("a ready lab with a declared dossier gets the dossier tab; it is read once the lab is ready", async () => {
+    vi.mocked(deployStatus).mockResolvedValue(ready())
+    vi.mocked(getDeployDossier).mockResolvedValue({ Declared: true, Links: [{ SerialPort: "serial0", Path: "/dev/ttyCON0", Device: "r1", ConsolePort: "console0", ConsoleKind: "login", Program: "" }],
+      Forbidden: [], Credentials: [], Topology: "none", Operates: [] })
+    open()
+    const tab = await screen.findByRole("tab", { name: t("ed.d.dock.tab.dossier") })
+    expect(getDeployDossier).toHaveBeenCalledWith("d1")
+    fireEvent.click(tab)
+    expect(await screen.findByTestId("dossier")).toHaveTextContent("/dev/ttyCON0")
+  })
+
+
+  it("keeps the schema tab while the lab starts and when the dossier read fails, for a variant with a defender block", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [{ ...variant, Opponents: [{ Role: "defense", Band: 1, Goal: ["ospf"] }], Defender: { Seat: "r1" } }], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValueOnce(status({})).mockResolvedValue(ready())
+    vi.mocked(getDeployDossier).mockRejectedValue(new Error("down"))
+    open()
+    expect(await screen.findByRole("tab", { name: t("ed.d.dock.tab.schema") })).toBeInTheDocument()
+    await waitFor(() => expect(getDeployDossier).toHaveBeenCalled())
+    expect(screen.getByRole("tab", { name: t("ed.d.dock.tab.schema") })).toBeInTheDocument()
+  })
+
+  it("hides the schema tab from the start when the human attacks (every opponent defends, no defender block)", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [{ ...variant, Opponents: [{ Role: "defense", Band: 1, Goal: ["ospf"] }] }], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValue(status({}))
+    open()
+    expect(await screen.findByRole("tab", { name: t("ed.d.dock.tab.devices") })).toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: t("ed.d.dock.tab.schema") })).not.toBeInTheDocument()
+  })
+
 })

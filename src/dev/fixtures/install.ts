@@ -15,6 +15,7 @@
  *   ?shape=needless|rich                 the linked variant differs only by an answer that reaches the lab (needless) / the rich sample
  *   ?serverError=device|variables|access|profile|description|hint|answer|state|variable|unplaced|ambiguous|variant  a document error with its context on publish (&serverErrorAt=save: on the draft save); ?serverError= clears it
  *   ?conflict=1                         the next draft write (PUT draft, PATCH identity) answers 409 70922, as if another author had saved meanwhile
+ *   ?cables=on|unavailable|off          console lines: ports, cables, a defender block and a seated bot (on: the labs serve them; unavailable: none does), default off
  *   ?fx=reset                           forget the switches
  * An import archive named «new» or «blocked» (task-new.zip) previews as a new exercise / with blocked events;
  * uploads (chunks included) are answered, nothing is stored.
@@ -22,7 +23,7 @@
 import errorsEn from "../../../messages/errors.en.json"
 import {
   FIXTURE_ACCESS, FIXTURE_EXERCISE_ID, FIXTURE_IMAGE_SERVICES, FIXTURE_ME,
-  buildCapabilities, buildDeployStatus, gatewaysOfTopology, type FixtureGateway, buildDraft, buildExercise, buildImportPreview, buildListItem, type DraftShape, type ImportKind, type LabsMode,
+  buildCapabilities, buildDeployStatus, fixtureConsoleCables, fixtureDossier, gatewaysOfTopology, withConsoleLines, type FixtureGateway, buildDraft, buildExercise, buildImportPreview, buildListItem, type DraftShape, type ImportKind, type LabsMode,
 } from "./data"
 
 const MARK = "[editor fixtures]"
@@ -65,7 +66,7 @@ function firstColonName(variants: unknown): Record<string, string | number> | nu
 }
 
 type DeployMode = "ok" | "fail" | "retry" | "expired" | "ending" | "devfail"
-type Switches = { labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; maxGateways: number; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
+type Switches = { cables: "on" | "unavailable" | "off"; labs: LabsMode; deploy: DeployMode; console: "ok" | "none" | "fail"; vpnReverse: "blocked" | "allowed" | "not_enforced"; maxGateways: number; shape: DraftShape; serverError: ServerErrorKind | ""; serverErrorAt: "publish" | "save" }
 
 function switches(): Switches {
   let saved: Partial<Switches> = {}
@@ -86,10 +87,12 @@ function switches(): Switches {
   if (Number.isInteger(maxGateways) && maxGateways >= 1) saved.maxGateways = maxGateways
   const serverError = query.get("serverError")
   if (serverError !== null) saved.serverError = serverError in SERVER_ERRORS ? serverError as ServerErrorKind : ""
+  const cables = query.get("cables")
+  if (cables === "on" || cables === "unavailable" || cables === "off") saved.cables = cables
   const serverErrorAt = query.get("serverErrorAt")
   if (serverErrorAt === "save" || serverErrorAt === "publish") saved.serverErrorAt = serverErrorAt
   try { sessionStorage.setItem(KEY, JSON.stringify(saved)) } catch { /* private window */ }
-  return { labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", maxGateways: saved.maxGateways ?? 10, shape: saved.shape ?? "rich", serverError: saved.serverError ?? "", serverErrorAt: saved.serverErrorAt ?? "publish" }
+  return { cables: saved.cables ?? "off", labs: saved.labs ?? "mixed", deploy: saved.deploy ?? "ok", console: saved.console ?? "ok", vpnReverse: saved.vpnReverse ?? "blocked", maxGateways: saved.maxGateways ?? 10, shape: saved.shape ?? "rich", serverError: saved.serverError ?? "", serverErrorAt: saved.serverErrorAt ?? "publish" }
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify({ Status: { Code: 0, Message: "OK" }, Data: data }), { status, headers: { "Content-Type": "application/json" } })
@@ -103,6 +106,7 @@ export function installFixtures(): void {
   ;(window as unknown as Record<string, unknown>)[KEY] = true
   const original = window.fetch.bind(window)
   const draft: ReturnType<typeof buildDraft> & { Revision?: string; UpdatedAt?: string; UpdatedBy?: string | null; UpdatedByName?: string } = buildDraft(switches().shape)
+  if (switches().cables !== "off") withConsoleLines(draft)
   const exercise: ReturnType<typeof buildExercise> & { DraftRevision?: string; DraftUpdatedAt?: string | null; DraftUpdatedBy?: string | null; DraftUpdatedByName?: string } = buildExercise()
   // The revision of the working copy: UTC with six fractional digits, like the daemon; each write makes a new one.
   let micros = 0
@@ -160,7 +164,14 @@ export function installFixtures(): void {
 
     if (path === "/api/auth/me") return json(FIXTURE_ME)
     if (path === "/api/exercises/access") return json(FIXTURE_ACCESS)
-    if (path === "/api/exercises/capabilities") return json(buildCapabilities(sw.labs, sw.maxGateways))
+    if (path === "/api/exercises/capabilities") {
+      const caps = buildCapabilities(sw.labs, sw.maxGateways)
+      return json({
+        ...caps, ConsoleCablesAvailable: sw.cables !== "unavailable",
+        LabCapabilities: caps.LabCapabilities ? { ...caps.LabCapabilities, ConsoleCables: sw.cables === "unavailable" ? "none" : "all" } : caps.LabCapabilities,
+        Resources: { ...caps.Resources, MaxConsolePortsPerDevice: 4, MaxSerialPortsPerDevice: 16, MaxConsoleCablesPerLab: 64 },
+      })
+    }
     if (path === "/api/exercises/flag-policy") return json({ RandomHexLength: 16, RandomBits: 64, WarningBits: 24 })
     if (path === "/api/exercises/test-runs/lengths") return json({ AllowedMinutes: [30, 60, 120], DefaultMinutes: 60 })
     if (path === "/api/exercises/preferences/catalog-columns") return json(method === "PUT" ? body : [])
@@ -247,6 +258,10 @@ export function installFixtures(): void {
       if (!d) return fail(404, 72801, "deploy not found")
       if (rest === "" && method === "GET") return json(deployStatus(d.startedAt, sw, d.gateways))
       if (rest === "" && method === "DELETE") { deploys.delete(d.id); return empty() }
+      if (rest === "/dossier" && method === "GET") {
+        if (sw.cables === "off") return json({ Declared: false, Links: [], Forbidden: [], Credentials: [], Topology: "full", Operates: [] })
+        return (deployStatus(d.startedAt, sw, d.gateways) as { Ready?: boolean }).Ready ? json(fixtureDossier()) : fail(409, 70959, "the lab is not ready")
+      }
       if (rest === "/link" && b.Access === "terminal") {
         if (sw.console === "none") return fail(404, 33518, "the lab has no console for this device")
         if (sw.console === "fail") return fail(500, 500, "console link failed")
@@ -324,7 +339,8 @@ function deployStatus(startedAt: number, sw: Switches, gateways: FixtureGateway[
   if (sw.deploy === "ending" && status.Ready) return { ...status, ExpiresAt: new Date(now + 4 * 60_000).toISOString(), EndingAt: new Date(now + 4 * 60_000).toISOString() }
   if (status.Ready) {
     const gateways = (status.Gateways as { Kind: string }[]).map((gateway) => gateway.Kind === "vpn" ? { ...gateway, Reverse: sw.vpnReverse, ReverseConnections: sw.vpnReverse === "allowed" } : gateway)
-    return { ...status, Gateways: gateways }
+    const lines = sw.cables === "off" ? {} : { ConsoleCables: fixtureConsoleCables(seconds), Devices: [...(status.Devices ?? []), { Name: "pc", Ready: true }] }
+    return { ...status, Gateways: gateways, ...lines }
   }
   return status
 }
