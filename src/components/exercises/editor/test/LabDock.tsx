@@ -12,15 +12,19 @@ import { cn } from "@/utils/cn"
 import { AuthorTab } from "./AuthorTab"
 import { DeviceList, type DeviceActions } from "./DeviceList"
 import { SchemaTab } from "./SchemaView"
+import { ConsoleLines } from "./ConsoleLines"
+import { DossierTab } from "./DossierTab"
+import type { DossierState } from "@/lib/useDossier"
 
-export type DockTab = "devices" | "schema" | "author"
+export type DockTab = "devices" | "schema" | "dossier" | "author"
 
 /**
- * The lab panel at the right: “Devices” (how far the start is, every device, its access), “Schema” (the schema with the
- * stage of each device) and “For the author” (what only the author sees about each task). The panel never shows data the
+ * The lab panel at the right: “Devices” (how far the start is, every device, its access, the console lines), “Schema” (the
+ * schema with the stage of each device; hidden when the human of the lab attacks), “Defender's dossier” (only when the variant
+ * declares one) and “For the author” (what only the author sees about each task). The panel never shows data the
  * participant must have in the task: that stays in the middle.
  */
-export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, currentTaskId, solvedIds, expanded, onToggleDevice, actions, schemaSelected, onSchemaSelect, onFull, author, onClose, sheet }: {
+export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, currentTaskId, solvedIds, expanded, onToggleDevice, actions, schemaSelected, onSchemaSelect, onFull, author, onClose, sheet, dossier, schemaHidden = false }: {
   tab: DockTab
   onTab: (tab: DockTab) => void
   topology: NormalizedTopology
@@ -41,12 +45,17 @@ export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, c
   onClose: () => void
   /** Shown as a sheet over the page (narrow screens): the close button is always there. */
   sheet: boolean
+  /** The defender's dossier of the lab; its tab is there only when the variant declares one. */
+  dossier?: DossierState & { retry: () => void }
+  /** The human of the lab attacks: no schema tab (console design 9a.5). */
+  schemaHidden?: boolean
 }) {
-  const tabs: DockTab[] = author ? ["devices", "schema", "author"] : ["devices", "schema"]
+  const declared = dossier?.state === "ready" && dossier.dossier.Declared
+  const tabs: DockTab[] = ["devices", ...(schemaHidden ? [] : ["schema" as const]), ...(declared ? ["dossier" as const] : []), ...(author ? ["author" as const] : [])]
   const current = tabs.includes(tab) ? tab : "devices"
   return <aside id="lab-dock" aria-label={t("ed.d.dock.label")} className="flex min-h-0 w-full flex-col bg-background">
     <div className="flex shrink-0 items-center gap-2 border-b border-border px-3">
-      <div role="tablist" aria-label={t("ed.d.dock.label")} className="flex min-w-0 flex-1 gap-4">
+      <div role="tablist" aria-label={t("ed.d.dock.label")} className="flex min-w-0 flex-1 gap-4 overflow-x-auto">
         {tabs.map((id) => <button key={id} type="button" role="tab" id={`lab-tab-${id}`} aria-selected={current === id} aria-controls={`lab-panel-${id}`} onClick={() => onTab(id)}
           className={cn("-mb-px whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
             current === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{t(`ed.d.dock.tab.${id}`)}</button>)}
@@ -56,8 +65,12 @@ export function LabDock({ tab, onTab, topology, status, chip, deployId, tasks, c
       </HoverTooltip>
     </div>
     <div role="tabpanel" id={`lab-panel-${current}`} aria-labelledby={`lab-tab-${current}`} tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-      {current === "devices" && <DeviceList topology={topology} status={status} chip={chip} deployId={deployId} expanded={expanded} onToggle={onToggleDevice} actions={actions} author={author} />}
+      {current === "devices" && <>
+        <DeviceList topology={topology} status={status} chip={chip} deployId={deployId} expanded={expanded} onToggle={onToggleDevice} actions={actions} author={author} />
+        {!schemaHidden && <ConsoleLines topology={topology} status={status} />}
+      </>}
       {current === "schema" && <SchemaTab topology={topology} status={status} selected={schemaSelected} onSelect={onSchemaSelect} onFull={onFull} />}
+      {current === "dossier" && dossier && <DossierTab dossier={dossier} topology={topology} status={status} selected={schemaSelected} onSelect={onSchemaSelect} />}
       {current === "author" && <AuthorTab tasks={tasks} currentId={currentTaskId} status={status} devices={topology.Devices} solvedIds={solvedIds} />}
     </div>
   </aside>

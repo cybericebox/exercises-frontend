@@ -317,4 +317,52 @@ export function buildDeployStatus(startedAt: number, now: number, fail: boolean,
   }
 }
 
+/** The defender's PC of `?cables=on`: two serial ports, cabled to the console ports of r1 and r2. */
+const PC = "ccccccc8-0000-4000-8000-000000000008"
+
+/**
+ * `?cables=on|unavailable`: the draft gets console lines (console ports on r1 and r2, a PC with two serial ports on sw1, two
+ * console cables), a defender block with a stored secret and a plain credential, and a bot defender seated at the PC.
+ */
+export function withConsoleLines(draft: ReturnType<typeof buildDraft>): void {
+  for (const variant of draft.Variants) {
+    const topology = variant.Topology as { Devices: Record<string, unknown>[]; Connections: Record<string, unknown>[]; VisualRender: { positions: Record<string, { x: number; y: number }> } }
+    topology.Devices = topology.Devices.map((device) => device.Name === "r1" ? { ...device, ConsolePorts: [{ Name: "console0", Command: ["/usr/bin/vtysh"] }, { Name: "aux0" }] }
+      : device.Name === "r2" ? { ...device, ConsolePorts: [{ Name: "console0" }] } : device)
+    topology.Devices.push({ ID: PC, Name: "pc", Type: "node", Profile: "container", Image: "platform/tools:24.04", ResourcePreset: "small",
+      Interfaces: [iface("eth0", { Type: "dhcp" })], Access: [{ Kind: "terminal" }], SerialPorts: [{ Name: "serial0" }, { Name: "serial1" }] })
+    topology.Connections.push(
+      { Endpoints: [{ Kind: "device", DeviceID: PC, Interface: "eth0" }, { Kind: "device", DeviceID: D.sw1, Interface: "GigabitEthernet0/3" }] },
+      { Kind: "console", Endpoints: [{ Kind: "device", DeviceID: PC, Interface: "serial0" }, { Kind: "device", DeviceID: D.r1, Interface: "console0" }] },
+      { Kind: "console", Endpoints: [{ Kind: "device", DeviceID: PC, Interface: "serial1" }, { Kind: "device", DeviceID: D.r2, Interface: "console0" }] },
+    )
+    topology.VisualRender.positions[PC] = { x: 0.26, y: 0.55 }
+    Object.assign(variant, {
+      Defender: { Seat: "pc", Topology: "full", Credentials: [{ Device: "r1", Port: "console0", User: "admin", Value: "", Secret: true }, { Device: "r2", User: "frr", Value: "zebra" }] },
+      Opponents: [{ Role: "defense", Band: 2, Goal: ["ospf"], Operates: ["r1", "r2"], Seat: "pc" }],
+    })
+  }
+}
+
+/** The console lines of the `?cables` lab: serial0 → r1 is up, serial1 → r2 waits for its device for the first 40 seconds. */
+export function fixtureConsoleCables(seconds: number) {
+  return [
+    { Serial: { Device: "pc", Port: "serial0" }, Console: { Device: "r1", Port: "console0" }, LineUp: true, Reason: "" },
+    { Serial: { Device: "pc", Port: "serial1" }, Console: { Device: "r2", Port: "console0" }, LineUp: seconds > 40, Reason: seconds > 40 ? "" : "WaitingForDevice" },
+  ]
+}
+
+/** The defender's dossier of the `?cables` lab, as the backend builds it from the deployed lab. */
+export function fixtureDossier() {
+  return {
+    Declared: true, Topology: "full", Operates: ["r1", "r2"],
+    Links: [
+      { SerialPort: "serial0", Path: "/dev/ttyCON0", Device: "r1", ConsolePort: "console0", ConsoleKind: "program", Program: "vtysh" },
+      { SerialPort: "serial1", Path: "/dev/ttyCON1", Device: "r2", ConsolePort: "console0", ConsoleKind: "login", Program: "" },
+    ],
+    Forbidden: ["srv"],
+    Credentials: [{ Device: "r1", Port: "console0", User: "admin", Value: "R1-console-pass" }, { Device: "r2", Port: "", User: "frr", Value: "zebra" }],
+  }
+}
+
 export const FIXTURE_IDS = { V1, V2, T, D }

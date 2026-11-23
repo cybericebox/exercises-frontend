@@ -147,6 +147,18 @@ export type DeployGateway = {
   Reverse?: VPNReverseState | string
 }
 
+/** One port of one device of the lab (the device by its topology name, the port as declared). */
+export type DeployPortRef = { Device: string; Port: string }
+
+/**
+ * Why a console line is down: WaitingForDevice (a device of the line is not running yet), PortDown (a port keeper does not
+ * answer), PeerUnreachable (the far node cannot be reached), NodeLineLimit (the node runs the most lines it may) or Unknown.
+ */
+export type ConsoleLineReason = "WaitingForDevice" | "PortDown" | "PeerUnreachable" | "NodeLineLimit" | "Unknown"
+
+/** One console line of the lab: its serial end, its console end, whether bytes flow and, while it is down, why ("" while up). */
+export type DeployConsoleCable = { Serial: DeployPortRef; Console: DeployPortRef; LineUp: boolean; Reason: ConsoleLineReason | string }
+
 export type DeployStatus = {
   Phase: DeployPhase | string
   Ready: boolean
@@ -176,6 +188,35 @@ export type DeployStatus = {
   Expired?: boolean
   /** When the run's resource reservation deletes the lab unless it is extended; null before that notice. */
   EndingAt?: string | null
+  /** The console lines of the lab, one per console cable the laboratory made; absent for a lab without cables. */
+  ConsoleCables?: DeployConsoleCable[]
+}
+
+/** What is on a console line: a login prompt, the author's program (its base name in Program) or the device's own console. */
+export type DossierConsoleKind = "login" | "program" | "native"
+
+/** One cabled line of the defender's seat: its serial port and device path, and the device and console port at the other end. */
+export type DossierLink = { SerialPort: string; Path: string; Device: string; ConsolePort: string; ConsoleKind: DossierConsoleKind | string; Program: string }
+
+/** One operator credential of the dossier, with its value (show and copy controls). */
+export type DossierCredential = { Device: string; Port: string; User: string; Value: string }
+
+/**
+ * The dossier of the human defender of a test lab, as the lab was deployed. Declared is false when the variant has no defender
+ * block (no dossier tab). Topology: full (the whole schema), operates (only the devices in Operates and their links) or none.
+ */
+export type DeployDossier = {
+  Declared: boolean
+  Links: DossierLink[]
+  Forbidden: string[]
+  Credentials: DossierCredential[]
+  Topology: "full" | "operates" | "none" | string
+  Operates: string[]
+}
+
+/** The dossier of a ready test lab (409 until it is ready); it carries credentials, so it is never cached beyond the page. */
+export function getDeployDossier(group: string): Promise<DeployDossier> {
+  return apiGet<DeployDossier>(`${BASE}/deploys/${encodeURIComponent(group)}/dossier`, { cache: "no-store" })
 }
 
 /** Start a test deploy of one variant for the chosen run length (minutes; absent: the lease in force); resolves with the deploy id to poll. */

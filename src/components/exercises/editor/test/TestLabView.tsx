@@ -32,6 +32,8 @@ import { deviceStage, isDeviceFailed, labChip, stateTaskView, vpnView } from "@/
 import { PopupBlockedError, useDeployTest } from "@/lib/useDeployTest"
 import { useLeaseClock } from "@/lib/useLeaseClock"
 import { useOtherLabsRunning } from "@/lib/useOtherLabsRunning"
+import { useDossier } from "@/lib/useDossier"
+import { humanAttacks } from "@/lib/labConsole"
 import { cn } from "@/utils/cn"
 import { LabCapabilitiesProvider, useLabSupport } from "../labCapabilities"
 import { ConsolePanel } from "./ConsolePanel"
@@ -196,6 +198,8 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   // The VPN button belongs to a lab with a VPN gateway: the status says so, the schema says so until the status arrives.
   const hasVpnGateway = Boolean(status?.Gateways?.some((gateway) => gateway.Kind === "vpn") || devices?.some((device) => device.Type === "vpn_gateway"))
   const vpn = useMemo(() => vpnView(status), [status])
+  // The defender's dossier is read once the lab is ready; its tab is there only when the variant declares one.
+  const dossier = useDossier(isStatic ? null : deploy.deployId, ready && !expired)
 
   const expiresAt = status?.ExpiresAt ?? item?.ExpiresAt ?? null
   const now = useLeaseClock(expiresAt ? [expiresAt] : [], Boolean(expiresAt) && !deploy.gone)
@@ -326,6 +330,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   const dock = showDock && <LabDock tab={tab} onTab={setTab} topology={variant.Topology} status={status} chip={chip} deployId={deploy.deployId ?? ""} tasks={tasks} currentTaskId={task?.ID ?? null}
     solvedIds={solvedIds} expanded={expanded} onToggleDevice={(name) => setExpanded((current) => { const next = new Set(current); if (!next.delete(name)) next.add(name); return next })}
     actions={actions} schemaSelected={schemaSelected} onSchemaSelect={selectNode} onFull={() => setSchemaFull(true)} author={authorShown} sheet={!wide}
+    dossier={dossier} schemaHidden={humanAttacks(variant, dossier.state === "ready" && dossier.dossier.Declared)}
     onClose={() => (wide ? setDockShown(false) : setSheetOpen(false))} />
 
   return <div className="flex h-dvh flex-col bg-background" onKeyDown={(event) => { if (event.key === "Escape" && sheetOpen && !wide) setSheetOpen(false) }}>
@@ -377,7 +382,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
               </div>
             </section>
           </div>
-          {showDock && wide && dockShown && <div className={cn("hidden min-h-0 shrink-0 border-l border-border min-[1100px]:flex", tab === "schema" ? "w-[30rem]" : "w-96")}>{dock}</div>}
+          {showDock && wide && dockShown && <div className={cn("hidden min-h-0 shrink-0 border-l border-border min-[1100px]:flex", tab === "schema" || tab === "dossier" ? "w-[30rem]" : "w-96")}>{dock}</div>}
         </div>
       ))}
 

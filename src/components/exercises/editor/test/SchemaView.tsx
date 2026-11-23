@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { t } from "@/i18n/t"
 import { labNodeInfo, labTopology } from "@/lib/labTopology"
+import { cableStatusByConnection } from "@/lib/labConsole"
 import { hasConsole, isDeviceFailed, stageFor, type DeviceStage } from "@/lib/testLab"
 import { SidePanel, SummaryList, type SummaryRow } from "../kit/SidePanel"
 import { deviceKindText, initText, stageText, type DeviceActions } from "./DeviceList"
@@ -41,10 +42,12 @@ export function SchemaView({ topology, status, selected, onSelect }: {
 }) {
   const shown = useMemo(() => labTopology(topology), [topology])
   const statuses = Object.fromEntries(topology.Devices.map((device) => [device.ID, nodeStatusOf(stageFor(device, status))]))
+  // A console line that is down is drawn in the warning colour, with its reason.
+  const lines = useMemo(() => cableStatusByConnection(topology, status), [topology, status])
 
   return <div className="absolute inset-0">
     <TopologyDiagram topology={shown} selectedNodes={selected ? [selected] : []} onNodeSelect={onSelect} onCanvasSelect={() => onSelect(null)}
-      nodeStatus={statuses} minPortLabelScale={PORT_LABEL_MIN_SCALE} />
+      nodeStatus={statuses} edgeStatus={lines} minPortLabelScale={PORT_LABEL_MIN_SCALE} />
   </div>
 }
 
