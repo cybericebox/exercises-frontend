@@ -99,6 +99,15 @@ export function nextPortName(prefix: "console" | "aux" | "serial", taken: string
 export const emptyConsolePort = (name: string): ConsolePortForm => ({ Name: name, Mode: "program", Command: [], User: "", Port: "" })
 export const emptySerialPort = (name: string): SerialPortForm => ({ Name: name, Path: "" })
 
+/**
+ * The console port that carries the guest kernel's log: the first port that runs a program (is not native), in declared order,
+ * of a microvm device that asks for the log; "" otherwise (the flag is off, the profile is not microvm, or no port can carry it).
+ */
+export function kernelLogPort(device: { Profile?: string; KernelLog?: boolean; ConsolePorts?: { Name: string; Mode: string }[] }): string {
+  if (!device.KernelLog || device.Profile !== "microvm") return ""
+  return (device.ConsolePorts ?? []).find((port) => port.Mode === "program")?.Name ?? ""
+}
+
 /** A device may declare ports: a node that is not a Windows device (those have VNC or RDP only). */
 export function canHavePorts(device: Pick<PortDevice, "Type" | "System">): boolean {
   return device.Type === "node" && device.System !== "windows"

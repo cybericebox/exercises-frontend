@@ -182,7 +182,7 @@ describe('normalizeVariant', () => {
       SecurityPreset: '',
       Image: '', ResourcePreset: '',
       Interfaces: [],
-      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false, DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false,
+      Profile: "container", Access: [], Command: [], Args: [], System: "linux", Hardware: "fast", Bootstrap: { Timeout: "", Env: [], Files: [], Script: "", Interpreter: "" }, Persistence: null, WaitReadyFile: false, DHCP: false, DHCPRanges: [], DNS: "", ReverseConnections: false, KernelLog: false,
     })
     expect(v.Topology.Devices[1]).toMatchObject({ ID: GW_ID, Name: 'attack', Type: 'vpn_gateway', Interfaces: [], DHCP: true, DHCPRanges: [{ Start: 100, End: 200 }], DNS: '', ReverseConnections: false })
     expect(v.Topology.Connections[0].Endpoints[0]).toEqual({ Kind: 'device', DeviceID: GW_ID, Interface: 'eth0' })

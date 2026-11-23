@@ -10,6 +10,8 @@ export interface SwitchProps {
   id?: string
   className?: string
   "aria-label"?: string
+  "aria-invalid"?: true | undefined
+  "aria-describedby"?: string
 }
 
 /**

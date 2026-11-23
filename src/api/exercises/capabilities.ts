@@ -63,6 +63,11 @@ export type ExerciseCapabilities = {
    * cables still save and publish, but a test lab with them is refused. Older servers do not send it (nothing is said).
    */
   ConsoleCablesAvailable?: boolean
+  /**
+   * A laboratory in use puts the guest kernel's log on a console port of a microVM device (agent contract 3.2). False: the flag
+   * still saves and publishes, but a test lab with it is refused. Older servers do not send it (nothing is said).
+   */
+  KernelLogAvailable?: boolean
 }
 
 /** Editor-only capability: does not expose agent inventory or monitoring. */

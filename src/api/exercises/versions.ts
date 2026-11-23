@@ -143,6 +143,8 @@ export type DeviceDTO = {
   /** Nodes only (not Windows): the management lines (console0..., aux0...; at most 4) and the terminal lines (serial0...; at most 16), the ends of a console cable. Absent when none. */
   ConsolePorts?: ConsolePortDTO[]
   SerialPorts?: SerialPortDTO[]
+  /** microvm nodes only: the guest kernel's log on the first console port that is not native. Absent when off. */
+  KernelLog?: boolean
 }
 
 /** A console port: at most one of Command and Native; neither runs /bin/login as root. */
@@ -325,6 +327,8 @@ export type NormalizedDevice = {
   /** As sent: present only when the server sent them (the form gives every device its lists). */
   ConsolePorts?: ConsolePortDTO[]
   SerialPorts?: SerialPortDTO[]
+  /** The guest kernel's log on a console port (microvm only); false when absent. */
+  KernelLog?: boolean
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
@@ -491,6 +495,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     // Absent when absent.
     ...(raw.ConsolePorts ? { ConsolePorts: raw.ConsolePorts } : {}),
     ...(raw.SerialPorts ? { SerialPorts: raw.SerialPorts } : {}),
+    KernelLog: raw.KernelLog ?? false,
   }
 }
 

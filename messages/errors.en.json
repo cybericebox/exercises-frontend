@@ -592,5 +592,6 @@
   "73514": "This task opens after the tasks it waits for are done",
   "73515": "This task does not allow a manual check",
   "73516": "The check was asked for too often, try again later",
-  "73710": "No connected laboratory agent offers console cables"
+  "73710": "No connected laboratory agent offers console cables",
+  "73714": "No connected laboratory agent offers the kernel log on a console port"
 }

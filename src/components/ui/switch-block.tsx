@@ -12,7 +12,7 @@ import { cn } from "@/utils/cn"
  * ordinary field row, their left edge on the label text. When OFF nothing is left behind: no empty gap.
  * Blocks of one section sit in a SwitchList, which gives them one gap, larger than the gap inside a block.
  */
-export function SwitchBlock({ label, checked, onCheckedChange, help, helpText, disabled = false, unavailable, children, className, id }: {
+export function SwitchBlock({ label, checked, onCheckedChange, help, helpText, disabled = false, unavailable, children, className, id, invalid = false, describedBy }: {
   label: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
@@ -25,14 +25,21 @@ export function SwitchBlock({ label, checked, onCheckedChange, help, helpText, d
   children?: ReactNode
   className?: string
   id?: string
+  /** The switch has an error (shown beside it by the caller): sets aria-invalid. */
+  invalid?: boolean
+  /** Ids of the notes and the error that describe the switch; the unavailable reason is added to them. */
+  describedBy?: string
 }) {
   const generated = useId()
   const switchId = id ?? generated
+  const reasonId = `${switchId}-unavailable`
+  const described = [describedBy, unavailable ? reasonId : undefined].filter(Boolean).join(" ") || undefined
   return <div data-switch-block className={cn("min-w-0", className)}>
     <div className="flex min-h-9 items-center gap-2.5">
-      <Switch id={switchId} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled || Boolean(unavailable)} aria-label={label} />
+      <Switch id={switchId} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled || Boolean(unavailable)} aria-label={label}
+        aria-invalid={invalid ? true : undefined} aria-describedby={described} />
       <FieldLabel text={label} htmlFor={switchId} help={help} helpText={helpText} labelClassName="font-normal" />
-      {unavailable && <span className="text-xs text-muted-foreground">{unavailable}</span>}
+      {unavailable && <span id={reasonId} className="text-xs text-muted-foreground">{unavailable}</span>}
     </div>
     {/* The fields start under the label text: switch 36 px + gap 10 px = 46 px. */}
     {checked && children && <div data-switch-fields className="mt-2 min-w-0 pl-[46px]">{children}</div>}

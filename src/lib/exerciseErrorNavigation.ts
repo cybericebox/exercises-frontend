@@ -19,7 +19,7 @@ export const DEVICE_FIELD_SECTION: Record<keyof DeviceFormValues, DeviceSection>
   Access: "access",
   // A gateway has one small dialog: every field of it is in the first section.
   DHCP: "main", DHCPRanges: "main", DNS: "main", ReverseConnections: "main",
-  ConsolePorts: "ports", SerialPorts: "ports",
+  ConsolePorts: "ports", SerialPorts: "ports", KernelLog: "ports",
 }
 
 /** Environment variables are in “Service”; files, the script, its interpreter and the timeout are in “Initialization”. */
