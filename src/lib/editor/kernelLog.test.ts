@@ -61,7 +61,7 @@ describe("the kernel log of a microVM device", () => {
     expect(issues(withForm)).toContain("Variants.0.Topology.Devices.0.KernelLog: ed.c.port.val.kernelLogProfile")
   })
 
-  it("a server error on kernel_log sits at the checkbox in the Ports section", () => {
+  it("a server error on kernel_log sits at the switch in the Ports section", () => {
     expect(deviceFieldPath("kernel_log")).toEqual(["KernelLog"])
     expect(DEVICE_FIELD_SECTION.KernelLog).toBe("ports")
   })

@@ -755,7 +755,7 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     // Absent when the device has none.
     ...portsToDTO(d),
     // The author's flag goes out as it is (a node only): a flag no port can carry is saved too, and the form shows its error.
-    ...(d.KernelLog ? { KernelLog: true } : {}),
+    ...(d.Type === "node" && d.KernelLog ? { KernelLog: true } : {}),
   }
 }
 
