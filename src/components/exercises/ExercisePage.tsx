@@ -17,6 +17,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { LabCapabilitiesProvider } from "@/components/exercises/editor/labCapabilities"
+import { ConsoleCablesAvailableProvider } from "@/components/exercises/editor/consoleLines"
+import { setConsoleLimits } from "@/lib/editor/consolePorts"
 import { GatewayLimitProvider } from "@/components/exercises/editor/gatewayLimit"
 import { EditorProvider, type EditorApi } from "@/components/exercises/editor/context"
 import { EditorHeader } from "@/components/exercises/editor/EditorHeader"
@@ -103,6 +105,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   const [resourcesConfig, setResourcesConfig] = useState<ResourcesConfig | null>(null)
   const [labCapabilities, setLabCapabilities] = useState<LabCapabilities | null>(null)
   const [maxGateways, setMaxGateways] = useState<number | null>(null)
+  const [consoleCables, setConsoleCables] = useState<boolean | null>(null)
   const [capabilitiesDone, setCapabilitiesDone] = useState(false)
   const [publishedVersions, setPublishedVersions] = useState<Partial<Record<string, Version>>>({})
   const [position, setPosition] = useState<EditorPosition>(DEFAULT_EDITOR_POSITION)
@@ -201,7 +204,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setMaxGateways(capabilities.MaxLabGateways ?? null); setLabCapabilities(capabilities.LabCapabilities ?? null); setCapabilitiesDone(true) } })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setMaxGateways(capabilities.MaxLabGateways ?? null); setLabCapabilities(capabilities.LabCapabilities ?? null); setConsoleCables(capabilities.ConsoleCablesAvailable ?? null); setConsoleLimits(capabilities.Resources); setCapabilitiesDone(true) } })
       .catch(() => { if (!cancelled) { setLaboratories(false); setCapabilitiesDone(true) } })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])
@@ -326,7 +329,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
   }
 
   return <ExerciseIdProvider value={exercise?.ID ?? exerciseId}><DevicePersistenceProvider value={devicePersistence}><ResourcesConfigProvider value={resourcesConfig}><ResourcesConfigLoadingProvider value={permissions.write && !isVersion && !capabilitiesDone}><EditorPositionProvider position={position} onChange={updatePosition}>
-    <LabCapabilitiesProvider value={labCapabilities}><GatewayLimitProvider value={maxGateways}>
+    <LabCapabilitiesProvider value={labCapabilities}><GatewayLimitProvider value={maxGateways}><ConsoleCablesAvailableProvider value={consoleCables}>
     <EditorProvider form={editor.draftForm} exerciseId={exercise?.ID ?? null} disabled={!editing || actions.busy} infrastructureBlocked={!infraAllowed} showNotes={showNotes}
       resources={resourcesButton} page={pageData} onGoToField={goToField} apiRef={editorApi}>
     <div className="exercise-general-screen">
@@ -458,6 +461,6 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
       cancelLabel={t("admin.exPage.leave.stay")} confirmLabel={t("admin.exPage.leave.go")}
       onConfirm={() => { setLeaveOffline(false); leave.finishLeave() }} />
     </EditorProvider>
-    </GatewayLimitProvider></LabCapabilitiesProvider>
+    </ConsoleCablesAvailableProvider></GatewayLimitProvider></LabCapabilitiesProvider>
   </EditorPositionProvider></ResourcesConfigLoadingProvider></ResourcesConfigProvider></DevicePersistenceProvider></ExerciseIdProvider>
 }

@@ -18,7 +18,7 @@ import { EnvBlock } from "./EnvBlock"
 import type { SectionProps } from "./MainSection"
 
 /** A list of command parts edited as one line (`nginx -g 'daemon off;'`); the form keeps the parts. */
-function ListTextField({ name, label, required, help, placeholder, disabled, className }: {
+export function ListTextField({ name, label, required, help, placeholder, disabled, className }: {
   name: string
   label: string
   required?: boolean
@@ -94,7 +94,7 @@ export function ServiceSection({ variantIndex, deviceIndex, disabled, onOpenVari
   }
 
   return <div className="space-y-5">
-    <Block title={t("ed.c.service.commandBlock")} help={{ intro: t("ed.c.h.command"), default: t("ed.c.h.commandDefault") }}>
+    <Block title={t("ed.c.service.commandBlock")} description={t("ed.c.desc.command")}>
       {!ownOn && <p data-detected-command className="flex min-h-9 items-center gap-1.5 overflow-hidden rounded-md border border-dashed border-border px-2.5 font-mono text-[13px] text-muted-foreground">
         <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{detected ? `${t("ed.c.service.fromImage")} ${detected}`
@@ -113,7 +113,7 @@ export function ServiceSection({ variantIndex, deviceIndex, disabled, onOpenVari
       </SwitchList>
     </Block>
     <EnvBlock variantIndex={variantIndex} deviceIndex={deviceIndex} disabled={disabled} onOpenVariables={onOpenVariables} requestVariable={requestVariable} />
-    <div className="border-t border-border pt-5"><Block title={t("ed.c.service.behavior")} help={{ intro: t("ed.c.h.behaviour"), items: [...(keepsState ? [{ term: t("ed.c.h.behaviourPersist"), text: t("ed.c.h.behaviourPersistText") }] : []), { term: t("ed.c.h.behaviourReady"), text: t("ed.c.h.behaviourReadyText") }] }}>
+    <div className="border-t border-border pt-5"><Block title={t("ed.c.service.behavior")} description={t("ed.c.h.behaviour")}>
       <SwitchList>
         <SwitchBlock label={t("ed.c.service.ready")} checked={waitReady} disabled={disabled}
           onCheckedChange={(on) => setValue(`${base}.WaitReadyFile`, on, { shouldDirty: true })}

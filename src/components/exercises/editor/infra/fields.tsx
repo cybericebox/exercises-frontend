@@ -89,15 +89,20 @@ export function TextAreaField({ name, label, required, help, helpText, placehold
   </div>
 }
 
-/** A titled block of a dialog section: the heading (with a count and an action on the right) and its body. */
-export function Block({ title, count, actions, children, id, help }: { title: string; count?: number | string; actions?: ReactNode; children: ReactNode; id?: string; help?: HelpContent }) {
-  return <section id={id} aria-label={title} className="min-w-0 space-y-2">
-    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", actions && "min-h-8")}>
-      <FieldLabel as="h4" text={title} help={help} className="min-h-0" labelClassName="font-semibold">
-        {count !== undefined && count !== 0 && count !== "" && <span className="ml-1.5 text-sm font-normal text-muted-foreground">· {count}</span>}
-      </FieldLabel>
+/**
+ * A titled block of a dialog section: the heading (with a count and an action on the right), an optional one-line description
+ * under it, and its body. A section header never has a «?» (help icons stand only beside the labels of input fields).
+ */
+export function Block({ title, count, actions, children, id, description }: { title: string; count?: number | string; actions?: ReactNode; children: ReactNode; id?: string; description?: string }) {
+  const descriptionId = id && description ? `${id}-description` : undefined
+  return <section id={id} aria-label={title} aria-describedby={descriptionId} className="min-w-0 space-y-2">
+    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", actions && "min-h-9")}>
+      <h4 className="flex min-h-0 items-center text-sm font-semibold text-foreground">
+        {title}{count !== undefined && count !== 0 && count !== "" && <span className="ml-1.5 text-sm font-normal text-muted-foreground">· {count}</span>}
+      </h4>
       {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
+    {description && <p id={descriptionId} className="text-xs text-muted-foreground">{description}</p>}
     {children}
   </section>
 }

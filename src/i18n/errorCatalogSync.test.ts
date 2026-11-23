@@ -12,6 +12,8 @@ import errorsUk from "../../messages/errors.uk.json"
 const DAEMON_CODES = [
   23101, 23102, 23105, 23201, 23202, 23302, 23303, 23305, 23306, 23401, 23402, 23501, 23502, 23503, 23504, 23505, 23506, 23507, 23508, 23510, 23513,
   23517, 23519, 23520, 33518, 73509, 73511, 73512, 73514, 73515, 73516,
+  // The opponents (23525) and the console lines (237xx; 73710: no laboratory offers them).
+  23525, 23701, 23702, 23703, 23704, 23705, 23706, 23707, 23708, 23709, 23711, 23712, 23713, 73710,
 ]
 
 describe("error messages follow the daemon catalog", () => {

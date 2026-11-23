@@ -17,6 +17,7 @@ import { outsideFrame } from "@/lib/deviceResources"
 import { parsePlatformRef } from "../../ImageUpload"
 import { useResourcesConfig } from "../../ResourcesConfigContext"
 import { profileKeepsState } from "@/lib/editor/schemas/infra"
+import { canHavePorts, isConsoleConnection, serialDevicePath } from "@/lib/editor/consolePorts"
 import { SidePanel, SummaryList, type SummaryRow } from "../kit"
 import { useEditor } from "../context"
 
@@ -93,6 +94,14 @@ export function NodePanel({ variantIndex, nodeKey, readOnly, readOnlyReason, onC
         : device.ResourcePreset ? t("admin.exTopo.resourcesPreset", { preset: device.ResourcePreset }) : muted(t("admin.exTopo.resourcesDefault")) },
       { key: "interfaces", label: t("ed.c.panel.interfaces"), onSelect: open("network"), value: device.Interfaces.length
         ? <>{device.Interfaces.map((iface) => <span key={iface.Name} className="block"><span className="font-mono text-[13px]">{iface.Name}</span> {ifaceWords(iface.IP)}</span>)}</> : muted(t("ed.c.panel.none")) },
+      ...(canHavePorts(device) || device.ConsolePorts.length + device.SerialPorts.length > 0 ? [{ key: "ports", label: t("ed.c.panel.ports2"), onSelect: open("ports"), value: device.ConsolePorts.length + device.SerialPorts.length
+        ? <>{[...device.ConsolePorts.map((port) => ({ name: port.Name, detail: t(`ed.c.port.mode.${port.Mode}`) })), ...device.SerialPorts.map((port) => ({ name: port.Name, detail: serialDevicePath(port) }))].map((port) => {
+          const cable = topology.Connections.find((connection) => isConsoleConnection(connection) && connection.Endpoints.some((endpoint) => endpoint.DeviceID === device.ID && endpoint.Interface === port.name))
+          const other = cable?.Endpoints.find((endpoint) => !(endpoint.DeviceID === device.ID && endpoint.Interface === port.name))
+          const otherName = other ? `${topology.Devices.find((candidate) => candidate.ID === other.DeviceID)?.Name || t("admin.exTopo.unnamedDevice")} · ${other.Interface}` : ""
+          return <span key={port.name} className="block"><span className="font-mono text-[13px]">{port.name}</span> <span className="text-muted-foreground">{port.detail}{otherName ? ` → ${otherName}` : ""}</span></span>
+        })}</>
+        : muted(t("ed.c.panel.none")) }] : []),
       { key: "init", label: t("ed.c.panel.init"), onSelect: open("init"), value: init.length ? lines(init) : muted(t("ed.c.panel.none")) },
       { key: "service", label: t("ed.c.panel.service"), onSelect: open("service"), value: lines(service) },
       { key: "access", label: t("ed.c.panel.access"), onSelect: open("access"), value: access.length ? lines(access) : muted(t("ed.c.panel.none")) },

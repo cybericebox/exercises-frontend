@@ -48,7 +48,7 @@ describe("positionForDraftIssue", () => {
 
 describe("device field to section table", () => {
   it("places every field of the device form model and of its bootstrap in a real section", () => {
-    const sections = ["main", "network", "init", "service", "access"]
+    const sections = ["main", "network", "ports", "init", "service", "access"]
     const device = emptyDevice()
     for (const key of Object.keys(device)) expect(sections, key).toContain(DEVICE_FIELD_SECTION[key as keyof typeof device])
     for (const key of Object.keys(device.Bootstrap)) expect(sections, key).toContain(BOOTSTRAP_FIELD_SECTION[key as keyof typeof device.Bootstrap])

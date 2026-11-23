@@ -1,6 +1,6 @@
 /**
- * clientKeys.ts — the stable identity of the items of the editor form in this browser. Every variant, task, device and
- * variable row gets a `ClientKey` (a uuid) when it first appears in the form; it stays through a reorder, a rename, a
+ * clientKeys.ts — the stable identity of the items of the editor form in this browser. Every variant, task, device,
+ * variable row and credential of the defender block gets a `ClientKey` (a uuid) when it first appears in the form; it stays through a reorder, a rename, a
  * delete of its neighbours and the server assigning an ID, and is never sent (the DTO mappers name their fields). The
  * browser buffer seals the secret values by these keys (exercisePendingBuffer).
  * A key is unique among its siblings (variants of the draft, tasks and devices of a variant, rows of a device); a copy of
@@ -31,6 +31,8 @@ export function clientKeyFills(draft: DraftFormValues): ClientKeyFill[] {
       const rows = new Set<string>()
       device.Bootstrap.Env.forEach((row, ei) => claim(rows, row.ClientKey, `Variants.${vi}.Topology.Devices.${di}.Bootstrap.Env.${ei}.ClientKey`))
     })
+    const credentials = new Set<string>()
+    ;(variant.Defender?.Credentials ?? []).forEach((row, ci) => claim(credentials, row.ClientKey, `Variants.${vi}.Defender.Credentials.${ci}.ClientKey`))
   })
   return fills
 }

@@ -2,10 +2,10 @@ import { exercisePositionKey } from "@/lib/storageKeys"
 
 /** The four views of the editor: one tab row, the variant dropdown sits between “General” and the two variant tabs. */
 export type EditorTab = "general" | "variants" | "tasks" | "infrastructure"
-/** Sub-views of “Infrastructure”. */
-export type InfraView = "diagram" | "devices" | "connections" | "vars"
-/** Sections of the device editor dialog: Basic · Network · Initialization · Service · Access. */
-export type DeviceSection = "main" | "network" | "init" | "service" | "access"
+/** Sub-views of “Infrastructure”: the schema, the tables, the variables and the defense (defender block, opponents' seats). */
+export type InfraView = "diagram" | "devices" | "connections" | "vars" | "defense"
+/** Sections of the device editor dialog: Basic · Network · Ports · Initialization · Service · Access. */
+export type DeviceSection = "main" | "network" | "ports" | "init" | "service" | "access"
 
 /** Where the editor was: tab, variant, task, infrastructure sub-view and device panel. Stored per user and exercise. */
 export type EditorPosition = {
@@ -52,8 +52,8 @@ function index(value: unknown): number {
   return Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : 0
 }
 
-const INFRA_VIEWS: readonly InfraView[] = ["diagram", "devices", "connections", "vars"]
-const DEVICE_SECTIONS: readonly DeviceSection[] = ["main", "network", "init", "service", "access"]
+const INFRA_VIEWS: readonly InfraView[] = ["diagram", "devices", "connections", "vars", "defense"]
+const DEVICE_SECTIONS: readonly DeviceSection[] = ["main", "network", "ports", "init", "service", "access"]
 
 /** Positions stored by the earlier editor (tab «variants» + section, tab «all») are mapped onto the new tabs. */
 function tabOf(position: Record<string, unknown>): EditorTab {

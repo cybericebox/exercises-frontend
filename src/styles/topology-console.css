@@ -1,0 +1,4 @@
+/* The console cable on the topology schema: its own cable type, light blue as on the console cables of network labs, distinct from
+   the grey Ethernet links. Not a design-system token (the design system has no cable colours); both themes keep 3:1 on the canvas. */
+:root,[data-theme="light"]{--ib-console:#2C7FC0}
+[data-theme="dark"]{--ib-console:#7CC2F2}

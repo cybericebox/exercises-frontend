@@ -16,9 +16,11 @@ function draft(): DraftFormValues {
   const value = emptyDraft()
   value.Variants[0].Tasks = [emptyTask("task_1"), emptyTask("task_2")]
   value.Variants[0].Topology.Devices = [
-    { ...emptyDevice(), ID: "r", Name: "router" }, { ...emptyDevice(), ID: "w", Name: "web" }, { ...emptyDevice(), ID: "p", Name: "pc" },
+    { ...emptyDevice(), ID: "r", Name: "router" }, { ...emptyDevice(), ID: "w", Name: "web" }, { ...emptyDevice(), ID: "p", Name: "pc", SerialPorts: [{ Name: "serial0", Path: "" }] },
     { ...emptyDevice(), ID: "s", Name: "sw", Type: "unmanaged-switch", Interfaces: [] },
   ]
+  // The seat is a node with a serial port and a network connection (where a bot run puts its device).
+  value.Variants[0].Topology.Connections = [{ Endpoints: [{ Kind: "device", DeviceID: "p", Interface: "eth0" }, { Kind: "device", DeviceID: "s", Interface: "GigabitEthernet0/1" }] }]
   value.Variants[0].Opponents = [defender, attacker]
   return value
 }

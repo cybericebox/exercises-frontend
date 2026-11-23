@@ -85,7 +85,7 @@ export function EnvBlock({ variantIndex, deviceIndex, disabled, onOpenVariables,
     onDrop={(event) => { if (disabled || !hasFiles(event)) return; event.preventDefault(); setDragging(false); void importFile(event.dataTransfer.files[0]) }}
     className={cn("min-w-0 rounded-md border-t border-border pt-5", dragging && "outline-2 outline-dashed outline-offset-4 outline-primary")}>
     <Block id="env-block" title={t("ed.c.env.title")} count={fields.length}
-      help={{ intro: [t("ed.c.h.env1"), t("ed.c.h.env2"), t("ed.c.h.env3")], items: [{ term: t("ed.c.h.envSecret"), text: t("ed.c.h.envSecretText") }, { term: t("ed.c.h.envStored"), text: t("ed.c.h.envStoredText") }] }}
+      description={t("ed.c.desc.env")}
       actions={<button type="button" className="text-[13px] text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary" onClick={onOpenVariables}>{t("ed.c.env.schemaVariables")}</button>}>
       {report && <p role="status" className="text-xs text-muted-foreground">
         {report === "read-error" ? t("ed.c.env.readError")
@@ -97,7 +97,7 @@ export function EnvBlock({ variantIndex, deviceIndex, disabled, onOpenVariables,
         ? <EmptyState compact message={t("ed.c.env.empty")} />
         : <div className="min-w-0 space-y-2.5">
           <div className="grid grid-cols-[minmax(140px,240px)_minmax(0,1fr)_36px_36px] gap-2 text-[13px] text-muted-foreground max-sm:hidden">
-            <FieldLabel as="span" text={t("ed.c.env.name")} help={{ intro: t("ed.c.h.envName") }} className="min-h-0 text-[13px]" labelClassName="font-normal text-muted-foreground" /><FieldLabel as="span" text={t("ed.c.env.value")} help={{ intro: [t("ed.c.h.envValue1"), t("ed.c.h.envValue2")] }} className="min-h-0 text-[13px]" labelClassName="font-normal text-muted-foreground" /><span /><span />
+            <FieldLabel as="span" text={t("ed.c.env.name")} help={{ intro: t("ed.c.h.envName") }} className="min-h-0 text-[13px]" labelClassName="font-normal text-muted-foreground" /><FieldLabel as="span" text={t("ed.c.env.value")} help={{ intro: [t("ed.c.h.envValue1"), t("ed.c.h.envValue2"), t("ed.c.h.env3")], items: [{ term: t("ed.c.h.envSecret"), text: t("ed.c.h.envSecretText") }, { term: t("ed.c.h.envStored"), text: t("ed.c.h.envStoredText") }] }} className="min-h-0 text-[13px]" labelClassName="font-normal text-muted-foreground" /><span /><span />
           </div>
           {fields.map((field, index) => <EnvRow key={field.id} base={name} variantIndex={variantIndex} index={index} disabled={disabled} onRemove={() => remove(index)} requestVariable={requestVariable} />)}
         </div>}

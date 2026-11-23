@@ -140,12 +140,12 @@ export type DeviceDTO = {
   DNS?: string
   /** VPN gateway only: devices of the lab may start connections to the participants' machines. Default false. */
   ReverseConnections?: boolean
-  /** Nodes only: the management lines (console0..., aux0...) and the terminal lines (serial0...), the ends of a console cable. Not edited here yet: carried through unchanged. */
+  /** Nodes only (not Windows): the management lines (console0..., aux0...; at most 4) and the terminal lines (serial0...; at most 16), the ends of a console cable. Absent when none. */
   ConsolePorts?: ConsolePortDTO[]
   SerialPorts?: SerialPortDTO[]
 }
 
-/** A console port: at most one of Command and Native. */
+/** A console port: at most one of Command and Native; neither runs /bin/login as root. */
 export type ConsolePortDTO = { Name: string; Command?: string[]; User?: string; Native?: NativeSourceDTO }
 /** stdio: the service's own terminal; tcp: Port on the device's loopback. */
 export type NativeSourceDTO = { Kind: string; Port?: number }
@@ -153,7 +153,7 @@ export type NativeSourceDTO = { Kind: string; Port?: number }
 export type SerialPortDTO = { Name: string; Path?: string }
 
 export type EndpointDTO = { Kind: EndpointKind; DeviceID?: string; Interface?: string }
-/** Kind: absent for a network connection, "console" for a console cable (its endpoints' Interface name the ports). Carried through unchanged. */
+/** Kind: absent for a network connection, "console" for a console cable (one serial and one console port end; the endpoints' Interface name the ports). */
 export type ConnectionDTO = { Kind?: string; Endpoints: EndpointDTO[] } // exactly 2
 export type DHCPRangeDTO = { Start: number; End: number }
 export type TopologyDTO = {
@@ -209,11 +209,33 @@ export type VariantDTO = {
   Tasks: TaskDTO[]
   Topology: TopologyDTO
   /**
-   * The automated attackers and defenders of the variant (author content). A request that omits them removes them, so the
-   * editor, which does not edit them yet, sends back what it loaded, unchanged.
+   * The automated attackers and defenders of the variant (author content). A request that omits them removes them: the editor
+   * sends back what it loaded, with the seats it edits.
    */
   Opponents?: OpponentDTO[]
+  /**
+   * What the defender of the lab is told (its dossier). A request that omits it removes it. A secret credential's Value is
+   * always empty in a response; an empty secret Value in a request keeps the stored one. A linked variant takes its base's.
+   */
+  Defender?: DefenderDTO
 }
+
+/** The topology the defender's dossier shows: full (the default, also when empty), operates (only its own devices) or none. */
+export type DefenderTopology = "" | "full" | "operates" | "none"
+
+/**
+ * The defender block of a variant. Seat: the node with serial ports the human defender sits at; OffLimits: devices the defender
+ * must not console into (empty: every device with a console port the defender does not operate); Credentials: operator logins.
+ */
+export type DefenderDTO = {
+  Seat?: string
+  Topology?: DefenderTopology
+  OffLimits?: string[]
+  Credentials?: DefenderCredentialDTO[]
+}
+
+/** One operator credential: a device, optionally one of its console ports, a user and the value (empty for a stored secret). */
+export type DefenderCredentialDTO = { Device: string; Port?: string; User?: string; Value: string; Secret?: boolean }
 
 /** One opponent of a variant; Seat (defense, attack-defense) is the node with serial ports a human defender sits at. */
 export type OpponentDTO = {
@@ -300,13 +322,13 @@ export type NormalizedDevice = {
   DHCPRanges: DHCPRangeDTO[]
   DNS: string
   ReverseConnections: boolean
-  /** Carried through unchanged: present only when the server sent them. */
+  /** As sent: present only when the server sent them (the form gives every device its lists). */
   ConsolePorts?: ConsolePortDTO[]
   SerialPorts?: SerialPortDTO[]
 }
 
 export type NormalizedEndpoint = { Kind: EndpointKind; DeviceID: string; Interface: string }
-/** Kind is present only when the server sent one (a console cable); carried through unchanged. */
+/** Kind is present only for a console cable ("console"). */
 export type NormalizedConnection = { Kind?: string; Endpoints: NormalizedEndpoint[] }
 
 export type NormalizedTopology = {
@@ -327,8 +349,10 @@ export type NormalizedVariant = {
   ImageOverrides?: ImageOverride[]
   Tasks: NormalizedTask[]
   Topology: NormalizedTopology
-  /** Carried through unchanged: present only when the server sent them. */
+  /** Present only when the server sent them. */
   Opponents?: OpponentDTO[]
+  /** Present only when the variant has a defender block. */
+  Defender?: DefenderDTO
 }
 
 /** Containers only; a variant is one entry of Variants. */
@@ -464,7 +488,7 @@ function normalizeDevice(raw: DeviceDTO): NormalizedDevice {
     DHCPRanges: (raw.DHCPRanges ?? []).map(({ Start, End }) => ({ Start, End })),
     DNS: raw.DNS ?? "",
     ReverseConnections: raw.ReverseConnections ?? false,
-    // Not edited here yet: kept as sent, absent when absent.
+    // Absent when absent.
     ...(raw.ConsolePorts ? { ConsolePorts: raw.ConsolePorts } : {}),
     ...(raw.SerialPorts ? { SerialPorts: raw.SerialPorts } : {}),
   }
@@ -497,6 +521,7 @@ export function normalizeVariant(raw: VariantDTO): NormalizedVariant {
     Tasks: (raw.Tasks ?? []).map(normalizeTask),
     Topology: normalizeTopology(raw.Topology),
     ...(raw.Opponents ? { Opponents: raw.Opponents } : {}),
+    ...(raw.Defender ? { Defender: raw.Defender } : {}),
   }
 }
 

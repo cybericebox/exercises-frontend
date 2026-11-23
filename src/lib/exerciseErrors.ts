@@ -128,6 +128,38 @@ export const ARCHIVE_CONTENT_ERROR_CODES: ReadonlySet<number> = new Set([
   20978, 20979, 20980, 20981, 20982, 20983, 20984, 20985, 20986, 20987, 20988, 20989, 20990, 20991, 22829,
 ])
 
+/** Console ports, serial ports, console cables and the defender block (23701-23713; 73710: no laboratory offers them). */
+export const ERR_CONSOLE_UNAVAILABLE = 73710
+export const ERR_OPPONENT_INVALID = 23525
+
+/** The reason-specific text of a console or defender error (its context `reason`, `kind`, `limit`), or null for the catalog text. */
+function consoleErrorText(code: number, context: Record<string, string>): string | null {
+  const { reason = "", kind = "", limit = "" } = context
+  const max = Number(limit) || undefined
+  const by = (table: Record<string, string>) => (table[reason] ? t(table[reason], max ? { max } : undefined) : null)
+  switch (code) {
+    case 23701: return by({ name: "ed.c.port.val.consoleName", command: "ed.c.port.err.command", user: "ed.c.val.terminalUser", native: "ed.c.port.err.native", stdio_twice: "ed.c.port.val.stdioTwice" })
+    case 23702: return by({ name: "ed.c.port.val.serialName", path: "ed.c.port.val.serialPath" })
+    case 23703: return t("ed.c.port.val.nameTaken")
+    case 23704: return kind === "console" || kind === "serial" ? t(kind === "console" ? "ed.c.port.val.consoleMax" : "ed.c.port.val.serialMax", { max: max ?? "—" }) : null
+    case 23705: return by({ device_type: "ed.c.port.val.notNode", system: "ed.c.port.val.windows" })
+    case 23707: return by({ unresolved: "admin.ex.val.endpointUnresolved", two_serial: "ed.c.port.val.cable.two_serial", two_console: "ed.c.port.val.cable.two_console", same_device: "ed.c.port.val.cable.same_device", nic: "ed.c.port.val.cable.nic" })
+    case 23708: return t("admin.ex.val.portInUse")
+    case 23709: return t("ed.c.port.val.cablesMax", { max: max ?? "—" })
+    case 23712: return t("ed.c.port.val.portOnNetwork")
+    case 23711: return by({
+      seat_unknown: "ed.c.def.seat.seat_unknown", seat_no_serial: "ed.c.def.seat.seat_no_serial", topology: "ed.c.def.err.topology",
+      off_limits_unknown: "ed.c.def.err.offLimitsUnknown", off_limits_repeated: "ed.c.def.err.offLimitsRepeated", off_limits_cabled: "ed.c.def.err.offLimitsCabled",
+      credential_unknown: "ed.c.def.err.credentialUnknown", credential_user: "ed.c.val.terminalUser", credential_value: "ed.c.def.err.credentialValue",
+      credential_repeated: "ed.c.def.val.credentialRepeated", too_many: "ed.c.def.err.tooMany",
+    })
+    case ERR_OPPONENT_INVALID: return reason.startsWith("seat_") && SEAT_REASONS.has(reason) ? t(`ed.c.def.seat.${reason}`) : null
+    default: return null
+  }
+}
+
+const SEAT_REASONS = new Set(["seat_unknown", "seat_no_serial", "seat_forbidden", "seat_repeated", "seat_operated", "seat_on_foothold", "seat_no_network", "seat_referenced", "seat_console_end"])
+
 type EnvelopeBody = { Status?: { Code?: number; Message?: string } }
 
 /** FullCode from the error body, or null (not an ApiError / no envelope). */
@@ -147,6 +179,8 @@ export function exerciseErrorMessage(e: unknown): string {
   // The overload codes always read as the one overloaded line (with its retry), not as their catalog texts.
   if (isOverloadCode(code)) return t("error.overloaded")
   if (code !== null) {
+    const specific = consoleErrorText(code, errorContext(e))
+    if (specific) return specific
     const key = CODE_TO_KEY[code]
     if (key) return t(key)
     const cataloged = catalogError(e)

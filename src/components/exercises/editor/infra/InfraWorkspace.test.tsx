@@ -36,10 +36,10 @@ beforeEach(() => { editor.value = { variantIndex: 0, disabled: false, baseIndex:
 const topology = () => readValues() as { Devices: { ID: string; Name: string }[]; Connections: unknown[] }
 
 describe("infrastructure workspace", () => {
-  it("has the four sub-views in one row and marks the active one", () => {
+  it("has the five sub-views in one row and marks the active one", () => {
     renderWorkspace()
     const nav = screen.getByRole("navigation", { name: "ed.c.views.aria" })
-    expect(within(nav).getAllByRole("button").map((button) => button.textContent)).toEqual(["ed.c.views.diagram", "ed.c.views.devices", "ed.c.views.connections", "ed.c.views.vars"])
+    expect(within(nav).getAllByRole("button").map((button) => button.textContent)).toEqual(["ed.c.views.diagram", "ed.c.views.devices", "ed.c.views.connections", "ed.c.views.vars", "ed.c.views.defense"])
     expect(within(nav).getByRole("button", { name: "ed.c.views.diagram" })).toHaveAttribute("aria-current", "page")
     fireEvent.click(within(nav).getByRole("button", { name: "ed.c.views.devices" }))
     expect(within(nav).getByRole("button", { name: "ed.c.views.devices" })).toHaveAttribute("aria-current", "page")
@@ -100,7 +100,7 @@ describe("infrastructure workspace", () => {
 
   it("adds a device from the single add menu and selects it", () => {
     renderWorkspace()
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
     fireEvent.click(screen.getByRole("menuitem", { name: "admin.exTopo.type.container" }))
     expect(topology().Devices.map((item) => item.Name)).toEqual(["web", "sw1", "attack", "host-1"])
     expect(document.querySelector("[data-side-panel]")).toHaveTextContent("host-1")
@@ -128,7 +128,9 @@ describe("infrastructure workspace", () => {
   it("disables «add connection» with a reason while fewer than two nodes have a free port", () => {
     const draft = draftWith([web()])
     render(<FormHarness draft={draft}><InfraWorkspace /></FormHarness>)
-    expect(screen.getByRole("button", { name: "admin.exTopo.addConnection" })).toHaveAttribute("aria-disabled", "true")
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
+    expect(screen.getByRole("menuitem", { name: /admin.exTopo.addConnection/ })).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByText("admin.exTopo.needTwoDevices")).toHaveAttribute("role", "note")
   })
 })
 
@@ -136,7 +138,7 @@ describe("gateways as devices", () => {
   const client = () => device({ ID: "d1", Name: "web", Interfaces: [{ Name: "eth0", MAC: "", IP: { Type: "static", Addresses: [], AddressRef: { Gateway: "attack", Host: 10 }, Gateway: "", GatewayRef: { Gateway: "attack", Host: 1 }, Routes: [{ Dst: "", DstRef: { Gateway: "attack" }, Via: "10.0.0.1", ViaRef: null }] } }] })
   const vpn = (name = "attack", id = "vpn") => gatewayDevice("vpn", name, id, { DHCP: false, DHCPRanges: [] })
   const addGateway = (label: string) => {
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
     fireEvent.click(screen.getByRole("menuitem", { name: new RegExp(label) }))
   }
 
@@ -149,16 +151,16 @@ describe("gateways as devices", () => {
     expect(devices.map((item) => item.Name)).toEqual(["web", "vpn-1", "vpn-2", "internet-1"])
     expect(devices.slice(1).map((item) => item.Type)).toEqual(["vpn_gateway", "vpn_gateway", "internet_gateway"])
     expect(devices[1].DHCP).toBe(true)
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
     expect(screen.queryByText("ed.c.toolbar.alreadyAdded")).not.toBeInTheDocument()
     expect(screen.getByRole("menuitem", { name: /admin.exTopo.vpn/ })).not.toHaveAttribute("aria-disabled", "true")
   })
 
   it("disables both gateway entries with the reason once the platform limit is reached", () => {
     renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2")], connections: [], maxGateways: 2 })
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
     for (const label of ["admin.exTopo.vpn", "admin.exTopo.internet"]) expect(screen.getByRole("menuitem", { name: new RegExp(label) })).toHaveAttribute("aria-disabled", "true")
-    expect(screen.getByRole("note")).toHaveTextContent("ed.c.gw.limitReached 2")
+    expect(screen.getByText("ed.c.gw.limitReached 2")).toHaveAttribute("role", "note")
     fireEvent.click(screen.getByRole("menuitem", { name: /admin.exTopo.type.container/ }))
     expect(topology().Devices).toHaveLength(4)
   })
@@ -176,7 +178,7 @@ describe("gateways as devices", () => {
 
   it("does not limit gateways while the platform limit is not known", () => {
     renderWorkspace({ devices: [web(), vpn("a", "g1"), vpn("b", "g2"), vpn("c", "g3")], connections: [], maxGateways: null })
-    fireEvent.keyDown(screen.getByRole("button", { name: "admin.exTopo.addDevice" }), { key: "ArrowDown" })
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
     expect(screen.getByRole("menuitem", { name: /admin.exTopo.vpn/ })).not.toHaveAttribute("aria-disabled", "true")
   })
 
@@ -239,7 +241,8 @@ describe("connect mode and the node panel", () => {
     renderWorkspace()
     fireEvent.click(screen.getByTestId("node-d1"))
     expect(document.querySelector("[data-side-panel]")).not.toBeNull()
-    fireEvent.click(screen.getByRole("button", { name: "admin.exTopo.addConnection" }))
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
+    fireEvent.click(screen.getByRole("menuitem", { name: /admin.exTopo.addConnection/ }))
     expect(document.querySelector("[data-side-panel]")).toBeNull()
     expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("admin.exTopo.canvasSelectFirst")
   })

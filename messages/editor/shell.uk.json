@@ -38,5 +38,6 @@
   "ed.shell.variant.separate": "Окремий",
   "ed.shell.variant.trigger": "Варіант {n}, {kind}. Змінити варіант",
   "ed.shell.variant.weight": "вага {n}",
-  "ed.shell.issue.opponents": "суперники"
+  "ed.shell.issue.opponents": "суперники",
+  "ed.shell.issue.defender": "досьє оборонця"
 }

@@ -301,6 +301,19 @@
   "23522": "The lab has more gateways than allowed",
   "23523": "A network can have only one gateway",
   "23524": "A gateway has only its own settings: DHCP, DNS and reverse connections",
+  "23525": "An opponent of the variant is invalid",
+  "23701": "Invalid console port",
+  "23702": "Invalid serial port",
+  "23703": "The device already has a port or an interface with this name",
+  "23704": "The device has too many ports of this kind",
+  "23705": "This device cannot have console or serial ports",
+  "23706": "Unknown connection kind",
+  "23707": "A console cable joins one serial port and one console port of two devices",
+  "23708": "The port already has a console cable",
+  "23709": "The lab has too many console cables",
+  "23711": "Invalid defender block",
+  "23712": "A network connection ends on a console or serial port, or on a port name the device has no interface for",
+  "23713": "The laboratory refused the console ports or console cables of the lab",
   "30101": "Setting not found",
   "30201": "Notification dispatch not found",
   "30202": "Notification template not found",
@@ -578,5 +591,6 @@
   "73512": "The laboratory does not offer an option this task needs",
   "73514": "This task opens after the tasks it waits for are done",
   "73515": "This task does not allow a manual check",
-  "73516": "The check was asked for too often, try again later"
+  "73516": "The check was asked for too often, try again later",
+  "73710": "No connected laboratory agent offers console cables"
 }

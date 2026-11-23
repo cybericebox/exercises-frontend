@@ -2,8 +2,8 @@
  * exercisePendingBuffer.ts — browser safety net for edits the server has not acknowledged yet. One entry per user and
  * exercise ("new" before creation).
  *
- * Flag values (Check.Answer.Values) and environment-variable values (device secrets included) are never written in the
- * clear: they go into `sealed`, encrypted (AES-GCM) with the session's draft key (lib/draftKey), which lives in the
+ * Flag values (Check.Answer.Values), environment-variable values (device secrets included) and the values of the defender's
+ * credentials are never written in the clear: they go into `sealed`, encrypted (AES-GCM) with the session's draft key (lib/draftKey), which lives in the
  * tab's memory only. They are named by the client keys of their items (lib/clientKeys), never by position or by name, so
  * they follow their task, device or variable row through a reorder, a rename or a delete.
  *  - Every write stores at once the draft, the previous sealed part and `stale`: the list (keys only, no values) of the
@@ -21,6 +21,8 @@
  */
 import { set } from "react-hook-form"
 import { currentDraftKey, getDraftKey, subscribeDraftKey, type DraftKey } from "@/lib/draftKey"
+import { consolePortToForm, serialPortToForm } from "@/lib/editor/consolePorts"
+import type { DefenderForm } from "@/lib/editor/defender"
 import { emptyDraft, type DeviceFormValues, type DraftFormValues, type IdentityFormValues } from "@/lib/exerciseSchemas"
 import { exercisePendingKey } from "@/lib/storageKeys"
 import { normalizeWeight } from "@/lib/variantWeights"
@@ -30,7 +32,8 @@ export type SealedSecrets = { keyId: string; iv: string; data: string }
 
 /**
  * The secret values of a draft, by slot. `answers`: the answer values of a task (slot: variant and task client keys);
- * `env`: the value of an environment variable (slot: variant, device and row client keys). Empty values are not kept.
+ * `env`: the value of an environment variable (slot: variant, device and row client keys) or of a credential of the defender block
+ * (slot: variant and credential client keys). Empty values are not kept.
  */
 export type PendingSecrets = { answers: Record<string, string[]>; env: Record<string, string> }
 
@@ -64,6 +67,9 @@ const answerSlot = (variant: Keyed, task: Keyed) => variant.ClientKey && task.Cl
 const envSlot = (variant: Keyed, device: Keyed, row: Keyed) =>
   variant.ClientKey && device.ClientKey && row.ClientKey ? JSON.stringify(["e", variant.ClientKey, device.ClientKey, row.ClientKey]) : null
 
+const credentialSlot = (variant: Keyed, row: Keyed) =>
+  variant.ClientKey && row.ClientKey ? JSON.stringify(["c", variant.ClientKey, row.ClientKey]) : null
+
 type SlotVisit = { slot: string; kind: "answers"; path: string; value: string[] } | { slot: string; kind: "env"; path: string; value: string }
 
 /** Every slot of a draft (with its form path and value), whatever its value. */
@@ -79,6 +85,10 @@ function slotsOf(draft: DraftFormValues): SlotVisit[] {
         const slot = envSlot(variant, device, row)
         if (slot) out.push({ slot, kind: "env", path: `Variants.${vi}.Topology.Devices.${di}.Bootstrap.Env.${ei}.Value`, value: row.Value })
       })
+    })
+    ;(variant.Defender?.Credentials ?? []).forEach((row, ci) => {
+      const slot = credentialSlot(variant, row)
+      if (slot) out.push({ slot, kind: "env", path: `Variants.${vi}.Defender.Credentials.${ci}.Value`, value: row.Value })
     })
   })
   return out
@@ -120,6 +130,7 @@ function withoutSlots(secrets: PendingSecrets, slots: Iterable<string>): Pending
 
 const sealedAnswer = (secrets: PendingSecrets, variant: Keyed, task: Keyed) => { const slot = answerSlot(variant, task); return slot ? secrets.answers[slot] : undefined }
 const sealedEnv = (secrets: PendingSecrets, variant: Keyed, device: Keyed, row: Keyed) => { const slot = envSlot(variant, device, row); return slot ? secrets.env[slot] : undefined }
+const sealedCredential = (secrets: PendingSecrets, variant: Keyed, row: Keyed) => { const slot = credentialSlot(variant, row); return slot ? secrets.env[slot] : undefined }
 
 /** The draft with the secret values put back on the items they belong to. */
 export function applyPendingSecrets(draft: DraftFormValues, secrets: PendingSecrets): DraftFormValues {
@@ -459,6 +470,8 @@ export function sanitizePendingDraft(draft: DraftFormValues): DraftFormValues {
           },
         })),
       },
+      // The credential values are sealed like the env values: never in the clear.
+      ...(variant.Defender ? { Defender: { ...variant.Defender, Credentials: variant.Defender.Credentials.map((credential) => ({ ...credential, Value: "" })) } } : {}),
     })),
   }
 }
@@ -545,31 +558,41 @@ function connectionKey(connection: Connection): string {
   return connection.Endpoints.map((endpoint) => `${endpoint.DeviceID}\0${endpoint.Interface}`).sort().join("\0\0")
 }
 
+type Variant = DraftFormValues["Variants"][number]
+
+/** A port list of a buffer written before the ports were edited holds the wire shape (no Mode, no Path): read in the form's. */
+function formPorts(device: DeviceFormValues): Pick<DeviceFormValues, "ConsolePorts" | "SerialPorts"> {
+  const raw = device as unknown as { ConsolePorts?: Record<string, unknown>[]; SerialPorts?: Record<string, unknown>[] }
+  return {
+    ConsolePorts: (raw.ConsolePorts ?? []).map((port) => typeof port.Mode === "string" ? port as unknown as DeviceFormValues["ConsolePorts"][number] : consolePortToForm(port as never)),
+    SerialPorts: (raw.SerialPorts ?? []).map((port) => typeof port.Path === "string" ? port as unknown as DeviceFormValues["SerialPorts"][number] : serialPortToForm(port as never)),
+  }
+}
+
 /**
- * The console model and the opponents are not edited in the editor: they always come from the server's copy, never from a
- * buffer (an old one has none of them, a newer one may hold stale values). Devices match by ID, connections by their two ends;
- * a console cable of the server that the buffer lacks comes back while both its devices are still there, and one the server no
+ * The console model (ports, the kind of each connection), the opponents and the defender block are edited in the editor, so a
+ * buffer holds them like any other field. A buffer written before that (its variants have no Defender key) holds stale or no
+ * console fields: they come from the server's copy, as they did then. Devices match by ID, connections by their two ends; a
+ * console cable of the server that such a buffer lacks comes back while both its devices are still there, one the server no
  * longer has is dropped.
  */
-function withServerConsoleModel(variant: DraftFormValues["Variants"][number], server: DraftFormValues["Variants"][number] | undefined): DraftFormValues["Variants"][number] {
-  // A variant, device or connection the server does not have (new in this browser) keeps what the buffer holds.
-  if (!server) return variant
+function withConsoleModel(variant: Variant, server: Variant | undefined): Variant {
+  const devices = variant.Topology.Devices.map((device) => ({ ...device, ...formPorts(device) }))
+  if ("Defender" in variant) return { ...variant, Topology: { ...variant.Topology, Devices: devices } }
+  // A variant the server does not have (new in this browser) keeps what the buffer holds.
+  if (!server) return { ...variant, Defender: null, Topology: { ...variant.Topology, Devices: devices } }
   const serverDevices = new Map(server.Topology.Devices.map((device) => [device.ID, device] as const))
   const serverConnections = new Map(server.Topology.Connections.map((connection) => [connectionKey(connection), connection] as const))
-  const devices = variant.Topology.Devices.map((device) => {
-    const { ConsolePorts, SerialPorts, ...rest } = device
-    void ConsolePorts
-    void SerialPorts
+  const legacyDevices = devices.map((device) => {
     const own = serverDevices.get(device.ID)
-    if (!own) return device
-    return { ...rest, ...(own.ConsolePorts ? { ConsolePorts: own.ConsolePorts } : {}), ...(own.SerialPorts ? { SerialPorts: own.SerialPorts } : {}) }
+    return own ? { ...device, ConsolePorts: own.ConsolePorts, SerialPorts: own.SerialPorts } : device
   })
   const present = new Set(variant.Topology.Connections.map(connectionKey))
-  const deviceIds = new Set(devices.map((device) => device.ID))
+  const deviceIds = new Set(legacyDevices.map((device) => device.ID))
   const connections = [
     ...variant.Topology.Connections.map((connection) => {
       const own = serverConnections.get(connectionKey(connection))
-      // A cable the server does not have is stale: the editor cannot make one. A new network link stays as typed.
+      // A cable the server does not have is stale: such a buffer could not make one. A new network link stays as typed.
       if (!own) return connection.Kind ? [] : [connection]
       const { Kind, ...rest } = connection
       void Kind
@@ -580,7 +603,29 @@ function withServerConsoleModel(variant: DraftFormValues["Variants"][number], se
   ]
   const { Opponents, ...rest } = variant
   void Opponents
-  return { ...rest, ...(server.Opponents ? { Opponents: server.Opponents } : {}), Topology: { ...variant.Topology, Devices: devices, Connections: connections } }
+  return {
+    ...rest, ...(server.Opponents ? { Opponents: server.Opponents } : {}), Defender: server.Defender ?? null,
+    Topology: { ...variant.Topology, Devices: legacyDevices, Connections: connections },
+  }
+}
+
+/**
+ * The credentials of a buffered defender block get their values back: a sealed value wins; otherwise the server's row it came from
+ * (Origin: its place in the server's list, kept through a rename of its device, port or user) gives a plain credential its stored
+ * value, and a secret stays blank (= keep), with HasValue from the server. A row added in the browser has no Origin: nothing.
+ */
+function withCredentialValues(defender: DefenderForm | null | undefined, server: DefenderForm | null | undefined, sealed: (row: { ClientKey?: string }) => string | undefined): DefenderForm | null {
+  if (!defender) return null
+  return {
+    ...defender,
+    Credentials: defender.Credentials.map((credential) => {
+      const own = credential.Origin !== undefined ? server?.Credentials[credential.Origin] : undefined
+      const hasValue = Boolean(own?.Secret && own.HasValue)
+      const value = sealed(credential)
+      if (value !== undefined) return { ...credential, Value: value, HasValue: hasValue }
+      return { ...credential, Value: own && !own.Secret && !credential.Secret ? own.Value : credential.Value, HasValue: hasValue }
+    }),
+  }
 }
 
 /**
@@ -593,7 +638,8 @@ function withServerConsoleModel(variant: DraftFormValues["Variants"][number], se
  *    secret set/rotated after the buffer was written still round-trips as "has a value"
  *    instead of failing "secret requires a value" validation on a blank buffered Value.
  *  - The opened sealed values (`secrets`) win over the server copy for the answers and env values they hold.
- *  - Opponents, console and serial ports and the kind of each connection are the server's (withServerConsoleModel).
+ *  - Opponents, console and serial ports, the kind of each connection and the defender block are the buffer's; an older buffer
+ *    takes them from the server (withConsoleModel). Credential values come back like env values (withCredentialValues).
  */
 export function mergePendingDraft(server: DraftFormValues, pending: DraftFormValues, secrets?: PendingSecrets): DraftFormValues {
   const serverVariantIds = new Set(server.Variants.filter((variant) => variant.ID).map((variant) => variant.ID))
@@ -614,9 +660,10 @@ export function mergePendingDraft(server: DraftFormValues, pending: DraftFormVal
     .filter((variant) => !variant.ID || serverVariantIds.has(variant.ID))
     .map((buffered) => {
       const info = buffered.ID ? serverInfoByVariant.get(buffered.ID) : undefined
-      const variant = withServerConsoleModel(buffered, info?.variant)
+      const variant = withConsoleModel(buffered, info?.variant)
       return {
         ...variant,
+        Defender: withCredentialValues(variant.Defender, info?.variant.Defender, (row) => secrets ? sealedCredential(secrets, variant, row) : undefined),
         Tasks: variant.Tasks
           .map((task) => ({ task, sealedValues: secrets ? sealedAnswer(secrets, variant, task) : undefined }))
           .filter(({ task }) => !task.ID || info?.taskIds.has(task.ID))

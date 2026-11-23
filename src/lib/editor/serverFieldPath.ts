@@ -6,8 +6,9 @@
  *   task:    check.answer.values · check.answer.input_hint · check.state.interval ·
  *            check.state.conditions[2].port.port · check.state.conditions[0].observation · requires[1]
  *   device:  bootstrap.env[2].name · bootstrap.files[0].source · bootstrap.script · access[1].port · command · args · image ·
- *            (a gateway is a device) dhcp · dhcp_ranges · dns · reverse_connections
- *   variant: variables[1].name
+ *            (a gateway is a device) dhcp · dhcp_ranges · dns · reverse_connections ·
+ *            console_ports · console_ports[2].command · console_ports[1].native · serial_ports[1].path
+ *   variant: variables[1].name · defender.seat · defender.off_limits[2] · defender.credentials[1].port · opponents[1].seat
  * Only a reliably identified field gets a path; an unknown shape gives null (the error stays a form-level one).
  */
 
@@ -81,6 +82,16 @@ export function deviceFieldPath(field: string): Segment[] | null {
     return key === undefined ? ["Access", index] : ["Access", index, pascal(String(key))]
   }
   if (["command", "args", "image", "name", "system", "hardware", "profile", "persistence"].includes(String(head))) return [pascal(String(head))]
+  if (head === "console_ports" || head === "serial_ports") {
+    const list = head === "console_ports" ? "ConsolePorts" : "SerialPorts"
+    const [index, key, sub] = rest
+    if (typeof index !== "number") return [list]
+    if (key === undefined) return [list, index]
+    // The native line is the mode of the port in the form; its port is the TCP port field.
+    if (key === "native") return [list, index, sub === "port" ? "Port" : "Mode"]
+    if (key === "name" || key === "command" || key === "user" || key === "path") return [list, index, pascal(String(key))]
+    return null
+  }
   if (head === "dhcp") return ["DHCP"]
   if (head === "dhcp_ranges") return ["DHCPRanges"]
   if (head === "dns") return ["DNS"]
@@ -97,6 +108,25 @@ export function variantFieldPath(field: string): Segment[] | null {
     const [index, key] = rest
     if (typeof index !== "number") return ["Topology", "Variables"]
     return key === undefined ? ["Topology", "Variables", index] : ["Topology", "Variables", index, pascal(String(key))]
+  }
+  if (head === "defender") {
+    const [key, index, sub] = rest
+    if (key === "seat") return ["Defender", "Seat"]
+    if (key === "topology") return ["Defender", "Topology"]
+    // The off-limits list is one control (a menu of devices).
+    if (key === "off_limits") return ["Defender", "OffLimits"]
+    if (key === "credentials") {
+      if (typeof index !== "number") return ["Defender", "Credentials"]
+      // A credential as a whole (a repeated device, port and user) sits at its user, where the form puts that error too.
+      if (sub === undefined) return ["Defender", "Credentials", index, "User"]
+      return sub === "device" || sub === "port" || sub === "user" || sub === "value" ? ["Defender", "Credentials", index, pascal(String(sub))] : null
+    }
+    return null
+  }
+  if (head === "opponents") {
+    const [index, key] = rest
+    // Only the seat of an opponent has a control; any other field of it is an error of the opponents as a whole.
+    return typeof index === "number" && key === "seat" ? ["Opponents", index, "Seat"] : ["Opponents"]
   }
   return null
 }
