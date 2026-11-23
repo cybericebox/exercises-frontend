@@ -729,5 +729,7 @@
   "ed.c.ph.serialPort": "serial0",
   "ed.c.def.opponentRole.attack": "attack",
   "ed.c.def.opponentRole.defense": "defense",
-  "ed.c.def.opponentRole.attack-defense": "attack and defense"
+  "ed.c.def.opponentRole.attack-defense": "attack and defense",
+  "ed.c.def.port": "Console port",
+  "ed.c.def.value": "Password or key"
 }

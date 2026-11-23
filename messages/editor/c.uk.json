@@ -729,5 +729,7 @@
   "ed.c.ph.serialPort": "serial0",
   "ed.c.def.opponentRole.attack": "атака",
   "ed.c.def.opponentRole.defense": "оборона",
-  "ed.c.def.opponentRole.attack-defense": "атака й оборона"
+  "ed.c.def.opponentRole.attack-defense": "атака й оборона",
+  "ed.c.def.port": "Консольний порт",
+  "ed.c.def.value": "Пароль або ключ"
 }

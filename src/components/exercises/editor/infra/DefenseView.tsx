@@ -145,7 +145,12 @@ function CredentialsBlock({ variantIndex, readOnly }: { variantIndex: number; re
     <FieldError path={path} />
     {credentials.length === 0
       ? <EmptyState compact message={t("ed.c.def.noCredentials")} />
-      : <div className="min-w-0 space-y-2.5">{credentials.map((_, index) => <CredentialRow key={credentials[index]?.ClientKey ?? index} variantIndex={variantIndex} index={index} readOnly={readOnly} onRemove={() => remove(index)} />)}</div>}
+      : <div className="min-w-0 space-y-2.5">
+        <div aria-hidden="true" className="grid grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,1fr)_36px_36px] gap-2 px-3 text-[13px] text-muted-foreground max-sm:hidden">
+          <span>{t("ed.c.def.device")}</span><span>{t("ed.c.def.port")}</span><span>{t("ed.c.def.user")}</span><span>{t("ed.c.def.value")}</span><span /><span />
+        </div>
+        {credentials.map((_, index) => <CredentialRow key={credentials[index]?.ClientKey ?? index} variantIndex={variantIndex} index={index} readOnly={readOnly} onRemove={() => remove(index)} />)}
+      </div>}
   </Block>
 }
 
