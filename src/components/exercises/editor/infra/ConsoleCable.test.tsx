@@ -56,6 +56,14 @@ describe("console cables and opponents in the infrastructure editor", () => {
     expect(variant().Topology.Connections.map((connection) => connection.Kind ?? "")).toEqual(["", "console"])
   })
 
+  it("the connection table's column headers carry no help icon: one description line says what the columns mean", () => {
+    renderWorkspace()
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.views.connections" }))
+    const table = screen.getByRole("table")
+    for (const header of within(table).getAllByRole("columnheader")) expect(within(header).queryByRole("button")).toBeNull()
+    expect(screen.getByText("ed.c.desc.connections")).toBeInTheDocument()
+  })
+
   it("a console cable is removed like any connection (the schema's menu and a confirmation)", () => {
     renderWorkspace()
     const consoleEdge = document.querySelector<HTMLElement>("[data-edge-kind='console']")!

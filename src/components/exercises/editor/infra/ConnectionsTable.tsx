@@ -15,7 +15,6 @@ import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { gatewayClashOfLink, isConsoleCable } from "@/lib/editor/schemas/infra"
 import { freeLinePorts, portKindOf } from "@/lib/editor/consolePorts"
-import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
 import { FieldError, RowActions, fieldProps, useFieldError } from "../kit"
 
@@ -107,15 +106,17 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
   }
 
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+    {/* Column headers are not fields: what the columns mean is said once, in one line above the table. */}
+    <p id="connections-description" className="text-sm text-muted-foreground">{t("ed.c.desc.connections")}</p>
     {fields.length === 0
       ? <div className="flex min-h-48 flex-1 items-center justify-center rounded-md border border-border"><EmptyState message={t("admin.exTopo.noConnections")} /></div>
       : <Table label={t("admin.exTopo.connections")} className="min-w-[36rem] table-fixed" regionClassName="rounded-md border border-border">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
-            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-0")}><div className="pl-10"><TableHeadHelp text="#" help={{ intro: t("ed.c.th.index") }} /></div></th>
+            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-0")}><div className="pl-10">#</div></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-44")}>{t("ed.c.th.typeTitle")}</th>
-            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.first")} help={{ intro: t("ed.c.th.first") }} /></th>
-            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.second")} help={{ intro: t("ed.c.th.second") }} /></th>
+            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}>{t("admin.exTopo.endpoint.first")}</th>
+            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}>{t("admin.exTopo.endpoint.second")}</th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
           </tr>
         </thead>
