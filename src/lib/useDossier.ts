@@ -8,24 +8,26 @@ export type DossierState = { state: "idle" } | { state: "loading" } | { state: "
 const NOT_READY_RETRY_MS = 3000
 
 /**
- * The defender's dossier of a ready test lab, read once per lab and kept only in the page's memory (it carries credentials).
+ * The defender's dossier of a ready test lab, read once per lab (a new deploy id starts again from idle) and kept only in the page's memory (it carries credentials).
  * A 409 (the lab is not ready yet) is asked again; any other failure is an error with a retry.
  */
 export function useDossier(deployId: string | null, ready: boolean): DossierState & { retry: () => void } {
-  const [value, setValue] = useState<DossierState>({ state: "idle" })
+  // The state of one lab: the dossier of an earlier lab (a restart gives a new deploy id) is never shown for the next one.
+  const [held, setValue] = useState<{ id: string | null; value: DossierState }>({ id: null, value: { state: "idle" } })
+  const value: DossierState = held.id === deployId ? held.value : { state: "idle" }
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!deployId || !ready) return
     let cancelled = false
     let timer: number | undefined
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the read starts with the lab becoming ready
-    setValue((current) => current.state === "ready" ? current : { state: "loading" })
+    setValue((current) => current.id === deployId && current.value.state === "ready" ? current : { id: deployId, value: { state: "loading" } })
     getDeployDossier(deployId).then(
-      (dossier) => { if (!cancelled) setValue({ state: "ready", dossier }) },
+      (dossier) => { if (!cancelled) setValue({ id: deployId, value: { state: "ready", dossier } }) },
       (cause: unknown) => {
         if (cancelled) return
         if (cause instanceof ApiError && cause.status === 409) { timer = window.setTimeout(() => setAttempt((n) => n + 1), NOT_READY_RETRY_MS); return }
-        setValue({ state: "error", cause })
+        setValue({ id: deployId, value: { state: "error", cause } })
       },
     )
     return () => { cancelled = true; if (timer !== undefined) window.clearTimeout(timer) }

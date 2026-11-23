@@ -81,6 +81,15 @@ describe("console lines in the test lab", () => {
     const lines = screen.getByTestId("console-lines")
     expect(within(lines).getAllByRole("listitem").map((item) => item.querySelector("[data-line]")?.getAttribute("data-line"))).toEqual(["up", "down"])
     expect(lines).toHaveTextContent("ed.d.cable.reason.WaitingForDevice")
+    expect(within(lines).getByRole("list")).toHaveAttribute("aria-live", "polite")
+  })
+
+  it("a line the lab has not reported yet shows a neutral pending chip", () => {
+    render(<LabDock tab="devices" onTab={vi.fn()} topology={topology} status={{ ...status, ConsoleCables: status.ConsoleCables!.slice(0, 1) }} chip={{ kind: "ready" } as never} deployId="d1" tasks={[]} currentTaskId={null} solvedIds={new Set()}
+      expanded={new Set()} onToggleDevice={vi.fn()} actions={{} as never} schemaSelected={null} onSchemaSelect={vi.fn()} onFull={vi.fn()} author={false} onClose={vi.fn()} sheet={false} />)
+    const chip = within(screen.getByTestId("console-lines")).getByText("ed.d.cable.pending")
+    expect(chip).toHaveAttribute("data-line", "pending")
+    expect(chip.className).toContain("bg-muted")
   })
 })
 
@@ -116,8 +125,10 @@ describe("the defender's dossier", () => {
     expect([...document.querySelectorAll("[data-node]")].map((item) => item.textContent)).toEqual(["pc", "r1", "sw-core", "core-fw", "lan"])
     unmount()
     const operates = render(<DossierTab dossier={ready(dossier({ Topology: "operates" }))} topology={topology} status={status} selected={null} onSelect={vi.fn()} />)
-    expect([...document.querySelectorAll("[data-node]")].map((item) => item.textContent)).toEqual(["r1", "sw-core", "lan"])
+    // The seat (the serial end of the map's cables) stays with its cables, beside the operated devices and their switch.
+    expect([...document.querySelectorAll("[data-node]")].map((item) => item.textContent)).toEqual(["pc", "r1", "sw-core", "lan"])
     expect(dossierTopology(topology, { Topology: "operates", Operates: ["r1"] })?.Connections).toHaveLength(1)
+    expect(dossierTopology(topology, { Topology: "operates", Operates: ["r1"], Links: dossier().Links.slice(0, 1) })?.Connections.map((connection) => connection.Kind ?? "")).toEqual(["", "", "console"])
     operates.unmount()
     render(<DossierTab dossier={ready(dossier({ Topology: "none" }))} topology={topology} status={status} selected={null} onSelect={vi.fn()} />)
     expect(screen.queryByTestId("diagram")).not.toBeInTheDocument()
@@ -156,12 +167,12 @@ describe("the tabs of the lab panel by role", () => {
     expect(tabs()).toEqual(["ed.d.dock.tab.devices", "ed.d.dock.tab.schema"])
   })
 
-  it("hides the schema (and the console lines) from a human attacker only", () => {
-    const defended = { Opponents: [{ Role: "defense", Band: 1, Goal: ["a"] }] } as Pick<NormalizedVariant, "Opponents">
-    expect(humanAttacks(defended, false)).toBe(true)
-    expect(humanAttacks(defended, true)).toBe(false)
-    expect(humanAttacks({ Opponents: [{ Role: "attack", Band: 1, Goal: ["a"] }] }, false)).toBe(false)
-    expect(humanAttacks({}, false)).toBe(false)
+  it("hides the schema (and the console lines) from a human attacker only, decided from the variant", () => {
+    const defended = { Opponents: [{ Role: "defense", Band: 1, Goal: ["a"] }] } as Pick<NormalizedVariant, "Opponents" | "Defender">
+    expect(humanAttacks(defended)).toBe(true)
+    expect(humanAttacks({ ...defended, Defender: { Seat: "pc" } })).toBe(false)
+    expect(humanAttacks({ Opponents: [{ Role: "attack", Band: 1, Goal: ["a"] }] })).toBe(false)
+    expect(humanAttacks({})).toBe(false)
     dock({ schemaHidden: true })
     expect(tabs()).toEqual(["ed.d.dock.tab.devices"])
     expect(screen.queryByTestId("console-lines")).not.toBeInTheDocument()
@@ -182,6 +193,17 @@ describe("useDossier", () => {
     await waitFor(() => expect(result.current.state).toBe("ready"))
     expect(getDeployDossier).toHaveBeenCalledTimes(2)
     vi.useRealTimers()
+  })
+
+  it("a new lab (a restart) starts from idle: the earlier lab's dossier is never shown for it", async () => {
+    getDeployDossier.mockResolvedValueOnce(dossier()).mockImplementation(() => new Promise(() => {}))
+    const { result, rerender } = renderHook(({ id, on }) => useDossier(id, on), { initialProps: { id: "d1", on: true } })
+    await waitFor(() => expect(result.current.state).toBe("ready"))
+    rerender({ id: "d2", on: false })
+    expect(result.current.state).toBe("idle")
+    rerender({ id: "d2", on: true })
+    await waitFor(() => expect(getDeployDossier).toHaveBeenLastCalledWith("d2"))
+    expect(result.current.state).toBe("loading")
   })
 
   it("another failure is an error with a retry", async () => {

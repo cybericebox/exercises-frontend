@@ -330,7 +330,7 @@ function TestLab({ exerciseId, initial: opened }: { exerciseId: string; initial:
   const dock = showDock && <LabDock tab={tab} onTab={setTab} topology={variant.Topology} status={status} chip={chip} deployId={deploy.deployId ?? ""} tasks={tasks} currentTaskId={task?.ID ?? null}
     solvedIds={solvedIds} expanded={expanded} onToggleDevice={(name) => setExpanded((current) => { const next = new Set(current); if (!next.delete(name)) next.add(name); return next })}
     actions={actions} schemaSelected={schemaSelected} onSchemaSelect={selectNode} onFull={() => setSchemaFull(true)} author={authorShown} sheet={!wide}
-    dossier={dossier} schemaHidden={humanAttacks(variant, dossier.state === "ready" && dossier.dossier.Declared)}
+    dossier={dossier} schemaHidden={humanAttacks(variant)}
     onClose={() => (wide ? setDockShown(false) : setSheetOpen(false))} />
 
   return <div className="flex h-dvh flex-col bg-background" onKeyDown={(event) => { if (event.key === "Escape" && sheetOpen && !wide) setSheetOpen(false) }}>

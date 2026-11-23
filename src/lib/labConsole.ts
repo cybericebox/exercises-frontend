@@ -54,13 +54,21 @@ export function cableStatusByConnection(topology: NormalizedTopology, status: De
 }
 
 /**
- * The topology the dossier shows: the whole one (full), only the devices the defender operates with the switches and hubs they
- * are plugged into and the links between them (operates), or none.
+ * The topology the dossier shows: the whole one (full); only the defender's own devices (operates): its seat (the serial end of
+ * the cables of its console map), the devices it operates, the switches and hubs they are plugged into and the links and console
+ * cables between them; or none.
  */
-export function dossierTopology(topology: NormalizedTopology, dossier: Pick<DeployDossier, "Topology" | "Operates">): NormalizedTopology | null {
+export function dossierTopology(topology: NormalizedTopology, dossier: Pick<DeployDossier, "Topology" | "Operates"> & { Links?: DeployDossier["Links"] }): NormalizedTopology | null {
   if (dossier.Topology === "none") return null
   if (dossier.Topology !== "operates") return topology
   const operated = new Set(topology.Devices.filter((device) => dossier.Operates.includes(device.Name)).map((device) => device.ID))
+  // The seat is not named by the dossier: it is the serial end of each cable that leads to a console port of its map.
+  const ends = cableEnds(topology)
+  for (const link of dossier.Links ?? []) {
+    const cable = ends.find((end) => end && end.console.device === link.Device && end.console.port === link.ConsolePort && end.serial.port === link.SerialPort)
+    const seat = cable && topology.Devices.find((device) => device.Name === cable.serial.device)
+    if (seat) operated.add(seat.ID)
+  }
   const kept = new Set(operated)
   for (const connection of topology.Connections) {
     if (connection.Kind === "console") continue
@@ -79,10 +87,11 @@ export function dossierTopology(topology: NormalizedTopology, dossier: Pick<Depl
 }
 
 /**
- * The human of the test lab is the attacker: the variant has opponents and all of them defend, and it declares no defender
- * dossier. Only then is the schema tab hidden (9a.5); every other task keeps it.
+ * The human of the test lab is the attacker: the variant declares no defender block (a linked variant holds its base's) and has
+ * opponents that all defend. Only then is the schema tab hidden (9a.5); every other task keeps it. Decided from the variant, never
+ * from the dossier read, so nothing disappears while the lab starts or when that read fails.
  */
-export function humanAttacks(variant: Pick<NormalizedVariant, "Opponents">, dossierDeclared: boolean): boolean {
+export function humanAttacks(variant: Pick<NormalizedVariant, "Opponents" | "Defender">): boolean {
   const opponents = variant.Opponents ?? []
-  return !dossierDeclared && opponents.length > 0 && opponents.every((opponent) => opponent.Role === "defense")
+  return !variant.Defender && opponents.length > 0 && opponents.every((opponent) => opponent.Role === "defense")
 }

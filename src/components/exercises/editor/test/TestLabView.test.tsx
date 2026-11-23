@@ -224,4 +224,23 @@ describe("TestLabView", () => {
     expect(await screen.findByTestId("dossier")).toHaveTextContent("/dev/ttyCON0")
   })
 
+
+  it("keeps the schema tab while the lab starts and when the dossier read fails, for a variant with a defender block", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [{ ...variant, Opponents: [{ Role: "defense", Band: 1, Goal: ["ospf"] }], Defender: { Seat: "r1" } }], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValueOnce(status({})).mockResolvedValue(ready())
+    vi.mocked(getDeployDossier).mockRejectedValue(new Error("down"))
+    open()
+    expect(await screen.findByRole("tab", { name: t("ed.d.dock.tab.schema") })).toBeInTheDocument()
+    await waitFor(() => expect(getDeployDossier).toHaveBeenCalled())
+    expect(screen.getByRole("tab", { name: t("ed.d.dock.tab.schema") })).toBeInTheDocument()
+  })
+
+  it("hides the schema tab from the start when the human attacks (every opponent defends, no defender block)", async () => {
+    vi.mocked(getVersion).mockResolvedValue({ Variants: [{ ...variant, Opponents: [{ Role: "defense", Band: 1, Goal: ["ospf"] }] }], Resources: null } as never)
+    vi.mocked(deployStatus).mockResolvedValue(status({}))
+    open()
+    expect(await screen.findByRole("tab", { name: t("ed.d.dock.tab.devices") })).toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: t("ed.d.dock.tab.schema") })).not.toBeInTheDocument()
+  })
+
 })

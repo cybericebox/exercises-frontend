@@ -27,7 +27,7 @@ export function CopyIconButton({ text, label }: { text: string; label: string })
   const shown = state === "copied" ? t("ed.d.dossier.copied") : state === "error" ? t("ed.d.dossier.copyFailed") : label
   return <HoverTooltip text={shown}>
     <button type="button" aria-label={shown} onClick={() => { void navigator.clipboard?.writeText(text).then(() => setState("copied"), () => setState("error")) }}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--ib-hover)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:h-11 pointer-coarse:w-11">
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-[var(--ib-hover)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:h-11 pointer-coarse:w-11">
       {state === "copied" ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />}
     </button>
   </HoverTooltip>
@@ -41,8 +41,8 @@ function kindText(link: DossierLink): string {
 }
 
 /** The chip of a console line: up, or down with its reason (never colour alone: the words say it). */
-export function LineChip({ up, label }: { up: boolean; label: string }) {
-  return <Badge tone={up ? "ok" : "warn"} data-line={up ? "up" : "down"}>{label}</Badge>
+export function LineChip({ up, label, pending = false }: { up: boolean; label: string; pending?: boolean }) {
+  return <Badge tone={pending ? "muted" : up ? "ok" : "warn"} data-line={pending ? "pending" : up ? "up" : "down"}>{label}</Badge>
 }
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -77,7 +77,7 @@ export function DossierTab({ dossier, topology, status, selected, onSelect }: {
         : <ol className="min-w-0 space-y-2">{data.Links.map((link) => {
           const line = lineFor(link)
           const command = t("ed.d.dossier.command", { path: link.Path })
-          return <li key={link.SerialPort} data-dossier-link={link.SerialPort} className="min-w-0 space-y-1.5 rounded-md border border-border p-3">
+          return <li key={link.SerialPort} data-dossier-link={link.SerialPort} className="min-w-0 space-y-1.5 rounded-lg border border-border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="min-w-0 text-sm text-foreground">{t("ed.d.dossier.runbook", { device: link.Device, serial: link.SerialPort, path: link.Path, console: link.ConsolePort })}</p>
               {line && <LineChip up={line.LineUp} label={consoleLineText(line)} />}
@@ -94,7 +94,7 @@ export function DossierTab({ dossier, topology, status, selected, onSelect }: {
       {data.Forbidden.length === 0
         ? <EmptyState compact message={t("ed.d.dossier.noForbidden")} />
         : <ul className="flex flex-wrap gap-2">{data.Forbidden.map((name) => <li key={name} data-forbidden={name}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-2.5 text-sm text-foreground">
+          className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border px-2 text-sm text-foreground">
           <Ban aria-hidden="true" className="h-4 w-4 text-destructive" /><span>{t("ed.d.dossier.forbiddenDevice", { device: name })}</span>
         </li>)}</ul>}
     </Section>
@@ -103,7 +103,7 @@ export function DossierTab({ dossier, topology, status, selected, onSelect }: {
         ? <EmptyState compact message={t("ed.d.dossier.noCredentials")} />
         : <ul className="min-w-0 space-y-2">{data.Credentials.map((credential, index) => {
           const where = credential.Port ? t("ed.d.dossier.at", { device: credential.Device, port: credential.Port }) : credential.Device
-          return <li key={index} data-dossier-credential={index} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-md border border-border p-3">
+          return <li key={index} data-dossier-credential={index} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-lg border border-border p-3">
             <div className="min-w-0">
               <p className="truncate text-sm text-foreground">{where}</p>
               <p className="truncate text-xs text-muted-foreground">{credential.User ? t("ed.d.dossier.user", { user: credential.User }) : t("ed.d.dossier.noUser")}</p>
@@ -120,7 +120,7 @@ export function DossierTab({ dossier, topology, status, selected, onSelect }: {
         ? <p className="text-sm text-muted-foreground">{t("ed.d.dossier.topologyNone")}</p>
         : <>
           {data.Topology === "operates" && <p className="text-xs text-muted-foreground">{t("ed.d.dossier.topologyOperates")}</p>}
-          <div data-dossier-schema={data.Topology === "operates" ? "operates" : "full"} className="relative min-h-[18rem] overflow-hidden rounded-md border border-border">
+          <div data-dossier-schema={data.Topology === "operates" ? "operates" : "full"} className="relative min-h-[18rem] overflow-hidden rounded-lg border border-border">
             <SchemaView topology={shown} status={status} selected={selected} onSelect={onSelect} />
           </div>
         </>}
