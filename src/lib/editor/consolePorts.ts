@@ -13,6 +13,18 @@ import type { ConsolePortDTO, SerialPortDTO } from "@/api/exercises/versions"
 export const MAX_CONSOLE_PORTS = 4
 export const MAX_SERIAL_PORTS = 16
 export const MAX_CONSOLE_CABLES = 64
+
+/**
+ * The limits the form validates with: the laboratory's, from the capabilities (setConsoleLimits, when they load), else the
+ * defaults above. The editor's controls read the same numbers (useConsoleLimits).
+ */
+export const consoleLimits = { consolePorts: MAX_CONSOLE_PORTS, serialPorts: MAX_SERIAL_PORTS, cables: MAX_CONSOLE_CABLES }
+
+export function setConsoleLimits(limits: { MaxConsolePortsPerDevice?: number; MaxSerialPortsPerDevice?: number; MaxConsoleCablesPerLab?: number } | null | undefined): void {
+  consoleLimits.consolePorts = limits?.MaxConsolePortsPerDevice || MAX_CONSOLE_PORTS
+  consoleLimits.serialPorts = limits?.MaxSerialPortsPerDevice || MAX_SERIAL_PORTS
+  consoleLimits.cables = limits?.MaxConsoleCablesPerLab || MAX_CONSOLE_CABLES
+}
 /** What a console port runs when it declares neither a command nor a native line. */
 export const DEFAULT_CONSOLE_COMMAND = "/bin/login"
 export const DEFAULT_CONSOLE_USER = "root"

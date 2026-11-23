@@ -20,8 +20,12 @@ const USER_RE = /^([a-z_][a-z0-9_-]{0,31}|\d+)$/
 /** The roles that operate devices: only they may have a seat. */
 export const SEAT_ROLES = ["defense", "attack-defense"] as const
 
-/** One credential in the form. HasValue: a secret value is stored on the server (its Value is never sent back). */
-export type DefenderCredentialForm = { Device: string; Port: string; User: string; Value: string; Secret: boolean; HasValue: boolean; ClientKey?: string }
+/**
+ * One credential in the form. HasValue: a secret value is stored on the server (its Value is never sent back). Origin (form-only,
+ * never sent): the row's position in the server's list it came from, its stable identity when the browser buffer gets the stored
+ * values back (its device, port or user may have been renamed since). Absent for a row added in this browser.
+ */
+export type DefenderCredentialForm = { Device: string; Port: string; User: string; Value: string; Secret: boolean; HasValue: boolean; ClientKey?: string; Origin?: number }
 export type DefenderForm = { Seat: string; Topology: DefenderTopology; OffLimits: string[]; Credentials: DefenderCredentialForm[] }
 
 export const emptyDefender = (): DefenderForm => ({ Seat: "", Topology: "", OffLimits: [], Credentials: [] })
@@ -34,7 +38,7 @@ export function defenderToForm(dto: DefenderDTO | undefined | null): DefenderFor
     Topology: dto.Topology ?? "",
     OffLimits: [...(dto.OffLimits ?? [])],
     // A secret comes back without its value: it is stored.
-    Credentials: (dto.Credentials ?? []).map((c) => ({ Device: c.Device, Port: c.Port ?? "", User: c.User ?? "", Value: c.Value ?? "", Secret: c.Secret ?? false, HasValue: Boolean(c.Secret) })),
+    Credentials: (dto.Credentials ?? []).map((c, index) => ({ Device: c.Device, Port: c.Port ?? "", User: c.User ?? "", Value: c.Value ?? "", Secret: c.Secret ?? false, HasValue: Boolean(c.Secret), Origin: index })),
   }
 }
 

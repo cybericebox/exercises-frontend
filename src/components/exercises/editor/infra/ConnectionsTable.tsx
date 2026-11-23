@@ -14,11 +14,10 @@ import type { NormalizedEndpoint } from "@/api/exercises/versions"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import { availableDevicePorts, shortForwardingPort } from "@/lib/topologyPorts"
 import { gatewayClashOfLink, isConsoleCable } from "@/lib/editor/schemas/infra"
-import { canJoinConsoleCable, freeLinePorts, portKindOf } from "@/lib/editor/consolePorts"
+import { freeLinePorts, portKindOf } from "@/lib/editor/consolePorts"
 import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
-import { AddButton, FieldError, RowActions, fieldProps, useFieldError } from "../kit"
-import { InActionsSlot } from "./ActionsSlot"
+import { FieldError, RowActions, fieldProps, useFieldError } from "../kit"
 
 /** One connection endpoint as a select value: device:<id>:<iface> (a gateway is a device with its one port). */
 export function encodeEndpoint(ep: NormalizedEndpoint): string {
@@ -36,18 +35,17 @@ export function decodeEndpoint(value: string): NormalizedEndpoint {
  * column “Type”). A row opens by its chevron or a click (no pencil) into two dropdowns; the row actions are “Show on the schema”
  * and the trash. A console cable offers only serial and console ports, one of each, on two devices, free ones only.
  */
-export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpand, selectedIndex, onShow, onAdded }: {
+export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpand, selectedIndex, onShow }: {
   variantIndex: number
   readOnly: boolean
   expandedIndex: number | null
   onExpand: (index: number | null) => void
   selectedIndex: number | null
   onShow: (index: number) => void
-  onAdded: (index: number) => void
 }) {
   const { control } = useFormContext<DraftFormValues>()
   const name = `Variants.${variantIndex}.Topology.Connections` as const
-  const { fields, append, remove } = useFieldArray({ control, name })
+  const { fields, remove } = useFieldArray({ control, name })
   const connections = useWatch({ control, name }) ?? []
   const devices = useWatch({ control, name: `Variants.${variantIndex}.Topology.Devices` }) ?? []
   const [pendingRemoval, setPendingRemoval] = useState<number | null>(null)
@@ -58,10 +56,6 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new error opens its row once
   }, [firstBad])
 
-  const nodeCount = devices.length
-  const freeNodeCount = devices.filter((device) => availableDevicePorts({ Connections: connections }, device).length > 0).length
-  const addBlockedReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : freeNodeCount < 2 ? t("admin.exTopo.needFreePorts") : null
-  const cableBlockedReason = devices.some((a) => devices.some((b) => canJoinConsoleCable(connections, a, b))) ? null : t("ed.c.cable.needPorts")
 
   function endpointSummary(endpoint: NormalizedEndpoint | undefined): string {
     if (!endpoint) return t("admin.exTopo.endpoint.placeholder")
@@ -106,11 +100,6 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
       }))
     })
   }
-  function add(kind: "network" | "console" = "network") {
-    const index = fields.length
-    append({ ...(kind === "console" ? { Kind: "console" } : {}), Endpoints: [{ Kind: "device", DeviceID: "", Interface: "" }, { Kind: "device", DeviceID: "", Interface: "" }] })
-    onAdded(index)
-  }
   function removeConnection(index: number) {
     setPendingRemoval(null)
     remove(index)
@@ -118,17 +107,13 @@ export function ConnectionsTable({ variantIndex, readOnly, expandedIndex, onExpa
   }
 
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-    <InActionsSlot>{!readOnly && <>
-      <AddButton label={t("admin.exTopo.addConnection")} onClick={() => add()} blockedReason={addBlockedReason} />
-      <AddButton label={t("ed.c.cable.addShort")} onClick={() => add("console")} blockedReason={cableBlockedReason} />
-    </>}</InActionsSlot>
     {fields.length === 0
       ? <div className="flex min-h-48 flex-1 items-center justify-center rounded-md border border-border"><EmptyState message={t("admin.exTopo.noConnections")} /></div>
       : <Table label={t("admin.exTopo.connections")} className="min-w-[36rem] table-fixed" regionClassName="rounded-md border border-border">
         <thead>
           <tr className={TABLE_HEAD_ROW}>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-0")}><div className="pl-10"><TableHeadHelp text="#" help={{ intro: t("ed.c.th.index") }} /></div></th>
-            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-44")}><TableHeadHelp text={t("ed.c.th.typeTitle")} help={{ intro: t("ed.c.th.kindHelp") }} /></th>
+            <th scope="col" className={cn(TABLE_HEAD_CELL, "w-44")}>{t("ed.c.th.typeTitle")}</th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.first")} help={{ intro: t("ed.c.th.first") }} /></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[33%]")}><TableHeadHelp text={t("admin.exTopo.endpoint.second")} help={{ intro: t("ed.c.th.second") }} /></th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "w-24 px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>

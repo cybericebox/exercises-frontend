@@ -610,15 +610,16 @@ function withConsoleModel(variant: Variant, server: Variant | undefined): Varian
 }
 
 /**
- * The credentials of a buffered defender block get their values back: a sealed value wins; otherwise a plain credential the server
- * has (same device, port and user) takes its stored value, and a secret stays blank (= keep), with HasValue from the server.
+ * The credentials of a buffered defender block get their values back: a sealed value wins; otherwise the server's row it came from
+ * (Origin: its place in the server's list, kept through a rename of its device, port or user) gives a plain credential its stored
+ * value, and a secret stays blank (= keep), with HasValue from the server. A row added in the browser has no Origin: nothing.
  */
 function withCredentialValues(defender: DefenderForm | null | undefined, server: DefenderForm | null | undefined, sealed: (row: { ClientKey?: string }) => string | undefined): DefenderForm | null {
   if (!defender) return null
   return {
     ...defender,
     Credentials: defender.Credentials.map((credential) => {
-      const own = server?.Credentials.find((candidate) => candidate.Device === credential.Device && candidate.Port === credential.Port && candidate.User === credential.User)
+      const own = credential.Origin !== undefined ? server?.Credentials[credential.Origin] : undefined
       const hasValue = Boolean(own?.Secret && own.HasValue)
       const value = sealed(credential)
       if (value !== undefined) return { ...credential, Value: value, HasValue: hasValue }

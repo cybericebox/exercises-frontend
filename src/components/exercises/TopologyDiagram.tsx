@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { Cable, Check, ChevronDown, Clock, Globe, Hourglass, Maximize, Pencil, Power, Settings2, Trash2, X, ZoomIn, ZoomOut } from "lucide-react"
+import { Cable, Check, ChevronDown, Clock, Globe, Hourglass, Maximize, Pencil, Power, Settings2, Trash2, TriangleAlert, X, ZoomIn, ZoomOut } from "lucide-react"
 import { cn } from "@/utils/cn"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
@@ -730,6 +730,14 @@ export function TopologyDiagram({ topology, onPositionChange, onNodeSelect, onNo
             {status && <title>{`${kindWord}: ${status.label}`}</title>}
             <path data-edge={edge.key} d={d} className={strokeClass}
               strokeWidth={selectedConnectionIndex === edge.index ? 3 : 2} strokeDasharray={edge.console ? "7 4" : undefined} strokeLinecap={edge.console ? "round" : undefined} />
+            {status && !status.up && (() => {
+              // A line that is down is said by a mark, not by colour alone: a warning sign at the middle of the cable.
+              const mid = edge.bend ? { x: 0.25 * start.x + 0.5 * control.x + 0.25 * end.x, y: 0.25 * start.y + 0.5 * control.y + 0.25 * end.y } : { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+              return <g data-line-mark role="img" aria-label={status.label}>
+                <circle cx={mid.x} cy={mid.y} r={9} className="fill-background stroke-[var(--ib-warn)]" strokeWidth={1.5} />
+                <TriangleAlert aria-hidden="true" x={mid.x - 6} y={mid.y - 6.5} width={12} height={12} className="text-[var(--ib-warn)]" />
+              </g>
+            })()}
             {renderPortLabel(edge.labelA, edge.a, start, end)}
             {renderPortLabel(edge.labelB, edge.b, end, start)}
           </g>

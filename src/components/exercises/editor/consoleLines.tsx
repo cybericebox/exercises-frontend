@@ -39,7 +39,7 @@ export function ConsoleLinesNotice({ className }: { className?: string }) {
   const support = useLabSupport()("consoleCables")
   const text = available === false ? t("ed.c.port.unavailable") : support.state === "warn" ? t("ed.c.port.someLabs") : null
   if (!text) return null
-  return <div role="note" data-console-notice className={cn("flex items-start gap-2 rounded-md border border-[var(--ib-warn)] bg-[var(--ib-warn-bg)] px-3 py-2 text-sm text-foreground", className)}>
+  return <div role="note" data-console-notice className={cn("flex items-start gap-2 rounded-lg border border-[var(--ib-warn)] bg-[var(--ib-warn-bg)] px-3 py-2 text-sm text-foreground", className)}>
     <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ib-warn)]" /><span>{text}</span>
   </div>
 }

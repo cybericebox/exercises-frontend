@@ -18,6 +18,7 @@ import { testVariantOptions } from "@/lib/testVariantOptions"
 import { useActiveDeploys } from "@/lib/useActiveDeploys"
 import { LabCapabilitiesProvider } from "@/components/exercises/editor/labCapabilities"
 import { ConsoleCablesAvailableProvider } from "@/components/exercises/editor/consoleLines"
+import { setConsoleLimits } from "@/lib/editor/consolePorts"
 import { GatewayLimitProvider } from "@/components/exercises/editor/gatewayLimit"
 import { EditorProvider, type EditorApi } from "@/components/exercises/editor/context"
 import { EditorHeader } from "@/components/exercises/editor/EditorHeader"
@@ -203,7 +204,7 @@ function ExerciseScreen({ exerciseId, versionId, eventId = null }: Props) {
     if (!permissions.write || isVersion) return
     let cancelled = false
     getExerciseCapabilities()
-      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setMaxGateways(capabilities.MaxLabGateways ?? null); setLabCapabilities(capabilities.LabCapabilities ?? null); setConsoleCables(capabilities.ConsoleCablesAvailable ?? null); setCapabilitiesDone(true) } })
+      .then((capabilities) => { if (!cancelled) { setLaboratories(capabilities.Laboratories); setMaxTests(Math.max(1, capabilities.MaxActiveTestDeploys ?? 1)); setDevicePersistence(capabilities.DevicePersistence ?? false); setResourcesConfig(capabilities.Resources ?? null); setMaxGateways(capabilities.MaxLabGateways ?? null); setLabCapabilities(capabilities.LabCapabilities ?? null); setConsoleCables(capabilities.ConsoleCablesAvailable ?? null); setConsoleLimits(capabilities.Resources); setCapabilitiesDone(true) } })
       .catch(() => { if (!cancelled) { setLaboratories(false); setCapabilitiesDone(true) } })
     return () => { cancelled = true }
   }, [permissions.write, isVersion])

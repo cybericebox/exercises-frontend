@@ -4,7 +4,7 @@ vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, unknown>) =>
 
 import { draftSchema, emptyDevice, emptyDraft, emptyTask, gatewayNetworkConflicts, type DeviceFormValues, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { emptyGateway } from "@/lib/editor/schemas/infra"
-import { canJoinConsoleCable, consoleCableEnds, consoleCommandProblem, freeLinePorts, nextPortName, serialDevicePath } from "./consolePorts"
+import { canJoinConsoleCable, setConsoleLimits, consoleCableEnds, consolePortToDTO, consolePortToForm, consoleCommandProblem, freeLinePorts, nextPortName, serialDevicePath } from "./consolePorts"
 import { emptyDefender, opponentSeatOptions } from "./defender"
 
 const port = (Name: string, Mode = "program", rest: Partial<{ Command: string[]; User: string; Port: string }> = {}) => ({ Name, Mode, Command: [], User: "", Port: "", ...rest })
@@ -144,5 +144,32 @@ describe("defender block and opponent seats", () => {
     expect(issues(value)).toEqual([])
     // Only nodes with serial ports; the router is the console end of a cable, web has no serial port.
     expect(opponentSeatOptions(value.Variants[0].Topology, value.Variants[0].Opponents, 0)).toEqual([{ name: "pc", reason: "" }])
+  })
+})
+
+describe("the laboratory's limits and platform lines", () => {
+  const router = { ID: "r", Name: "router", ConsolePorts: [port("console0"), port("aux0")] }
+  const pc = { ID: "p", Name: "pc", SerialPorts: [{ Name: "serial0", Path: "" }, { Name: "serial1", Path: "" }] }
+
+  it("validates with the capability limits, ports and cables alike", () => {
+    setConsoleLimits({ MaxConsolePortsPerDevice: 1, MaxSerialPortsPerDevice: 1, MaxConsoleCablesPerLab: 1 })
+    try {
+      const found = issues(draft([router, pc], [cable("p", "serial0", "r", "console0"), cable("p", "serial1", "r", "aux0")]))
+      expect(found).toContain('Variants.0.Topology.Devices.0.ConsolePorts: ed.c.port.val.consoleMax{"max":1}')
+      expect(found).toContain('Variants.0.Topology.Devices.1.SerialPorts: ed.c.port.val.serialMax{"max":1}')
+      expect(found).toContain('Variants.0.Topology.Connections.1.Endpoints.0.Interface: ed.c.port.val.cablesMax{"max":1}')
+    } finally { setConsoleLimits(null) }
+    expect(issues(draft([router, pc], [cable("p", "serial0", "r", "console0"), cable("p", "serial1", "r", "aux0")]))).toEqual([])
+  })
+
+  it("marks a taken name on every port that has it, so the field being typed in shows it", () => {
+    const found = issues(draft([{ ConsolePorts: [port("console0"), port("console0")] }]))
+    expect(found).toContain("Variants.0.Topology.Devices.0.ConsolePorts.0.Name: ed.c.port.val.nameTaken")
+    expect(found).toContain("Variants.0.Topology.Devices.0.ConsolePorts.1.Name: ed.c.port.val.nameTaken")
+  })
+
+  it("keeps a native line the platform set (vm-serial): no error, the same on the wire", () => {
+    expect(issues(draft([{ ConsolePorts: [port("console0", "vm-serial")] }]))).toEqual([])
+    expect(consolePortToDTO(consolePortToForm({ Name: "console0", Native: { Kind: "vm-serial" } }))).toEqual({ Name: "console0", Native: { Kind: "vm-serial" } })
   })
 })

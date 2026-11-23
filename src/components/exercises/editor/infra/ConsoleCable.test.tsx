@@ -68,7 +68,8 @@ describe("console cables and opponents in the infrastructure editor", () => {
 
   it("the console connect mode joins a serial port to a console port and never offers a device without free ports", () => {
     renderWorkspace([network])
-    fireEvent.click(screen.getByRole("button", { name: "ed.c.cable.addShort" }))
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
+    fireEvent.click(screen.getByRole("menuitem", { name: /ed.c.cable.addShort/ }))
     expect(document.querySelector(".topology-connect-hint")).toHaveTextContent("ed.c.cable.selectFirst")
     // web has no ports: picking it does nothing.
     fireEvent.click(screen.getByTestId("node-w"))
@@ -84,8 +85,9 @@ describe("console cables and opponents in the infrastructure editor", () => {
   it("a port takes one cable: with every console port of the router cabled, no second cable starts there", () => {
     const second = { Kind: "console", Endpoints: [{ Kind: "device" as const, DeviceID: "p", Interface: "serial1" }, { Kind: "device" as const, DeviceID: "r", Interface: "aux0" }] }
     renderWorkspace([network, cable, second])
-    const button = screen.getByRole("button", { name: "ed.c.cable.addShort" })
-    expect(button).toHaveAttribute("aria-disabled", "true")
+    fireEvent.keyDown(screen.getByRole("button", { name: /ed.c.add.menu/ }), { key: "ArrowDown" })
+    expect(screen.getByRole("menuitem", { name: /ed.c.cable.addShort/ })).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByText("ed.c.cable.needPorts")).toHaveAttribute("role", "note")
   })
 
   it("the form refuses a cable with both ends on one device beside its second end", async () => {

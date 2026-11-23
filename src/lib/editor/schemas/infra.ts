@@ -22,7 +22,7 @@ import type {
 } from "@/api/exercises/versions"
 import { durationSeconds } from "./task"
 import {
-  CONSOLE_MODES, CONSOLE_PORT_NAME_RE, MAX_CONSOLE_CABLES, MAX_CONSOLE_PORTS, MAX_SERIAL_PORTS, SERIAL_PORT_NAME_RE, canHavePorts, consoleCableProblem,
+  CONSOLE_MODES, CONSOLE_PORT_NAME_RE, SERIAL_PORT_NAME_RE, canHavePorts, consoleCableProblem, consoleLimits,
   consoleCommandProblem, consolePortToDTO, consolePortToForm, isConsoleConnection, portKindOf, serialDevicePath, serialPortToDTO, serialPortToForm,
   validSerialPath, type ConsolePortForm, type SerialPortForm,
 } from "../consolePorts"
@@ -289,8 +289,9 @@ const consolePortSchema = z.object({
   Port: z.string(),
 }).superRefine((port, ctx) => {
   if (!CONSOLE_PORT_NAME_RE.test(port.Name)) ctx.addIssue({ code: "custom", path: ["Name"], message: t("ed.c.port.val.consoleName") })
+  // A native kind the platform set (vm-serial) is kept as it is and never edited: nothing to check here.
   if (!(CONSOLE_MODES as readonly string[]).includes(port.Mode)) {
-    ctx.addIssue({ code: "custom", path: ["Mode"], message: t("ed.c.port.val.mode") })
+    if (port.Mode === "") ctx.addIssue({ code: "custom", path: ["Mode"], message: t("ed.c.port.val.mode") })
     return
   }
   if (port.Mode === "program") {
@@ -321,13 +322,16 @@ function refineDevicePorts(d: { Type: string; System: string; Interfaces: { Name
     ctx.addIssue({ code: "custom", path: [path], message: t(d.Type === "node" ? "ed.c.port.val.windows" : "ed.c.port.val.notNode") })
     return
   }
-  if (d.ConsolePorts.length > MAX_CONSOLE_PORTS) ctx.addIssue({ code: "custom", path: ["ConsolePorts"], message: t("ed.c.port.val.consoleMax", { max: MAX_CONSOLE_PORTS }) })
-  if (d.SerialPorts.length > MAX_SERIAL_PORTS) ctx.addIssue({ code: "custom", path: ["SerialPorts"], message: t("ed.c.port.val.serialMax", { max: MAX_SERIAL_PORTS }) })
-  const taken = new Set(d.Interfaces.map((iface) => iface.Name))
+  if (d.ConsolePorts.length > consoleLimits.consolePorts) ctx.addIssue({ code: "custom", path: ["ConsolePorts"], message: t("ed.c.port.val.consoleMax", { max: consoleLimits.consolePorts }) })
+  if (d.SerialPorts.length > consoleLimits.serialPorts) ctx.addIssue({ code: "custom", path: ["SerialPorts"], message: t("ed.c.port.val.serialMax", { max: consoleLimits.serialPorts }) })
+  // A name another port or an interface of the device also has is marked on every port that has it: whichever field was
+  // just typed in shows it.
+  const counts = new Map<string, number>()
+  for (const name of [...d.Interfaces.map((iface) => iface.Name), ...d.ConsolePorts.map((port) => port.Name), ...d.SerialPorts.map((port) => port.Name)]) counts.set(name, (counts.get(name) ?? 0) + 1)
+  const repeated = (name: string) => name !== "" && (counts.get(name) ?? 0) > 1
   let stdio = false
   d.ConsolePorts.forEach((port, index) => {
-    if (port.Name && taken.has(port.Name)) ctx.addIssue({ code: "custom", path: ["ConsolePorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
-    taken.add(port.Name)
+    if (repeated(port.Name)) ctx.addIssue({ code: "custom", path: ["ConsolePorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
     if (port.Mode === "stdio") {
       if (stdio) ctx.addIssue({ code: "custom", path: ["ConsolePorts", index, "Mode"], message: t("ed.c.port.val.stdioTwice") })
       stdio = true
@@ -335,8 +339,7 @@ function refineDevicePorts(d: { Type: string; System: string; Interfaces: { Name
   })
   const paths = new Set<string>()
   d.SerialPorts.forEach((port, index) => {
-    if (port.Name && taken.has(port.Name)) ctx.addIssue({ code: "custom", path: ["SerialPorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
-    taken.add(port.Name)
+    if (repeated(port.Name)) ctx.addIssue({ code: "custom", path: ["SerialPorts", index, "Name"], message: t("ed.c.port.val.nameTaken") })
     const path = serialDevicePath(port)
     if (port.Name && paths.has(path)) ctx.addIssue({ code: "custom", path: ["SerialPorts", index, "Path"], message: t("ed.c.port.val.pathTaken", { path }) })
     paths.add(path)
@@ -472,7 +475,7 @@ export const topologySchema = z
       const cable = isConsoleCable(connection)
       if (cable) {
         cables += 1
-        if (cables > MAX_CONSOLE_CABLES) ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", 0, "Interface"], message: t("ed.c.port.val.cablesMax", { max: MAX_CONSOLE_CABLES }) })
+        if (cables > consoleLimits.cables) ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", 0, "Interface"], message: t("ed.c.port.val.cablesMax", { max: consoleLimits.cables }) })
         const problem = consoleCableProblem(connection, topology.Devices)
         if (problem === "two_serial" || problem === "two_console" || problem === "same_device") {
           ctx.addIssue({ code: "custom", path: ["Connections", ci, "Endpoints", 1, "Interface"], message: t(`ed.c.port.val.cable.${problem}`) })

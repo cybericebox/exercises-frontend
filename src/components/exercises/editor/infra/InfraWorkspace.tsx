@@ -2,11 +2,11 @@
 
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
-import { Cable, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
 import { containerNameError, emptyDevice, type DraftFormValues } from "@/lib/exerciseSchemas"
 import { emptyGateway, gatewayNameError, isConsoleCable } from "@/lib/editor/schemas/infra"
@@ -27,14 +27,14 @@ import { SidePanel, SummaryList, ViewToolbar } from "../kit"
 import { useEditor } from "../context"
 import { useMaxLabGateways } from "../gatewayLimit"
 import { ActionsSlotContext } from "./ActionsSlot"
-import { ConnectionsTable } from "./ConnectionsTable"
+import { CableSwatch, ConnectionsTable } from "./ConnectionsTable"
 import { DeviceDialog } from "./DeviceDialog"
 import { DevicesTable } from "./DevicesTable"
 import { GatewayDialog } from "./GatewayDialog"
 import { NodePanel } from "./NodePanel"
 import { VariablesTable } from "./VariablesTable"
 import { DefenseView } from "./DefenseView"
-import { ConsoleLinesNotice } from "../consoleLines"
+import { ConsoleLinesNotice, useConsoleLimits } from "../consoleLines"
 import { focusFieldSoon } from "./focus"
 import type { VariableUse } from "./varUsage"
 import { cn } from "@/utils/cn"
@@ -203,7 +203,9 @@ export function InfraWorkspace() {
   const unavailableNodes = connectMode && connectKind === "console" ? consoleUnavailable : networkUnavailable
   const nodeCount = devices.length
   const linkUnavailableReason = nodeCount < 2 ? t("admin.exTopo.needTwoDevices") : nodeCount - networkUnavailable.length < 2 ? t("admin.exTopo.needFreePorts") : null
-  const consoleUnavailableReason = devices.some((a) => devices.some((b) => canJoinConsoleCable(connections, a, b))) ? null : t("ed.c.cable.needPorts")
+  const consoleLimits = useConsoleLimits()
+  const consoleUnavailableReason = connections.filter(isConsoleCable).length >= consoleLimits.cables ? t("ed.c.port.val.cablesMax", { max: consoleLimits.cables })
+    : devices.some((a) => devices.some((b) => canJoinConsoleCable(connections, a, b))) ? null : t("ed.c.cable.needPorts")
   const usesConsoleLines = connections.some(isConsoleCable) || devices.some((device) => device.ConsolePorts.length + device.SerialPorts.length > 0)
   const pendingPair = connectMode && linkNodes.length === 2 ? linkNodes as [string, string] : null
 
@@ -291,9 +293,23 @@ export function InfraWorkspace() {
   const readOnlyReason = linked ? t("ed.c.panel.linkedReason", { n: baseIndex + 1 }) : t("ed.c.panel.editOff")
   const openIndex = devices.findIndex((device) => device.ID === openNode)
 
-  const addDeviceMenu = !readOnly && activeView !== "vars" && <DropdownMenu>
-    <DropdownMenuTrigger asChild><Button type="button" variant="outline"><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addDevice")}</Button></DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
+  /** A connection of the chosen kind: on the schema the connect mode starts, in the connections table an empty row opens. */
+  function addConnection(kind: "network" | "console") {
+    if (activeView === "connections") {
+      const current = getValues(`${base}.Connections`)
+      setValue(`${base}.Connections`, [...current, { ...(kind === "console" ? { Kind: "console" } : {}), Endpoints: [{ Kind: "device", DeviceID: "", Interface: "" }, { Kind: "device", DeviceID: "", Interface: "" }] }], { shouldDirty: true })
+      setExpandedConnection(current.length)
+      return
+    }
+    setView("diagram")
+    startConnect(undefined, kind)
+  }
+
+  // One "Add" menu for everything that can be added (devices, gateways, a network link, a console cable): the toolbar stays one row.
+  const addMenu = !readOnly && (activeView === "diagram" || activeView === "devices" || activeView === "connections") && !connectMode && <DropdownMenu>
+    <DropdownMenuTrigger asChild><Button type="button" variant="outline"><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("ed.c.add.menu")}<ChevronDown aria-hidden="true" className="ml-1.5 h-4 w-4 opacity-60" /></Button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="min-w-60">
+      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">{t("ed.c.add.devices")}</DropdownMenuLabel>
       {DEVICE_OPTIONS.map((option) => <DropdownMenuItem key={option.type} className="gap-2" onSelect={() => addDevice(option.type)}>
         <TopologyGlyph kind={option.type === "node" ? "host" : option.type === "hub" ? "hub" : "switch"} className="h-5 w-5 shrink-0" />{t(option.label)}
       </DropdownMenuItem>)}
@@ -301,18 +317,18 @@ export function InfraWorkspace() {
         <TopologyGlyph kind={gatewayKindOf(option.type)} className="h-5 w-5 shrink-0" />{t(option.label)}
       </DropdownMenuItem>)}
       {gatewayAddBlockedReason && <p role="note" className="max-w-64 px-2 pb-1.5 pt-1 text-xs leading-5 text-muted-foreground">{gatewayAddBlockedReason}</p>}
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">{t("ed.c.add.connections")}</DropdownMenuLabel>
+      <DropdownMenuItem disabled={linkUnavailableReason !== null} className="gap-2" onSelect={() => addConnection("network")}>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center"><CableSwatch /></span>{t("admin.exTopo.addConnection")}
+      </DropdownMenuItem>
+      {linkUnavailableReason && <p role="note" className="max-w-64 px-2 pb-1.5 pt-1 text-xs leading-5 text-muted-foreground">{linkUnavailableReason}</p>}
+      <DropdownMenuItem disabled={consoleUnavailableReason !== null} data-add-console-cable className="gap-2" onSelect={() => addConnection("console")}>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center"><CableSwatch console /></span>{t("ed.c.cable.addShort")}
+      </DropdownMenuItem>
+      <p role="note" className="max-w-64 px-2 pb-1.5 pt-1 text-xs leading-5 text-muted-foreground">{consoleUnavailableReason ?? t("ed.c.cable.addTip")}</p>
     </DropdownMenuContent>
   </DropdownMenu>
-  const connectButton = !readOnly && activeView === "diagram" && !connectMode && <>
-    <HoverTooltip text={linkUnavailableReason ?? t("admin.exTopo.addConnection")} describe={linkUnavailableReason !== null ? "always" : false}>
-      <Button type="button" variant="outline" aria-disabled={linkUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-        onClick={() => { if (linkUnavailableReason !== null) return; startConnect() }}><Plus aria-hidden="true" className="mr-1 h-4 w-4" />{t("admin.exTopo.addConnection")}</Button>
-    </HoverTooltip>
-    <HoverTooltip text={consoleUnavailableReason ?? t("ed.c.cable.addTip")} describe={consoleUnavailableReason !== null ? "always" : false}>
-      <Button type="button" variant="outline" data-add-console-cable aria-disabled={consoleUnavailableReason !== null || undefined} className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-        onClick={() => { if (consoleUnavailableReason !== null) return; startConnect(undefined, "console") }}><Cable aria-hidden="true" className="mr-1 h-4 w-4 text-[var(--ib-console)]" />{t("ed.c.cable.addShort")}</Button>
-    </HoverTooltip>
-  </>
 
   const toggleFullscreen = () => {
     if (fullscreen) { setFullscreen(false); if (document.fullscreenElement === document.documentElement) void document.exitFullscreen?.().catch(() => {}); return }
@@ -332,7 +348,7 @@ export function InfraWorkspace() {
         </nav>
         {linked && <span className="text-sm text-muted-foreground">{t("ed.c.views.linkedNote", { n: baseIndex + 1 })}</span>}
         <span className="flex-1" />
-        {addDeviceMenu}{connectButton}
+        {addMenu}
         <div ref={setSlot} className="flex flex-wrap items-center gap-2" />
         {resources}
         {canvasView && <HoverTooltip text={t("admin.exTopo.expandCanvasTip")}>
@@ -343,7 +359,7 @@ export function InfraWorkspace() {
 
       {canvasView && <div data-testid="topology-canvas-layout" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row xl:gap-2">
         <div data-testid="topology-canvas-surface" className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background", !fullscreen && "rounded-md border border-border")}>
-          {fullscreen && <div className="topology-float-actions">{addDeviceMenu}{connectButton}</div>}
+          {fullscreen && <div className="topology-float-actions">{addMenu}</div>}
           {connectMode && <div className="topology-connect-hint" role="status">
             <span>{connectKind === "console"
               ? t(linkNodes.length === 0 ? "ed.c.cable.selectFirst" : "ed.c.cable.selectSecond")
@@ -398,8 +414,7 @@ export function InfraWorkspace() {
           onShow={(key) => { setSelected(key); setView("diagram") }} onConfigure={(key) => { setView("diagram"); openEditor(key) }} onRemove={setPendingRemoval} />
       </div>}
       {activeView === "connections" && <ConnectionsTable variantIndex={variantIndex} readOnly={readOnly} expandedIndex={expandedConnection} onExpand={setExpandedConnection}
-        selectedIndex={selectedEdge} onShow={(index) => { setSelectedEdge(index); setSelected(null); setView("diagram") }}
-        onAdded={(index) => setExpandedConnection(index)} />}
+        selectedIndex={selectedEdge} onShow={(index) => { setSelectedEdge(index); setSelected(null); setView("diagram") }} />}
       {activeView === "vars" && <VariablesTable variantIndex={variantIndex} disabled={readOnly} onOpenUse={openUse} />}
       {activeView === "defense" && <DefenseView variantIndex={variantIndex} readOnly={readOnly} />}
 

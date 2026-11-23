@@ -961,5 +961,7 @@ describe('console cables on the schema', () => {
     expect(edge).toHaveAttribute('data-line', 'down')
     expect(edge.querySelector('[data-edge="e3"]')!.getAttribute('class')).toContain('stroke-[var(--ib-warn)]')
     expect(edge.querySelector('title')?.textContent).toBe('ed.c.diagram.consoleCable: waiting')
+    // Never by colour alone: a warning mark on the cable says it too.
+    expect(edge.querySelector('[data-line-mark]')).toHaveAttribute('aria-label', 'waiting')
   })
 })

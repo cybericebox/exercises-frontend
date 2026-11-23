@@ -10,6 +10,7 @@ vi.mock('@/i18n/t', () => ({ t: (key: string) => key }))
 import { draftSchema, toDraftFormValues, toSaveDraftInput, type DraftFormValues } from './exerciseSchemas'
 import { collectPendingSecrets, mergePendingDraft, sanitizePendingDraft } from './exercisePendingBuffer'
 import { ensureClientKeys } from './clientKeys'
+import { capturedDraftIds, savedSecretUpdates } from './serverIdUpdates'
 import { normalizeVariant, type DefenderDTO, type VariantDTO, type Version } from '@/api/exercises/versions'
 
 const ROUTER = '11111111-2222-3333-4444-555555555555'
@@ -181,5 +182,35 @@ describe('pending buffer and the console model', () => {
     expect(Object.values(secrets.env)).toContain('typed-secret')
     const merged = mergePendingDraft(server(), sanitizePendingDraft(typed), secrets).Variants[0].Defender!
     expect(merged.Credentials[0]).toMatchObject({ Value: 'typed-secret', HasValue: true })
+  })
+
+  it('a credential whose device and user were renamed still gets its stored value back (its row, not its fields, is its identity)', () => {
+    const buffered = sanitizePendingDraft(server())
+    const credentials = buffered.Variants[0].Defender!.Credentials
+    credentials[1] = { ...credentials[1], Device: 'r1-new', User: 'guest2' }
+    // A row added in this browser before it has nothing to take from the server.
+    credentials.unshift({ Device: 'router', Port: '', User: 'ops', Value: '', Secret: false, HasValue: false })
+    const merged = mergePendingDraft(server(), buffered).Variants[0].Defender!.Credentials
+    expect(merged[2]).toMatchObject({ Device: 'r1-new', User: 'guest2', Value: 'guest' })
+    expect(merged[1]).toMatchObject({ Secret: true, HasValue: true, Value: '' })
+    expect(merged[0]).toMatchObject({ Value: '', HasValue: false })
+  })
+})
+
+describe('after an acknowledged save', () => {
+  it('each credential takes its place in the answer as its identity, and a secret sent from the editor becomes stored', () => {
+    const form = ensureClientKeys(toDraftFormValues(version(wireVariant(true))))
+    const rows = form.Variants[0].Defender!.Credentials
+    rows.reverse()
+    rows[1].Value = 'typed'
+    const sent = capturedDraftIds(form)
+    const saved = version(toSaveDraftInput(form).Variants[0])
+    const updates = savedSecretUpdates(sent, saved, form)
+    expect(updates).toEqual(expect.arrayContaining([
+      { path: 'Variants.0.Defender.Credentials.0.Origin', value: 0 },
+      { path: 'Variants.0.Defender.Credentials.1.Origin', value: 1 },
+      { path: 'Variants.0.Defender.Credentials.1.Value', value: '' },
+      { path: 'Variants.0.Defender.Credentials.1.HasValue', value: true },
+    ]))
   })
 })

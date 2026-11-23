@@ -12,7 +12,7 @@ export type CheckMenuOption = { value: string; label: string; description?: stri
  * A menu of several independent items: every item shows a checkbox (a check inside when on, empty when off) in the reserved left column (one of many
  * is a SelectMenu with a dot). The menu stays open while items are toggled; Esc, a click outside close it.
  */
-export function CheckMenu({ label, values, options, onToggle, disabled, className, menuClassName, triggerContent }: {
+export function CheckMenu({ label, values, options, onToggle, disabled, className, menuClassName, triggerContent, id, "aria-invalid": invalid, "aria-describedby": describedBy }: {
   /** The trigger's accessible name. */
   label: string
   values: readonly string[]
@@ -23,10 +23,14 @@ export function CheckMenu({ label, values, options, onToggle, disabled, classNam
   menuClassName?: string
   /** What the closed trigger shows (default: the label with a chevron). */
   triggerContent?: ReactNode
+  /** The field's id and its error and help references (a field error sits beside the trigger). */
+  id?: string
+  "aria-invalid"?: boolean
+  "aria-describedby"?: string
 }) {
   return <DropdownMenu>
     <DropdownMenuTrigger asChild>
-      <Button type="button" variant="outline" disabled={disabled} aria-label={label} className={cn("h-9 justify-between font-normal pointer-coarse:h-11", className)}>
+      <Button type="button" variant="outline" id={id} disabled={disabled} aria-label={label} aria-invalid={invalid} aria-describedby={describedBy} className={cn("h-9 justify-between font-normal pointer-coarse:h-11", className)}>
         <span className="truncate">{triggerContent ?? label}</span>
         <ChevronDown aria-hidden="true" className="ml-2 h-4 w-4 shrink-0 opacity-60" />
       </Button>

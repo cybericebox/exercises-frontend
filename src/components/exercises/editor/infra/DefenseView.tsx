@@ -50,7 +50,7 @@ export function DefenseView({ variantIndex, readOnly }: { variantIndex: number; 
   }
 
   return <div data-testid="defense-view" className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto pb-4">
-    <section aria-labelledby="defense-defender" className="min-w-0 space-y-3 rounded-md border border-border p-4">
+    <section aria-labelledby="defense-defender" className="min-w-0 space-y-3 rounded-lg border border-border p-4">
       <h3 id="defense-defender" className="text-base font-semibold">{t("ed.c.def.title")}</h3>
       <p className="text-sm text-muted-foreground">{t("ed.c.def.intro")}</p>
       <FieldError path={`${base}.Defender`} />
@@ -61,7 +61,7 @@ export function DefenseView({ variantIndex, readOnly }: { variantIndex: number; 
         </SwitchBlock>
       </SwitchList>
     </section>
-    <section aria-labelledby="defense-opponents" className="min-w-0 space-y-3 rounded-md border border-border p-4">
+    <section aria-labelledby="defense-opponents" className="min-w-0 space-y-3 rounded-lg border border-border p-4">
       <h3 id="defense-opponents" className="text-base font-semibold">{t("ed.c.def.opponentsTitle")}</h3>
       <p className="text-sm text-muted-foreground">{t("ed.c.def.opponentsIntro")}</p>
       <FieldError path={`${base}.Opponents`} />
@@ -116,8 +116,8 @@ function DefenderFields({ variantIndex, readOnly }: { variantIndex: number; read
       </div>
       <div className="min-w-0 md:col-span-2" data-field-name={`${path}.OffLimits`} tabIndex={-1}>
         <FieldLabel as="span" text={t("ed.c.def.offLimits")} help={{ intro: t("ed.c.h.offLimits"), default: t("ed.c.def.offLimitsHint") }} className="mb-1" />
-        <div {...offLimitsProps} className="max-w-xl">
-          <CheckMenu label={t("ed.c.def.offLimits")} values={defender.OffLimits} options={offLimitOptions} disabled={readOnly || offLimitOptions.length === 0} className="w-full"
+        <div className="max-w-xl">
+          <CheckMenu {...offLimitsProps} label={t("ed.c.def.offLimits")} values={defender.OffLimits} options={offLimitOptions} disabled={readOnly || offLimitOptions.length === 0} className="w-full"
             menuClassName="max-h-72 overflow-y-auto"
             triggerContent={defender.OffLimits.length ? defender.OffLimits.join(", ") : t("ed.c.def.offLimitsDefault")}
             onToggle={(value, checked) => set({ OffLimits: checked ? [...defender.OffLimits.filter((name) => name !== value), value] : defender.OffLimits.filter((name) => name !== value) })} />
@@ -140,14 +140,16 @@ function CredentialsBlock({ variantIndex, readOnly }: { variantIndex: number; re
   const button = <Button type="button" variant="outline" aria-disabled={full || undefined} className="h-9 gap-1.5 px-3 text-[13px] aria-disabled:cursor-not-allowed aria-disabled:opacity-50 pointer-coarse:h-11"
     onClick={() => { if (!full) add() }}><Plus aria-hidden="true" className="h-4 w-4" />{t("ed.c.def.addCredential")}</Button>
   return <Block id="defense-credentials" title={t("ed.c.def.credentials")} count={credentials.length}
-    help={{ intro: [t("ed.c.h.credentials1"), t("ed.c.h.credentials2")], items: [{ term: t("ed.c.h.envSecret"), text: t("ed.c.h.credentialSecret") }, { term: t("ed.c.h.envStored"), text: t("ed.c.h.envStoredText") }] }}
+    description={t("ed.c.desc.credentials")}
     actions={!readOnly && (full ? <HoverTooltip text={t("ed.c.def.val.credentialsMax", { max: MAX_DEFENDER_CREDENTIALS })} describe="always">{button}</HoverTooltip> : button)}>
     <FieldError path={path} />
     {credentials.length === 0
       ? <EmptyState compact message={t("ed.c.def.noCredentials")} />
       : <div className="min-w-0 space-y-2.5">
-        <div aria-hidden="true" className="grid grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,1fr)_36px_36px] gap-2 px-3 text-[13px] text-muted-foreground max-sm:hidden">
-          <span>{t("ed.c.def.device")}</span><span>{t("ed.c.def.port")}</span><span>{t("ed.c.def.user")}</span><span>{t("ed.c.def.value")}</span><span /><span />
+        <div className="grid grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,1fr)_36px_36px] items-center gap-2 px-3 text-[13px] text-muted-foreground max-sm:hidden">
+          <span>{t("ed.c.def.device")}</span><span>{t("ed.c.def.port")}</span><span>{t("ed.c.def.user")}</span>
+          <FieldLabel as="span" text={t("ed.c.def.value")} help={{ intro: [t("ed.c.h.credentials1"), t("ed.c.h.credentials2")], items: [{ term: t("ed.c.h.credSecretTerm"), text: t("ed.c.h.credentialSecret") }, { term: t("ed.c.h.credStoredTerm"), text: t("ed.c.h.credStoredText") }] }}
+            className="min-h-0 text-[13px]" labelClassName="font-normal text-muted-foreground" /><span /><span />
         </div>
         {credentials.map((_, index) => <CredentialRow key={credentials[index]?.ClientKey ?? index} variantIndex={variantIndex} index={index} readOnly={readOnly} onRemove={() => remove(index)} />)}
       </div>}
@@ -176,7 +178,7 @@ function CredentialRow({ variantIndex, index, readOnly, onRemove }: { variantInd
   const stored = credential.Secret && credential.HasValue && credential.Value === ""
   const lockTip = readOnly ? t("ed.c.env.secretReadOnly") : stored ? t("ed.c.env.secretLocked") : credential.Secret ? t("ed.c.def.secretOn") : t("ed.c.def.secretOff")
   const valueProps = fieldProps(`${row}.Value`, valueError)
-  return <div role="group" aria-label={t("ed.c.def.credentialN", { n })} data-credential-row className="group grid min-w-0 grid-cols-1 items-start gap-2 rounded-md border border-border p-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,1fr)_36px_36px]">
+  return <div role="group" aria-label={t("ed.c.def.credentialN", { n })} data-credential-row className="group grid min-w-0 grid-cols-1 items-start gap-2 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,9rem)_minmax(0,1fr)_36px_36px]">
     <div className="min-w-0">
       <Controller control={control} name={`${row}.Device`} render={({ field }) => <SelectMenu {...fieldProps(`${row}.Device`, deviceError)} ariaLabel={t("ed.c.def.deviceN", { n })}
         value={field.value ?? ""} options={deviceOptions} disabled={readOnly} placeholder={t("ed.c.def.device")} className="w-full"
@@ -202,7 +204,7 @@ function CredentialRow({ variantIndex, index, readOnly, onRemove }: { variantInd
     <Controller control={control} name={`${row}.Secret`} render={({ field }) => <HoverTooltip text={lockTip}>
       <button type="button" aria-label={t("ed.c.def.secretN", { n })} aria-pressed={Boolean(field.value)} aria-disabled={readOnly || stored || undefined}
         onClick={() => { if (!readOnly && !stored) field.onChange(!field.value) }}
-        className="inline-flex h-9 w-9 items-center justify-center justify-self-center rounded-md text-muted-foreground hover:bg-[var(--ib-hover)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-pressed:text-primary pointer-coarse:h-11 pointer-coarse:w-11">
+        className="inline-flex h-9 w-9 items-center justify-center justify-self-center rounded-md border border-border bg-card text-muted-foreground hover:bg-[var(--ib-hover)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-pressed:text-primary pointer-coarse:h-11 pointer-coarse:w-11">
         {field.value ? <LockKeyhole aria-hidden="true" className="h-4 w-4" /> : <LockKeyholeOpen aria-hidden="true" className="h-4 w-4" />}
       </button>
     </HoverTooltip>} />
@@ -232,7 +234,7 @@ function OpponentRow({ variantIndex, index, opponent, opponents, topology, readO
     ...(opponent.Seat && !seatCandidates(topology).some((device) => device.Name === opponent.Seat) ? [{ value: opponent.Seat, label: opponent.Seat }] : [])]
   const props = fieldProps(path, error)
   const label = t("ed.c.def.opponentN", { n: index + 1, role: t(`ed.c.def.opponentRole.${opponent.Role}`) })
-  return <li data-opponent-row={index} className="grid min-w-0 grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
+  return <li data-opponent-row={index} className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
     <div className="min-w-0 space-y-1">
       <p className="font-medium">{label}</p>
       <p className="text-sm text-muted-foreground">{[

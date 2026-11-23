@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { useState } from "react"
 import { fireEvent, render, screen, within } from "@testing-library/react"
 
 vi.mock("@/i18n/t", () => ({ t: (key: string, vars?: Record<string, string | number>) => vars ? `${key} ${Object.values(vars).join(" ")}` : key }))
@@ -51,6 +52,61 @@ describe("the Ports section of the device dialog", () => {
     expect(within(row).getByLabelText(/ed.c.port.path/)).toHaveAttribute("placeholder", "/dev/ttyCON0")
     fireEvent.click(within(row).getByRole("button", { name: "ed.c.port.copyPath /dev/ttyCON0" }))
     expect(writeText).toHaveBeenCalledWith("/dev/ttyCON0")
+  })
+
+  it("a rename onto a taken name moves nothing and says so beside the field; a later valid name renames from the starting one", async () => {
+    const draft = lab()
+    draft.Variants[0].Topology.Devices[1].SerialPorts.push({ Name: "serial1", Path: "" })
+    renderPorts(1, draft)
+    const input = within(screen.getByRole("group", { name: "ed.c.port.serialN serial0" })).getByLabelText(/ed.c.port.name/)
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: "serial1" } })
+    fireEvent.blur(input)
+    expect(variant().Topology.Connections[1].Endpoints[0].Interface).toBe("serial0")
+    fireEvent.click(screen.getByRole("button", { name: "validate-all" }))
+    expect((await screen.findAllByText("ed.c.port.val.nameTaken")).length).toBeGreaterThan(0)
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: "serial7" } })
+    fireEvent.blur(input)
+    expect(variant().Topology.Connections[1].Endpoints[0].Interface).toBe("serial7")
+  })
+
+  it("a rename still in the field is applied when the section closes (Done, Esc, the cross)", () => {
+    function Toggle() {
+      const [open, setOpen] = useState(true)
+      return <>{open && <PortsSection variantIndex={0} deviceIndex={1} disabled={false} />}<button type="button" onClick={() => setOpen(false)}>close-section</button></>
+    }
+    render(<FormHarness draft={lab()} validate><Toggle /><Values path="Variants.0" /></FormHarness>)
+    const input = within(screen.getByRole("group", { name: "ed.c.port.serialN serial0" })).getByLabelText(/ed.c.port.name/)
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: "serial3" } })
+    fireEvent.click(screen.getByRole("button", { name: "close-section" }))
+    expect(variant().Topology.Connections[1].Endpoints[0].Interface).toBe("serial3")
+  })
+
+  it("removing a console port that a credential names leaves the credential to be fixed, never «any port»", () => {
+    const draft = lab()
+    draft.Variants[0].Defender = { ...emptyDefender(), Credentials: [{ Device: "router", Port: "console0", User: "admin", Value: "x", Secret: false, HasValue: false }, { Device: "router", Port: "", User: "admin", Value: "y", Secret: false, HasValue: false }] }
+    renderPorts(0, draft)
+    fireEvent.click(screen.getByRole("button", { name: "ed.c.port.removeN console0" }))
+    expect(screen.getByRole("dialog")).toHaveTextContent("ed.c.port.removeCredentials 1")
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "ed.c.port.remove" }))
+    expect(variant().Defender?.Credentials.map((c) => c.Port)).toEqual(["console0", ""])
+  })
+
+  it("shows a native line the platform set (vm-serial) read-only and keeps it", () => {
+    const draft = lab()
+    draft.Variants[0].Topology.Devices[0].ConsolePorts = [{ Name: "console0", Mode: "vm-serial", Command: [], User: "", Port: "" }]
+    renderPorts(0, draft)
+    expect(document.querySelector("[data-platform-mode='vm-serial']")).toHaveTextContent("ed.c.port.mode.vm-serial")
+    expect(screen.queryByRole("button", { name: "ed.c.port.mode" })).not.toBeInTheDocument()
+  })
+
+  it("the section headers carry no help icon: only the fields do", () => {
+    renderPorts(0)
+    for (const id of ["console-ports", "serial-ports"]) expect(document.querySelector(`#${id} h4`)?.querySelector("button")).toBeNull()
+    expect(document.getElementById("console-ports-description")).toHaveTextContent("ed.c.desc.consolePorts")
   })
 
   it("renaming a port takes its cable along, once the field is left", () => {
@@ -120,6 +176,17 @@ describe("the Defense view", () => {
     expect(items[1].startsWith("pc")).toBe(true)
     fireEvent.click(screen.getByRole("menuitemradio", { name: /^pc/ }))
     expect(variant().Defender?.Seat).toBe("pc")
+  })
+
+  it("ties an off-limits error to the menu button (aria-invalid, aria-describedby)", async () => {
+    const draft = lab()
+    draft.Variants[0].Defender = { ...emptyDefender(), Seat: "pc", OffLimits: ["router"] }
+    renderDefense(draft)
+    fireEvent.click(screen.getByRole("button", { name: "validate-all" }))
+    const error = await screen.findByText(/ed.c.def.val.offLimitsCabled/)
+    const button = screen.getByRole("button", { name: "ed.c.def.offLimits" })
+    expect(button).toHaveAttribute("aria-invalid", "true")
+    expect(button.getAttribute("aria-describedby")).toContain(error.closest("p")!.id)
   })
 
   it("the off-limits menu has checkboxes and cannot forbid a device cabled to the seat; empty is the default", () => {

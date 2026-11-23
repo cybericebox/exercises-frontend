@@ -71,7 +71,7 @@ export function InitSection({ variantIndex, deviceIndex, disabled, requestVariab
       onDrop={(event) => { if (disabled || !hasFiles(event)) return; event.preventDefault(); setDragging(false); void addDropped(event.dataTransfer.files) }}
       className={cn("min-w-0 rounded-md", dragging && "outline-2 outline-dashed outline-offset-4 outline-primary")}>
       <Block title={t("ed.c.init.files")} count={fields.length} id="init-files"
-        help={{ intro: [t("ed.c.h.files1"), t("ed.c.h.files2")], items: [{ term: t("ed.c.init.limits"), text: t("ed.c.init.limitsText", { file: formatBytes(MAX_BOOTSTRAP_FILE_BYTES), device: formatBytes(MAX_BOOTSTRAP_DEVICE_BYTES) }) }] }}>
+        description={t("ed.c.desc.files", { file: formatBytes(MAX_BOOTSTRAP_FILE_BYTES), device: formatBytes(MAX_BOOTSTRAP_DEVICE_BYTES) })}>
         <FieldError path={`${base}.Files`} />
         {dropError && <p role="alert" className="text-xs font-medium text-destructive">{dropError}</p>}
         {total > MAX_BOOTSTRAP_DEVICE_BYTES && <p role="alert" className="text-xs font-medium text-destructive">{t("ed.c.init.deviceTooBig", { max: formatBytes(MAX_BOOTSTRAP_DEVICE_BYTES) })}</p>}
@@ -95,7 +95,7 @@ export function InitSection({ variantIndex, deviceIndex, disabled, requestVariab
       </Block>
     </div>
     <div className="border-t border-border pt-5"><Block title={t("ed.c.init.script")} id="init-script" count={lineCount > 0 ? t(pluralKey("ed.c.init.lines", lineCount), { count: lineCount }) : undefined}
-      help={{ intro: t("ed.c.h.script"), items: [{ term: t("ed.c.h.scriptOnly"), text: t("ed.c.h.scriptOnlyText") }] }}>
+      description={t("ed.c.desc.script")}>
       <Controller control={control} name={`${base}.Script`} render={({ field }) => {
         const props = fieldProps(`${base}.Script`, scriptError)
         return <RefField {...props} variantIndex={variantIndex} value={field.value} onValueChange={field.onChange} multiline rows={6} disabled={disabled} aria-label={t("ed.c.init.script")}

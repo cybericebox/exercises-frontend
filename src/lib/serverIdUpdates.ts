@@ -14,6 +14,8 @@ export type CapturedDraftIds = {
   hintIds: string[][][]
   /** Secret values typed in the editor and sent with this save (by variant position, device id and variable name). */
   secrets: { variant: number; deviceId: string; name: string; value: string }[]
+  /** The credentials of the defender block per variant, in the order sent: their client keys and the secret value typed in each. */
+  credentials?: { key: string; secret: string }[][]
 }
 
 /** Snapshot the current ID sequence right before sending — compare it against the LIVE form once the response lands. */
@@ -25,6 +27,7 @@ export function capturedDraftIds(form: DraftFormValues): CapturedDraftIds {
     secrets: form.Variants.flatMap((variant, vi) => variant.Topology.Devices.flatMap((device) => device.Bootstrap.Env
       .filter((entry) => entry.Secret && entry.Value !== "")
       .map((entry) => ({ variant: vi, deviceId: device.ID, name: entry.Name, value: entry.Value })))),
+    credentials: form.Variants.map((variant) => (variant.Defender?.Credentials ?? []).map((row) => ({ key: row.ClientKey ?? "", secret: row.Secret ? row.Value : "" }))),
   }
 }
 
@@ -32,6 +35,9 @@ export type SecretUpdate =
   | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.Value`; value: string }
   | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.HasValue`; value: boolean }
   | { path: `Variants.${number}.Topology.Devices.${number}.Bootstrap.Env.${number}.ValueGroup`; value: number | undefined }
+  | { path: `Variants.${number}.Defender.Credentials.${number}.Origin`; value: number }
+  | { path: `Variants.${number}.Defender.Credentials.${number}.Value`; value: string }
+  | { path: `Variants.${number}.Defender.Credentials.${number}.HasValue`; value: boolean }
 
 /**
  * After an acknowledged save the secrets take their state from the server's answer:
@@ -59,6 +65,23 @@ export function savedSecretUpdates(sent: CapturedDraftIds, saved: Version, form:
     }
     if (group !== live.ValueGroup) updates.push({ path: `${base}.ValueGroup`, value: group })
   })))
+  // The credentials of the defender block: the server keeps them in the order sent, so each row's place in that answer is its
+  // identity for the browser buffer (Origin), and a secret sent from the editor is now stored (blank = keep). Only while the
+  // live rows are still exactly the rows that were sent (by client key, in order).
+  form.Variants.forEach((variant, vi) => {
+    const rows = variant.Defender?.Credentials ?? []
+    const sentRows = sent.credentials?.[vi] ?? []
+    if (rows.length !== sentRows.length || rows.some((row, ci) => (row.ClientKey ?? "") !== sentRows[ci].key)) return
+    const stored = saved.Variants[vi]?.Defender?.Credentials ?? []
+    if (stored.length !== rows.length) return
+    rows.forEach((row, ci) => {
+      const base = `Variants.${vi}.Defender.Credentials.${ci}` as const
+      if (row.Origin !== ci) updates.push({ path: `${base}.Origin`, value: ci })
+      if (row.Secret && stored[ci].Secret && sentRows[ci].secret !== "" && row.Value === sentRows[ci].secret) {
+        updates.push({ path: `${base}.Value`, value: "" }, { path: `${base}.HasValue`, value: true })
+      }
+    })
+  })
   return updates
 }
 
