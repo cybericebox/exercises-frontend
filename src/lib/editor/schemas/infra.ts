@@ -374,9 +374,11 @@ const deviceSchema = z
     KernelLog: z.boolean().optional(),
   })
   .superRefine((d, ctx) => {
-    // The kernel log goes on a console port that runs a program; a device whose profile is not microvm never sends the flag.
-    if (d.Type === "node" && d.Profile === "microvm" && d.KernelLog && !kernelLogPort(d)) {
-      ctx.addIssue({ code: "custom", path: ["KernelLog"], message: t("ed.c.port.val.kernelLogNoPort") })
+    // The kernel log: a microVM only, on a console port that runs a program. The flag is kept (and saved) whatever the profile
+    // and the ports; its error sits beside the switch until the author fixes it.
+    if (d.Type === "node" && d.KernelLog) {
+      if (d.Profile !== "microvm") ctx.addIssue({ code: "custom", path: ["KernelLog"], message: t("ed.c.port.val.kernelLogProfile") })
+      else if (!kernelLogPort(d)) ctx.addIssue({ code: "custom", path: ["KernelLog"], message: t("ed.c.port.val.kernelLogNoPort") })
     }
     const node = d.Type === "node"
     const gateway = isGatewayType(d.Type)
@@ -752,8 +754,8 @@ function deviceToDTO(d: DeviceFormValues): DeviceDTO {
     ...(d.WaitReadyFile ? { WaitReadyFile: true } : {}),
     // Absent when the device has none.
     ...portsToDTO(d),
-    // microvm only, and only with a console port to carry it (the form shows an error otherwise).
-    ...(kernelLogPort(d) ? { KernelLog: true } : {}),
+    // The author's flag goes out as it is (a node only): a flag no port can carry is saved too, and the form shows its error.
+    ...(d.KernelLog ? { KernelLog: true } : {}),
   }
 }
 

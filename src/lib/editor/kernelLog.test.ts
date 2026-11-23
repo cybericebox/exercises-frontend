@@ -29,15 +29,17 @@ describe("the kernel log of a microVM device", () => {
     expect(kernelLogPort({ Profile: "container", KernelLog: true, ConsolePorts: [port("console0")] })).toBe("")
   })
 
-  it("needs a console port that is not native, said beside the field", () => {
+  it("needs a microVM and a console port that is not native, said beside the field", () => {
     expect(issues(draft({ Profile: "microvm", KernelLog: true, ConsolePorts: [port("console0")] }))).toEqual([])
     expect(issues(draft({ Profile: "microvm", KernelLog: true, ConsolePorts: [port("console0", "stdio")] })))
       .toContain("Variants.0.Topology.Devices.0.KernelLog: ed.c.port.val.kernelLogNoPort")
     expect(issues(draft({ Profile: "microvm", KernelLog: true, ConsolePorts: [] })))
       .toContain("Variants.0.Topology.Devices.0.KernelLog: ed.c.port.val.kernelLogNoPort")
+    expect(issues(draft({ Profile: "container", KernelLog: true, ConsolePorts: [port("console0")] })))
+      .toContain("Variants.0.Topology.Devices.0.KernelLog: ed.c.port.val.kernelLogProfile")
   })
 
-  it("survives a save: wire -> form -> wire keeps it on a microVM and never sends it otherwise", () => {
+  it("survives a save: wire -> form -> wire keeps it, and a flag no port can carry is still saved (its error shows)", () => {
     const wire: TopologyDTO = { Devices: [
       { ID: "a", Name: "r1", Type: "node", Profile: "microvm", ConsolePorts: [{ Name: "console0" }], KernelLog: true },
       { ID: "b", Name: "r2", Type: "node", Profile: "microvm", ConsolePorts: [{ Name: "console0" }] },
@@ -49,11 +51,14 @@ describe("the kernel log of a microVM device", () => {
     expect(out[0].KernelLog).toBe(true)
     expect(out[1]).not.toHaveProperty("KernelLog")
 
-    // A device whose profile is no longer microvm keeps the value in the form (it comes back with the profile) but never sends it.
+    // The flag is the author's: a profile or port change never drops it; the error stays until the author fixes it.
+    form.Devices[0].ConsolePorts = []
+    expect(topologyToDTO(form).Devices?.[0]?.KernelLog).toBe(true)
     form.Devices[0].Profile = "container"
-    expect(topologyToDTO(form).Devices?.[0]).not.toHaveProperty("KernelLog")
-    expect(issues({ ...draft({}), Variants: [{ ...draft({}).Variants[0], Topology: { ...form, Devices: [{ ...form.Devices[0], Interfaces: [] }] } }] })
-      .filter((issue) => issue.includes("KernelLog"))).toEqual([])
+    expect(topologyToDTO(form).Devices?.[0]?.KernelLog).toBe(true)
+    const withForm = draft({})
+    withForm.Variants[0].Topology.Devices = [form.Devices[0]]
+    expect(issues(withForm)).toContain("Variants.0.Topology.Devices.0.KernelLog: ed.c.port.val.kernelLogProfile")
   })
 
   it("a server error on kernel_log sits at the checkbox in the Ports section", () => {

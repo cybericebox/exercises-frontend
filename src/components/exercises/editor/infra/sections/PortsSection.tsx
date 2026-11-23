@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldLabel } from "@/components/ui/field-label"
 import { HoverTooltip } from "@/components/ui/hover-tooltip"
+import { SwitchBlock } from "@/components/ui/switch-block"
 import type { SelectMenuOption } from "@/components/ui/select-menu"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
 import {
@@ -16,7 +17,7 @@ import {
   emptySerialPort, isConsoleConnection, kernelLogPort, nextPortName, renamePortInConnections, serialDevicePath,
 } from "@/lib/editor/consolePorts"
 import { renamePortInDefender } from "@/lib/editor/defender"
-import { FieldError, fieldId, fieldProps, useFieldError } from "../../fieldErrors"
+import { FieldError, fieldId, useFieldError } from "../../fieldErrors"
 import { ConsoleLinesNotice, useConsoleLimits, useKernelLogAvailable } from "../../consoleLines"
 import { Block, InputField, SelectField, devicePath } from "../fields"
 import { ListTextField } from "./ServiceSection"
@@ -164,8 +165,8 @@ export function PortsSection({ variantIndex, deviceIndex, disabled }: SectionPro
             <p data-port-cable className="text-xs text-muted-foreground @md:col-span-4">{cable ? t("ed.c.port.cabledTo", { end: cable }) : t("ed.c.port.notCabled")}</p>
           </div>
         })}</div>}
-      {device.Profile === "microvm" && allowed && <KernelLogField base={base} path={`${dp}.KernelLog`} disabled={disabled}
-        on={Boolean(device.KernelLog)} port={kernelLogPort({ ...device, KernelLog: true })} />}
+      {((device.Profile === "microvm" && allowed) || device.KernelLog) && <KernelLogField base={base} path={`${dp}.KernelLog`} disabled={disabled}
+        on={Boolean(device.KernelLog)} port={kernelLogPort({ ...device, Profile: "microvm", KernelLog: true })} microvm={device.Profile === "microvm"} />}
     </Block>
     <Block id="serial-ports" title={t("ed.c.port.serialTitle")} count={serialPorts.length} description={t("ed.c.desc.serialPorts")}
       actions={addButton("SerialPorts", serialFull, limits.serialPorts)}>
@@ -200,25 +201,25 @@ export function PortsSection({ variantIndex, deviceIndex, disabled }: SectionPro
 }
 
 /**
- * «Kernel log» (a microVM device only): the guest kernel's log on the first console port that runs a program, beside that program.
- * Without such a port the checkbox is disabled and says why; while it is on it stays enabled, so it can be switched off.
- * It writes the form value at once: the draft's save queue saves it like any other field.
+ * «Kernel log» (a microVM device): the guest kernel's log on the first console port that runs a program, beside that program.
+ * Without such a port the switch is disabled and says why. While the flag is on it stays visible and enabled, whatever the
+ * profile and the ports, so the author can switch it off; the error of a flag no port can carry sits beside it. It writes the
+ * form value at once: the draft's save queue saves it like any other field.
  */
-function KernelLogField({ base, path, on, port, disabled }: { base: string; path: string; on: boolean; port: string; disabled: boolean }) {
+function KernelLogField({ base, path, on, port, microvm, disabled }: { base: string; path: string; on: boolean; port: string; microvm: boolean; disabled: boolean }) {
   const { setValue } = useFormContext<DraftFormValues>()
   const error = useFieldError(path)
   const available = useKernelLogAvailable()
-  const blocked = !port && !on
-  const noteId = `${fieldId(path)}-note`
-  const note = !port ? t("ed.c.port.kernelLogNoPort") : on ? t("ed.c.port.kernelLogOn", { port }) : ""
-  const props = fieldProps(path, error, note ? noteId : undefined)
+  const id = fieldId(path)
+  const noteId = `${id}-note`
+  const errorId = `${id}-error`
+  const note = on && microvm && port ? t("ed.c.port.kernelLogOn", { port }) : ""
+  const describedBy = [note ? noteId : undefined, error ? errorId : undefined].filter(Boolean).join(" ") || undefined
   return <div data-kernel-log className="mt-3 space-y-1 border-t border-border pt-3">
-    <div className="flex min-h-9 items-center gap-2 pointer-coarse:min-h-11">
-      <input type="checkbox" {...props} checked={on} disabled={disabled || blocked}
-        className="h-4 w-4 shrink-0 cursor-pointer rounded-[4px] border border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        onChange={(event) => setValue(`${base}.KernelLog` as never, event.target.checked as never, { shouldDirty: true, shouldValidate: true })} />
-      <FieldLabel text={t("ed.c.port.kernelLog")} htmlFor={props.id} help={{ intro: [t("ed.c.h.kernelLog1"), t("ed.c.h.kernelLog2")], default: t("ed.c.access.off") }} />
-    </div>
+    <SwitchBlock id={id} label={t("ed.c.port.kernelLog")} checked={on} disabled={disabled}
+      unavailable={!on && !port ? t("ed.c.port.kernelLogNoPort") : undefined} invalid={Boolean(error)} describedBy={describedBy}
+      onCheckedChange={(next) => setValue(`${base}.KernelLog` as never, next as never, { shouldDirty: true, shouldValidate: true })}
+      help={{ intro: [t("ed.c.h.kernelLog1"), t("ed.c.h.kernelLog2")], default: t("ed.c.h.kernelLogDefault") }} />
     {note && <p id={noteId} className="text-xs text-muted-foreground">{note}</p>}
     {available === false && <p role="note" className="text-xs text-muted-foreground">{t("ed.c.port.kernelLogUnavailable")}</p>}
     <FieldError path={path} />

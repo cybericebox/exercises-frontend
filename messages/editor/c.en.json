@@ -707,5 +707,7 @@
   "ed.c.port.kernelLogUnavailable": "The kernel log can be switched on and published, but a test lab with it cannot be deployed now: no connected laboratory supports it yet.",
   "ed.c.port.val.kernelLogNoPort": "The kernel log needs a console port with a program",
   "ed.c.h.kernelLog1": "The guest kernel's messages of the microVM on the console line, like on the console of a real device: everything since boot when a client attaches, then new ones.",
-  "ed.c.h.kernelLog2": "The microvm profile only; shown on the first console port with a program, beside it (the login by default)."
+  "ed.c.h.kernelLog2": "The microvm profile only; shown on the first console port with a program, beside it (the login by default).",
+  "ed.c.h.kernelLogDefault": "Off by default. A microVM only.",
+  "ed.c.port.val.kernelLogProfile": "Only a device with the microvm profile has the kernel log: switch it off or change the profile"
 }
