@@ -13,7 +13,6 @@ import { gatewaysOverLimit } from "@/lib/editor/schemas/infra"
 import { useMaxLabGateways } from "../gatewayLimit"
 import { FieldError, fieldProps } from "../fieldErrors"
 import { topologyIconFor } from "@/lib/topologyIcons"
-import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
 import { TopologyGlyph } from "../../TopologyGlyph"
 import { RowActions } from "../kit"
@@ -57,15 +56,18 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
     })
   }, [topology, taskList, maxGateways])
 
-  return <Table label={t("ed.c.devices.title")} className="min-w-[61.25rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
+  // Column headers are not fields: what the columns mean is said once, in one line above the table.
+  return <>
+  <p className="mb-2 text-sm text-muted-foreground">{t("ed.c.desc.devices")}</p>
+  <Table label={t("ed.c.devices.title")} className="min-w-[61.25rem] table-fixed" regionClassName="min-h-0 rounded-md border border-border">
     <thead>
       <tr className={TABLE_HEAD_ROW}>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[19%]")}><TableHeadHelp text={t("ed.c.devices.device")} help={{ intro: t("ed.c.th.device") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[23%]")}><TableHeadHelp text={t("ed.c.devices.type")} help={{ intro: t("ed.c.th.type"), items: [{ term: t("ed.c.th.typeNode"), text: t("ed.c.th.typeNodeText") }, { term: t("ed.c.th.typeNet"), text: t("ed.c.th.typeNetText") }] }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[17%]")}><TableHeadHelp text={t("ed.c.devices.image")} help={{ intro: t("ed.c.th.image") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[12%]")}><TableHeadHelp text={t("ed.c.devices.links")} help={{ intro: t("ed.c.th.links") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}><TableHeadHelp text={t("ed.c.devices.tasks")} help={{ intro: t("ed.c.th.tasks") }} /></th>
-        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}><TableHeadHelp text={t("ed.c.devices.access")} help={{ intro: t("ed.c.th.access"), items: [{ term: t("ed.c.th.accessWeb"), text: t("ed.c.th.accessWebText") }, { term: t("ed.c.th.accessTerminal"), text: t("ed.c.th.accessTerminalText") }] }} /></th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[19%]")}>{t("ed.c.devices.device")}</th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[23%]")}>{t("ed.c.devices.type")}</th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[17%]")}>{t("ed.c.devices.image")}</th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[12%]")}>{t("ed.c.devices.links")}</th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}>{t("ed.c.devices.tasks")}</th>
+        <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[13%]")}>{t("ed.c.devices.access")}</th>
         <th scope="col" className={cn(TABLE_HEAD_CELL, "w-[6.5rem] px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
       </tr>
     </thead>
@@ -93,4 +95,5 @@ export function DevicesTable({ variantIndex, readOnly, selectedKey, onShow, onCo
         ]} /></td>
       </tr>)}</tbody>}
   </Table>
+  </>
 }

@@ -15,7 +15,6 @@ import { MAX_VARIABLES, TASK_KEY_RE } from "@/api/exercises/model"
 import { emptyVariable } from "@/lib/editor/schemas/infra"
 import { parseEnvFile, planVariableImport, type VariableImportPlan } from "@/lib/envImport"
 import type { DraftFormValues } from "@/lib/exerciseSchemas"
-import { TableHeadHelp } from "./TableHeadHelp"
 import { cn } from "@/utils/cn"
 import { AddButton, FieldError, MaskedInput, MaskedText, RowActions, fieldProps, useFieldError } from "../kit"
 import { InActionsSlot } from "./ActionsSlot"
@@ -108,6 +107,8 @@ export function VariablesTable({ variantIndex, disabled, onOpenUse }: { variantI
         <AddButton label={t("ed.c.vars.add")} onClick={add} blockedReason={full ? t("ed.c.val.variablesMax", { max: MAX_VARIABLES }) : null} />
       </>}
     </InActionsSlot>
+    {/* Column headers are not fields: what the columns mean is said once, in one line above the table. */}
+    <p className="text-sm text-muted-foreground">{t("ed.c.desc.variables")}</p>
     {report && <p role="status" className="text-xs text-muted-foreground">{report}</p>}
     <FieldError path={base} />
     {fields.length === 0
@@ -117,10 +118,10 @@ export function VariablesTable({ variantIndex, disabled, onOpenUse }: { variantI
         <thead>
           <tr className={TABLE_HEAD_ROW}>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "px-0")}><span className="sr-only">{t("ed.ui.expand")}</span></th>
-            <th scope="col" className={TABLE_HEAD_CELL}><TableHeadHelp text={t("ed.c.vars.name")} help={{ intro: t("ed.c.th.varName") }} /></th>
-            <th scope="col" className={TABLE_HEAD_CELL}><TableHeadHelp text={t("ed.c.vars.kind")} help={{ intro: t("ed.c.th.kind"), items: [{ term: t("ed.c.th.kindConst"), text: t("ed.c.th.kindConstText") }, { term: t("ed.c.th.kindRandom"), text: t("ed.c.th.kindRandomText") }] }} /></th>
-            <th scope="col" className={TABLE_HEAD_CELL}><TableHeadHelp text={t("ed.c.vars.valueOrTemplate")} help={{ intro: t("ed.c.th.value"), items: [{ term: t("ed.c.th.valueRandom"), text: t("ed.c.th.valueRandomText") }] }} /></th>
-            <th scope="col" className={TABLE_HEAD_CELL}><TableHeadHelp text={t("ed.c.vars.usedIn")} help={{ intro: t("ed.c.th.usedIn") }} /></th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("ed.c.vars.name")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("ed.c.vars.kind")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("ed.c.vars.valueOrTemplate")}</th>
+            <th scope="col" className={TABLE_HEAD_CELL}>{t("ed.c.vars.usedIn")}</th>
             <th scope="col" className={cn(TABLE_HEAD_CELL, "px-1")}><span className="sr-only">{t("admin.exTopo.overview.actions")}</span></th>
           </tr>
         </thead>

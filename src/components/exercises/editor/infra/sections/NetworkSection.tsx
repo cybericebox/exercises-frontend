@@ -5,7 +5,6 @@ import { Controller, get, useFieldArray, useFormContext, useWatch, type Control 
 import { Plus, Trash2 } from "lucide-react"
 import { t } from "@/i18n/t"
 import { Button } from "@/components/ui/button"
-import { TableHeadHelp } from "../TableHeadHelp"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldLabel } from "@/components/ui/field-label"
@@ -108,17 +107,19 @@ export function NetworkSection({ variantIndex, deviceIndex, disabled }: SectionP
   }
 
   return <div className="space-y-3">
+    {/* Column headers are not fields: the columns are said in one line, and each field of an open interface has its own help. */}
+    <p className="text-sm text-muted-foreground">{t("ed.c.desc.interfaces")}</p>
     {fields.length === 0
       ? <EmptyState compact message={t("ed.c.net.empty")} />
       : <div role="group" aria-label={t("ed.c.net.title")} className="min-w-0 rounded-lg border border-border bg-background">
-        <div className="flex bg-background text-[13px] font-semibold text-muted-foreground @max-lg:hidden">
+        <div data-table-head className="flex bg-background text-[13px] font-semibold text-muted-foreground @max-lg:hidden">
           <span className="w-8 shrink-0" />
           <div className={cn(GRID, "flex-1 py-2")}>
-            <TableHeadHelp text={t("ed.c.net.colName")} help={{ intro: [t("ed.c.h.ifaceName1"), t("ed.c.h.ifaceName2")] }} />
-            <TableHeadHelp text={t("ed.c.net.colMode")} help={{ intro: t("ed.c.h.ifMode"), items: IP_TYPES.map((type) => ({ term: t(type.label), text: t(MODE_HELP[type.value]) })) }} />
-            <TableHeadHelp text={t("ed.c.net.colGateway")} help={{ intro: [t("ed.c.h.gateway1"), t("ed.c.h.gateway2")], default: t("ed.c.h.optional") }} />
-            <TableHeadHelp text={t("ed.c.net.colRoutes")} help={{ intro: t("ed.c.h.routesCount") }} />
-            <TableHeadHelp text={t("ed.c.net.colLinks")} help={{ intro: [t("ed.c.h.links1"), t("ed.c.h.links2")] }} />
+            <span>{t("ed.c.net.colName")}</span>
+            <span>{t("ed.c.net.colMode")}</span>
+            <span>{t("ed.c.net.colGateway")}</span>
+            <span>{t("ed.c.net.colRoutes")}</span>
+            <span>{t("ed.c.net.colLinks")}</span>
           </div>
           <span className="w-10 shrink-0" />
         </div>
