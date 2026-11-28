@@ -6,8 +6,8 @@
  * contract (401 → sign-in redirect, 503 → outage state, envelope unwrap, ApiError with the FullCode).
  */
 import { parseRetryAfterSeconds } from "@/api/retry"
-import { ApiError, redirectRequiredAuth } from "@/api/client"
-import { apiOrigin } from "@/lib/origins"
+import { ApiError, redirectRequiredAuth, redirectToSecondFactor } from "@/api/client"
+import { apiOrigin, SECOND_FACTOR_ENROLMENT_REQUIRED } from "@/lib/origins"
 import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 
 export type XhrOptions = {
@@ -59,6 +59,10 @@ export function sendXhr<T>(method: string, path: string, options: XhrOptions = {
       const envelope = parsed && typeof parsed === "object"
         ? parsed as { Status?: { Code?: number; Message?: string }; Data?: unknown }
         : undefined
+      if (request.status === 403 && envelope?.Status?.Code === SECOND_FACTOR_ENROLMENT_REQUIRED) {
+        redirectToSecondFactor()
+        return
+      }
       if (request.status < 200 || request.status >= 300) {
         reject(new ApiError(request.status, parsed, envelope?.Status?.Message, request.getResponseHeader("X-Sign-In-URL") ?? undefined, envelope?.Status?.Code, parseRetryAfterSeconds(request.getResponseHeader("Retry-After")), request.getResponseHeader("X-Request-ID") ?? undefined))
         return

@@ -4,7 +4,7 @@
 // and the browser stores/sends the host-scoped __Host-session cookie. No
 // silent-auth bootstrap — a plain credentialed fetch is authoritative.
 
-import { apiOrigin, idOrigin } from "@/lib/origins"
+import { apiOrigin, idOrigin, SECOND_FACTOR_ENROLMENT_REQUIRED, secondFactorURL } from "@/lib/origins"
 import { isNetworkOutage, isUnreachableResponse, reportServiceUnavailable } from "@/lib/serviceStatus"
 import { fetchWithOverloadRetry, parseRetryAfterSeconds } from "./retry"
 import { COOKIE_RETURN_TO } from "@/lib/storageKeys"
@@ -80,6 +80,15 @@ function redirectToSignInPage(signInUrl: string | null): void {
   window.location.replace(signInUrl || `${idOrigin}/sign-in/`)
 }
 
+// A super admin without a second factor is held at enrolment: the backend answers 403 with
+// SECOND_FACTOR_ENROLMENT_REQUIRED. The browser goes to the ID second-factor page and comes
+// back to the current page afterwards. replace() keeps the held page out of the history.
+export function redirectToSecondFactor(): void {
+  if (typeof window === "undefined") return
+  const target = secondFactorURL(portless(window.location.href))
+  if (target) window.location.replace(target)
+}
+
 /** Shared by JSON requests and the progress-reporting multipart upload. */
 export function redirectRequiredAuth(signInUrl: string | null): void {
   writeReturnToCookie()
@@ -120,6 +129,11 @@ async function finishRequest<T>(res: Response, opts: ApiOptions): Promise<T> {
     parsed && typeof parsed === "object"
       ? (parsed as { Status?: { Code?: number; Message?: string }; Data?: unknown })
       : undefined
+
+  if (res.status === 403 && envelope?.Status?.Code === SECOND_FACTOR_ENROLMENT_REQUIRED) {
+    redirectToSecondFactor()
+    return new Promise<never>(() => {})
+  }
 
   if (!res.ok) {
     throw new ApiError(

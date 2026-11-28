@@ -29,3 +29,15 @@ export function signInURL(returnTo: string, advertised?: string): string {
   url.searchParams.set("return_to", back)
   return url.toString()
 }
+
+/** Backend SECOND_FACTOR_ENROLMENT_REQUIRED: a super admin without a second factor is held at enrolment. */
+export const SECOND_FACTOR_ENROLMENT_REQUIRED = 63812
+
+/**
+ * secondFactorURL — the ID app's second-factor page with a return_to back here.
+ * Returns "" when the address already is on the ID site, so two redirects never bounce.
+ */
+export function secondFactorURL(returnTo: string, id: string = idOrigin): string {
+  if (!id || returnTo === id || returnTo.startsWith(`${id}/`) || returnTo.startsWith(`${id}?`)) return ""
+  return `${id}/second-factor/?return_to=${encodeURIComponent(returnTo)}`
+}
